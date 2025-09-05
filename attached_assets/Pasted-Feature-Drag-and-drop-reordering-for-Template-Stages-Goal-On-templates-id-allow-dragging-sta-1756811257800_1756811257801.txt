@@ -1,0 +1,145 @@
+Feature: Drag and drop reordering for Template Stages
+
+Goal
+- On /templates/[id], allow dragging stages to change their order.
+- Persist new order to template_stages.order_index (1..N).
+- Use optimistic update. Roll back on error.
+
+API
+1) PATCH /api/templates/:id/stages/reorder
+   Body: { stageIdsInOrder: string[] }  // array of stage_id in the new order top→bottom
+   Behavior:
+   - Validate all stage_ids belong to template_id.
+   - Update order_index to 1..N inside a transaction.
+   - Return 200 with { ok: true }.
+
+   SQL (single transaction):
+   BEGIN;
+     WITH data AS (
+       SELECT unnest($2::uuid[]) AS stage_id, generate_series(1, array_length($2::uuid[], 1)) AS idx
+     )
+     UPDATE template_stages ts
+     SET order_index = d.idx,
+         updated_at = now()
+     FROM data d
+     WHERE ts.template_id = $1
+       AND ts.stage_id = d.stage_id;
+   COMMIT;
+
+   Validate length:
+   - If the provided list length does not match COUNT(*) of active stages for this template, return 400.
+
+Frontend
+- Use @dnd-kit/sortable (preferred) or react-beautiful-dnd.
+
+Install:
+  npm i @dnd-kit/core @dnd-kit/sortable @dnd-kit/modifiers
+
+Component: TemplateStagesList.tsx
+- Props: templateId: string; stages: { stage_id: string; name: string; order_index: number }[]
+- Render each stage as a Sortable item.
+- OnDragEnd: compute new order. Send PATCH to /api/templates/:id/stages/reorder.
+
+Example (minimal):
+
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+
+function Row({ id, name }: { id: string; name: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-3 rounded-lg border p-3 bg-card">
+      <button aria-label="Drag" {...attributes} {...listeners} className="cursor-grab px-1">⋮⋮</button>
+      <span className="font-medium">{name}</span>
+    </div>
+  );
+}
+
+export function TemplateStagesList({ templateId, stages }: {
+  templateId: string;
+  stages: { stage_id: string; name: string; order_index: number }[];
+}) {
+  const qc = useQueryClient();
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const [items, setItems] = React.useState(stages.sort((a,b)=>a.order_index-b.order_index));
+
+  React.useEffect(() => {
+    setItems(stages.sort((a,b)=>a.order_index-b.order_index));
+  }, [stages]);
+
+  const mutate = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      const r = await fetch(`/api/templates/${templateId}/stages/reorder`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stageIdsInOrder: orderedIds }),
+      });
+      if (!r.ok) {
+        const e = await r.json().catch(()=>({}));
+        throw new Error(e?.error || 'Failed to save order');
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['templateStages', templateId] });
+      toast.success('Stage order saved');
+    },
+    onError: (err) => {
+      toast.error((err as Error).message);
+      // rollback by refetch
+      qc.invalidateQueries({ queryKey: ['templateStages', templateId] });
+    },
+  });
+
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIndex = items.findIndex(i => i.stage_id === active.id);
+    const newIndex = items.findIndex(i => i.stage_id === over.id);
+    const next = arrayMove(items, oldIndex, newIndex).map((it, idx) => ({ ...it, order_index: idx + 1 }));
+    setItems(next); // optimistic reorder
+    mutate.mutate(next.map(it => it.stage_id));
+  };
+
+  return (
+    <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+      <SortableContext items={items.map(i => i.stage_id)} strategy={verticalListSortingStrategy}>
+        <div className="flex flex-col gap-2">
+          {items.map(s => <Row key={s.stage_id} id={s.stage_id} name={s.name} />)}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+UI
+- Add this list inside the “Template Stages” card.
+- Keep the numbered badges by using the array index + 1 after items state.
+
+Edge cases
+- Disable drag while a reorder request is pending to avoid race conditions.
+- If there are 0 or 1 stages, disable drag handles.
+- Preserve soft-deleted stages exclusion. Only reorder rows where is_active = true.
+
+Acceptance
+- Dragging a stage updates the visual order immediately.
+- On drop, server persists the new 1..N order.
+- Refreshing the page shows the same order.
+- Errors roll back to server truth and show a toast.

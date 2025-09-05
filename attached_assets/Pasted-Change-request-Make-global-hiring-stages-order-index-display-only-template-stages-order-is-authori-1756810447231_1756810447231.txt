@@ -1,0 +1,67 @@
+Change request: Make global hiring_stages order_index display-only; template_stages order is authoritative
+
+Context
+- Global hiring_stages is a master catalog.
+- Templates define their own stage order in template_stages.order_index.
+- Candidates snapshot template_stages order at expand time and never read live template data afterward.
+
+Goals
+1) Keep hiring_stages.order_index only for admin UI sorting and selectors.
+2) Ensure all business logic uses template_stages.order_index, and candidate snapshot tables.
+3) Add comments, API responses, and guards so no server code accidentally uses global order for candidates or templates.
+
+Database (idempotent)
+-- Ensure columns and add comments that clarify intent
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'hiring_stages' AND column_name = 'order_index'
+  ) THEN
+    ALTER TABLE hiring_stages ADD COLUMN order_index integer NOT NULL DEFAULT 0;
+  END IF;
+END$$;
+
+COMMENT ON COLUMN hiring_stages.order_index
+IS 'Display-only sort for admin lists and selectors. Not used for template or candidate ordering.';
+
+-- Template order is authoritative
+COMMENT ON COLUMN template_stages.order_index
+IS 'Authoritative stage order for this template. Used for candidate snapshot and rendering.';
+
+-- Candidate snapshot table comment (if present)
+COMMENT ON COLUMN candidate_template_stages.order_index
+IS 'Snapshotted stage order captured at template expansion. Used for candidate rendering and progression.';
+
+API
+1) GET /api/hiring-stages
+   - Order by hiring_stages.order_index ASC for display only.
+
+2) GET /api/templates/:id/stages
+   - Order by template_stages.order_index ASC.
+   - Do not include or use hiring_stages.order_index.
+
+3) GET /api/candidates/:id/stages
+   - Return candidate_template_stages ordered by order_index ASC.
+   - Do not include or use hiring_stages.order_index.
+
+4) GET /api/candidates/:id/tasks
+   - Join candidate_template_stages to return stage_order_index.
+   - Do not use hiring_stages.order_index anywhere in this handler.
+
+Server guards
+- Search for any ORDER BY hiring_stages.order_index in template or candidate routes and remove it.
+- Add unit tests that assert:
+  • Template stages sort by template_stages.order_index.
+  • Candidate stages sort by candidate_template_stages.order_index.
+  • hiring_stages.order_index never appears in those SQL queries.
+
+Frontend
+- Settings → Hiring Stages page: sort by hiring_stages.order_index for display and drag to reorder.
+- Template Detail page: stage list and “Tasks by Stage” preview sort only by template_stages.order_index.
+- Candidate Detail page: “Tasks by Stage” uses candidate_template_stages.order_index.
+
+Acceptance
+- Changing hiring_stages.order_index only affects ordering in Settings and stage pickers.
+- Template pages and Candidate pages do not change when global order_index is edited.
+- Tests confirm no API for templates or candidates references hiring_stages.order_index.

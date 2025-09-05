@@ -1,0 +1,63 @@
+Bug: duplicate key on template_stages when re-adding a previously deleted stage
+
+Root cause
+- Deleting a stage sets is_active = false (soft delete).
+- Adding the same stage INSERTs a new row, but a row with the same (template_id, stage_id) already exists → unique violation.
+
+Required changes
+
+A) Keep a single row per (template_id, stage_id). Re-adding should re-activate it.
+
+Backend (Postgres/SQL)
+- Change the create to use UPSERT:
+
+INSERT INTO template_stages (
+  template_id, stage_id, order_index, is_active, created_at, updated_at
+) VALUES ($1, $2, $3, TRUE, now(), now())
+ON CONFLICT (template_id, stage_id)
+DO UPDATE SET
+  is_active   = TRUE,
+  order_index = EXCLUDED.order_index,
+  updated_at  = now();
+
+-- Optional: if you also track deleted_at, clear it:
+--   deleted_at = NULL
+
+B) Ensure the unique index exists on (template_id, stage_id)
+-- (Keep it as a normal unique index; do NOT make it partial.)
+CREATE UNIQUE INDEX IF NOT EXISTS template_stages_template_id_stage_id_key
+  ON template_stages(template_id, stage_id);
+
+C) Update the DELETE/Remove endpoint to soft-delete consistently
+-- When removing a stage from a template:
+UPDATE template_stages
+SET is_active = FALSE,
+    updated_at = now()
+WHERE template_id = $1 AND stage_id = $2;
+
+-- Optionally set deleted_at = now() if you have that column.
+
+D) Reorder after re-activate (optional but recommended)
+-- When re-adding, if no explicit order was provided, place it at the end:
+WITH last AS (
+  SELECT COALESCE(MAX(order_index), 0) AS max_idx
+  FROM template_stages
+  WHERE template_id = $1 AND is_active = TRUE
+)
+INSERT INTO template_stages (template_id, stage_id, order_index, is_active, created_at, updated_at)
+SELECT $1, $2, last.max_idx + 1, TRUE, now(), now() FROM last
+ON CONFLICT (template_id, stage_id)
+DO UPDATE SET
+  is_active   = TRUE,
+  order_index = GREATEST(template_stages.order_index, EXCLUDED.order_index),
+  updated_at  = now();
+
+E) Frontend
+- After adding/removing a stage, invalidate and refetch:
+  - ['templateStages', templateId]
+  - Any dependent lists (e.g., Stage picker in “Add Template Task”).
+
+Acceptance
+- Deleting a stage then adding it again no longer throws a unique constraint error.
+- Re-adding restores the same row (is_active=TRUE) and updates order_index.
+- Only one row per (template_id, stage_id) exists in the table.

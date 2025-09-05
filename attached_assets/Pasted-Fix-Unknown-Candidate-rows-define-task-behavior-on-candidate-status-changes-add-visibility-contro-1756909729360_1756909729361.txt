@@ -1,0 +1,87 @@
+Fix: Unknown Candidate rows; define task behavior on candidate status changes; add visibility controls
+
+Goals
+1) My Tasks should never display “Unknown Candidate”.
+2) By default, My Tasks shows tasks only for candidates with status IN ('active','on_hold').
+3) Provide a UI filter to include archived/canceled/completed candidate tasks.
+4) On candidate status changes, update tasks per the rules below.
+
+Backend (SQL / routes) — idempotent
+
+A) My Tasks query (server)
+- Replace any LEFT JOIN that later filters candidates with a clean INNER JOIN and controlled WHERE:
+
+SELECT
+  ct.id, ct.title, ct.status, ct.due_at, ct.priority_id, ct.assignee_id,
+  c.id AS candidate_id, c.first_name, c.last_name, c.status AS candidate_status
+FROM candidate_tasks ct
+JOIN candidates c ON c.id = ct.candidate_id
+WHERE ct.assignee_id = $userId
+  AND ct.archived = false
+  AND (
+    $includeClosed::boolean = true
+    OR c.status IN ('active','on_hold')
+  )
+ORDER BY COALESCE(ct.due_at, ct.updated_at) DESC;
+
+- Do not filter candidates in the JOIN; only in WHERE as above.
+
+B) Candidate status transition effects (in PATCH /api/candidates/:id/status handler)
+Implement these cascades inside the same transaction as the status change:
+
+-- On 'on_hold': no task updates; tasks remain editable.
+
+-- On 'canceled': close open tasks
+UPDATE candidate_tasks
+SET status = 'canceled', updated_at = now(), updated_by = $userId
+WHERE candidate_id = $candidateId AND status NOT IN ('done','canceled');
+
+-- On 'completed':
+-- 1) enforce all required tasks done (reject if not)
+-- 2) cancel any remaining optional open tasks
+UPDATE candidate_tasks
+SET status = 'canceled', updated_at = now(), updated_by = $userId
+WHERE candidate_id = $candidateId AND required = false AND status NOT IN ('done','canceled');
+
+-- On 'archived': no task status change.
+
+Return payload from PATCH:
+{
+  candidate: { id, status, updated_at },
+  cascaded: {
+    closedTasks: <int>,   -- count canceled due to canceled/completed
+    affectedCandidateStatus: 'on_hold' | 'canceled' | 'completed' | 'archived' | 'active'
+  }
+}
+
+C) KPI math endpoints
+- Exclude tasks whose candidate.status NOT IN ('active','on_hold') from "Due Soon" and "Overdue" counts.
+
+Frontend
+
+1) My Tasks filters
+- Add a switch “Include archived/canceled/completed candidates”.
+- Send `includeClosed=true|false` to the API as above.
+- In each row, show the candidate name and, if status ∈ {'archived','canceled','completed'}, append a small muted badge:
+  • (Archived) • (Canceled) • (Completed)
+
+2) Prevent “Unknown Candidate”
+- Stop using task.candidate ?? 'Unknown Candidate'.
+- Always render from the joined candidate fields; the API must guarantee presence.
+
+3) Status change UX
+- After updating candidate status:
+  • Invalidate: ['candidate', id], ['candidates'], ['candidateTasks', id], and ['myTasks'] (or ['tasksMine']).
+  • If cascaded.closedTasks > 0, toast: “Closed {n} task(s).”
+  • If status becomes archived/canceled/completed and user is on My Tasks, the candidate’s tasks will disappear unless the toggle is on.
+
+4) Row badges and KPIs
+- For tasks where candidate_status='on_hold': show a small “On Hold” chip; exclude from Due Soon/Overdue counters.
+- For archived/canceled/completed candidates (when the toggle is on): show a muted row style and the status badge.
+
+Acceptance
+- Archiving a candidate removes their tasks from My Tasks by default; enabling the toggle shows them with an (Archived) badge.
+- Canceling a candidate closes all open tasks; they drop from My Tasks by default.
+- Marking a candidate completed cancels remaining optional tasks; required tasks must already be done.
+- No rows display “Unknown Candidate”.
+- KPIs ignore tasks for candidates not in ('active','on_hold').

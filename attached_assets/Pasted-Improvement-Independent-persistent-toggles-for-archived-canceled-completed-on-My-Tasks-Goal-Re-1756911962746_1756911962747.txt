@@ -1,0 +1,101 @@
+Improvement: Independent persistent toggles for archived, canceled, completed on My Tasks
+
+Goal
+- Replace the single “Include archived/canceled/completed candidates” switch with three independent toggles:
+  • Show Archived
+  • Show Canceled
+  • Show Completed
+- Persist each user’s choices. Defaults are all false.
+- List respects toggles. KPIs still exclude these statuses regardless of toggle.
+
+DB (idempotent)
+-- Per-user preferences table
+CREATE TABLE IF NOT EXISTS user_preferences (
+  user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  mytasks_show_archived boolean NOT NULL DEFAULT false,
+  mytasks_show_canceled boolean NOT NULL DEFAULT false,
+  mytasks_show_completed boolean NOT NULL DEFAULT false,
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+
+DROP TRIGGER IF EXISTS trg_user_prefs_updated_at ON user_preferences;
+CREATE TRIGGER trg_user_prefs_updated_at
+BEFORE UPDATE ON user_preferences
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+API
+1) GET /api/me/preferences
+   - Returns the current user’s preferences. If no row, return defaults:
+     { mytasks_show_archived:false, mytasks_show_canceled:false, mytasks_show_completed:false }
+
+2) PATCH /api/me/preferences
+   Body (all optional):
+   {
+     "mytasks_show_archived"?: boolean,
+     "mytasks_show_canceled"?: boolean,
+     "mytasks_show_completed"?: boolean
+   }
+   - Upsert into user_preferences for current user and return the saved values.
+
+3) GET /api/tasks/mine?showArchived=0|1&showCanceled=0|1&showCompleted=0|1
+   - Coalesce query params with stored preferences; explicit query params win.
+   - Query pattern:
+
+-- inputs: $userId, $showArchived boolean, $showCanceled boolean, $showCompleted boolean
+WITH flags AS (
+  SELECT
+    $1::uuid AS user_id,
+    $2::boolean AS show_archived,
+    $3::boolean AS show_canceled,
+    $4::boolean AS show_completed
+)
+SELECT
+  ct.id, ct.title, ct.status, ct.due_at, ct.priority_id, ct.assignee_id,
+  c.id AS candidate_id, c.first_name, c.last_name, c.status AS candidate_status
+FROM candidate_tasks ct
+JOIN candidates c ON c.id = ct.candidate_id
+CROSS JOIN flags f
+WHERE ct.assignee_id = (SELECT user_id FROM flags)
+  AND ct.archived = false
+  AND (
+        c.status IN ('active','on_hold')
+        OR (f.show_archived  AND c.status = 'archived')
+        OR (f.show_canceled  AND c.status = 'canceled')
+        OR (f.show_completed AND c.status = 'completed')
+      )
+ORDER BY COALESCE(ct.due_at, ct.updated_at) DESC;
+
+Notes:
+- Keep INNER JOIN so “Unknown Candidate” never appears.
+- KPI endpoints continue to filter to c.status IN ('active','on_hold') only.
+
+Frontend
+1) Load and save preferences
+- On My Tasks mount:
+  • fetch /api/me/preferences
+  • hydrate local state { showArchived, showCanceled, showCompleted }
+  • also read localStorage fallback key "mytasks_prefs" if API is unavailable
+- When a toggle changes:
+  • optimistic update local state
+  • PATCH /api/me/preferences with only changed fields
+  • update localStorage mirror
+  • refetch list with the three query params
+
+2) UI
+- Replace single switch with three Toggle or Switch controls under Filters:
+  [ ] Show Archived    [ ] Show Canceled    [ ] Show Completed
+- Each toggle updates the list immediately.
+- Rows for these statuses get a muted style and a small status chip, but remain readable.
+- KPIs remain unchanged and continue to count only tasks for active/on_hold candidates.
+
+3) React Query keys and invalidation
+- Query key for list must include flags so cache separates:
+  ['tasksMine', { showArchived, showCanceled, showCompleted }]
+- When preferences change or status chips toggled:
+  qc.invalidateQueries({ queryKey: ['tasksMine'] });
+
+Acceptance
+- Defaults: all three toggles OFF. Only tasks for active/on_hold candidates are shown.
+- Toggling any switch shows or hides those rows without page refresh and persists across reloads.
+- KPIs do not change when toggles are used.
+- No “Unknown Candidate” rows appear.

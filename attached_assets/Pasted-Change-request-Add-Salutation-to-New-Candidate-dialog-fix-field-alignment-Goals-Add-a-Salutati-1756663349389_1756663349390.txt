@@ -1,0 +1,121 @@
+Change request: Add Salutation to New Candidate dialog + fix field alignment
+
+Goals
+- Add a Salutation select backed by the salutation_type enum.
+- Ensure API sends salutation.
+- Fix layout so Start Date, Template, and Faculty Rank align cleanly with the left column.
+- Keep responsive two-column layout.
+
+Database safety (idempotent)
+-- Only run if not present
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'salutation_type') THEN
+    CREATE TYPE salutation_type AS ENUM ('Mr','Ms','Mrs','Dr','Prof','Other');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='candidates' AND column_name='salutation'
+  ) THEN
+    ALTER TABLE candidates
+    ADD COLUMN salutation salutation_type NOT NULL DEFAULT 'Mr';
+  END IF;
+END$$;
+
+Frontend: New Candidate dialog
+File: src/components/new-candidate-dialog.tsx (or equivalent)
+
+1) Add Salutation field near First and Last Name.
+- Use shadcn FormField + Select.
+- Options: Mr, Ms, Mrs, Dr, Prof, Other.
+- Required.
+
+Example JSX:
+<FormField
+  control={form.control}
+  name="salutation"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Salutation</FormLabel>
+      <Select onValueChange={field.onChange} value={field.value}>
+        <FormControl>
+          <SelectTrigger className="w-full" />
+        </FormControl>
+        <SelectContent>
+          <SelectItem value="Mr">Mr</SelectItem>
+          <SelectItem value="Ms">Ms</SelectItem>
+          <SelectItem value="Mrs">Mrs</SelectItem>
+          <SelectItem value="Dr">Dr</SelectItem>
+          <SelectItem value="Prof">Prof</SelectItem>
+          <SelectItem value="Other">Other</SelectItem>
+        </SelectContent>
+      </Select>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+
+2) Form defaults and schema
+- Add default: salutation: 'Mr'
+- Zod (or validator) update:
+  salutation: z.enum(['Mr','Ms','Mrs','Dr','Prof','Other'])
+
+3) API payloads
+- Include salutation in POST /api/candidates body.
+- Server validation must accept the enum value and write to candidates.salutation.
+
+4) Layout and alignment fixes
+- Use a consistent two-column grid with equal gaps.
+- Make right column fields full width and vertically aligned with left column.
+- Ensure Select and Date inputs have full width.
+
+Container for fields:
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+  {/* Left column */}
+  <div className="flex flex-col gap-4">
+    {/* Salutation, First Name, Last Name, Email, Candidate Type, Department, Division, Manager */}
+  </div>
+
+  {/* Right column */}
+  <div className="flex flex-col gap-4">
+    {/* Start Date, Template, Faculty Rank, Preview Due Dates card */}
+  </div>
+</div>
+
+For each Select/Date component:
+- Add className="w-full" to SelectTrigger, Input, and Date picker trigger.
+- Ensure FormItem does not have inline widths.
+
+5) Specific right column alignment
+- Start Date on top of right column.
+- Template below Start Date.
+- Faculty Rank below Template.
+- Preview Due Dates card below Faculty Rank, use className="mt-1" and full width.
+
+6) Conditional Faculty Rank
+- Required when Candidate Type is Faculty or Faculty Clinical.
+- Hidden or disabled otherwise.
+- When hidden, alignment must remain stable. Keep the grid, conditionally render an empty spacer if needed:
+  {isFaculty ? <FacultyRankField /> : <div className="hidden md:block" />}
+
+7) Keyboard and a11y
+- Tab order must follow visual order.
+- All labels are associated via id.
+- aria-invalid set through FormMessage.
+
+8) Submit
+- POST body must include:
+  {
+    salutation,
+    first_name, last_name, email,
+    candidate_type_id, department_id, division_id?, manager_id?,
+    faculty_rank_id?, start_date, notes?
+  }
+
+Acceptance
+- Salutation appears and is required.
+- Right column fields Start Date, Template, Faculty Rank align vertically and span full width.
+- On small screens, fields stack with consistent spacing.
+- Creating a candidate persists salutation and other fields.
+- Faculty Rank shows only for Faculty or Faculty Clinical and is required in those cases.

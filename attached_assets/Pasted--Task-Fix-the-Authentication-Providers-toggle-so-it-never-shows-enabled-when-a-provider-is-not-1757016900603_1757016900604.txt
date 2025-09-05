@@ -1,0 +1,201 @@
+**Task:** Fix the Authentication Providers toggle so it never shows “enabled” when a provider is not configured. Enforce the rule on both client and server. Keep existing login intact.
+
+### Problem
+In Settings → Authentication, a provider with `configured = false` can visually appear toggled on. This is incorrect. A provider must only appear enabled when `configured = true` **and** the DB `enabled` flag is true.
+
+### Fix Overview
+1. **API contract**
+   - Extend `ProviderInfo` to include:
+     ```ts
+     export type ProviderInfo = {
+       id: "local" | "ldap" | "google" | "azuread";
+       name: string;
+       enabled: boolean;            // persisted in DB
+       configured: boolean;         // derived from env
+       effectiveEnabled: boolean;   // enabled && configured
+       canEnable: boolean;          // same as configured
+       clientIdMasked?: string;
+       callbackUrl?: string;
+       notes?: string;
+     };
+     ```
+   - On the server, always compute:
+     ```ts
+     effectiveEnabled = Boolean(row.enabled && configured);
+     canEnable = Boolean(configured);
+     ```
+   - Do **not** expose secrets.
+
+2. **Server changes**
+   - In `server/auth/providers.ts` (or equivalent):
+     - Compute `configured` from env for each provider.
+     - Read `enabled` from `auth_providers` table.
+     - Return `effectiveEnabled` and `canEnable` as above.
+   - In `PATCH /api/auth/providers/:id`:
+     - Validate role: `SystemAdmin` or `HRStaff`.
+     - If request is trying to set `enabled: true` while `configured === false`, reject with `400` and a message like `"Provider is not configured. Set required env vars first."`
+     - Only update the DB `enabled` flag when allowed.
+   - Keep `GET /api/auth/providers` behavior the same except for the new fields.
+
+3. **Database**
+   - New table `auth_providers`:
+     ```sql
+     create table auth_providers (
+       id text primary key,
+       name text not null,
+       enabled boolean not null default true
+     );
+     ```
+   - Seed with providers: local, ldap, google, azuread.
+   - Add Drizzle schema in `shared/schema.ts`.
+
+4. **Client changes**
+   - In the Settings Authentication view:
+     - Bind the switch to `checked={provider.effectiveEnabled}`.
+     - Set `disabled={!provider.canEnable || isMutating}`.
+     - Tooltip or helper text when disabled: “Missing required environment variables.”
+     - On toggle:
+       ```ts
+       const next = !provider.effectiveEnabled;
+       // Do NOT optimistically flip UI. Wait for server success.
+       await apiRequest<PatchResponse>(`/api/auth/providers/${provider.id}`, {
+         method: "PATCH",
+         body: JSON.stringify({ enabled: next }),
+       });
+       queryClient.invalidateQueries({ queryKey: ["authProviders"] });
+       ```
+     - If server returns 400, show a toast with the server message and keep the switch off.
+   - Status badges:
+     - If `configured === false`, show “Not Configured”.
+     - If `configured === true` and `effectiveEnabled === true`, show “Active”.
+     - If `configured === true` and `effectiveEnabled === false`, show “Disabled”.
+   - Action column:
+     - Switch shows off and is disabled when `configured === false`. It must never display on in that state.
+
+5. **UI microcopy**
+   - Row subtitle for each provider:
+     - When `configured === false`: “Missing required environment variables.”
+     - When `configured === true` and `effectiveEnabled === false`: “Configured. Disabled in app settings.”
+   - Optional info icon linking to docs for the required env vars per provider.
+
+6. **Acceptance criteria**
+   - A provider with missing env vars always renders the switch **off** and **disabled**.
+   - Attempting to enable a not-configured provider returns 400 and leaves UI off.
+   - When env vars are provided and page is refreshed, the switch becomes enabled and reflects DB `enabled`.
+   - No change to login flow. Providers shown on the login page still derive from the same effective logic.
+   - Unauthorized users cannot access this Settings section or the API.
+
+7. **Pseudocode snippets**
+
+   **Server assemble function**
+   ```ts
+   // server/auth/providers.ts
+   import { db } from "../db";
+   import { authProviders } from "../schema"; // drizzle table
+   import { eq } from "drizzle-orm";
+
+   const maskId = (s?: string) => s ? `${"x".repeat(Math.max(0, s.length - 4))}${s.slice(-4)}` : undefined;
+
+   function envConfigured(id: string): { configured: boolean; clientIdMasked?: string; notes?: string } {
+     switch (id) {
+       case "local":
+         return { configured: true };
+       case "ldap": {
+         const ok = !!process.env.LDAP_URL && !!process.env.LDAP_BIND_DN;
+         return { configured: ok, notes: ok ? "" : "Set LDAP_URL and LDAP_BIND_DN" };
+       }
+       case "google": {
+         const cid = process.env.GOOGLE_CLIENT_ID;
+         const ok = !!cid && !!process.env.GOOGLE_CLIENT_SECRET;
+         return { configured: ok, clientIdMasked: maskId(cid), notes: ok ? "" : "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET" };
+       }
+       case "azuread": {
+         const cid = process.env.AZURE_CLIENT_ID;
+         const ok = !!cid && !!process.env.AZURE_CLIENT_SECRET && !!process.env.AZURE_TENANT_ID;
+         return { configured: ok, clientIdMasked: maskId(cid), notes: ok ? "" : "Set AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID" };
+       }
+       default:
+         return { configured: false, notes: "Unknown provider" };
+     }
+   }
+
+   export async function listProviderInfos(baseUrl: string) {
+     const rows = await db.select().from(authProviders);
+     return rows.map((row) => {
+       const env = envConfigured(row.id);
+       const callbackUrl =
+         row.id === "local" ? undefined : `${baseUrl}/api/auth/callback/${row.id}`;
+       const effectiveEnabled = Boolean(row.enabled && env.configured);
+       return {
+         id: row.id,
+         name: row.name,
+         enabled: row.enabled,
+         configured: env.configured,
+         effectiveEnabled,
+         canEnable: env.configured,
+         clientIdMasked: env.clientIdMasked,
+         callbackUrl,
+         notes: env.notes ?? "",
+       };
+     });
+   }
+
+Server PATCH route
+// server/routes.ts
+router.patch("/api/auth/providers/:id",
+  requireAuth,
+  requireRole(["SystemAdmin","HRStaff"]),
+  async (req, res) => {
+    const id = req.params.id as "local" | "ldap" | "google" | "azuread";
+    const { enabled } = req.body ?? {};
+    if (typeof enabled !== "boolean") {
+      return res.status(400).json({ error: "Invalid body. Expected { enabled: boolean }" });
+    }
+
+    // Compute configured
+    const { configured } = envConfigured(id);
+    if (enabled && !configured) {
+      return res.status(400).json({ error: "Provider is not configured. Set required environment variables first." });
+    }
+
+    await db.update(authProviders).set({ enabled }).where(eq(authProviders.id, id));
+    return res.json({ ok: true });
+  }
+);
+
+Client switch binding
+// client/src/pages/settings/authentication.tsx
+<Switch
+  checked={p.effectiveEnabled}
+  disabled={!p.canEnable || isMutating}
+  onCheckedChange={async (next) => {
+    try {
+      await apiRequest(`/api/auth/providers/${p.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ enabled: next }),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["authProviders"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Unable to update provider");
+    }
+  }}
+/>
+
+8. Testing
+	•	Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET empty. Reload Settings:
+	•	Google shows “Not Configured”. Switch is off and disabled.
+	•	Attempting to toggle yields 400 and a toast.
+	•	Add the env vars and reload:
+	•	Switch becomes enabled. Toggling updates DB and reflects in UI.
+	•	Repeat for AzureAD and LDAP.
+
+Deliverables
+	•	Updated ProviderInfo type in shared/.
+	•	Updated GET and PATCH routes.
+	•	Updated server provider assembly function.
+	•	Updated client Settings Authentication component to bind to effectiveEnabled and disable when canEnable is false.
+	•	No changes to login page logic other than making use of effectiveEnabled if applicable.
+
+Notes
+	•	Ensure BASE_URL is available on the server for callback computation.
+	•	Keep secrets out of client entirely.

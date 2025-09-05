@@ -1,0 +1,98 @@
+Bug: Candidate Details shows blank/incorrect info
+
+Problem
+- /candidates/[id] renders empty cards (“Not set”) and no tasks.
+- Likely causes: missing API, wrong route param usage, queries not joined, or filters hiding data.
+
+Goal
+- Load candidate info by id and list that candidate’s tasks, grouped by stage.
+- Show skeletons while loading, error state if fetch fails.
+- Tasks exist only on the candidate profile.
+- Stage Timeline tab should render candidate_stage_history in chronological order.
+
+Backend API (create or fix)
+
+1) GET /api/candidates/:id
+   Returns a single candidate with joined display fields.
+   [same query as before; see previous prompt]
+
+2) GET /api/candidates/:id/tasks
+   Returns all candidate_tasks for that candidate, joined to stage and definition.
+   [same query as before]
+
+3) GET /api/candidates/:id/stage-history
+   Returns candidate_stage_history ordered by changed_at ASC.
+   SQL shape:
+   SELECT
+     sh.id,
+     sh.stage_id,
+     hs.name AS stage_name,
+     sh.changed_at,
+     sh.changed_by,
+     u.name AS changed_by_name
+   FROM candidate_stage_history sh
+   LEFT JOIN hiring_stages hs ON hs.id = sh.stage_id
+   LEFT JOIN users u ON u.id = sh.changed_by
+   WHERE sh.candidate_id = $1
+   ORDER BY sh.changed_at ASC;
+
+   Response JSON example:
+   {
+     "history": [
+       { "id":"…", "stage":{"id":"…","name":"LOI"}, "changed_at":"2025-08-01T10:00:00Z", "changed_by":{"id":"…","name":"HR Staff"} },
+       { "id":"…", "stage":{"id":"…","name":"Offer"}, "changed_at":"2025-08-15T09:00:00Z", "changed_by":{"id":"…","name":"System Admin"} }
+     ]
+   }
+
+Permissions
+- Only allow roles with read scope to this candidate. Return 403 when out of scope.
+
+Frontend fixes (Next.js + TanStack Query)
+
+Page: src/pages/candidates/[id].tsx (or app route equivalent)
+
+1) Read route param correctly:
+   const params = useParams();
+   const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : '';
+
+2) Queries with proper enabling:
+   - Candidate query: /api/candidates/:id
+   - Tasks query: /api/candidates/:id/tasks
+   - Stage history query: /api/candidates/:id/stage-history
+
+3) Render tabs
+   - Tabs: Tasks - Title: “Tasks by Stage” and Timeline - Title: “Stage Timeline”
+   - Tasks tab: group tasks by stage
+   - Timeline tab: render chronological stage changes.
+
+4) Tasks by Stage
+   [same grouping logic as before]
+
+5) Stage Timeline
+   - Map over the history array and show each stage transition as a vertical timeline.
+   - Each entry: stage_name, changed_at (formatted), changed_by_name.
+   - If no history, show “No stage history for this candidate.”
+   - Loading: skeleton placeholders. Error: visible alert.
+
+6) Candidate Information card
+   - Name: `${salutation} ${first_name} ${last_name}`
+   - Email, Start Date, Candidate Type, Department, Division, Manager, Faculty Rank, Template info.
+   - Fallbacks (“Not set”) if missing.
+   - Skeleton while loading.
+
+7) Empty state for draft candidates
+   If candidate.template_applied_from_id is null:
+     - Tasks tab shows callout “No tasks yet. Apply a template to generate tasks.”
+     - Button “Apply Template” runs expand_template.
+
+8) Styling and layout
+   - Keep two cards: “Candidate Information” and a tabbed panel with “Tasks” and “Timeline”.
+   - Use consistent spacing and full-width tables inside cards.
+   - Vertical alignment is consistent across both tabs.
+
+Acceptance
+- Visiting /candidates/[id] shows the candidate’s correct info.
+- The Tasks tab lists tasks grouped by stage with assignee, due, priority, and status(updateable).
+- Timeline tab lists stage history in chronological order.
+- Loading states show skeletons. Errors render visible messages.
+- No global tasks are shown here, only tasks for this id.

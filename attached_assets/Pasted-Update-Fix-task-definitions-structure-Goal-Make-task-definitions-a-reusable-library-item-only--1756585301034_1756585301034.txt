@@ -1,0 +1,64 @@
+Update: Fix task_definitions structure
+
+Goal
+- Make task_definitions a reusable library item only.
+- Add defaults for priority and category via FKs.
+- Add lifecycle fields and a unique name.
+- No stage, assignee, or due-rule fields on this table.
+
+Run a new SQL migration that:
+1) Ensures pgcrypto and timestamps
+   - CREATE EXTENSION IF NOT EXISTS pgcrypto;
+   - ALTER TABLE task_definitions
+       ALTER COLUMN name SET NOT NULL,
+       ALTER COLUMN created_at SET DEFAULT now(),
+       ALTER COLUMN updated_at SET DEFAULT now();
+
+2) Add correct columns and constraints
+   - ALTER TABLE task_definitions
+       ADD COLUMN IF NOT EXISTS default_priority_id uuid NULL REFERENCES task_priorities(id),
+       ADD COLUMN IF NOT EXISTS default_category_id uuid NULL REFERENCES task_categories(id),
+       ADD COLUMN IF NOT EXISTS archived boolean NOT NULL DEFAULT false,
+       ADD COLUMN IF NOT EXISTS created_by uuid NULL REFERENCES users(id);
+
+   - CREATE UNIQUE INDEX IF NOT EXISTS task_definitions_name_unique
+       ON task_definitions (lower(name));
+
+3) Auto-update updated_at on write
+   - CREATE OR REPLACE FUNCTION set_updated_at()
+       RETURNS trigger AS $$
+       BEGIN
+         NEW.updated_at = now();
+         RETURN NEW;
+       END;
+       $$ LANGUAGE plpgsql;
+
+   - DROP TRIGGER IF EXISTS trg_task_definitions_updated_at ON task_definitions;
+   - CREATE TRIGGER trg_task_definitions_updated_at
+       BEFORE UPDATE ON task_definitions
+       FOR EACH ROW
+       EXECUTE FUNCTION set_updated_at();
+
+4) Optional quality of life (safe to skip if you prefer)
+   - -- usage_count maintained elsewhere if needed
+   - -- ALTER TABLE task_definitions ADD COLUMN IF NOT EXISTS usage_count integer NOT NULL DEFAULT 0;
+
+Drizzle model (replace existing taskDefinitions model)
+- Create or update the Drizzle schema for this table to match the columns above.
+- Enforce that name is required, archived defaults to false, and the two FKs are optional.
+
+Example Drizzle (TS)
+```ts
+export const taskDefinitions = pgTable('task_definitions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  description: text('description'),
+  defaultPriorityId: uuid('default_priority_id').references(() => taskPriorities.id),
+  defaultCategoryId: uuid('default_category_id').references(() => taskCategories.id),
+  archived: boolean('archived').notNull().default(false),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: false }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: false }).defaultNow().notNull(),
+}, (t) => ({
+  nameUnique: uniqueIndex('task_definitions_name_unique').on(sql`lower(${t.name})`),
+}));

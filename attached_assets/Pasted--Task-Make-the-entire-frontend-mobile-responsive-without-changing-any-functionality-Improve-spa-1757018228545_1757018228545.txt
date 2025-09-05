@@ -1,0 +1,258 @@
+**Task:** Make the entire frontend mobile responsive without changing any functionality. Improve spacing, accessibility, visual hierarchy, and design pattern consistency. Use Tailwind responsive utilities, fluid grids, and media queries. Keep all routes, data fetching, auth, and APIs exactly the same.
+
+## Constraints
+- Frontend only. Do not modify server code, DB, auth logic, or API contracts.
+- Keep component names, props, and existing behavior unchanged.
+- Follow mobile-first. Base styles target mobile, then scale up with breakpoints.
+- Use existing shadcn/ui components and Tailwind classes.
+
+## Breakpoints to support
+Use Tailwind defaults plus an extra small breakpoint for modern phones.
+- xs: 375px
+- sm: 640px
+- md: 768px
+- lg: 1024px
+- xl: 1280px
+- 2xl: 1536px
+
+### Tailwind config updates
+- Edit `tailwind.config.ts`
+  - Add `screens: { xs: "375px", ...existing }`
+  - Add `container: { center: true, padding: "1rem" }`
+- Do not remove existing theme tokens.
+
+## Global layout
+Update the app shell so it works on small screens.
+
+1) **Sidebar becomes a Sheet on mobile**
+- Files to touch: `client/src/components/layout/Sidebar.tsx`, `client/src/components/layout/Header.tsx`, `client/src/App.tsx` or the main layout wrapper.
+- On `xs` and `sm`, hide the fixed sidebar `hidden xs:hidden sm:hidden`.
+- Add a header hamburger button that opens a `Sheet` from the left.
+  ```tsx
+  // Header: add menu button only on small screens
+  <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation" onClick={() => setOpen(true)}>
+    <Icons.Menu />
+  </Button>
+
+  // Sheet for nav
+  <Sheet open={open} onOpenChange={setOpen}>
+    <SheetContent side="left" className="p-0 w-[85vw] max-w-sm">
+      <Sidebar onNavigate={() => setOpen(false)} />
+    </SheetContent>
+  </Sheet>
+  ```
+- On `md+`, keep the existing static sidebar `md:flex`.
+
+2) **Page container and gutters**
+- Wrap page content in a responsive container:
+  ```tsx
+  <div className="container mx-auto px-3 xs:px-4 sm:px-6 md:px-8">
+    {/* page content */}
+  </div>
+  ```
+- Use consistent vertical rhythm:
+  - Page sections use `space-y-4 xs:space-y-5 sm:space-y-6`.
+  - Cards use `p-3 xs:p-4 sm:p-6`.
+
+3) **Top header**
+- Ensure a sticky header on mobile:
+  ```tsx
+  <header className="sticky top-0 z-40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+  ```
+- Include a visible page title with `text-base xs:text-lg sm:text-xl font-semibold`.
+
+## Components to refactor for responsiveness
+
+1) **Data tables**
+- Convert tables to cards below `md`. Keep the desktop table.
+- Create a small helper `ResponsiveTable` wrapper.
+  ```tsx
+  {/* Desktop table */}
+  <div className="hidden md:block">
+    {/* existing Table unchanged */}
+  </div>
+
+  {/* Mobile cards */}
+  <div className="grid md:hidden gap-3">
+    {rows.map((r) => (
+      <Card key={r.id} className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-medium">{r.title}</h3>
+            <p className="text-xs text-muted-foreground mt-1">{r.subtitle}</p>
+          </div>
+          {/* status badge or actions */}
+        </div>
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+          <div><dt className="text-muted-foreground">Stage</dt><dd className="font-medium">{r.stage}</dd></div>
+          <div><dt className="text-muted-foreground">Status</dt><dd className="font-medium">{r.status}</dd></div>
+          {/* add fields as needed */}
+        </dl>
+      </Card>
+    ))}
+  </div>
+  ```
+- Accessibility: ensure table has `<caption className="sr-only">` and cards have clear headings.
+
+2) **Forms and dialogs**
+- Forms become single column on mobile.
+  - Use `grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6`.
+- Dialogs become full screen on small screens:
+  ```tsx
+  <DialogContent className="sm:max-w-[425px] md:max-w-xl w-[100vw] sm:w-auto h-[100dvh] sm:h-auto sm:rounded-xl p-4 sm:p-6">
+  ```
+- Form controls use `min-h-[44px]` for touch targets.
+
+3) **Cards and KPI tiles**
+- Use responsive padding and typography:
+  - `p-3 xs:p-4 sm:p-6`
+  - Titles: `text-sm xs:text-base sm:text-lg`
+  - Numbers: `text-xl xs:text-2xl sm:text-3xl font-semibold`
+- Grid:
+  ```tsx
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+  ```
+
+4) **Filters and toolbars**
+- Wrap to multiple rows on small screens:
+  ```tsx
+  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+  ```
+- Use `w-full xs:w-auto` for selects and search on mobile.
+
+5) **Tables with many columns**
+- On desktop keep current table.
+- On mobile hide low-value columns using `hidden md:table-cell`.
+- Provide a secondary row with metadata using `md:hidden`.
+
+6) **Navigation and breadcrumbs**
+- Collapse breadcrumbs on mobile to a single current label with a back button.
+- Maintain keyboard navigation and focus order.
+
+## Accessibility checklist
+- Add a skip link near the top of the layout:
+  ```tsx
+  <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 bg-primary text-primary-foreground px-3 py-2 rounded">
+    Skip to content
+  </a>
+  ```
+- Ensure landmark roles: one `header`, one `nav`, one `main`, one `footer`.
+- All interactive elements have `aria-label` or visible text.
+- Focus states visible on keyboard navigation: ensure `focus-visible:ring` classes exist on buttons and links.
+- Maintain color contrast ratio 4.5:1 for text. Use existing theme tokens and adjust if needed.
+- Respect `prefers-reduced-motion`. Avoid large entrance animations. Use `motion-safe` utilities only.
+
+## Spacing and visual hierarchy
+- Use a consistent scale:
+  - Page padding: `px-3 xs:px-4 sm:px-6 md:px-8`
+  - Section spacing: `space-y-4 xs:space-y-5 sm:space-y-6`
+  - Card padding: `p-3 xs:p-4 sm:p-6`
+- Headings:
+  - H1 `text-lg xs:text-xl sm:text-2xl`
+  - H2 `text-base xs:text-lg sm:text-xl`
+  - Body `text-sm sm:text-base`
+- Ensure consistent empty states with icon, title, description, and primary action stacked on mobile.
+
+## Files to review and update
+- `client/src/components/layout/*` header, sidebar, main container.
+- `client/src/pages/**/*` all pages and tables to add mobile cards or stacked layouts.
+- `client/src/components/datagrid/*` or any table wrappers.
+- `client/src/components/forms/*` ensure single column on small screens.
+- `client/src/components/ui/*` only if minor padding or focus classes are needed.
+- `client/src/styles/global.css` or `index.css` for any global tweaks such as full height and safe areas.
+
+## Safe-area and viewport
+- Add to global CSS:
+  ```css
+  html, body, #root { height: 100%; }
+  main { padding-bottom: env(safe-area-inset-bottom); }
+  ```
+- Use `h-[100dvh]` for full height panes on mobile where appropriate.
+
+## Do not change
+- API calls, query keys, hook names, route paths, Zod schemas, Drizzle types.
+- Business logic, sorting, filtering, or server responses.
+
+## Acceptance criteria
+- App is usable on 375 px wide screens without horizontal scrolling.
+- Navigation, header, and content are readable and tappable on mobile.
+- Minimum tap target 44 px for all primary actions.
+- Tables render as stacked cards on screens below `md`.
+- Dialogs are full screen below `sm`.
+- Forms are single column below `md`.
+- Lighthouse scores improve for Best Practices and Accessibility on mobile. Aim for 90+ without changing functionality.
+- No regressions in desktop layout.
+
+## Test plan
+- View at 375x812, 390x844, 414x896, 768x1024, 1280x800.
+- Keyboard test: Tab through header, nav, main actions. Focus ring always visible.
+- Screen reader smoke test for the Settings page and the Candidates list. Labels are announced and landmarks are correct.
+
+## Example edits to apply immediately
+
+1) **Layout container**
+```tsx
+// MainLayout.tsx
+<div className="min-h-screen grid md:grid-cols-[260px_1fr]">
+  {/* Sidebar */}
+  <aside className="hidden md:flex border-r">
+    <Sidebar />
+  </aside>
+
+  <div className="flex min-h-screen flex-col">
+    <Header /> {/* includes hamburger + Sheet for mobile nav */}
+    <main id="main" className="flex-1 container mx-auto px-3 xs:px-4 sm:px-6 md:px-8 py-3 xs:py-4 sm:py-6">
+      {children}
+    </main>
+  </div>
+</div>
+```
+
+2) **Dialog content**
+```tsx
+<DialogContent className="w-[100vw] h-[100dvh] sm:h-auto sm:w-auto sm:max-w-xl p-4 sm:p-6">
+```
+
+3) **Form grid**
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+  {/* fields */}
+</div>
+```
+
+4) **KPI grid**
+```tsx
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+  {/* cards */}
+</div>
+```
+
+5) **Table to cards pattern**
+```tsx
+{/* Desktop table remains */}
+<div className="hidden md:block">{/* existing table */}</div>
+
+{/* Mobile cards */}
+<ul className="md:hidden grid gap-3">
+  {rows.map(r => (
+    <li key={r.id}>
+      <Card className="p-4">
+        <h3 className="text-sm font-medium">{r.name}</h3>
+        <dl className="mt-2 grid grid-cols-2 gap-2 text-xs">
+          <div><dt className="text-muted-foreground">Stage</dt><dd className="font-medium">{r.stage}</dd></div>
+          <div><dt className="text-muted-foreground">Status</dt><dd className="font-medium">{r.status}</dd></div>
+        </dl>
+      </Card>
+    </li>
+  ))}
+</ul>
+```
+
+## Deliverables
+- Updated Tailwind config with `xs` breakpoint and container defaults.
+- Updated layout with mobile Sheet navigation, sticky header, and responsive gutters.
+- Responsive tables that become cards on small screens.
+- Forms that collapse to one column on mobile.
+- Dialogs that become full screen on mobile.
+- Accessibility improvements including skip link, focus styles, and correct landmarks.
+- No changes to existing behavior or data flow.

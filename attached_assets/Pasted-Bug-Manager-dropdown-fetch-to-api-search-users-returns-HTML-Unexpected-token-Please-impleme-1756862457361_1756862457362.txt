@@ -1,0 +1,112 @@
+Bug: Manager dropdown fetch to /api/search/users returns HTML (Unexpected token '<')
+
+Please implement the following fixes.
+
+SERVER (routes + SQL)
+
+1) Add robust search route for users with optional role filter:
+   GET /api/search/users?q=<string>&role=<string optional>
+
+- Always return JSON:
+  { items: [{ id, name, score }], query }
+
+- Handle empty q by returning top 20 names ordered by name ASC.
+- Role is optional. If present, filter by exact role match; else ignore.
+- Use safe NULL handling and avoid hard casts that break when role is null.
+
+Example (TypeScript/Express-ish):
+
+app.get('/api/search/users', requireAuth, async (req, res) => {
+  try {
+    const q = (req.query.q ?? '').toString().trim();
+    const role = (req.query.role ?? '').toString().trim(); // empty if not provided
+
+    // Build SQL dynamically but safely (parameterized)
+    // Prefer trigram if extension exists; otherwise fallback to ILIKE match.
+
+    const text = `
+      WITH params AS (
+        SELECT NULLIF($1, '')::text AS q, NULLIF($2, '')::text AS role
+      )
+      SELECT u.id,
+             trim(concat_ws(' ', u.first_name, u.last_name)) AS name,
+             CASE
+               WHEN (SELECT q FROM params) IS NULL THEN 1.0
+               ELSE GREATEST(similarity(lower(trim(concat_ws(' ', u.first_name, u.last_name))), lower((SELECT q FROM params))), 0)
+             END AS score
+      FROM users u, params p
+      WHERE (p.role IS NULL OR u.role = p.role)
+        AND (
+          p.q IS NULL
+          OR trim(concat_ws(' ', u.first_name, u.last_name)) ILIKE '%' || p.q || '%'
+          OR similarity(lower(trim(concat_ws(' ', u.first_name, u.last_name))), lower(p.q)) > 0.1
+        )
+      ORDER BY
+        CASE WHEN (SELECT q FROM params) IS NULL THEN 0 ELSE 1 END,
+        score DESC,
+        name ASC
+      LIMIT 20;
+    `;
+
+    const { rows } = await db.query(text, [q, role]);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).json({ items: rows.map(r => ({ id: r.id, name: r.name, score: Number(r.score) })), query: q });
+  } catch (err) {
+    console.error('search users error', err);
+    res.status(500).json({ error: 'SEARCH_USERS_FAILED' });
+  }
+});
+
+Notes:
+- Ensure pg_trgm is installed once: CREATE EXTENSION IF NOT EXISTS pg_trgm;
+- Optional indices: 
+  CREATE INDEX IF NOT EXISTS idx_users_fullname_trgm ON users USING gin ((trim(concat_ws(' ', first_name, last_name))) gin_trgm_ops);
+- Do NOT redirect to HTML on 401/403; return JSON: res.status(401).json({ error: 'UNAUTHENTICATED' });
+
+CLIENT (/src/lib/search.ts)
+
+2) Harden fetch helpers to guard res.ok and parse errors:
+
+export async function searchManagers(q: string) {
+  const url = `/api/search/users?q=${encodeURIComponent(q)}&role=manager`;
+  const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  if (!r.ok) {
+    const text = await r.text(); // may be HTML
+    throw new Error(`searchManagers ${r.status}: ${text.slice(0, 200)}`);
+  }
+  let json: any;
+  try { json = await r.json(); }
+  catch (e) {
+    const text = await r.text();
+    throw new Error(`searchManagers invalid JSON: ${text.slice(0, 200)}`);
+  }
+  return (json.items ?? []) as { id: string; name: string; score?: number }[];
+}
+
+(Repeat the same ok+json guard pattern for searchDepartments/searchDivisions.)
+
+COMPONENT (AutoSelectCombobox)
+
+3) Keep recent fixes:
+- Fetch on open (even with empty query).
+- Do NOT auto-commit on empty query.
+- Show “Start typing to search…” when query is empty and no items.
+- Prevent Enter from submitting the parent form; Enter commits the top result.
+
+NEW-CANDIDATE DIALOG
+
+4) Ensure Manager combobox actually calls searchManagers with role='manager' and does not disable itself when department is selected/unselected (department should not be required to search managers unless that’s an intentional scope).
+
+5) Add error surface in the Manager field:
+<AutoSelectCombobox
+  ...
+  onError={(e) => toast({ title: 'Error loading managers', description: e.message, variant: 'destructive' })}
+/>
+(If AutoSelectCombobox doesn’t support onError yet, catch in fetchItems and throw; the component should catch and render CommandEmpty with the error message.)
+
+QA
+
+- Open New Candidate dialog → Manager dropdown opens and lists top 20 managers (or “Start typing to search…” if none).
+- Typing “sha” shows “Shawail Jackson”, Enter selects it (no form submit).
+- No “Unexpected token '<'” errors. If the server returns 401, the client shows a descriptive error toast (not JSON parse error).
+- Department/Division dropdowns still behave as before.

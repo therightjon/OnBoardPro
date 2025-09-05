@@ -1,0 +1,100 @@
+Bug: New Candidate dialog is not reading Division or Manager options from the database
+
+Goal
+- Division select reads divisions for the chosen Department from DB.
+- Manager select reads users with allowed roles, filtered by Department or Division, from DB.
+- Both support search, loading, and empty states.
+
+Backend API (create if missing)
+
+1) GET /api/divisions
+   Query params: departmentId (required), q (optional), limit (default 20), offset (default 0)
+   Behavior:
+     - Return divisions where archived = false AND department_id = :departmentId
+     - If q present, filter by ILIKE on name
+   SQL (Drizzle or SQL):
+     SELECT id, name
+     FROM divisions
+     WHERE archived = false AND department_id = $1
+       AND ($2::text IS NULL OR name ILIKE '%' || $2 || '%')
+     ORDER BY name ASC
+     LIMIT $3 OFFSET $4;
+
+2) GET /api/users/managers
+   Query params: departmentId (required), divisionId (optional), q (optional), limit, offset
+   Allowed roles: manager, hr_staff, system_admin, department_admin, division_leader
+   Behavior:
+     - Base filter: role IN (...)
+     - If divisionId present, prefer division scope. Else use departmentId scope.
+     - Only active users.
+   SQL:
+     SELECT id, name, email, role
+     FROM users
+     WHERE active = true
+       AND role IN ('manager','hr_staff','system_admin','department_admin','division_leader')
+       AND (
+         ($2::uuid IS NOT NULL AND division_id = $2)
+         OR ($2::uuid IS NULL AND department_id = $1)
+       )
+       AND ($3::text IS NULL OR name ILIKE '%' || $3 || '%' OR email ILIKE '%' || $3 || '%')
+     ORDER BY role, name
+     LIMIT $4 OFFSET $5;
+
+Permissions
+- Protect both endpoints. Only roles in {system_admin, hr_staff, department_admin, division_leader, manager} can read them.
+
+Frontend wiring (New Candidate dialog)
+
+State
+- departmentId (required before loading divisions)
+- divisionId (optional)
+- managerId (optional)
+- searchDivision, searchManager (local inputs)
+
+Queries (TanStack Query)
+- Divisions:
+  useQuery({
+    queryKey: ['divisions', { departmentId, q: searchDivision, limit: 20 }],
+    queryFn: () => fetch(`/api/divisions?departmentId=${departmentId}&q=${encodeURIComponent(searchDivision||'')}&limit=20`).then(r=>r.json()),
+    enabled: !!departmentId,
+    staleTime: 60_000
+  })
+
+- Managers:
+  useQuery({
+    queryKey: ['users','managers',{ departmentId, divisionId, q: searchManager, limit: 20 }],
+    queryFn: () => {
+      const qs = new URLSearchParams({
+        departmentId,
+        ...(divisionId ? { divisionId } : {}),
+        ...(searchManager ? { q: searchManager } : {}),
+        limit: '20'
+      }).toString();
+      return fetch(`/api/users/managers?${qs}`).then(r=>r.json());
+    },
+    enabled: !!departmentId, // divisionId optional
+    staleTime: 60_000
+  })
+
+Field behavior
+- Division select is disabled until Department is chosen.
+- When Department changes, clear divisionId and managerId, then refetch both queries.
+- Manager select enables when Department is chosen. If Division is chosen, refilter automatically.
+- Both selects show loading spinners while the query is fetching, and show “No results” when the list is empty.
+
+UI rules
+- Division options: label = division.name, value = id.
+- Manager options: label = name (role badge), sublabel = email, value = id.
+- Debounce search inputs by 200 ms before calling setSearch.
+
+Validation
+- Department is required.
+- Division is optional, but when provided it must belong to the selected Department.
+- Manager is optional.
+
+Acceptance
+- Selecting a Department populates Division options from DB.
+- Typing in Division search filters results server side.
+- Managers list populates from DB and re-filters if Division is selected.
+- Submitting the dialog sends the chosen division_id and manager_id in POST /api/candidates.
+- No hardcoded lists. Both fields remain correct across page reloads.

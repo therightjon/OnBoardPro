@@ -1,0 +1,159 @@
+Bug: Searchable dropdowns show "No results" on open
+
+Scope
+- Fix globally for our AutoSelectCombobox and the search endpoints it calls.
+- Keep auto-select behavior, but do not auto-select when the query is empty.
+
+Backend (Postgres + API) – idempotent
+
+1) Allow empty q to return top items
+- Update /api/search/departments, /api/search/divisions, /api/search/users so that:
+  • If q is null/empty/whitespace: return top 20 items (ordered by name ASC), filtered by departmentId where applicable.
+  • Else: run the fuzzy search as today.
+
+Example SQL for departments:
+
+-- params: q text
+WITH qry AS (
+  SELECT nullif(trim($1), '') AS q
+)
+SELECT id, name,
+       CASE WHEN (SELECT q FROM qry) IS NULL THEN 1.0
+            ELSE GREATEST(similarity(lower(name), lower((SELECT q FROM qry))), 0)
+       END AS score
+FROM departments
+WHERE (SELECT q FROM qry) IS NULL
+   OR name ILIKE '%' || (SELECT q FROM qry) || '%'
+   OR similarity(lower(name), lower((SELECT q FROM qry))) > 0.1
+ORDER BY
+  CASE WHEN (SELECT q FROM qry) IS NULL THEN 0 ELSE 1 END,  -- put fuzzy results after top list
+  score DESC,
+  name ASC
+LIMIT 20;
+
+Divisions (with optional departmentId):
+
+WITH qry AS (
+  SELECT nullif(trim($1), '') AS q, $2::uuid AS dept_id
+)
+SELECT id, name,
+       CASE WHEN (SELECT q FROM qry) IS NULL THEN 1.0
+            ELSE GREATEST(similarity(lower(name), lower((SELECT q FROM qry))), 0)
+       END AS score
+FROM divisions
+WHERE ((SELECT dept_id FROM qry) IS NULL OR department_id = (SELECT dept_id FROM qry))
+  AND (
+    (SELECT q FROM qry) IS NULL
+    OR name ILIKE '%' || (SELECT q FROM qry) || '%'
+    OR similarity(lower(name), lower((SELECT q FROM qry))) > 0.1
+  )
+ORDER BY
+  CASE WHEN (SELECT q FROM qry) IS NULL THEN 0 ELSE 1 END,
+  score DESC,
+  name ASC
+LIMIT 20;
+
+Users (role=manager optional) follows the same pattern.
+
+Frontend – AutoSelectCombobox improvements
+
+File: src/components/inputs/AutoSelectCombobox.tsx
+Changes:
+- Fetch immediately when the popover opens (even with empty query).
+- When query === '', do NOT auto-commit; just show top results.
+- Show "Start typing to search…" when query is empty and items are empty.
+- Keep Enter to commit the first item; prevent form submit.
+- Keep auto-commit only when query.length >= 2 OR exact match.
+
+Diff-style outline:
+
+'use client';
+...
+type Props = {
+  ...
+  onOpenChange?: (open: boolean) => void; // optional notify
+  minAutoCommitLen?: number; // default 2
+};
+
+export function AutoSelectCombobox({... , minAutoCommitLen = 2 }) {
+  const [open, setOpen] = React.useState(false);
+  const [query, setQuery] = React.useState('');
+  const [items, setItems] = React.useState<Item[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [selected, setSelected] = React.useState<Item | null>(null);
+
+  const load = React.useCallback(async (q: string) => {
+    setLoading(true);
+    try {
+      const data = await fetchItems(q);
+      setItems(data ?? []);
+      // Auto-select logic
+      const trimmed = q.trim();
+      if (trimmed.length === 0) return; // do not auto-commit on empty query
+      const exact = data.find(d => d.name.toLowerCase() === trimmed.toLowerCase());
+      if (exact) { setSelected(exact); onChange(exact.id, exact); return; }
+      const top = data[0];
+      if (top && (data.length === 1 || (top.score ?? 0) >= autoCommitThreshold) && trimmed.length >= minAutoCommitLen) {
+        setSelected(top); onChange(top.id, top);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchItems, onChange, autoCommitThreshold, minAutoCommitLen]);
+
+  // Load on open (seed with top items)
+  React.useEffect(() => {
+    if (open) { load(query); }
+  }, [open, query, load]);
+
+  return (
+    <div className="grid gap-1.5">
+      <label className="text-sm font-medium text-foreground">{label}{required ? ' *' : ''}</label>
+      <Popover open={open} onOpenChange={(v) => { setOpen(v); onOpenChange?.(v); }}>
+        <PopoverTrigger asChild> ... </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder={placeholder ?? 'Search...'}
+              value={query}
+              onValueChange={setQuery}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const top = items[0];
+                  if (top) { setSelected(top); onChange(top.id, top); setOpen(false); }
+                  e.preventDefault();
+                }
+              }}
+            />
+            {query.trim().length === 0 && !loading && items.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-muted-foreground">Start typing to search…</div>
+            ) : (
+              <CommandEmpty>{loading ? 'Loading…' : 'No results'}</CommandEmpty>
+            )}
+            <CommandGroup>
+              {items.map((item) => (
+                <CommandItem key={item.id} value={item.name} onSelect={() => { setSelected(item); onChange(item.id, item); setOpen(false); }}>
+                  <Check className={cn('mr-2 h-4 w-4', value === item.id ? 'opacity-100' : 'opacity-0')} />
+                  <span className="truncate">{item.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+New Candidate dialog (no logic changes needed):
+- Department/Division/Manager keep using AutoSelectCombobox.
+- Because the component now fetches on open and the API returns a top list for empty q, opening shows items instead of “No results”.
+- Auto-commit won’t fire until the user types a query (length ≥ 2) or chooses an item.
+
+QA / Acceptance
+- Opening Department/Division/Manager shows a list of items immediately (top list) instead of "No results".
+- Typing “mfm” selects the “MFM” division; Enter commits and does not submit the form.
+- No auto-selection on open (empty query).
+- With an empty query and no items (e.g., Division with no Department selected), message shows “Start typing to search…” (or remains disabled per existing prop).
+
+Please implement the backend changes for empty-query handling and update AutoSelectCombobox as above, then test on the New Candidate dialog for Department, Division, and Manager.

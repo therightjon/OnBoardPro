@@ -1,0 +1,125 @@
+Feature: Edit Candidate + Soft Delete (Archive)
+
+Goal
+- Add an “Edit” flow on /candidates/[id] to modify allowed fields only.
+- Add soft delete (Archive) and Restore.
+- Respect snapshot model: template, candidate type, and start date are immutable here.
+
+DB (Postgres 16, idempotent)
+-- Add archive fields if not present
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='candidates' AND column_name='archived'
+  ) THEN
+    ALTER TABLE candidates ADD COLUMN archived boolean NOT NULL DEFAULT false;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='candidates' AND column_name='archived_at'
+  ) THEN
+    ALTER TABLE candidates ADD COLUMN archived_at timestamp;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='candidates' AND column_name='archived_by'
+  ) THEN
+    ALTER TABLE candidates ADD COLUMN archived_by uuid REFERENCES users(id);
+  END IF;
+END$$;
+
+-- Optional: partial unique indexes ignore archived rows (if you add any uniqueness later)
+-- Example: UNIQUE (lower(email)) WHERE archived = false;
+
+API
+
+1) GET /api/candidates/:id  (ensure payload includes all editable fields + flags)
+   - Include: id, salutation, first_name, last_name, email,
+              department_id, division_id, manager_id, faculty_rank_id,
+              status, archived, archived_at
+   - Also include display joins for current page.
+
+2) PATCH /api/candidates/:id  (RBAC: system_admin, hr_staff)
+   Body (only these keys are accepted):
+   {
+     "salutation": "Dr.",
+     "firstName": "Kat",
+     "lastName": "Williams",
+     "email": "kwill@acme.com",
+     "departmentId": "...",
+     "divisionId": "...",
+     "managerId": "...",
+     "facultyRankId": "...",
+     "status": "active" | "archived"   // optional convenience
+   }
+   Behavior:
+   - Reject attempts to change template_applied_from_id, candidate_type_id, start_date with 400.
+   - Update editable fields; set updated_at/updated_by.
+   - If status === 'archived', set archived=true, archived_at=now(), archived_by=current_user.
+     If status === 'active', set archived=false and clear archived_at/archived_by.
+   - Return the full, fresh candidate row (with joined names you use in UI).
+
+3) DELETE /api/candidates/:id  (Soft delete)
+   - Equivalent to PATCH with { status: "archived" }.
+   - Return 200 with { id, archived: true, archived_at }.
+
+4) POST /api/candidates/:id/restore
+   - Sets archived=false, clears archived_at/by. Return updated row.
+
+Frontend
+
+A) Edit UI (Candidate Detail page, top-right “Edit” button)
+- Open a modal dialog (shadcn/ui Dialog) with a form using react-hook-form + zod.
+- Fields (with initial values from GET):
+  • Salutation (select from salutation_type enum)
+  • First Name, Last Name, Email (required)
+  • Department (select; loads from /api/departments?active=1)
+  • Division (select; filters by department when possible)
+  • Manager (select/search; loads from /api/users?role=manager)
+  • Faculty Rank (select; visible only when candidate_type is Faculty)
+- Read-only display (disabled inputs) for: Candidate Type, Start Date, Template.
+- Save button: PATCH /api/candidates/:id; on success:
+  - toast “Candidate updated”
+  - invalidate queries: ['candidate', id], ['candidates']
+- Cancel: closes dialog.
+
+B) Archive / Restore
+- Add “More” menu next to Edit:
+  • Archive Candidate… (destructive) → AlertDialog confirm
+  • Restore Candidate (only when archived)
+- Archive action calls DELETE /api/candidates/:id; on success:
+  - toast “Candidate archived”
+  - invalidate ['candidates']; navigate back to list or keep on detail with an Archived badge.
+- Restore calls POST /api/candidates/:id/restore; on success invalidate like above.
+
+C) React Query cache discipline
+- Normalize keys:
+  ['candidates'], ['candidate', id]
+- After any edit/archive/restore:
+  - qc.invalidateQueries({ queryKey: ['candidate', id] });
+  - qc.invalidateQueries({ queryKey: ['candidates'] });
+
+D) Validation / UX rules
+- Email required; basic email pattern.
+- Manager, Division optional (if no data).
+- Faculty Rank visible and required only when candidate_type = 'Faculty' (or non-null).
+- Pressing Enter in any async select (division/manager) must NOT submit form.
+  • Ensure selects use preventDefault on Enter.
+  • Submit form only via the “Save changes” button.
+
+E) List behavior
+- Candidates list should hide archived by default. Add a filter “Show archived.”
+- Stage badges in the list remain unchanged by edit actions (only org/contact edit).
+- If a candidate is archived while you’re on the detail page, show an “Archived” badge near the header.
+
+Security / RBAC
+- Server checks role on PATCH/DELETE/restore.
+- Client hides Edit/Archive for unauthorized roles.
+
+Acceptance
+- Editing allowed fields updates the detail view and the list without manual refresh.
+- Attempts to change template/candidate type/start date are rejected with clear error.
+- Archiving moves the candidate out of the default list; restoring brings it back.
+- Faculty Rank field appears only for Faculty; Division/Manager lists read from DB.
+- Enter key in Division/Manager search does not submit.

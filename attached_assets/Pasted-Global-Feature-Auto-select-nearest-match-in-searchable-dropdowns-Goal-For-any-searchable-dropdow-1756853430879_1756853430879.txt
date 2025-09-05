@@ -1,0 +1,256 @@
+Global Feature: Auto-select nearest match in searchable dropdowns
+
+Goal
+- For any searchable dropdown (Combobox style), when the user types a query, automatically select the closest match.
+- Examples:
+  • Typing "mfm" in Division selects "MFM".
+  • Typing "obg" in Department selects "OBGYN".
+- Works across app for Division, Department, Manager, Template, etc.
+- Still allows manual override.
+
+Database (idempotent, Postgres)
+-- Enable trigram similarity and add indexes for fast fuzzy search
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Departments
+CREATE INDEX IF NOT EXISTS idx_departments_name_trgm ON departments USING gin (name gin_trgm_ops);
+-- Divisions
+CREATE INDEX IF NOT EXISTS idx_divisions_name_trgm ON divisions USING gin (name gin_trgm_ops);
+-- Users (for Manager search)
+CREATE INDEX IF NOT EXISTS idx_users_name_trgm ON users USING gin ((coalesce(first_name,'') || ' ' || coalesce(last_name,'')) gin_trgm_ops);
+
+API
+-- Pattern: GET /api/search/<entity>?q=...
+-- Return items with a similarity score and a stable sort so the first item is the best match.
+
+1) GET /api/search/divisions?q=string&departmentId=<uuid optional>
+SELECT id, name,
+       GREATEST(similarity(name, $1), similarity(lower(name), lower($1))) AS score
+FROM divisions
+WHERE ($2::uuid IS NULL OR department_id = $2)
+  AND (name ILIKE '%' || $1 || '%' OR similarity(lower(name), lower($1)) > 0.1)
+ORDER BY score DESC, name ASC
+LIMIT 20;
+
+2) GET /api/search/departments?q=string
+SELECT id, name,
+       GREATEST(similarity(name, $1), similarity(lower(name), lower($1))) AS score
+FROM departments
+WHERE name ILIKE '%' || $1 || '%' OR similarity(lower(name), lower($1)) > 0.1
+ORDER BY score DESC, name ASC
+LIMIT 20;
+
+3) GET /api/search/users?q=string&role=manager
+-- Build full_name and filter by role when provided
+SELECT id,
+       trim(concat_ws(' ', first_name, last_name)) AS name,
+       GREATEST(similarity(trim(concat_ws(' ', first_name, last_name)), $1),
+                similarity(lower(trim(concat_ws(' ', first_name, last_name))), lower($1))) AS score
+FROM users
+WHERE ($2::text IS NULL OR role = $2)
+  AND (
+    trim(concat_ws(' ', first_name, last_name)) ILIKE '%' || $1 || '%'
+    OR similarity(lower(trim(concat_ws(' ', first_name, last_name))), lower($1)) > 0.1
+  )
+ORDER BY score DESC, name ASC
+LIMIT 20;
+
+Response shape for all:
+{ items: [{ id, name, score }], query: "mfm" }
+
+Frontend
+Create a reusable component with auto-select:
+
+File: src/components/inputs/AutoSelectCombobox.tsx
+
+import * as React from 'react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+type Item = { id: string; name: string; score?: number };
+type Props = {
+  label: string;
+  value: string | null;
+  onChange: (id: string | null, item?: Item) => void;
+  fetchItems: (q: string) => Promise<Item[]>;
+  placeholder?: string;
+  autoCommitThreshold?: number; // default 0.45
+  disabled?: boolean;
+  required?: boolean;
+};
+
+export function AutoSelectCombobox({
+  label, value, onChange, fetchItems, placeholder,
+  autoCommitThreshold = 0.45, disabled, required
+}: Props) {
+  const [open, setOpen] = React.useState(false);
+  const [query, setQuery] = React.useState('');
+  const [items, setItems] = React.useState<Item[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [selected, setSelected] = React.useState<Item | null>(null);
+
+  React.useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const data = await fetchItems(query);
+        if (!alive) return;
+        setItems(data);
+        // Auto-select logic:
+        // 1) Exact case-insensitive match on name → commit immediately
+        const exact = data.find(d => d.name.toLowerCase() === query.trim().toLowerCase());
+        if (query.trim().length > 0 && exact) {
+          setSelected(exact);
+          onChange(exact.id, exact);
+          return;
+        }
+        // 2) If top result has sufficient score or only one item, commit
+        const top = data[0];
+        if (top && (data.length === 1 || (top.score ?? 0) >= autoCommitThreshold)) {
+          setSelected(top);
+          onChange(top.id, top);
+        }
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    const t = setTimeout(load, 160); // debounce
+    return () => { alive = false; clearTimeout(t); };
+  }, [query]);
+
+  // Keep displayed label in sync
+  React.useEffect(() => {
+    if (!value) { setSelected(null); return; }
+    const found = items.find(i => i.id === value);
+    if (found) setSelected(found);
+  }, [value, items]);
+
+  return (
+    <div className="grid gap-1.5">
+      <label className="text-sm font-medium text-foreground">
+        {label}{required ? ' *' : ''}
+      </label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn('inline-flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm',
+              disabled && 'opacity-50 cursor-not-allowed')}
+            disabled={disabled}
+          >
+            <span className={cn('truncate', !selected && 'text-muted-foreground')}>
+              {selected?.name ?? (placeholder ?? 'Select...')}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder={placeholder ?? 'Search...'}
+              value={query}
+              onValueChange={setQuery}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  // commit top result on Enter
+                  const top = items[0];
+                  if (top) { setSelected(top); onChange(top.id, top); setOpen(false); }
+                  e.preventDefault();
+                }
+              }}
+            />
+            <CommandEmpty>{loading ? 'Loading…' : 'No results'}</CommandEmpty>
+            <CommandGroup>
+              {items.map((item) => (
+                <CommandItem
+                  key={item.id}
+                  value={item.name}
+                  onSelect={() => {
+                    setSelected(item);
+                    onChange(item.id, item);
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn('mr-2 h-4 w-4', value === item.id ? 'opacity-100' : 'opacity-0')} />
+                  <span className="truncate">{item.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+Wire-up helpers to call the search APIs:
+
+// src/lib/search.ts
+export async function searchDivisions(q: string, departmentId?: string) {
+  const r = await fetch(`/api/search/divisions?q=${encodeURIComponent(q)}${departmentId ? `&departmentId=${departmentId}` : ''}`);
+  const { items } = await r.json();
+  return items as { id: string; name: string; score?: number }[];
+}
+export async function searchDepartments(q: string) {
+  const r = await fetch(`/api/search/departments?q=${encodeURIComponent(q)}`);
+  const { items } = await r.json();
+  return items as { id: string; name: string; score?: number }[];
+}
+export async function searchManagers(q: string) {
+  const r = await fetch(`/api/search/users?q=${encodeURIComponent(q)}&role=manager`);
+  const { items } = await r.json();
+  return items as { id: string; name: string; score?: number }[];
+}
+
+Apply to New Candidate dialog
+
+- Division field:
+  <AutoSelectCombobox
+    label="Division"
+    value={watch('divisionId')}
+    onChange={(id) => setValue('divisionId', id)}
+    fetchItems={(q) => searchDivisions(q, watch('departmentId'))}
+    placeholder="Search divisions..."
+  />
+
+- Department field:
+  <AutoSelectCombobox
+    label="Department"
+    value={watch('departmentId')}
+    onChange={(id) => setValue('departmentId', id)}
+    fetchItems={searchDepartments}
+    placeholder="Search departments..."
+  />
+
+- Manager field:
+  <AutoSelectCombobox
+    label="Manager"
+    value={watch('managerId')}
+    onChange={(id) => setValue('managerId', id)}
+    fetchItems={searchManagers}
+    placeholder="Search managers..."
+  />
+
+Behavior rules
+- Auto-commit happens when:
+  1) exact case-insensitive name match, or
+  2) only one result remains, or
+  3) top result score ≥ 0.45 (tweakable per field via prop).
+- Pressing Enter commits the top result.
+- Manual selection is always possible.
+- Prevent form submit on Enter in the CommandInput. The component already calls preventDefault.
+- For Division search, pass departmentId so results are scoped properly.
+
+QA acceptance
+- Typing “mfm” in Division auto-selects “MFM”.
+- Typing “obg” in Department auto-selects “OBGYN”.
+- Enter commits the top result and does not submit the parent form.
+- When no results meet the threshold, no auto-commit occurs until user presses Enter or clicks a result.
+- Works in other dropdowns that adopt AutoSelectCombobox without extra code.
+
+Accessibility
+- CommandInput remains focusable.
+- Keyboard users can type, press Enter to commit, or navigate items with arrows and Enter.

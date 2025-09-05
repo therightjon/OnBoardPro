@@ -1,0 +1,55 @@
+**Task:** Review the current Auth provider implementation and extend it so Authentication settings are surfaced on the Settings page, with the ability for System Admins and HR Staff to enable or disable providers.
+
+### Goals
+1. **Server**
+   - Keep existing login/auth intact.
+   - Add `GET /api/auth/providers` → return safe summary of providers (enabled/configured, no secrets).
+   - Add `PATCH /api/auth/providers/:id` → toggle a provider’s enabled state.  
+     - Only allowed for SystemAdmin and HRStaff.
+     - Persist `enabled` flag in a new `auth_providers` table.
+   - Continue to detect configuration from env for required secrets, but combine with DB flag for final “enabled” status.
+   - Gate both routes with `requireAuth` + `requireRole(["SystemAdmin","HRStaff"])`.
+
+2. **Database**
+   - New table `auth_providers`:
+     ```sql
+     create table auth_providers (
+       id text primary key,
+       name text not null,
+       enabled boolean not null default true
+     );
+     ```
+   - Seed table with default rows: local, ldap, google, azuread.
+   - Drizzle schema in `shared/schema.ts`.
+
+3. **Shared Types**
+   - Add `ProviderInfo` type with:
+     ```ts
+     export type ProviderInfo = {
+       id: "local" | "ldap" | "google" | "azuread";
+       name: string;
+       enabled: boolean;       // from DB toggle
+       configured: boolean;    // from env check
+       clientIdMasked?: string;
+       callbackUrl?: string;
+       notes?: string;
+     };
+     ```
+
+4. **Client**
+   - Add Settings tab → “Authentication.”
+   - Fetch `/api/auth/providers` and render as table/cards.
+   - Columns: Provider, Enabled (toggle switch), Configured, Client ID (masked), Callback URL, Notes.
+   - Toggle switch calls `PATCH /api/auth/providers/:id` to enable/disable.
+   - Use shadcn/ui Switch component for consistency.
+   - Non-privileged users cannot see this tab or access data.
+
+### Implementation Details
+- **Provider detection:**  
+  - Local: always configured.  
+  - LDAP: requires `LDAP_URL`, `LDAP_BIND_DN`.  
+  - Google: requires `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.  
+  - AzureAD: requires `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`.  
+- **Masking helper:**  
+  ```ts
+  const maskId = (s?: string) => s ? `${"x".repeat(Math.max(0, s.length - 4))}${s.slice(-4)}` : undefined;

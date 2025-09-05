@@ -1,0 +1,130 @@
+Feature: Show estimated pipeline duration on Template details page
+
+Goal
+- Display an estimate of how long this hiring pipeline will take from a selected Start Date.
+- Use active template_tasks only.
+- Support due_rule_type values we use today:
+  • 'on_start_date'                 → offset 0
+  • 'days_after_start' (int)        → +N days
+  • 'days_before_start' (int)       → −N days (does not extend duration)
+  • 'fixed_date' (date)             → absolute date if Start Date provided (otherwise “unknown”)
+  • (If we have stage-relative rules like 'days_before_stage', exclude from estimate and surface a note)
+- Show both calendar days and business days (use our add_business_days RPC for business-day math).
+- If the template has any “non-estimable” tasks (e.g., stage-relative rules), display a small warning with a count.
+
+API (Node/Express or Next Route)
+
+1) GET /api/templates/:id/estimate?start=YYYY-MM-DD&businessDays=true|false
+   Behavior:
+   - start is optional; if omitted, compute a **rule-only** estimate using relative rules (ignore fixed_date).
+   - businessDays=true also compute business day horizon using add_business_days; otherwise return calendar days only.
+   Returns:
+   {
+     "templateId": "...",
+     "taskCount": 12,
+     "lastDueDate": "2025-09-29",     // when start provided and at least one computable due
+     "totalCalendarDays": 28,         // ceil(max(0, maxOffset))
+     "totalBusinessDays": 20,         // only if businessDays=true
+     "nonEstimable": [
+       { "taskId": "...", "rule": "days_before_stage", "reason": "stage-relative rule" },
+       { "taskId": "...", "rule": "fixed_date", "reason": "no start date provided" }
+     ],
+     "perStage": [
+       { "stageId": "...", "stageName": "Offer", "latestOffsetDays": 3, "latestDate": "2025-09-05" }
+     ]
+   }
+
+   SQL (Postgres; adapt to Drizzle builder)
+   WITH tt AS (
+     SELECT
+       tt.id,
+       tt.stage_id,
+       hs.name AS stage_name,
+       tt.due_rule_type,
+       tt.due_rule_value::text,
+       CASE
+         WHEN tt.due_rule_type = 'on_start_date'      THEN 0
+         WHEN tt.due_rule_type = 'days_after_start'   THEN (tt.due_rule_value)::int
+         WHEN tt.due_rule_type = 'days_before_start'  THEN GREATEST(- (tt.due_rule_value)::int, 0) * 0  -- negative offsets don’t extend duration
+         ELSE NULL
+       END AS rel_offset_days
+     FROM template_tasks tt
+     JOIN hiring_stages hs ON hs.id = tt.stage_id
+     WHERE tt.template_id = $1 AND COALESCE(tt.archived, false) = false
+   ),
+   offsets AS (
+     SELECT
+       id, stage_id, stage_name, due_rule_type, due_rule_value, rel_offset_days,
+       CASE
+         WHEN $2::date IS NOT NULL AND due_rule_type = 'fixed_date'
+           THEN GREATEST((to_date(due_rule_value,'YYYY-MM-DD') - $2::date), 0)
+         ELSE rel_offset_days
+       END AS effective_offset
+     FROM tt
+   ),
+   latest AS (
+     SELECT
+       stage_id,
+       stage_name,
+       MAX(effective_offset) AS latest_offset
+     FROM offsets
+     WHERE effective_offset IS NOT NULL
+     GROUP BY stage_id, stage_name
+   )
+   SELECT
+     COALESCE(MAX(effective_offset), 0) AS total_calendar_days,
+     json_agg(json_build_object('stageId', l.stage_id, 'stageName', l.stage_name, 'latestOffsetDays', l.latest_offset) ORDER BY l.latest_offset) AS per_stage,
+     ARRAY(
+       SELECT json_build_object('taskId', o.id, 'rule', o.due_rule_type,
+                                'reason', CASE
+                                  WHEN o.due_rule_type IN ('days_before_stage','days_after_stage') THEN 'stage-relative rule'
+                                  WHEN o.due_rule_type = 'fixed_date' AND $2::date IS NULL THEN 'no start date provided'
+                                  ELSE 'unsupported'
+                                END)
+       FROM offsets o
+       WHERE effective_offset IS NULL
+     ) AS non_estimable
+   FROM offsets
+   LEFT JOIN latest l ON FALSE;
+
+   In the handler:
+   - If start present and at least one computable task exists, set lastDueDate = start + total_calendar_days.
+   - If businessDays=true and start present:
+       call SELECT add_business_days($2::timestamp, total_calendar_days)::date to compute last business day.
+       Also return totalBusinessDays by iterating days via RPC if you prefer exact business calc; else omit.
+
+Frontend (Template page header)
+
+- Add a small “Pipeline Estimate” in the card above Template Stages:
+  • Label: “Estimated duration”
+  • Controls:
+    - Start Date picker (defaults to today; keep a “Preview from start” control consistent with existing preview).
+    - Toggle for “Use business days”.
+  • Output:
+    - “~ XX business days (YY calendar days)”
+    - “Est. complete by: <date>” when start provided.
+    - If nonEstimable.length > 0, show an info tooltip: “Excluded N tasks with fixed dates or stage-relative rules.”
+
+- Fetch:
+  const { data } = useQuery({
+    queryKey: ['templateEstimate', templateId, start, businessDays],
+    queryFn: () => fetch(`/api/templates/${templateId}/estimate?start=${start}&businessDays=${businessDays}`).then(r=>r.json()),
+    enabled: !!templateId
+  });
+
+- Render fallbacks:
+  • If taskCount = 0 → “No tasks to estimate.”
+  • If only negative/zero offsets → 0 days; est. complete = Start Date.
+  • If start not set and there are fixed_date tasks → show “Set a start date to include fixed dates.”
+
+Rules/assumptions
+- Negative offsets (before start) never extend the pipeline length.
+- Stage-relative rules cannot be estimated without a stage schedule; exclude them and surface a note.
+- Only active template_tasks count.
+- This is an **estimate**; actual duration on a candidate may differ if tasks are edited post-expansion.
+
+Acceptance
+- With only “on_start_date” and “days_after_start” rules, the estimate equals max offset.
+- Adding a fixed_date earlier than Start Date does not extend duration; later than Start Date extends appropriately (only when start provided).
+- Toggling business days updates the displayed total and “Est. complete by” using add_business_days.
+- Non-estimable tasks are listed in a tooltip/badge; no crash.

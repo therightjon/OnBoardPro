@@ -1,0 +1,194 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light theme - Primary green #1A5632 and white color scheme */
+  --background: hsl(0 0% 98%);
+  --foreground: hsl(0 0% 13%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(0 0% 13%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(0 0% 13%);
+  --primary: hsl(145 63% 16%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(120 27% 94%);
+  --secondary-foreground: hsl(145 63% 16%);
+  --muted: hsl(0 0% 96%);
+  --muted-foreground: hsl(0 0% 45%);
+  --accent: hsl(122 39% 49%);
+  --accent-foreground: hsl(0 0% 100%);
+  --destructive: hsl(4 86% 58%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(0 0% 90%);
+  --input: hsl(0 0% 90%);
+  --ring: hsl(145 63% 16%);
+  --chart-1: hsl(145 63% 16%);
+  --chart-2: hsl(122 39% 49%);
+  --chart-3: hsl(42 87% 55%);
+  --chart-4: hsl(4 86% 58%);
+  --chart-5: hsl(221 83% 53%);
+  --sidebar: hsl(0 0% 100%);
+  --sidebar-foreground: hsl(0 0% 13%);
+  --sidebar-primary: hsl(145 63% 16%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(120 27% 94%);
+  --sidebar-accent-foreground: hsl(145 63% 16%);
+  --sidebar-border: hsl(0 0% 90%);
+  --sidebar-ring: hsl(145 63% 16%);
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: Menlo, monospace;
+  --radius: 8px;
+}
+
+.dark {
+  /* Dark theme - Darker green tones */
+  --background: hsl(0 0% 7%);
+  --foreground: hsl(0 0% 98%);
+  --card: hsl(0 0% 12%);
+  --card-foreground: hsl(0 0% 98%);
+  --popover: hsl(0 0% 12%);
+  --popover-foreground: hsl(0 0% 98%);
+  --primary: hsl(145 50% 25%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(145 20% 15%);
+  --secondary-foreground: hsl(145 50% 80%);
+  --muted: hsl(0 0% 15%);
+  --muted-foreground: hsl(0 0% 65%);
+  --accent: hsl(122 30% 40%);
+  --accent-foreground: hsl(0 0% 100%);
+  --destructive: hsl(4 70% 50%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(0 0% 20%);
+  --input: hsl(0 0% 20%);
+  --ring: hsl(145 50% 25%);
+  --chart-1: hsl(145 50% 25%);
+  --chart-2: hsl(122 30% 40%);
+  --chart-3: hsl(42 87% 55%);
+  --chart-4: hsl(4 70% 50%);
+  --chart-5: hsl(221 83% 53%);
+  --sidebar: hsl(0 0% 12%);
+  --sidebar-foreground: hsl(0 0% 98%);
+  --sidebar-primary: hsl(145 50% 25%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(145 20% 15%);
+  --sidebar-accent-foreground: hsl(145 50% 80%);
+  --sidebar-border: hsl(0 0% 20%);
+  --sidebar-ring: hsl(145 50% 25%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  main {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Skip link for accessibility */
+  .skip-link {
+    position: absolute;
+    top: -40px;
+    left: 8px;
+    z-index: 999;
+    padding: 8px 16px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: 500;
+    transition: top 0.2s;
+  }
+
+  .skip-link:focus {
+    top: 8px;
+  }
+
+  /* Enhanced focus states for accessibility */
+  .focus-visible {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+
+  /* Smooth transitions for interactive elements */
+  .sidebar-transition {
+    transition: transform 0.3s ease-in-out;
+  }
+
+  .metric-card {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .metric-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .nav-link {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .table-row {
+    transition: background-color 0.2s ease-in-out;
+  }
+
+  .table-row:hover {
+    background-color: var(--muted);
+  }
+
+  /* Status badge colors */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .status-active { 
+    background-color: hsl(122 39% 49% / 0.1); 
+    color: hsl(122 39% 49%); 
+  }
+  
+  .status-draft { 
+    background-color: hsl(42 87% 55% / 0.1); 
+    color: hsl(42 87% 55%); 
+  }
+  
+  .status-completed { 
+    background-color: hsl(221 83% 53% / 0.1); 
+    color: hsl(221 83% 53%); 
+  }
+  
+  .status-overdue { 
+    background-color: hsl(4 86% 58% / 0.1); 
+    color: hsl(4 86% 58%); 
+  }
+
+  /* Priority colors */
+  .priority-critical { color: hsl(4 86% 58%); }
+  .priority-high { color: hsl(42 87% 55%); }
+  .priority-medium { color: hsl(221 83% 53%); }
+  .priority-low { color: hsl(0 0% 45%); }
+
+  /* Mobile responsive sidebar */
+  @media (max-width: 768px) {
+    .sidebar {
+      transform: translateX(-100%);
+    }
+    .sidebar.mobile-open {
+      transform: translateX(0);
+    }
+  }
+}

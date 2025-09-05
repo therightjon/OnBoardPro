@@ -1,0 +1,133 @@
+Feature: Enforce “stage first, then tasks” on Templates
+
+Goals
+- You cannot add a Template Task unless the stage already exists on that template.
+- A template cannot be activated unless:
+  (a) it has at least one stage, and
+  (b) every active stage has ≥1 non-archived template task.
+- UX should guide the user: add a stage first, then add tasks to that stage.
+
+DB (Postgres 16, idempotent)
+
+-- 1) Guard: template_tasks.stage_id must exist in template_stages for that template
+-- (If not already added)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_template_tasks_stage_in_template'
+  ) THEN
+    ALTER TABLE template_tasks
+      ADD CONSTRAINT fk_template_tasks_stage_in_template
+      FOREIGN KEY (template_id, stage_id)
+      REFERENCES template_stages(template_id, stage_id)
+      DEFERRABLE INITIALLY DEFERRED;
+  END IF;
+END$$;
+
+-- 2) Validation: template cannot be set active unless “ready”
+--    Ready = has >=1 active stage AND each active stage has >=1 non-archived task
+CREATE OR REPLACE FUNCTION template_is_ready(p_template_id uuid)
+RETURNS boolean LANGUAGE plpgsql AS $$
+DECLARE
+  stage_cnt int;
+  unfilled_cnt int;
+BEGIN
+  SELECT COUNT(*) INTO stage_cnt
+  FROM template_stages ts
+  WHERE ts.template_id = p_template_id AND ts.is_active = true;
+
+  IF stage_cnt = 0 THEN
+    RETURN false;
+  END IF;
+
+  SELECT COUNT(*) INTO unfilled_cnt
+  FROM template_stages ts
+  WHERE ts.template_id = p_template_id
+    AND ts.is_active = true
+    AND NOT EXISTS (
+      SELECT 1
+      FROM template_tasks tt
+      WHERE tt.template_id = ts.template_id
+        AND tt.stage_id = ts.stage_id
+        AND tt.archived = false
+    );
+
+  RETURN unfilled_cnt = 0;
+END$$;
+
+-- 3) Block turning templates.active=true unless ready
+--    (fires on INSERT/UPDATE; harmless if repeated)
+DROP TRIGGER IF EXISTS trg_templates_guard_active ON templates;
+CREATE CONSTRAINT TRIGGER trg_templates_guard_active
+AFTER INSERT OR UPDATE OF is_active ON templates
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION
+  -- wrapper function to raise if not ready
+  (
+    SELECT
+      CASE
+        WHEN 1=1 THEN
+          (SELECT NULL)  -- placeholder; we need a dedicated function:
+      END
+  );
+
+-- Replace the above with a proper wrapper (Postgres can't inline IF here):
+CREATE OR REPLACE FUNCTION enforce_template_ready()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.is_active = true AND NOT template_is_ready(NEW.id) THEN
+    RAISE EXCEPTION 'Template % cannot be activated until it has stages and each stage has at least one task'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END$$;
+
+DROP TRIGGER IF EXISTS trg_templates_guard_active ON templates;
+CREATE CONSTRAINT TRIGGER trg_templates_guard_active
+AFTER INSERT OR UPDATE OF is_active ON templates
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION enforce_template_ready();
+
+API changes
+
+1) POST /api/templates/:id/template-tasks
+   - Before insert, verify stage exists for this template:
+     SELECT 1 FROM template_stages WHERE template_id = :id AND stage_id = :stage AND is_active = true;
+     If missing, return 400:
+     { error: "Add a stage to this template before adding tasks." }
+
+2) POST /api/templates/:id/stages
+   - As you already do (UPSERT recommended). Ensure unique (template_id, stage_id).
+
+3) PATCH /api/templates/:id
+   - If body.is_active === true, let DB trigger enforce readiness.
+   - Catch the DB exception and return 400 with a friendly message:
+     "This template can’t be activated until each stage has at least one task."
+
+Frontend (Template Detail page)
+
+- Stages section:
+  • “Add Stage” button: always enabled for allowed roles.
+  • After adding/removing a stage: refetch ['templateStages', templateId] and ['templateTasks', templateId].
+
+- Template Tasks section:
+  • Disable “Add Task” button if the template has zero stages (show tooltip: “Add a stage first”).
+  • Stage select in the “Add Task” dialog must list ONLY this template’s stages (from /api/templates/:id/stages).
+  • If template has stages but none selected, require Stage before submit.
+
+- Activation toggle/button:
+  • When user tries to activate and DB returns 400, show alert:
+    “Each stage must contain at least one task before you can activate this template.”
+  • Optionally display a checklist:
+    - [✓/✗] At least one stage
+    - [✓/✗] Each stage has ≥1 task
+    - [✓/✗] No orphan tasks (stage removed)
+
+Acceptance
+
+- Attempting to add a Template Task without any stages shows a clear error and the server returns 400.
+- After adding a stage, adding a task works and is persisted.
+- Trying to activate a template with an empty stage fails with a clear message; filling the missing task(s) then allows activation.
+- Removing and re-adding a stage still works (UPSERT or re-activate row); tasks tied to removed stages are blocked/handled according to your existing policy.

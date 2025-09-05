@@ -1,0 +1,227 @@
+Project: OnboardPro - Hiring and Onboarding App
+
+Databases and runtime
+- Database: Postgres 16. In Bolt use a hosted Postgres for development. Keep code Docker-friendly for later deployment on postgres:16.
+- Provide `.env.example` with `DATABASE_URL`. Note that production will run in Docker.
+
+Framework and tooling
+- Next.js 14 + TypeScript + Tailwind + shadcn/ui + TanStack Query
+- ORM: Drizzle ORM with SQL migrations in ./drizzle
+- Scripts:
+  - dev: next dev
+  - build: next build
+  - start: next start
+  - db: drizzle-kit generate && drizzle-kit migrate
+
+Authentication (very basic)
+- Local credentials only: email + password
+- Hash with bcrypt
+- JWT sessions, 7-day expiry
+- Minimal login rate limit
+
+Authorization and roles
+- Roles: system_admin, hr_staff, department_admin, division_leader, manager, candidate
+- RBAC rules:
+  - system_admin: full access
+  - hr_staff: manage candidates, tasks, templates, departments, divisions
+  - department_admin: manage candidates and tasks in their department
+  - division_leader: manage candidates and tasks in their division
+  - manager: view and update tasks assigned to them or their team, read candidates in their department
+  - candidate: view own candidate record and tasks, update own task statuses and notes
+
+Data model (UUID PK, created_at, updated_at on all tables)
+- users(id, email unique, name, password_hash, role enum, department_id nullable, division_id nullable, active boolean default true)
+- departments(id, name unique, archived boolean default false)
+- divisions(id, department_id FK, name, archived boolean default false, unique per department)
+- candidate_types(id, name unique)
+- faculty_ranks(id, name unique)
+- task_categories(id, name unique)
+- task_priorities(id, name enum: low|medium|high|critical)
+- hiring_stages(id, name unique, order_index int)
+- candidates(
+    id, first_name, last_name, email,
+    candidate_type_id FK, department_id FK, division_id FK,
+    manager_id FK users, start_date date not null,
+    status enum: draft|active|on_hold|completed|canceled default 'active',
+    template_applied_from_id FK templates null,
+    template_applied_at timestamptz null,
+    template_locked boolean default false
+  )
+- candidate_stage_history(id, candidate_id FK, from_stage_id FK null, to_stage_id FK, changed_at timestamptz default now(), changed_by FK users)
+- task_definitions(id, name unique, description)
+- templates(id, name unique, candidate_type_id FK, is_active boolean default true, archived boolean default false)
+- template_tasks(
+    id, template_id FK, task_def_id FK, stage_id FK,
+    due_rule_type enum: days_before_start|days_after_start|days_before_stage|days_after_stage|fixed_date,
+    due_rule_value int,
+    fixed_date date null,
+    default_assignee_id FK users null,
+    default_priority enum, default_category_id FK
+  )
+- candidate_tasks(
+    id, candidate_id FK not null,
+    task_def_id FK nullable,          -- optional link to a Task Definition
+    title, description,
+    stage_id FK, assignee_id FK users null,
+    priority enum, category_id FK,
+    due_at timestamptz null,
+    status enum: todo|in_progress|blocked|done|canceled default 'todo',
+    completed_at timestamptz null, notes text, required boolean default true,
+    deleted_at timestamptz null       -- soft delete marker
+  )
+
+Candidate Tasks must always include a candidate_id, whether created from a Template (via expand_template) or added manually. 
+If created manually, task_def_id may be null and the user supplies title/description directly.
+
+Indexes and constraints
+- unique index on candidates(email, department_id)
+- indexes on all FKs
+- partial index on candidate_tasks(assignee_id) where status <> 'done'
+
+Seeds (idempotent upserts by name)
+- task_categories: Documents, Meetings, Admin, Processing, Other
+- task_priorities: low, medium, high, critical
+- hiring_stages: LOI(1), Offer(2), Admin Processing(3), Credentialing(4), Onboarding(5)
+- candidate_types: Staff, Faculty, Clinical, Faculty Clinical, Other
+- faculty_ranks: Assistant, Associate, Professor, Other
+- templates: Faculty - Base, Staff - Base
+- users (dev only, bcrypt of "password123"):
+  - sysadmin@example.com role system_admin
+  - hr@example.com role hr_staff
+  - deptadmin@example.com role department_admin with department_id
+  - divleader@example.com role division_leader with division_id
+  - manager@example.com role manager with department_id
+  - candidate@example.com role candidate
+
+SQL functions (RPC)
+1) add_business_days(base timestamptz, delta int) returns timestamptz
+   - Skip Saturday and Sunday. No holidays for MVP.
+2) expand_template(template_id uuid, candidate_id uuid)
+   Guards:
+   - candidate.template_locked = false
+   - candidate has zero candidate_tasks
+   - template.is_active = true
+   - candidate.start_date not null
+   Behavior:
+   - For each template_task insert a candidate_task
+   - due_at calculation:
+     - days_before_start: add_business_days(candidate.start_date, -value)
+     - days_after_start: add_business_days(candidate.start_date, value)
+     - days_before_stage|days_after_stage: anchor to start_date for MVP
+     - fixed_date: use template_tasks.fixed_date
+   - Set candidate.template_applied_from_id, template_applied_at = now(), template_locked = true
+   - Return inserted tasks
+
+Frontend scope and routes
+- Basic screens: Dashboard, Candidates (list, detail, CRUD), Tasks (list, detail, CRUD), My Tasks (prefiltered to current user), Templates (list, detail, CRUD), Analytics (placeholder), Settings
+- Additional library page: Task Definitions under Templates
+- Routes:
+  - /tasks            → All Candidate Tasks with full CRUD
+  - /tasks/mine       → My Tasks, same component as /tasks but fixed filter assignee_id = current_user
+  - /templates        → Templates list
+  - /templates/[id]   → Template detail with Template Tasks editor
+  - /templates/task-definitions → Task Definitions library CRUD
+  - /candidates, /candidates/[id], /settings, /analytics
+- Global layout:
+  - Sidebar: Dashboard, Candidates, Tasks, My Tasks, Templates, Analytics, Settings
+  - Clean card layout, primary green #1A5632 and white, responsive grid
+  - Dark and light themes in Settings
+
+Dashboard
+- Show counts:
+  - Active Candidates
+  - Tasks Due (next 7 days)
+  - Overdue Tasks
+  - Completion Percentage
+  - Recent Activity Feed (latest 10 items: task status changes, new candidates)
+- Stage Distribution horizontal bar chart (optional placeholder is fine)
+
+Candidates
+- List with filters by stage, type, department
+- Create form: candidate info plus required template
+  - Preview due dates from start_date
+  - On submit: create candidate, then call expand_template
+- Detail: profile, stage timeline, tasks grouped by stage
+  - Edit task status, assignee, due date (respect RBAC)
+  - Show template applied info if locked
+
+Tasks
+- Tabs: My Tasks, All Tasks
+- Filters: due soon (7 days), overdue, status, priority, category
+- List rows show title, candidate, stage, due_at, status, assignee
+- Detail panel to update status, assignee, notes
+
+
+Tasks (Candidate Task instances)
+- Full CRUD on Candidate Tasks. All tasks require a candidate_id. 
+- Columns: Title, Candidate, Stage, Assignee, Priority, Category, Due, Status, Updated
+- Filters: assignee, department, division, stage, status, priority, category, due range, overdue
+- Deletion should be soft delete or archive. Prevent deletion of done tasks unless admin.
+Tasks may be created by expanding a Template Task or manually. 
+When created manually, user may select a Task Definition to prefill fields, or enter title/description directly.
+
+My Tasks
+- Same component as Tasks but permanently filtered to assignee_id = current_user.
+- Route kept separate so users can bookmark it.
+
+Templates
+- List, create, edit
+- Manage Template Tasks by selecting from Task Definitions and setting stage, due rule, default priority, default assignee
+- Preview due dates by providing a start_date
+
+Task Definitions (library)
+- Separate CRUD page under Templates. Manage name, description, default priority, default category.
+- Never shows live Candidate Tasks. No due rules here; due rules live on Template Tasks.
+- Show usage count per definition if available. Archiving a definition does not affect existing Candidate Tasks.
+
+Task Definitions are global blueprints and never include candidate_id. 
+They are used only inside Templates or as a starting point when manually adding a Candidate Task.
+
+Analytics
+- Placeholder page with message and future cards area
+
+Settings
+- Manage Departments and Divisions with archive toggle
+- Basic appearance: dark or light mode toggle
+- Room for other relevant settings later
+
+Client data access (TanStack Query keys)
+- candidates: ['candidates', params]
+- candidate by id: ['candidates', id]
+- tasks: ['tasks', params]
+- my tasks: ['tasks', 'mine', params]
+- templates: ['templates']
+- template by id: ['templates', id]
+- settings: ['settings', 'departments'], ['settings', 'divisions']
+
+Business rules
+- Creating a Candidate requires selecting a Template while status is draft. After expansion the candidate is locked with respect to template switching.
+- Editing Candidate Tasks never edits Templates.
+- Templates can be cloned to create new versions. Archived templates cannot be applied.
+
+Access control hooks
+- Server checks current user role on all API routes
+- Department and division scoping for department_admin, division_leader, manager
+- Candidate can only read their own candidate record and candidate_tasks
+
+Acceptance criteria
+- Fresh DB migrates and seeds without duplicates
+- Creating a candidate with Faculty - Base generates tasks and locks the candidate
+- Reapplying a template returns a clear error
+- Candidate Tasks are editable without affecting Templates
+- Templates CRUD works and preview uses add_business_days
+- Departments and Divisions manageable in Settings
+- Users in each role have access only as described
+- Dashboard shows accurate counts and a recent activity feed
+- SQL is compatible with vanilla Postgres 16
+- `.env.example` provided and app reads DATABASE_URL
+- /tasks provides full CRUD of Candidate Tasks, and /tasks/mine is the same view prefiltered to the signed-in user.
+- /templates/task-definitions manages the library and changes never retroactively alter existing Candidate Tasks.
+- All Candidate Tasks always have a candidate_id. 
+- Task Definitions never include candidate_id and cannot be confused with live tasks. 
+- Manually added Candidate Tasks work both with and without linking to a Task Definition.
+
+Docker readiness notes
+- Code and SQL compatible with postgres:16 in Docker later
+- Enable pgcrypto in migrations and use UUIDs
+- Avoid vendor-specific features

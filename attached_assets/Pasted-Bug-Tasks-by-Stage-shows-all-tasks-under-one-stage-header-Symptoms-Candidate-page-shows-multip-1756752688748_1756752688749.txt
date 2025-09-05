@@ -1,0 +1,108 @@
+Bug: "Tasks by Stage" shows all tasks under one stage header
+
+Symptoms
+- Candidate page shows multiple tasks but only one stage section (usually the first stage).
+- Each stage does have tasks.
+
+Likely causes
+- API join returns the same stage for every task (wrong JOIN).
+- Frontend groups by task.stage?.id instead of task.stage_id.
+- stage_order_index is null for all tasks and grouping uses a fallback key like 'none'.
+
+Do this exactly.
+
+A) DB sanity checks (add temporary console logs or run queries)
+1) Verify task stages for the candidate:
+   SELECT stage_id, COUNT(*) 
+   FROM candidate_tasks 
+   WHERE candidate_id = $1 AND archived = false 
+   GROUP BY stage_id;
+
+2) Verify snapshot exists and order is distinct:
+   SELECT stage_id, stage_name_snapshot, order_index
+   FROM candidate_template_stages
+   WHERE candidate_id = $1
+   ORDER BY order_index;
+
+B) Fix API: GET /api/candidates/:id/tasks
+- Ensure joins are correct and do not filter out stages.
+- Do NOT filter by template_stages.is_active. Candidates are snapshots.
+
+SQL shape that must be used:
+SELECT
+  ct.id,
+  ct.title,
+  ct.description,
+  ct.stage_id,                       -- raw stage id for grouping
+  hs.name AS stage_name,             -- optional display
+  s.order_index AS stage_order_index,-- from candidate snapshot
+  ct.assignee_id,
+  u.name AS assignee_name,
+  ct.priority_id,
+  tp.name AS priority_name,
+  ct.category_id,
+  tc.name AS category_name,
+  ct.due_at,
+  ct.status,
+  ct.required,
+  ct.updated_at
+FROM candidate_tasks ct
+LEFT JOIN candidate_template_stages s
+  ON s.candidate_id = ct.candidate_id
+ AND s.stage_id = ct.stage_id
+LEFT JOIN hiring_stages hs           -- join by ct.stage_id
+  ON hs.id = ct.stage_id
+LEFT JOIN users u
+  ON u.id = ct.assignee_id
+LEFT JOIN task_priorities tp
+  ON tp.id = ct.priority_id
+LEFT JOIN task_categories tc
+  ON tc.id = ct.category_id
+WHERE ct.candidate_id = $1 AND ct.archived = false
+ORDER BY s.order_index NULLS LAST, ct.due_at NULLS LAST, ct.updated_at DESC;
+
+C) Fix frontend grouping (Candidate Details)
+- Group by the raw id: task.stage_id
+- Label from snapshot: stages.find(s => s.stage_id === key)?.stage_name
+- Sort groups by snapshot order_index
+- Do not use task.stage?.id for grouping
+
+Example:
+const { data: stages } = useQuery(['candidateStages', id], fetchStages, { enabled: !!id });
+const { data: tasks } = useQuery(['candidateTasks', id], fetchTasks, { enabled: !!id });
+
+const orderMap = useMemo(() => {
+  const m = new Map<string, number>();
+  (stages ?? []).forEach(s => m.set(s.stage_id, s.order_index));
+  return m;
+}, [stages]);
+
+const groups = useMemo(() => {
+  const by = new Map<string, { name: string; order: number; items: any[] }>();
+  for (const t of tasks ?? []) {
+    const key = t.stage_id ?? 'none';
+    const order = t.stage_order_index ?? orderMap.get(key) ?? Number.MAX_SAFE_INTEGER;
+    const name =
+      stages?.find(s => s.stage_id === key)?.stage_name ??
+      t.stage_name ?? 'Unassigned';
+    if (!by.has(key)) by.set(key, { name, order, items: [] });
+    by.get(key)!.items.push(t);
+  }
+  return [...by.values()].sort((a, b) => a.order - b.order);
+}, [tasks, stages, orderMap]);
+
+// Render each group.name as the section header and group.items inside.
+
+D) Backfill stage_order_index on existing tasks (safe to run)
+UPDATE candidate_tasks ct
+SET stage_order_index = s.order_index
+FROM candidate_template_stages s
+WHERE s.candidate_id = ct.candidate_id
+  AND s.stage_id = ct.stage_id
+  AND (ct.stage_order_index IS NULL OR ct.stage_order_index <> s.order_index);
+
+E) Acceptance
+- The candidate with stages A, B, C shows three sections A, B, C in the correct order.
+- Each task appears only in its stage’s section.
+- Changing template stages later does not affect existing candidates.
+- API returns distinct stage_id per task and a non-null stage_order_index where possible.

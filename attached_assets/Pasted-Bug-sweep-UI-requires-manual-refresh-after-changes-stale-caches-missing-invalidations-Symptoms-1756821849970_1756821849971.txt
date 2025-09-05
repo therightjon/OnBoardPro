@@ -1,0 +1,144 @@
+Bug sweep: UI requires manual refresh after changes (stale caches / missing invalidations)
+
+Symptoms
+- Candidate stage on the Candidates list does not update after tasks complete and auto-advance runs.
+- Editing task status/assignee/due date updates only after a full page reload.
+- Similar stale data after creating/deleting template stages/tasks.
+
+Root causes to check
+1) Mutations don’t return fresh entities (server returns 204/empty or partial).
+2) React Query keys are inconsistent and not invalidated.
+3) Mutations update only the detail cache but not the list (or vice versa).
+4) Auto-advance happens in the backend, but the response doesn’t include the new current_stage; the UI has no signal to refresh.
+
+Global fix plan
+
+A) Normalize TanStack Query keys (one source of truth)
+- Use these exact keys (all lower-snake):
+  ['candidates']                                         // list page
+  ['candidate', candidateId]                             // header/info
+  ['candidateTasks', candidateId]                        // tasks for candidate
+  ['candidateStages', candidateId]                       // stage snapshot for candidate
+  ['candidateStageHistory', candidateId]                 // timeline
+  ['templates']                                          // list page
+  ['template', templateId]                               // detail
+  ['templateStages', templateId]
+  ['templateTasks', templateId]
+  ['hiringStages']                                       // global settings
+- Search/replace any variants to match the above.
+
+B) Ensure every mutation returns an up-to-date payload (server)
+- For endpoints that change state, always return JSON with the **fresh** entity:
+  • PATCH /api/candidate-tasks/:id → return updated task row (joined with assignee, etc.)
+  • POST /api/candidate-tasks/:id/status → return { task: updatedTask, candidate: { id, current_stage_id, updated_at }, advancedStage?: boolean }
+  • Auto-advance path must compute and include the new candidate.current_stage_id in that response if it changed.
+  • POST/DELETE template stages/tasks → return updated collection counts or the updated item to allow optimistic merges.
+- Include `updated_at` on all entities to help cache busting.
+
+C) Standardize client-side invalidation + optimistic updates (React Query)
+- Create a tiny helper to fan-out invalidations:
+
+// src/lib/query-invalidate.ts
+import { QueryClient } from '@tanstack/react-query';
+
+export function invalidateCandidate(qc: QueryClient, id: string) {
+  qc.invalidateQueries({ queryKey: ['candidate', id] });
+  qc.invalidateQueries({ queryKey: ['candidateTasks', id] });
+  qc.invalidateQueries({ queryKey: ['candidateStages', id] });
+  qc.invalidateQueries({ queryKey: ['candidateStageHistory', id] });
+  qc.invalidateQueries({ queryKey: ['candidates'] }); // list summary row (stage badge)
+}
+
+export function invalidateTemplate(qc: QueryClient, id: string) {
+  qc.invalidateQueries({ queryKey: ['template', id] });
+  qc.invalidateQueries({ queryKey: ['templateStages', id] });
+  qc.invalidateQueries({ queryKey: ['templateTasks', id] });
+  qc.invalidateQueries({ queryKey: ['templates'] });
+}
+
+- Task status mutation (Candidate Details):
+  • Do optimistic update for the single task row.
+  • On success: merge returned task into ['candidateTasks', id] via setQueryData, then call invalidateCandidate(qc, id) to pick up auto-advance effects.
+
+Example:
+
+const qc = useQueryClient();
+const updateStatus = useMutation({
+  mutationFn: async ({ taskId, status }) => {
+    const res = await fetch(`/api/candidate-tasks/${taskId}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) throw new Error('Failed to update status');
+    return res.json(); // { task, candidate, advancedStage? }
+  },
+  onMutate: async ({ taskId, status }) => {
+    await qc.cancelQueries({ queryKey: ['candidateTasks', candidateId] });
+    const prev = qc.getQueryData<any[]>(['candidateTasks', candidateId]);
+    qc.setQueryData(['candidateTasks', candidateId], (old: any[] = []) =>
+      old.map(t => t.id === taskId ? { ...t, status } : t)
+    );
+    return { prev };
+  },
+  onError: (_e, _vars, ctx) => {
+    if (ctx?.prev) qc.setQueryData(['candidateTasks', candidateId], ctx.prev);
+    toast.error('Could not update task');
+  },
+  onSuccess: (data) => {
+    // Merge authoritative task and update current stage immediately if advanced
+    qc.setQueryData(['candidateTasks', candidateId], (old: any[] = []) =>
+      old.map(t => t.id === data.task.id ? { ...t, ...data.task } : t)
+    );
+    qc.setQueryData(['candidate', candidateId], (c: any) =>
+      c ? { ...c, current_stage_id: data.candidate?.current_stage_id ?? c.current_stage_id, updated_at: data.candidate?.updated_at ?? c.updated_at } : c
+    );
+    invalidateCandidate(qc, candidateId);
+    if (data.advancedStage) toast.success('Advanced to next stage');
+  }
+});
+
+- Similar pattern for:
+  • Editing task assignee/due date
+  • Creating/deleting template stages/tasks → call invalidateTemplate(qc, templateId)
+
+D) Make auto-advance return new state (server)
+- Wherever auto-advance is triggered (e.g., inside POST /api/candidate-tasks/:id/status):
+  • After marking required tasks done, if stage is complete, advance and write candidate_stage_history and candidates.current_stage_id.
+  • Return `{ advancedStage: true, candidate: { id, current_stage_id, updated_at }, task: updatedTask }`.
+
+E) Polling or SSE (optional enhancement)
+- Add a lightweight SSE endpoint for candidate changes to avoid missing cross-tab updates:
+  • GET /api/candidates/:id/events → emits { type: 'candidate.updated', current_stage_id, updated_at } and { type: 'task.updated', taskId }.
+  • Client: useEventSource hook; on event, invalidateCandidate(qc, id).
+- If SSE is overkill, add `refetchInterval: 30000` to ['candidates'] and ['candidate', id] as a fallback.
+
+F) Fix stale list rows (Candidates list)
+- List query must include candidate `updated_at` and `current_stage_id`.
+- Row components should rely on list data (not a separate fetch) to render stage badge; otherwise ensure both are invalidated on mutations.
+
+G) Ensure create/update forms close with fresh data
+- On New Candidate, after success:
+  • invalidates ['candidates'] and navigate to the new candidate detail (which fetches fresh).
+- On New Template Stage/Task:
+  • optimistic add to local list, then invalidateTemplate on success.
+
+H) Audit pass (search commands)
+- Search for any `fetch(`/api/...`, { method: 'POST'|'PATCH'|'DELETE' })` usage and confirm each mutation either:
+  • sets cache via setQueryData with returned entity AND/OR
+  • calls the correct invalidate helper.
+- Search for duplicate/typo’d keys (e.g., 'candidateTask', 'candidate_tasks'); replace with the normalized keys listed above.
+
+Acceptance tests
+- Mark last required task in current stage as Done:
+  • The task row updates immediately.
+  • The stage section collapses/moves as the candidate advances (or the stage badge on header updates).
+  • The Candidates list updates the stage badge without manual refresh.
+- Edit a task’s assignee: appears immediately on the row; list/detail remain consistent.
+- Add or reorder Template Stages: the Template detail reflects changes without reload; Templates list Last Modified updates.
+- No manual page reloads are needed to observe state changes.
+
+Please:
+1) Implement the server response shapes.
+2) Wire the invalidate helpers into every mutation.
+3) Add a tiny smoke test (Playwright or RTL) to confirm a status change advances the stage and updates both the detail header and the list badge without reload.
