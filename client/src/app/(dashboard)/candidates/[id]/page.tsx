@@ -618,8 +618,8 @@ export default function CandidateDetailPage() {
         <CardContent className="p-3 xs:p-4 sm:p-6">
           <Tabs defaultValue="tasks" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="tasks" className="min-h-[44px]" data-testid="tab-tasks">Tasks</TabsTrigger>
-              <TabsTrigger value="timeline" className="min-h-[44px]" data-testid="tab-timeline">Timeline</TabsTrigger>
+              <TabsTrigger value="tasks" className="" data-testid="tab-tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="timeline" className="" data-testid="tab-timeline">Timeline</TabsTrigger>
             </TabsList>
 
             <TabsContent value="tasks" className="space-y-3 xs:space-y-4">
