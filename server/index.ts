@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import "./db"; // initialize DB side-effects
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
@@ -60,12 +61,29 @@ app.use((req, res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+  const requestedPort = parseInt(process.env.PORT || '5000', 10);
+  const maxAttempts = 10;
+
+  function tryListen(port: number, attempt: number) {
+    const srv = server.listen({ port, host: "0.0.0.0" }, () => {
+      if (port !== requestedPort) {
+        log(`serving on fallback port ${port} (requested ${requestedPort} was busy)`);
+      } else {
+        log(`serving on port ${port}`);
+      }
+    });
+
+    srv.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE' && attempt < maxAttempts) {
+        const nextPort = port + 1;
+        log(`port ${port} in use, trying ${nextPort}...`);
+        setTimeout(() => tryListen(nextPort, attempt + 1), 100);
+      } else {
+        console.error('Failed to bind port:', err);
+        process.exit(1);
+      }
+    });
+  }
+
+  tryListen(requestedPort, 1);
 })();

@@ -1012,7 +1012,7 @@ export default function SettingsPage() {
                         New User
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-md">
+                    <DialogContent className="max-w-md max-h-min">
                       <DialogHeader>
                         <DialogTitle>
                           {editingUser ? "Edit User" : "Create New User"}
