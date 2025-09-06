@@ -65,24 +65,34 @@ app.use((req, res, next) => {
   const maxAttempts = 10;
 
   function tryListen(port: number, attempt: number) {
-    const srv = server.listen({ port, host: "0.0.0.0" }, () => {
-      if (port !== requestedPort) {
-        log(`serving on fallback port ${port} (requested ${requestedPort} was busy)`);
-      } else {
-        log(`serving on port ${port}`);
-      }
-    });
+    try {
+      const srv = server.listen({ port, host: "0.0.0.0" }, () => {
+        if (port !== requestedPort) {
+          log(`serving on fallback port ${port} (requested ${requestedPort} was busy)`);
+        } else {
+          log(`serving on port ${port}`);
+        }
+      });
 
-    srv.on('error', (err: any) => {
-      if (err.code === 'EADDRINUSE' && attempt < maxAttempts) {
-        const nextPort = port + 1;
-        log(`port ${port} in use, trying ${nextPort}...`);
-        setTimeout(() => tryListen(nextPort, attempt + 1), 100);
+      srv.on('error', (err: any) => {
+        if (err.code === 'EADDRINUSE' && attempt < maxAttempts) {
+          const nextPort = port + 1;
+          log(`port ${port} in use, trying ${nextPort}...`);
+          srv.close(() => {
+            setTimeout(() => tryListen(nextPort, attempt + 1), 100);
+          });
+        } else {
+          console.error('Failed to bind port:', err);
+          process.exit(1);
+        }
+      });
+    } catch (err: any) {
+      if (err.code === 'ERR_SERVER_ALREADY_LISTEN') {
+        log(`Server already listening, skipping port ${port}`);
       } else {
-        console.error('Failed to bind port:', err);
-        process.exit(1);
+        throw err;
       }
-    });
+    }
   }
 
   tryListen(requestedPort, 1);

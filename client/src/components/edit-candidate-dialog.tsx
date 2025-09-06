@@ -154,7 +154,7 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full sm:max-w-[600px] lg:max-w-2xl sm:max-h-[65vh] overflow-y-auto" data-testid="dialog-edit-candidate">
+      <DialogContent className="max-w-[95vw] w-full sm:max-w-[600px] lg:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto" data-testid="dialog-edit-candidate">
         <DialogHeader>
           <DialogTitle>Edit Candidate</DialogTitle>
           <DialogDescription>

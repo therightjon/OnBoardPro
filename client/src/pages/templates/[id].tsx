@@ -645,7 +645,7 @@ export default function TemplateDetailPage() {
                 )}
               </div>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add Task to Template</DialogTitle>
               </DialogHeader>
@@ -880,7 +880,7 @@ export default function TemplateDetailPage() {
 
           {/* Edit Task Dialog */}
           <Dialog open={isEditTaskDialogOpen} onOpenChange={setIsEditTaskDialogOpen}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Edit Template Task</DialogTitle>
               </DialogHeader>

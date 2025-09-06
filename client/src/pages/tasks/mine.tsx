@@ -503,7 +503,7 @@ export default function MyTasksPage() {
                             <Edit className="w-4 h-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>Update Task</DialogTitle>
                           </DialogHeader>

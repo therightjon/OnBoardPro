@@ -104,7 +104,7 @@ export function AutoSelectCombobox({
           <button
             type="button"
             className={cn(
-              'inline-flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+              'inline-flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px]',
               !selected && 'text-muted-foreground'
             )}
             disabled={disabled}
@@ -116,7 +116,7 @@ export function AutoSelectCombobox({
             <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <PopoverContent className="w-[--radix-popover-trigger-width] max-w-[95vw] p-0">
           <Command shouldFilter={false}>
             <CommandInput
               placeholder={placeholder ?? 'Search...'}

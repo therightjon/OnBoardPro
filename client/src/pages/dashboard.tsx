@@ -146,9 +146,9 @@ export default function Dashboard() {
       </div>
 
       {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* Stage Distribution Chart */}
-        <Card className="lg:col-span-2" data-testid="card-stage-distribution">
+        <Card className="" data-testid="card-stage-distribution">
           <CardHeader className="p-3 xs:p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base xs:text-lg sm:text-xl">Hiring Stage Distribution</CardTitle>
@@ -212,7 +212,7 @@ export default function Dashboard() {
               <Button variant="link" size="sm" className="text-primary text-xs xs:text-sm">View All</Button>
             </div>
           </CardHeader>
-          <CardContent className="p-3 xs:p-4 sm:p-6 pt-0">
+          <CardContent className="p-3 xs:p-4 sm:p-6 pt-0 max-w-full">
             <div className="space-y-4">
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0">

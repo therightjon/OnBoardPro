@@ -276,7 +276,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full sm:max-w-2xl lg:max-w-3xl sm:max-h-[70vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl lg:max-w-3xl max-h-[90vh] sm:max-h-min overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Candidate</DialogTitle>
         </DialogHeader>
@@ -284,7 +284,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
         <Form {...form}>
           <form 
             onSubmit={form.handleSubmit(onSubmit)} 
-            className="space-y-6"
+            className="space-y-4"
             onKeyDown={(e) => {
               // Prevent form submission on Enter key, only allow via submit button
               if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
@@ -292,7 +292,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
               }
             }}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
               {/* Left Column */}
               <div className="flex flex-col gap-4">
                 <FormField
@@ -322,7 +322,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                   )}
                 />
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
                   <FormField
                     control={form.control}
                     name="firstName"
@@ -600,7 +600,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                             key={index}
                             className="flex justify-between items-center text-sm"
                           >
-                            <span className="text-muted-foreground truncate max-w-[200px]">
+                            <span className="text-muted-foreground truncate flex-1 pr-2">
                               {item.taskName}
                             </span>
                             <Badge variant="outline">
@@ -622,7 +622,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
               </div>
             </div>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-col sm:flex-row justify-end gap-3">
               <Button
                 type="button"
                 variant="outline"

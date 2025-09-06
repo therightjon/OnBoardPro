@@ -157,7 +157,7 @@ export default function TemplatesPage() {
                 New Template
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Template</DialogTitle>
               </DialogHeader>

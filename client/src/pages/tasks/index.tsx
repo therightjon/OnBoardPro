@@ -167,7 +167,7 @@ export default function TasksPage() {
               New Task
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>
             </DialogHeader>
@@ -337,7 +337,7 @@ export default function TasksPage() {
       {/* Edit Dialog */}
       {editingTaskDef && (
         <Dialog open={!!editingTaskDef} onOpenChange={(open) => !open && setEditingTaskDef(null)}>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Task Definition</DialogTitle>
             </DialogHeader>

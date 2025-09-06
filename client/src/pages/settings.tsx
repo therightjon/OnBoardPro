@@ -118,6 +118,7 @@ function AuthenticationProvidersCard() {
     }
   };
 
+
   if (error) {
     return (
       <Card>
@@ -264,6 +265,31 @@ export default function SettingsPage() {
     },
     enabled: !!disablingUser?.id,
   });
+
+  const roleBadgeBase =
+    "rounded-sm font-medium transition-colors shadow-none";
+
+  // Softer (pastel) backgrounds in light mode, translucent deep hues in dark mode.
+  // Hover subtly increases tint; keeps good contrast in both themes.
+  const getRoleBadgeColor = (role: string) => {
+    const map: Record<string, string> = {
+      system_admin:
+        "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 hover:bg-red-200/60 dark:hover:bg-red-800/50",
+      hr_staff:
+        "bg-sky-100 dark:bg-sky-900/30 text-sky-800 dark:text-sky-200 border border-sky-200 dark:border-sky-800 hover:bg-sky-200/60 dark:hover:bg-sky-800/50",
+      department_admin:
+        "bg-violet-100 dark:bg-violet-900/30 text-violet-800 dark:text-violet-200 border border-violet-200 dark:border-violet-800 hover:bg-violet-200/60 dark:hover:bg-violet-800/50",
+      division_leader:
+        "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-200/60 dark:hover:bg-emerald-800/50",
+      manager:
+        "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 hover:bg-amber-200/60 dark:hover:bg-amber-800/50",
+      candidate:
+        "bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-200/60 dark:hover:bg-slate-700",
+      default:
+        "bg-neutral-100 dark:bg-neutral-800/40 text-neutral-700 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-200/60 dark:hover:bg-neutral-700"
+    };
+    return `${roleBadgeBase} ${map[role] || map.default}`;
+  };
 
   const createDepartmentMutation = useMutation({
     mutationFn: async (data: DepartmentForm) => {
@@ -782,7 +808,7 @@ export default function SettingsPage() {
                       New Department
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-[95vw] w-full sm:max-w-md max-h-[90vh] sm:max-h-min overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Create New Department</DialogTitle>
                     </DialogHeader>
@@ -883,7 +909,7 @@ export default function SettingsPage() {
                       New Division
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-[95vw] w-full sm:max-w-md max-h-[90vh] sm:max-h-min overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Create New Division</DialogTitle>
                     </DialogHeader>
@@ -1012,7 +1038,7 @@ export default function SettingsPage() {
                         New User
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-md max-h-min">
+                    <DialogContent className="max-w-[95vw] w-full sm:max-w-md max-h-[90vh] sm:max-h-min overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>
                           {editingUser ? "Edit User" : "Create New User"}
@@ -1273,7 +1299,7 @@ export default function SettingsPage() {
                             <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
                             <TableCell className="text-muted-foreground">{user.email}</TableCell>
                             <TableCell>
-                              <Badge variant="outline">
+                              <Badge variant="outline" className={getRoleBadgeColor(user.role)}>
                                 {user.role.replace('_', ' ').toUpperCase()}
                               </Badge>
                             </TableCell>
@@ -1334,7 +1360,7 @@ export default function SettingsPage() {
 
         {/* Disable User Dialog */}
         <Dialog open={isDisableDialogOpen} onOpenChange={setIsDisableDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-[95vw] w-full sm:max-w-md max-h-[90vh] sm:max-h-min overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Disable User</DialogTitle>
             </DialogHeader>
@@ -1415,7 +1441,7 @@ export default function SettingsPage() {
                         New Hiring Stage
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="max-w-[95vw] w-full sm:max-w-md max-h-[90vh] sm:max-h-min overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>
                           {editingHiringStage ? "Edit Hiring Stage" : "Create New Hiring Stage"}
