@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./auth";
-import { storage } from "./storage";
+import { setupAuth } from "./features/auth/services/auth.service";
+import { storage } from "./db/storage";
 import { 
   insertCandidateSchema,
   insertCandidateTaskSchema,
@@ -12,9 +12,9 @@ import {
   insertDivisionSchema,
   insertHiringStageSchema,
   insertUserPreferencesSchema
-} from "@shared/schema";
+} from "@shared/schemas";
 import { z } from "zod";
-import { advanceStageIfComplete } from "./services/advance-stage";
+import { advanceStageIfComplete } from "./features/tasks/services/advance-stage.service";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -358,13 +358,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { template_id } = req.body;
       
+      console.log('Applying template:', { candidateId: req.params.id, template_id, userId: req.user!.id });
+      
       if (!template_id) {
+        console.log('Template application failed: template_id is required');
         return res.status(400).json({ message: "template_id is required" });
       }
 
       const taskCount = await storage.expandTemplate(template_id, req.params.id, req.user!.id);
+      console.log('Template applied successfully:', { taskCount });
       res.json({ message: "Template applied successfully", tasksCreated: taskCount });
     } catch (error: any) {
+      console.error('Template application failed:', error);
       if (error.message) {
         return res.status(400).json({ message: error.message });
       }
@@ -723,10 +728,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { q } = req.query;
       const query = typeof q === 'string' ? q : '';
       
+      console.log('Searching departments with query:', query);
       const results = await storage.searchDepartments(query);
+      console.log('Department search results:', results.length, 'items');
       res.json({ items: results, query });
     } catch (error) {
-      next(error);
+      console.error('search departments error:', error);
+      res.status(500).json({ error: 'SEARCH_DEPARTMENTS_FAILED', message: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -735,10 +743,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { q, departmentId } = req.query;
       const query = typeof q === 'string' ? q : '';
       
+      console.log('Searching divisions with query:', query, 'departmentId:', departmentId);
       const results = await storage.searchDivisions(query, typeof departmentId === 'string' ? departmentId : undefined);
+      console.log('Division search results:', results.length, 'items');
       res.json({ items: results, query });
     } catch (error) {
-      next(error);
+      console.error('search divisions error:', error);
+      res.status(500).json({ error: 'SEARCH_DIVISIONS_FAILED', message: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -747,12 +758,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const q = (req.query.q ?? '').toString().trim();
       const role = (req.query.role ?? '').toString().trim();
       
+      console.log('Searching users with query:', q, 'role:', role);
       const results = await storage.searchUsers(q, role || undefined);
+      console.log('User search results:', results.length, 'items');
       res.setHeader('Content-Type', 'application/json');
       res.status(200).json({ items: results, query: q });
     } catch (error) {
-      console.error('search users error', error);
-      res.status(500).json({ error: 'SEARCH_USERS_FAILED' });
+      console.error('search users error:', error);
+      res.status(500).json({ error: 'SEARCH_USERS_FAILED', message: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 

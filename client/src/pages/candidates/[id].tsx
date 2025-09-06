@@ -1,26 +1,26 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Badge } from "@/shared/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/shared/components/ui/dropdown-menu";
 import { ArrowLeft, Edit, Calendar, User, Mail, Building, Clock, Users, CheckCircle, MoreHorizontal, Archive, RotateCcw, ChevronDown } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { format } from "date-fns";
-import { TaskStatusCell } from "@/components/task-status-cell";
-import { EditCandidateDialog } from "@/components/edit-candidate-dialog";
-import { ArchiveCandidateDialog } from "@/components/archive-candidate-dialog";
-import { useAuth } from "@/hooks/use-auth";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { useToast } from "@/hooks/use-toast";
+import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
+import { EditCandidateDialog } from "@/features/candidates/components/edit-candidate-dialog";
+import { ArchiveCandidateDialog } from "@/features/candidates/components/archive-candidate-dialog";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
+import { useToast } from "@/shared/hooks/use-toast";
 
 export default function CandidateDetailPage() {
   const params = useParams();
@@ -51,18 +51,18 @@ export default function CandidateDetailPage() {
     enabled: !!id && id !== 'undefined',
   });
 
-  const stageHistory = stageHistoryData?.history || [];
+  const stageHistory = (stageHistoryData as any)?.history || [];
 
   // Build order map from snapshotted stages
   const orderMap = useMemo(() => {
     const m = new Map<string, number>();
-    candidateStages.forEach((s: any) => m.set(s.stageId, s.orderIndex));
+    (candidateStages as any[]).forEach((s: any) => m.set(s.stageId, s.orderIndex));
     return m;
   }, [candidateStages]);
 
   // Attach order for stable sorting and map field names from API
   const tasksWithOrder = useMemo(
-    () => candidateTasks.map((t: any) => ({
+    () => (candidateTasks as any[]).map((t: any) => ({
       ...t,
       // Map field names from new API structure
       stageId: t.stage_id,
@@ -84,7 +84,7 @@ export default function CandidateDetailPage() {
     for (const task of tasksWithOrder) {
       const key = task.stageId ?? 'none';
       const order = task.stageOrderIndex;
-      const name = candidateStages.find((s: any) => s.stageId === key)?.stageNameSnapshot
+      const name = (candidateStages as any[]).find((s: any) => s.stageId === key)?.stageNameSnapshot
                    ?? task.stageName
                    ?? 'Unassigned';
 
@@ -168,14 +168,14 @@ export default function CandidateDetailPage() {
 
     const updateStatusMutation = useMutation({
       mutationFn: async ({ status, closeOpenTasks }: { status: string; closeOpenTasks?: boolean }) => {
-        const response = await apiRequest('PATCH', `/api/candidates/${candidate.id}/status`, { status, closeOpenTasks });
+        const response = await apiRequest('PATCH', `/api/candidates/${(candidate as any).id}/status`, { status, closeOpenTasks });
         return response.json();
       },
       onSuccess: (data) => {
         // Invalidate relevant caches
-        queryClient.invalidateQueries({ queryKey: ['candidate', candidate.id] });
+        queryClient.invalidateQueries({ queryKey: ['candidate', (candidate as any).id] });
         queryClient.invalidateQueries({ queryKey: ['/api/candidates'] });
-        queryClient.invalidateQueries({ queryKey: ['candidateTasks', candidate.id] });
+        queryClient.invalidateQueries({ queryKey: ['candidateTasks', (candidate as any).id] });
         queryClient.invalidateQueries({ queryKey: ['/api/tasks/mine'] });
         queryClient.invalidateQueries({ queryKey: ['/api/tasks/dashboard'] });
 
@@ -239,7 +239,7 @@ export default function CandidateDetailPage() {
     };
 
     const handleStatusSelect = (newStatus: string) => {
-      const transitions = getValidTransitions(candidate.status);
+      const transitions = getValidTransitions((candidate as any).status);
       const transition = transitions.find(t => t.value === newStatus);
       
       setPendingStatus(newStatus);
@@ -264,13 +264,13 @@ export default function CandidateDetailPage() {
     
     if (!canEdit) {
       return (
-        <Badge className={getStatusColor(candidate.status || 'draft')} data-testid="badge-candidate-status">
-          {(candidate.status || 'draft').replace('_', ' ').toUpperCase()}
+        <Badge className={getStatusColor((candidate as any).status || 'draft')} data-testid="badge-candidate-status">
+          {((candidate as any).status || 'draft').replace('_', ' ').toUpperCase()}
         </Badge>
       );
     }
 
-    const validTransitions = getValidTransitions(candidate.status);
+    const validTransitions = getValidTransitions((candidate as any).status);
     
     // Check if there are incomplete required tasks
     const hasIncompleteRequiredTasks = tasks.some(
@@ -282,11 +282,11 @@ export default function CandidateDetailPage() {
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
           <DropdownMenuTrigger asChild>
             <button 
-              className={`${getStatusColor(candidate.status || 'draft')} inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity`}
+              className={`${getStatusColor((candidate as any).status || 'draft')} inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity`}
               data-testid="button-status-dropdown"
               disabled={updateStatusMutation.isPending}
             >
-              {(candidate.status || 'draft').replace('_', ' ').toUpperCase()}
+              {((candidate as any).status || 'draft').replace('_', ' ').toUpperCase()}
               <ChevronDown className="w-3 h-3 ml-1" />
             </button>
           </DropdownMenuTrigger>
@@ -383,22 +383,22 @@ export default function CandidateDetailPage() {
           </Link>
           <div className="min-w-0">
             <h1 className="text-base xs:text-lg sm:text-xl lg:text-2xl font-bold text-foreground break-words" data-testid="text-candidate-name">
-              {candidate.salutation ? `${candidate.salutation} ` : ''}{candidate.firstName} {candidate.lastName}
+              {(candidate as any).salutation ? `${(candidate as any).salutation} ` : ''}{(candidate as any).firstName} {(candidate as any).lastName}
             </h1>
-            <p className="text-xs xs:text-sm text-muted-foreground break-all">{candidate.email}</p>
+            <p className="text-xs xs:text-sm text-muted-foreground break-all">{(candidate as any).email}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 xs:gap-3">
           <EditableStatusBadge 
             candidate={candidate} 
             user={user} 
-            tasks={candidateTasks || []}
+            tasks={(candidateTasks as any[]) || []}
             onStatusChange={() => {
-              queryClient.invalidateQueries({ queryKey: ["/api/candidates", candidate.id] });
+              queryClient.invalidateQueries({ queryKey: ["/api/candidates", (candidate as any).id] });
               queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
             }}
           />
-          {candidate.archived && (
+          {(candidate as any).archived && (
             <Badge variant="destructive" data-testid="badge-archived">
               ARCHIVED
             </Badge>
@@ -423,7 +423,7 @@ export default function CandidateDetailPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {candidate.archived ? (
+                  {(candidate as any).archived ? (
                     <DropdownMenuItem 
                       onClick={() => setIsArchiveDialogOpen(true)}
                       data-testid="menu-restore-candidate"
@@ -480,7 +480,7 @@ export default function CandidateDetailPage() {
                   <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                   <div className="min-w-0">
                     <dt className="text-xs xs:text-sm font-medium">Email</dt>
-                    <dd className="text-xs xs:text-sm text-muted-foreground break-all" data-testid="text-candidate-email">{candidate.email}</dd>
+                    <dd className="text-xs xs:text-sm text-muted-foreground break-all" data-testid="text-candidate-email">{(candidate as any).email}</dd>
                   </div>
                 </div>
               </dl>
@@ -495,7 +495,7 @@ export default function CandidateDetailPage() {
                   <div className="min-w-0">
                     <dt className="text-xs xs:text-sm font-medium">Start Date</dt>
                     <dd className="text-xs xs:text-sm text-muted-foreground" data-testid="text-candidate-start-date">
-                      {candidate.startDate ? new Date(candidate.startDate).toLocaleDateString() : "Not set"}
+                      {(candidate as any).startDate ? new Date((candidate as any).startDate).toLocaleDateString() : "Not set"}
                     </dd>
                   </div>
                 </div>
@@ -504,16 +504,16 @@ export default function CandidateDetailPage() {
                   <Building className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                   <div className="min-w-0">
                     <dt className="text-xs xs:text-sm font-medium">Candidate Type</dt>
-                    <dd className="text-xs xs:text-sm text-muted-foreground">{candidate.candidateType?.name || "Not set"}</dd>
+                    <dd className="text-xs xs:text-sm text-muted-foreground">{(candidate as any).candidateType?.name || "Not set"}</dd>
                   </div>
                 </div>
 
-                {candidate.facultyRank && (
+                {(candidate as any).facultyRank && (
                   <div className="flex items-start space-x-3">
                     <User className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <dt className="text-xs xs:text-sm font-medium">Faculty Rank</dt>
-                      <dd className="text-xs xs:text-sm text-muted-foreground">{candidate.facultyRank.name}</dd>
+                      <dd className="text-xs xs:text-sm text-muted-foreground">{(candidate as any).facultyRank.name}</dd>
                     </div>
                   </div>
                 )}
@@ -528,26 +528,26 @@ export default function CandidateDetailPage() {
                   <Building className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                   <div className="min-w-0">
                     <dt className="text-xs xs:text-sm font-medium">Department</dt>
-                    <dd className="text-xs xs:text-sm text-muted-foreground break-words">{candidate.department?.name || "Not set"}</dd>
+                    <dd className="text-xs xs:text-sm text-muted-foreground break-words">{(candidate as any).department?.name || "Not set"}</dd>
                   </div>
                 </div>
 
-                {candidate.division && (
+                {(candidate as any).division && (
                   <div className="flex items-start space-x-3">
                     <Building className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <dt className="text-xs xs:text-sm font-medium">Division</dt>
-                      <dd className="text-xs xs:text-sm text-muted-foreground break-words">{candidate.division.name}</dd>
+                      <dd className="text-xs xs:text-sm text-muted-foreground break-words">{(candidate as any).division.name}</dd>
                     </div>
                   </div>
                 )}
 
-                {candidate.manager && (
+                {(candidate as any).manager && (
                   <div className="flex items-start space-x-3">
                     <Users className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <dt className="text-xs xs:text-sm font-medium">Manager</dt>
-                      <dd className="text-xs xs:text-sm text-muted-foreground break-words">{candidate.manager.name}</dd>
+                      <dd className="text-xs xs:text-sm text-muted-foreground break-words">{(candidate as any).manager ? `${(candidate as any).manager.firstName} ${(candidate as any).manager.lastName}` : "Not set"}</dd>
                     </div>
                   </div>
                 )}
@@ -564,33 +564,33 @@ export default function CandidateDetailPage() {
                 <div className="min-w-0">
                   <div className="text-xs xs:text-sm font-medium">Current Hiring Stage</div>
                   <div className="text-xs xs:text-sm text-muted-foreground break-words" data-testid="text-current-stage">
-                    {candidate.currentStage?.name || "Not set"}
+                    {(candidate as any).currentStage?.name || "Not set"}
                   </div>
                 </div>
               </div>
 
               {/* Pipeline Duration Estimate */}
-              {candidate.templateAppliedFromId && <CandidatePipelineEstimate candidateId={candidate.id} />}
+              {(candidate as any).templateAppliedFromId && <CandidatePipelineEstimate candidateId={(candidate as any).id} />}
             </div>
           </div>
 
           {/* Template Information - Full Width */}
-          {candidate.templateAppliedFromId ? (
+          {(candidate as any).templateAppliedFromId ? (
             <div className="mt-4 xs:mt-6 pt-4 xs:pt-6 border-t">
               <h3 className="text-sm xs:text-base sm:text-lg font-semibold text-foreground border-b pb-2 mb-3 xs:mb-4">Template Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 xs:gap-4 sm:gap-6">
                 <div>
                   <dt className="text-xs xs:text-sm font-medium text-muted-foreground">Template</dt>
-                  <dd className="text-sm xs:text-base mt-1 break-words">{candidate.templateNameSnapshot || "Unknown Template"}</dd>
+                  <dd className="text-sm xs:text-base mt-1 break-words">{(candidate as any).templateNameSnapshot || "Unknown Template"}</dd>
                 </div>
                 <div>
                   <dt className="text-xs xs:text-sm font-medium text-muted-foreground">Applied</dt>
-                  <dd className="text-sm xs:text-base mt-1">{candidate.templateAppliedAt ? new Date(candidate.templateAppliedAt).toLocaleDateString() : "N/A"}</dd>
+                  <dd className="text-sm xs:text-base mt-1">{(candidate as any).templateAppliedAt ? new Date((candidate as any).templateAppliedAt).toLocaleDateString() : "N/A"}</dd>
                 </div>
                 <div>
                   <dt className="text-xs xs:text-sm font-medium text-muted-foreground">Status</dt>
                   <dd className="mt-1">
-                    {candidate.templateLocked && (
+                    {(candidate as any).templateLocked && (
                       <Badge variant="secondary">
                         Template Locked
                       </Badge>
@@ -638,7 +638,7 @@ export default function CandidateDetailPage() {
                       ))}
                     </div>
                   ) : Object.keys(tasksByStage).length === 0 ? (
-                    !candidate.templateAppliedFromId ? (
+                    !(candidate as any).templateAppliedFromId ? (
                       <div className="text-center py-6 xs:py-8">
                         <p className="text-sm text-muted-foreground mb-3 xs:mb-4">No tasks yet. Apply a template to generate tasks.</p>
                         <Button variant="outline" className="min-h-[44px]">
@@ -662,7 +662,7 @@ export default function CandidateDetailPage() {
                                   <h4 className="text-sm xs:text-base font-medium break-words min-w-0">{task.title}</h4>
                                   <TaskStatusCell
                                     taskId={task.id}
-                                    candidateId={candidate.id}
+                                    candidateId={(candidate as any).id}
                                     value={task.status}
                                   />
                                 </div>

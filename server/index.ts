@@ -1,6 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import "./db"; // initialize DB side-effects
+import "./config/database.config"; // initialize DB side-effects
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();

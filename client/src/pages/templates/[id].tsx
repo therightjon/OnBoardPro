@@ -1,27 +1,27 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Badge } from "@/shared/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { Input } from "@/shared/components/ui/input";
 import { Plus, Archive, ArrowLeft, Calendar, User, Edit } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { invalidateTemplate } from "@/lib/query-invalidate";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/shared/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { RouteGuard } from "@/components/route-guard";
-import { TemplateStatusControl } from "@/components/template-status-control";
-import { TemplateStagesList } from "@/components/TemplateStagesList";
-import { PerStageMiniBar } from "@/components/template/PerStageMiniBar";
+import { RouteGuard } from "@/shared/components/route-guard";
+import { TemplateStatusControl } from "@/features/templates/components/template-status-control";
+import { TemplateStagesList } from "@/features/templates/components/TemplateStagesList";
+import { PerStageMiniBar } from "@/features/templates/components/PerStageMiniBar";
 import type { 
   Template, 
   TemplateTask,
@@ -32,7 +32,7 @@ import type {
   TaskPriority,
   TaskCategory,
   CandidateType
-} from "@shared/schema";
+} from "@shared/schemas";
 
 const templateTaskSchema = z.object({
   taskDefId: z.string().min(1, "Task definition is required"),
@@ -454,7 +454,7 @@ export default function TemplateDetailPage() {
   const getUserName = (userId: string | null) => {
     if (!userId) return "Unassigned";
     const user = users.find(u => u.id === userId);
-    return user?.name || "Unknown User";
+    return user ? `${user.firstName} ${user.lastName}` : "Unknown User";
   };
 
   const formatDueRule = (task: TemplateTask) => {
@@ -654,7 +654,7 @@ export default function TemplateDetailPage() {
                   <FormField
                     control={form.control}
                     name="taskDefId"
-                    render={({ field }) => (
+                    render={({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Task Definition</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
@@ -681,7 +681,7 @@ export default function TemplateDetailPage() {
                   <FormField
                     control={form.control}
                     name="stageId"
-                    render={({ field }) => (
+                    render={({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Hiring Stage</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
@@ -709,7 +709,7 @@ export default function TemplateDetailPage() {
                   <FormField
                     control={form.control}
                     name="dueRuleType"
-                    render={({ field }) => (
+                    render={({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Due Rule Type</FormLabel>
                         <Select onValueChange={(value) => {
@@ -747,7 +747,7 @@ export default function TemplateDetailPage() {
                     <FormField
                       control={form.control}
                       name="dueRuleValue"
-                      render={({ field }) => (
+                      render={({ field }: { field: any }) => (
                         <FormItem>
                           <FormLabel>Days</FormLabel>
                           <FormControl>
@@ -769,7 +769,7 @@ export default function TemplateDetailPage() {
                     <FormField
                       control={form.control}
                       name="fixedDate"
-                      render={({ field }) => (
+                      render={({ field }: { field: any }) => (
                         <FormItem>
                           <FormLabel>Fixed Date</FormLabel>
                           <FormControl>
@@ -789,7 +789,7 @@ export default function TemplateDetailPage() {
                     <FormField
                       control={form.control}
                       name="defaultAssigneeId"
-                      render={({ field }) => (
+                      render={({ field }: { field: any }) => (
                         <FormItem>
                           <FormLabel>Default Assignee (Optional)</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
@@ -802,7 +802,7 @@ export default function TemplateDetailPage() {
                               <SelectItem value="none">None</SelectItem>
                               {users.map((user) => (
                                 <SelectItem key={user.id} value={user.id}>
-                                  {user.name}
+                                  {user.firstName} {user.lastName}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -815,7 +815,7 @@ export default function TemplateDetailPage() {
                     <FormField
                       control={form.control}
                       name="defaultPriorityId"
-                      render={({ field }) => (
+                      render={({ field }: { field: any }) => (
                         <FormItem>
                           <FormLabel>Default Priority (Optional)</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
@@ -841,7 +841,7 @@ export default function TemplateDetailPage() {
                     <FormField
                       control={form.control}
                       name="defaultCategoryId"
-                      render={({ field }) => (
+                      render={({ field }: { field: any }) => (
                         <FormItem>
                           <FormLabel>Default Category (Optional)</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
@@ -889,7 +889,7 @@ export default function TemplateDetailPage() {
                   <FormField
                     control={editForm.control}
                     name="taskDefId"
-                    render={({ field }) => (
+                    render={({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Task Definition</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
@@ -916,7 +916,7 @@ export default function TemplateDetailPage() {
                   <FormField
                     control={editForm.control}
                     name="stageId"
-                    render={({ field }) => (
+                    render={({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Hiring Stage</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
@@ -941,7 +941,7 @@ export default function TemplateDetailPage() {
                   <FormField
                     control={editForm.control}
                     name="dueRuleType"
-                    render={({ field }) => (
+                    render={({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Due Rule Type</FormLabel>
                         <Select onValueChange={(value) => {
@@ -979,7 +979,7 @@ export default function TemplateDetailPage() {
                     <FormField
                       control={editForm.control}
                       name="dueRuleValue"
-                      render={({ field }) => (
+                      render={({ field }: { field: any }) => (
                         <FormItem>
                           <FormLabel>Days</FormLabel>
                           <FormControl>
@@ -1001,7 +1001,7 @@ export default function TemplateDetailPage() {
                     <FormField
                       control={editForm.control}
                       name="fixedDate"
-                      render={({ field }) => (
+                      render={({ field }: { field: any }) => (
                         <FormItem>
                           <FormLabel>Fixed Date</FormLabel>
                           <FormControl>
@@ -1021,7 +1021,7 @@ export default function TemplateDetailPage() {
                     <FormField
                       control={editForm.control}
                       name="defaultAssigneeId"
-                      render={({ field }) => (
+                      render={({ field }: { field: any }) => (
                         <FormItem>
                           <FormLabel>Default Assignee (Optional)</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
@@ -1034,7 +1034,7 @@ export default function TemplateDetailPage() {
                               <SelectItem value="none">None</SelectItem>
                               {users.map((user) => (
                                 <SelectItem key={user.id} value={user.id}>
-                                  {user.name}
+                                  {user.firstName} {user.lastName}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -1047,7 +1047,7 @@ export default function TemplateDetailPage() {
                     <FormField
                       control={editForm.control}
                       name="defaultPriorityId"
-                      render={({ field }) => (
+                      render={({ field }: { field: any }) => (
                         <FormItem>
                           <FormLabel>Default Priority (Optional)</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
@@ -1073,7 +1073,7 @@ export default function TemplateDetailPage() {
                     <FormField
                       control={editForm.control}
                       name="defaultCategoryId"
-                      render={({ field }) => (
+                      render={({ field }: { field: any }) => (
                         <FormItem>
                           <FormLabel>Default Category (Optional)</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
