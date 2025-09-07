@@ -33,7 +33,9 @@ import {
   Sun,
   Monitor,
   Target,
-  Shield
+  Shield,
+  Search,
+  Filter
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/shared/hooks/use-toast";
@@ -245,6 +247,11 @@ export default function SettingsPage() {
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [userStatusFilter, setUserStatusFilter] = useState<string>("all");
   const [userRoleFilter, setUserRoleFilter] = useState<string>("all");
+  const [departmentSearchTerm, setDepartmentSearchTerm] = useState("");
+  const [departmentArchiveFilter, setDepartmentArchiveFilter] = useState<string>("all");
+  const [divisionSearchTerm, setDivisionSearchTerm] = useState("");
+  const [divisionDepartmentFilter, setDivisionDepartmentFilter] = useState<string>("all");
+  const [divisionArchiveFilter, setDivisionArchiveFilter] = useState<string>("all");
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
@@ -257,8 +264,35 @@ export default function SettingsPage() {
     queryKey: ["/api/departments"],
   });
 
+  // Filter departments
+  const filteredDepartments = (departments as any[]).filter((department: any) => {
+    if (!department) return false;
+    
+    // Apply archive filter
+    if (departmentArchiveFilter === "active" && department.archived) return false;
+    if (departmentArchiveFilter === "archived" && !department.archived) return false;
+    
+    // Apply search filter
+    return department.name.toLowerCase().includes(departmentSearchTerm.toLowerCase());
+  });
+
   const { data: divisions = [], isLoading: divisionsLoading } = useQuery({
     queryKey: ["/api/divisions"],
+  });
+
+  // Filter divisions
+  const filteredDivisions = (divisions as any[]).filter((division: any) => {
+    if (!division) return false;
+    
+    // Apply archive filter
+    if (divisionArchiveFilter === "active" && division.archived) return false;
+    if (divisionArchiveFilter === "archived" && !division.archived) return false;
+    
+    // Apply department filter
+    if (divisionDepartmentFilter !== "all" && division.departmentId !== divisionDepartmentFilter) return false;
+    
+    // Apply search filter
+    return division.name.toLowerCase().includes(divisionSearchTerm.toLowerCase());
   });
 
   const { data: hiringStages = [], isLoading: hiringStagesLoading } = useQuery({
@@ -1028,6 +1062,35 @@ export default function SettingsPage() {
                 </Dialog>
               </div>
             </CardHeader>
+            
+            {/* Search and Filter for Departments */}
+            <div className="px-6 py-4 border-b">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      placeholder="Search departments..."
+                      value={departmentSearchTerm}
+                      onChange={(e) => setDepartmentSearchTerm(e.target.value)}
+                      className="pl-10"
+                      data-testid="input-search-departments"
+                    />
+                  </div>
+                </div>
+                <Select value={departmentArchiveFilter} onValueChange={setDepartmentArchiveFilter}>
+                  <SelectTrigger className="w-[180px]" data-testid="select-department-archive-filter">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Departments</SelectItem>
+                    <SelectItem value="active">Active Only</SelectItem>
+                    <SelectItem value="archived">Archived Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
@@ -1045,14 +1108,14 @@ export default function SettingsPage() {
                         <div className="animate-pulse">Loading departments...</div>
                       </TableCell>
                     </TableRow>
-                  ) : (departments as any[]).length === 0 ? (
+                  ) : filteredDepartments.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        No departments found. Create your first department to get started.
+                        {(departments as any[]).length === 0 ? "No departments found. Create your first department to get started." : "No departments match your search criteria."}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    (departments as any[]).map((department: any) => (
+                    filteredDepartments.map((department: any) => (
                       <TableRow key={department.id} className="hover:bg-muted/50" data-testid={`row-department-${department.id}`}>
                         <TableCell className="font-medium">{department.name}</TableCell>
                         <TableCell>
@@ -1178,6 +1241,50 @@ export default function SettingsPage() {
                 </Dialog>
               </div>
             </CardHeader>
+            
+            {/* Search and Filter for Divisions */}
+            <div className="px-6 py-4 border-b">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      placeholder="Search divisions..."
+                      value={divisionSearchTerm}
+                      onChange={(e) => setDivisionSearchTerm(e.target.value)}
+                      className="pl-10"
+                      data-testid="input-search-divisions"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-4 flex-wrap">
+                  <Select value={divisionDepartmentFilter} onValueChange={setDivisionDepartmentFilter}>
+                    <SelectTrigger className="w-[180px]" data-testid="select-division-department-filter">
+                      <SelectValue placeholder="Filter by department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Departments</SelectItem>
+                      {(departments as any[]).map((dept: any) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={divisionArchiveFilter} onValueChange={setDivisionArchiveFilter}>
+                    <SelectTrigger className="w-[160px]" data-testid="select-division-archive-filter">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Divisions</SelectItem>
+                      <SelectItem value="active">Active Only</SelectItem>
+                      <SelectItem value="archived">Archived Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
@@ -1196,14 +1303,14 @@ export default function SettingsPage() {
                         <div className="animate-pulse">Loading divisions...</div>
                       </TableCell>
                     </TableRow>
-                  ) : (divisions as any[]).length === 0 ? (
+                  ) : filteredDivisions.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        No divisions found. Create your first division to get started.
+                        {(divisions as any[]).length === 0 ? "No divisions found. Create your first division to get started." : "No divisions match your search criteria."}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    (divisions as any[]).map((division: any) => (
+                    filteredDivisions.map((division: any) => (
                       <TableRow key={division.id} className="hover:bg-muted/50" data-testid={`row-division-${division.id}`}>
                         <TableCell className="font-medium">{division.name}</TableCell>
                         <TableCell>{getDepartmentName(division.departmentId)}</TableCell>
