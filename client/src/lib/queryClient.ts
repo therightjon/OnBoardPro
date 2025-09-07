@@ -67,3 +67,21 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Safely parse JSON responses. If the response is HTML or otherwise not JSON,
+// throw a clear, concise error to help developers diagnose server route issues
+// (e.g., server not restarted so the route isn't registered and HTML is returned).
+export async function parseJsonSafe<T = any>(res: Response): Promise<T> {
+  const contentType = res.headers.get("content-type") || "";
+  const text = await res.text();
+  if (!contentType.toLowerCase().includes("application/json")) {
+    const snippet = text.slice(0, 120);
+    throw new Error(`Unexpected non-JSON response (${res.status}): ${snippet}`);
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch (e) {
+    const snippet = text.slice(0, 120);
+    throw new Error(`Invalid JSON (${res.status}): ${snippet}`);
+  }
+}

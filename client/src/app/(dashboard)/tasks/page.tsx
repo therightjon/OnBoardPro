@@ -6,11 +6,21 @@ import { Input } from "@/shared/components/ui/input";
 import { Badge } from "@/shared/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/components/ui/form";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Switch } from "@/shared/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
-import { Plus, Search, Edit, Archive, BookOpen, Filter } from "lucide-react";
+import { Plus, Search, Edit, Archive, RotateCcw, BookOpen, Filter } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/shared/hooks/use-toast";
 import { useForm } from "react-hook-form";
@@ -30,6 +40,10 @@ export default function TasksPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [archiveFilter, setArchiveFilter] = useState<string>("all");
   const [isNewTaskDefDialogOpen, setIsNewTaskDefDialogOpen] = useState(false);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
+  const [archivingTaskDef, setArchivingTaskDef] = useState<TaskDefinition | null>(null);
+  const [restoringTaskDef, setRestoringTaskDef] = useState<TaskDefinition | null>(null);
   const [editingTaskDef, setEditingTaskDef] = useState<TaskDefinition | null>(null);
   const { toast } = useToast();
 
@@ -109,9 +123,34 @@ export default function TasksPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/task-definitions"] });
+      setIsArchiveDialogOpen(false);
+      setArchivingTaskDef(null);
       toast({
         title: "Success",
         description: "Task definition archived successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const restoreTaskDefMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("PATCH", `/api/task-definitions/${id}`, { archived: false });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/task-definitions"] });
+      setIsRestoreDialogOpen(false);
+      setRestoringTaskDef(null);
+      toast({
+        title: "Success",
+        description: "Task definition restored successfully",
       });
     },
     onError: (error: Error) => {
@@ -157,7 +196,7 @@ export default function TasksPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground" data-testid="text-tasks-title">Task Definitions</h1>
+          <h1 className="text-2xl font-bold text-foreground" data-testid="text-tasks-title">Task Library</h1>
           <p className="text-muted-foreground">Manage library of reusable task definitions</p>
         </div>
         <Dialog open={isNewTaskDefDialogOpen} onOpenChange={setIsNewTaskDefDialogOpen}>
@@ -262,7 +301,7 @@ export default function TasksPage() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <BookOpen className="w-4 h-4 mr-2" />
-            Task Library
+            Task Definitions
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -314,15 +353,27 @@ export default function TasksPage() {
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="min-h-[44px] min-w-[44px] p-2"
-                          onClick={() => archiveTaskDefMutation.mutate(taskDef.id)}
-                          data-testid={`button-archive-task-def-${taskDef.id}`}
-                        >
-                          <Archive className="w-4 h-4 text-muted-foreground" />
-                        </Button>
+                        {taskDef.archived ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="min-h-[44px] min-w-[44px] p-2"
+                            onClick={() => { setRestoringTaskDef(taskDef); setIsRestoreDialogOpen(true); }}
+                            data-testid={`button-restore-task-def-${taskDef.id}`}
+                          >
+                            <RotateCcw className="w-4 h-4 text-muted-foreground" />
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="min-h-[44px] min-w-[44px] p-2"
+                            onClick={() => { setArchivingTaskDef(taskDef); setIsArchiveDialogOpen(true); }}
+                            data-testid={`button-archive-task-def-${taskDef.id}`}
+                          >
+                            <Archive className="w-4 h-4 text-muted-foreground" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -389,6 +440,51 @@ export default function TasksPage() {
         </Dialog>
       )}
       </div>
+
+      {/* Archive Task Definition Dialog */}
+      <AlertDialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
+        <AlertDialogContent data-testid="dialog-archive-task-def">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive Task Definition</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to archive <strong>{archivingTaskDef?.name}</strong>? You can restore it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-archive-task-def">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (archivingTaskDef) archiveTaskDefMutation.mutate(archivingTaskDef.id); }}
+              disabled={archiveTaskDefMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-archive-task-def"
+            >
+              {archiveTaskDefMutation.isPending ? "Archiving..." : "Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Restore Task Definition Dialog */}
+      <AlertDialog open={isRestoreDialogOpen} onOpenChange={setIsRestoreDialogOpen}>
+        <AlertDialogContent data-testid="dialog-restore-task-def">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore Task Definition</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to restore <strong>{restoringTaskDef?.name}</strong>? This will make it active again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-restore-task-def">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (restoringTaskDef) restoreTaskDefMutation.mutate(restoringTaskDef.id); }}
+              disabled={restoreTaskDefMutation.isPending}
+              data-testid="button-confirm-restore-task-def"
+            >
+              {restoreTaskDefMutation.isPending ? "Restoring..." : "Restore"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </RouteGuard>
   );
 }

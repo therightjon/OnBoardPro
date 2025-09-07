@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
@@ -29,6 +29,7 @@ import {
   Plus, 
   Edit, 
   Archive,
+  RotateCcw,
   Moon,
   Sun,
   Monitor,
@@ -37,7 +38,7 @@ import {
   Search,
   Filter
 } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, parseJsonSafe } from "@/lib/queryClient";
 import { useToast } from "@/shared/hooks/use-toast";
 import { useTheme } from "@/shared/components/layout/theme-provider";
 import { useForm } from "react-hook-form";
@@ -236,6 +237,8 @@ export default function SettingsPage() {
   const [isDisableDialogOpen, setIsDisableDialogOpen] = useState(false);
   const [isArchiveDepartmentDialogOpen, setIsArchiveDepartmentDialogOpen] = useState(false);
   const [isArchiveDivisionDialogOpen, setIsArchiveDivisionDialogOpen] = useState(false);
+  const [isRestoreDepartmentDialogOpen, setIsRestoreDepartmentDialogOpen] = useState(false);
+  const [isRestoreDivisionDialogOpen, setIsRestoreDivisionDialogOpen] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<any>(null);
   const [editingDivision, setEditingDivision] = useState<any>(null);
   const [editingHiringStage, setEditingHiringStage] = useState<any>(null);
@@ -243,25 +246,55 @@ export default function SettingsPage() {
   const [disablingUser, setDisablingUser] = useState<any>(null);
   const [archivingDepartment, setArchivingDepartment] = useState<any>(null);
   const [archivingDivision, setArchivingDivision] = useState<any>(null);
+  const [restoringDepartment, setRestoringDepartment] = useState<any>(null);
+  const [restoringDivision, setRestoringDivision] = useState<any>(null);
   const [reassignTo, setReassignTo] = useState<string>("");
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [userStatusFilter, setUserStatusFilter] = useState<string>("all");
   const [userRoleFilter, setUserRoleFilter] = useState<string>("all");
   const [departmentSearchTerm, setDepartmentSearchTerm] = useState("");
-  const [departmentArchiveFilter, setDepartmentArchiveFilter] = useState<string>("all");
+  const [departmentArchiveFilter, setDepartmentArchiveFilter] = useState<string>("active");
   const [divisionSearchTerm, setDivisionSearchTerm] = useState("");
   const [divisionDepartmentFilter, setDivisionDepartmentFilter] = useState<string>("all");
-  const [divisionArchiveFilter, setDivisionArchiveFilter] = useState<string>("all");
+  const [divisionArchiveFilter, setDivisionArchiveFilter] = useState<string>("active");
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
+  // Debug flag removed
 
   // Check if user can manage hiring stages and users
   const canManageHiringStages = user?.role === "system_admin" || user?.role === "hr_staff";
   const canManageUsers = user?.role === "system_admin" || user?.role === "hr_staff";
   const canManageAuthProviders = user?.role === "system_admin" || user?.role === "hr_staff";
 
-  const { data: departments = [], isLoading: departmentsLoading } = useQuery({
-    queryKey: ["/api/departments"],
+  // Helper: robust archived detection across possible shapes
+  const isArchived = (entity: any): boolean => {
+    if (!entity) return false;
+    // boolean
+    if (typeof entity.archived === 'boolean') return entity.archived;
+    // numeric flags
+    if (typeof entity.archived === 'number') return entity.archived === 1;
+    // string variants
+    if (typeof entity.archived === 'string') {
+      const v = entity.archived.toLowerCase();
+      if (v === 'true' || v === '1' || v === 'yes') return true;
+      if (v === 'false' || v === '0' || v === 'no') return false;
+    }
+    if (typeof entity.isArchived === 'boolean') return entity.isArchived;
+    if (typeof entity.status === 'string') return entity.status.toLowerCase() === 'archived';
+    if (entity.archivedAt) return true;
+    if (typeof entity.isActive === 'boolean') return entity.isActive === false;
+    return false;
+  };
+
+  // Dev-only helpers removed
+
+  // Departments (include archived to support Archived Only filter)
+  const { data: departments = [], isLoading: departmentsLoading, isError: departmentsError } = useQuery({
+    queryKey: ["/api/departments", { includeArchived: true }],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/departments?includeArchived=true");
+      return res.json();
+    },
   });
 
   // Filter departments
@@ -269,15 +302,20 @@ export default function SettingsPage() {
     if (!department) return false;
     
     // Apply archive filter
-    if (departmentArchiveFilter === "active" && department.archived) return false;
-    if (departmentArchiveFilter === "archived" && !department.archived) return false;
+    const archived = isArchived(department);
+    if (departmentArchiveFilter === "active" && archived) return false;
+    if (departmentArchiveFilter === "archived" && !archived) return false;
     
     // Apply search filter
     return department.name.toLowerCase().includes(departmentSearchTerm.toLowerCase());
   });
 
-  const { data: divisions = [], isLoading: divisionsLoading } = useQuery({
-    queryKey: ["/api/divisions"],
+  const { data: divisions = [], isLoading: divisionsLoading, isError: divisionsError } = useQuery({
+    queryKey: ["/api/divisions", { includeArchived: true, v: 2 }],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/divisions?includeArchived=true");
+      return res.json();
+    },
   });
 
   // Filter divisions
@@ -285,8 +323,9 @@ export default function SettingsPage() {
     if (!division) return false;
     
     // Apply archive filter
-    if (divisionArchiveFilter === "active" && division.archived) return false;
-    if (divisionArchiveFilter === "archived" && !division.archived) return false;
+    const archived = isArchived(division);
+    if (divisionArchiveFilter === "active" && archived) return false;
+    if (divisionArchiveFilter === "archived" && !archived) return false;
     
     // Apply department filter
     if (divisionDepartmentFilter !== "all" && division.departmentId !== divisionDepartmentFilter) return false;
@@ -304,6 +343,9 @@ export default function SettingsPage() {
     queryKey: ["/api/users"],
     enabled: canManageUsers, // Only fetch if user has permission
   });
+
+  // Optional server-side debug for departments
+  // No client debug queries in production UI
 
   const { data: userTaskCount } = useQuery({
     queryKey: ["/api/users", disablingUser?.id, "task-count"],
@@ -345,7 +387,7 @@ export default function SettingsPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/departments"], exact: false });
       setIsDepartmentDialogOpen(false);
       departmentForm.reset();
       toast({
@@ -368,7 +410,7 @@ export default function SettingsPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/divisions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/divisions"], exact: false });
       setIsDivisionDialogOpen(false);
       divisionForm.reset();
       toast({
@@ -391,7 +433,7 @@ export default function SettingsPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/departments"], exact: false });
       setIsDepartmentDialogOpen(false);
       setEditingDepartment(null);
       departmentForm.reset();
@@ -415,7 +457,7 @@ export default function SettingsPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/departments"], exact: false });
       setIsArchiveDepartmentDialogOpen(false);
       setArchivingDepartment(null);
       toast({
@@ -432,13 +474,36 @@ export default function SettingsPage() {
     },
   });
 
+  const restoreDepartmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", `/api/departments/${id}/restore`);
+      return parseJsonSafe(res);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/departments"], exact: false });
+      setIsRestoreDepartmentDialogOpen(false);
+      setRestoringDepartment(null);
+      toast({
+        title: "Success",
+        description: "Department restored successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to restore department. If this persists, try restarting the server.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const updateDivisionMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<DivisionForm> }) => {
       const res = await apiRequest("PATCH", `/api/divisions/${id}`, data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/divisions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/divisions"], exact: false });
       setIsDivisionDialogOpen(false);
       setEditingDivision(null);
       divisionForm.reset();
@@ -462,7 +527,7 @@ export default function SettingsPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/divisions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/divisions"], exact: false });
       setIsArchiveDivisionDialogOpen(false);
       setArchivingDivision(null);
       toast({
@@ -474,6 +539,29 @@ export default function SettingsPage() {
       toast({
         title: "Error",
         description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const restoreDivisionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", `/api/divisions/${id}/restore`);
+      return parseJsonSafe(res);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/divisions"], exact: false });
+      setIsRestoreDivisionDialogOpen(false);
+      setRestoringDivision(null);
+      toast({
+        title: "Success",
+        description: "Division restored successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to restore division. If this persists, try restarting the server.",
         variant: "destructive",
       });
     },
@@ -744,9 +832,20 @@ export default function SettingsPage() {
     setIsArchiveDepartmentDialogOpen(true);
   };
 
+  const handleRestoreDepartment = (department: any) => {
+    setRestoringDepartment(department);
+    setIsRestoreDepartmentDialogOpen(true);
+  };
+
   const handleConfirmArchiveDepartment = () => {
     if (archivingDepartment) {
       archiveDepartmentMutation.mutate(archivingDepartment.id);
+    }
+  };
+
+  const handleConfirmRestoreDepartment = () => {
+    if (restoringDepartment) {
+      restoreDepartmentMutation.mutate(restoringDepartment.id);
     }
   };
 
@@ -773,9 +872,20 @@ export default function SettingsPage() {
     setIsArchiveDivisionDialogOpen(true);
   };
 
+  const handleRestoreDivision = (division: any) => {
+    setRestoringDivision(division);
+    setIsRestoreDivisionDialogOpen(true);
+  };
+
   const handleConfirmArchiveDivision = () => {
     if (archivingDivision) {
       archiveDivisionMutation.mutate(archivingDivision.id);
+    }
+  };
+
+  const handleConfirmRestoreDivision = () => {
+    if (restoringDivision) {
+      restoreDivisionMutation.mutate(restoringDivision.id);
     }
   };
 
@@ -1007,6 +1117,8 @@ export default function SettingsPage() {
                   <Building className="w-4 h-4 mr-2" />
                   Departments
                 </CardTitle>
+                {/* Debug counts to help verify data received; only show if any data present */}
+                {/* Debug counters removed */}
                 <Dialog open={isDepartmentDialogOpen} onOpenChange={setIsDepartmentDialogOpen}>
                   <DialogTrigger asChild>
                     <Button onClick={handleNewDepartment} data-testid="button-new-department">
@@ -1102,7 +1214,18 @@ export default function SettingsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {departmentsLoading ? (
+                  {departmentsError ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8">
+                        <div className="flex items-center justify-center gap-3">
+                          <span className="text-destructive">Failed to load departments. Please check authentication.</span>
+                          <Button size="sm" variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/departments"], exact: false })}>
+                            Retry
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : departmentsLoading ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-8">
                         <div className="animate-pulse">Loading departments...</div>
@@ -1119,8 +1242,8 @@ export default function SettingsPage() {
                       <TableRow key={department.id} className="hover:bg-muted/50" data-testid={`row-department-${department.id}`}>
                         <TableCell className="font-medium">{department.name}</TableCell>
                         <TableCell>
-                          <Badge variant={department.archived ? "secondary" : "default"}>
-                            {department.archived ? "Archived" : "Active"}
+                          <Badge variant={isArchived(department) ? "secondary" : "default"}>
+                            {isArchived(department) ? "Archived" : "Active"}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -1136,14 +1259,25 @@ export default function SettingsPage() {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleArchiveDepartment(department)}
-                              data-testid={`button-archive-department-${department.id}`}
-                            >
-                              <Archive className="w-4 h-4" />
-                            </Button>
+                            {isArchived(department) ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRestoreDepartment(department)}
+                                data-testid={`button-restore-department-${department.id}`}
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                              </Button>
+                            ) : (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleArchiveDepartment(department)}
+                                data-testid={`button-archive-department-${department.id}`}
+                              >
+                                <Archive className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1162,6 +1296,7 @@ export default function SettingsPage() {
                   <Users className="w-4 h-4 mr-2" />
                   Divisions
                 </CardTitle>
+                {/* Debug counters removed */}
                 <Dialog open={isDivisionDialogOpen} onOpenChange={setIsDivisionDialogOpen}>
                   <DialogTrigger asChild>
                     <Button onClick={handleNewDivision} data-testid="button-new-division">
@@ -1297,7 +1432,18 @@ export default function SettingsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {divisionsLoading ? (
+                  {divisionsError ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        <div className="flex items-center justify-center gap-3">
+                          <span className="text-destructive">Failed to load divisions. Please check authentication.</span>
+                          <Button size="sm" variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/divisions"], exact: false })}>
+                            Retry
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : divisionsLoading ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-8">
                         <div className="animate-pulse">Loading divisions...</div>
@@ -1315,8 +1461,8 @@ export default function SettingsPage() {
                         <TableCell className="font-medium">{division.name}</TableCell>
                         <TableCell>{getDepartmentName(division.departmentId)}</TableCell>
                         <TableCell>
-                          <Badge variant={division.archived ? "secondary" : "default"}>
-                            {division.archived ? "Archived" : "Active"}
+                          <Badge variant={isArchived(division) ? "secondary" : "default"}>
+                            {isArchived(division) ? "Archived" : "Active"}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -1332,14 +1478,25 @@ export default function SettingsPage() {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleArchiveDivision(division)}
-                              data-testid={`button-archive-division-${division.id}`}
-                            >
-                              <Archive className="w-4 h-4" />
-                            </Button>
+                            {isArchived(division) ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRestoreDivision(division)}
+                                data-testid={`button-restore-division-${division.id}`}
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                              </Button>
+                            ) : (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleArchiveDivision(division)}
+                                data-testid={`button-archive-division-${division.id}`}
+                              >
+                                <Archive className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1970,15 +2127,12 @@ export default function SettingsPage() {
 
               <div className="border-t pt-6">
                 <Label className="text-base font-medium mb-4 block">Data & Privacy</Label>
-                <div className="space-y-3">
+                <div className="space-x-3">
                   <Button variant="outline" className="justify-start" data-testid="button-export-data">
                     Export My Data
                   </Button>
                   <Button variant="outline" className="justify-start" data-testid="button-privacy-settings">
                     Privacy Settings
-                  </Button>
-                  <Button variant="outline" className="justify-start text-destructive" data-testid="button-delete-account">
-                    Delete Account
                   </Button>
                 </div>
               </div>
@@ -1987,8 +2141,8 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Archive Department Dialog */}
-      <AlertDialog open={isArchiveDepartmentDialogOpen} onOpenChange={setIsArchiveDepartmentDialogOpen}>
+  {/* Archive Department Dialog */}
+  <AlertDialog open={isArchiveDepartmentDialogOpen} onOpenChange={setIsArchiveDepartmentDialogOpen}>
         <AlertDialogContent data-testid="dialog-archive-department">
           <AlertDialogHeader>
             <AlertDialogTitle>Archive Department</AlertDialogTitle>
@@ -2009,10 +2163,32 @@ export default function SettingsPage() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+  </AlertDialog>
 
-      {/* Archive Division Dialog */}
-      <AlertDialog open={isArchiveDivisionDialogOpen} onOpenChange={setIsArchiveDivisionDialogOpen}>
+  {/* Restore Department Dialog */}
+  <AlertDialog open={isRestoreDepartmentDialogOpen} onOpenChange={setIsRestoreDepartmentDialogOpen}>
+    <AlertDialogContent data-testid="dialog-restore-department">
+      <AlertDialogHeader>
+        <AlertDialogTitle>Restore Department</AlertDialogTitle>
+        <AlertDialogDescription>
+          Are you sure you want to restore <strong>{restoringDepartment?.name}</strong>? This will make the department active again.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel data-testid="button-cancel-restore-department">Cancel</AlertDialogCancel>
+        <AlertDialogAction 
+          onClick={handleConfirmRestoreDepartment}
+          disabled={restoreDepartmentMutation.isPending}
+          data-testid="button-confirm-restore-department"
+        >
+          {restoreDepartmentMutation.isPending ? "Restoring..." : "Restore"}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+
+  {/* Archive Division Dialog */}
+  <AlertDialog open={isArchiveDivisionDialogOpen} onOpenChange={setIsArchiveDivisionDialogOpen}>
         <AlertDialogContent data-testid="dialog-archive-division">
           <AlertDialogHeader>
             <AlertDialogTitle>Archive Division</AlertDialogTitle>
@@ -2033,7 +2209,29 @@ export default function SettingsPage() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+  </AlertDialog>
+
+  {/* Restore Division Dialog */}
+  <AlertDialog open={isRestoreDivisionDialogOpen} onOpenChange={setIsRestoreDivisionDialogOpen}>
+    <AlertDialogContent data-testid="dialog-restore-division">
+      <AlertDialogHeader>
+        <AlertDialogTitle>Restore Division</AlertDialogTitle>
+        <AlertDialogDescription>
+          Are you sure you want to restore <strong>{restoringDivision?.name}</strong>? This will make the division active again.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel data-testid="button-cancel-restore-division">Cancel</AlertDialogCancel>
+        <AlertDialogAction 
+          onClick={handleConfirmRestoreDivision}
+          disabled={restoreDivisionMutation.isPending}
+          data-testid="button-confirm-restore-division"
+        >
+          {restoreDivisionMutation.isPending ? "Restoring..." : "Restore"}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
     </div>
   );
 }

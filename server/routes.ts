@@ -35,10 +35,11 @@ function requireRole(roles: string[]) {
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
-  // Divisions routes
+  // Divisions routes (single handler; supports departmentId search and includeArchived)
   app.get("/api/divisions", requireAuth, requireRole(["system_admin", "hr_staff", "department_admin", "division_leader", "manager"]), async (req, res, next) => {
     try {
       const { departmentId, q, limit = 20, offset = 0 } = req.query;
+      const includeArchived = req.query.includeArchived === 'true';
       
       // If departmentId is provided, use the specific method with search/pagination
       if (departmentId) {
@@ -50,8 +51,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         res.json(divisions);
       } else {
-        // If no departmentId, fetch all divisions (for settings page)
-        const divisions = await storage.getDivisions();
+        // If no departmentId, fetch all divisions (for settings page) honoring includeArchived
+        const divisions = await storage.getDivisions(undefined, includeArchived);
         res.json(divisions);
       }
     } catch (error) {
@@ -1134,25 +1135,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+
   // Departments and Divisions routes
   app.get("/api/departments", requireAuth, async (req, res, next) => {
     try {
-      const departments = await storage.getDepartments();
+      const includeArchived = req.query.includeArchived === 'true';
+      const departments = await storage.getDepartments(includeArchived);
       res.json(departments);
     } catch (error) {
       next(error);
     }
   });
 
-  app.get("/api/divisions", requireAuth, async (req, res, next) => {
-    try {
-      const departmentId = req.query.departmentId as string;
-      const divisions = await storage.getDivisions(departmentId);
-      res.json(divisions);
-    } catch (error) {
-      next(error);
-    }
-  });
+  // (Removed duplicate /api/divisions route that previously ignored includeArchived)
 
   app.post("/api/departments", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
@@ -1201,6 +1197,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Restore Department
+  app.post("/api/departments/:id/restore", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const department = await storage.updateDepartment(id, { archived: false, updatedAt: new Date() });
+      if (!department) {
+        return res.status(404).json({ message: "Department not found" });
+      }
+      res.json({ message: "Department restored successfully", department });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/divisions", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const validatedData = insertDivisionSchema.parse(req.body);
@@ -1243,6 +1253,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json({ message: "Division archived successfully", division });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Restore Division
+  app.post("/api/divisions/:id/restore", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const division = await storage.updateDivision(id, { archived: false, updatedAt: new Date() });
+      if (!division) {
+        return res.status(404).json({ message: "Division not found" });
+      }
+      res.json({ message: "Division restored successfully", division });
     } catch (error) {
       next(error);
     }

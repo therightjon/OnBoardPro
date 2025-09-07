@@ -137,8 +137,8 @@ export interface IStorage {
   updateTaskDefinition(id: string, data: Partial<TaskDefinition>): Promise<TaskDefinition | undefined>;
   
   // Departments and Divisions
-  getDepartments(): Promise<Department[]>;
-  getDivisions(departmentId?: string): Promise<Division[]>;
+  getDepartments(includeArchived?: boolean): Promise<Department[]>;
+  getDivisions(departmentId?: string, includeArchived?: boolean): Promise<Division[]>;
   getDivisionsByDepartment(departmentId: string, searchQuery?: string, limit?: number, offset?: number): Promise<Division[]>;
   getManagersByDepartment(departmentId: string, divisionId?: string, searchQuery?: string, limit?: number, offset?: number): Promise<Array<{ id: string; name: string; email: string; role: string }>>;
   createDepartment(dept: InsertDepartment): Promise<Department>;
@@ -817,17 +817,29 @@ export class DatabaseStorage implements IStorage {
     return taskDef || undefined;
   }
 
-  async getDepartments(): Promise<Department[]> {
+  async getDepartments(includeArchived: boolean = false): Promise<Department[]> {
+    if (includeArchived) {
+      return await db.select().from(departments);
+    }
     return await db.select().from(departments).where(eq(departments.archived, false));
   }
 
-  async getDivisions(departmentId?: string): Promise<Division[]> {
-    const whereConditions = [eq(divisions.archived, false)];
+  async getDivisions(departmentId?: string, includeArchived: boolean = false): Promise<Division[]> {
+    const whereConditions = [];
+    
     if (departmentId) {
       whereConditions.push(eq(divisions.departmentId, departmentId));
     }
     
-    return await db.select().from(divisions).where(and(...whereConditions));
+    if (!includeArchived) {
+      whereConditions.push(eq(divisions.archived, false));
+    }
+    
+    if (whereConditions.length > 0) {
+      return await db.select().from(divisions).where(and(...whereConditions));
+    }
+    
+    return await db.select().from(divisions);
   }
 
   async getDivisionsByDepartment(
