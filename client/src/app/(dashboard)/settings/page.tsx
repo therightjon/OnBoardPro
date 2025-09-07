@@ -10,6 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/shared/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { 
   Settings as SettingsIcon, 
@@ -222,9 +232,15 @@ export default function SettingsPage() {
   const [isHiringStageDialogOpen, setIsHiringStageDialogOpen] = useState(false);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [isDisableDialogOpen, setIsDisableDialogOpen] = useState(false);
+  const [isArchiveDepartmentDialogOpen, setIsArchiveDepartmentDialogOpen] = useState(false);
+  const [isArchiveDivisionDialogOpen, setIsArchiveDivisionDialogOpen] = useState(false);
+  const [editingDepartment, setEditingDepartment] = useState<any>(null);
+  const [editingDivision, setEditingDivision] = useState<any>(null);
   const [editingHiringStage, setEditingHiringStage] = useState<any>(null);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [disablingUser, setDisablingUser] = useState<any>(null);
+  const [archivingDepartment, setArchivingDepartment] = useState<any>(null);
+  const [archivingDivision, setArchivingDivision] = useState<any>(null);
   const [reassignTo, setReassignTo] = useState<string>("");
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [userStatusFilter, setUserStatusFilter] = useState<string>("all");
@@ -324,6 +340,100 @@ export default function SettingsPage() {
       toast({
         title: "Success",
         description: "Division created successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateDepartmentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<DepartmentForm> }) => {
+      const res = await apiRequest("PATCH", `/api/departments/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      setIsDepartmentDialogOpen(false);
+      setEditingDepartment(null);
+      departmentForm.reset();
+      toast({
+        title: "Success",
+        description: "Department updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const archiveDepartmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/departments/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      setIsArchiveDepartmentDialogOpen(false);
+      setArchivingDepartment(null);
+      toast({
+        title: "Success",
+        description: "Department archived successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateDivisionMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<DivisionForm> }) => {
+      const res = await apiRequest("PATCH", `/api/divisions/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/divisions"] });
+      setIsDivisionDialogOpen(false);
+      setEditingDivision(null);
+      divisionForm.reset();
+      toast({
+        title: "Success",
+        description: "Division updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const archiveDivisionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/divisions/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/divisions"] });
+      setIsArchiveDivisionDialogOpen(false);
+      setArchivingDivision(null);
+      toast({
+        title: "Success",
+        description: "Division archived successfully",
       });
     },
     onError: (error: Error) => {
@@ -545,11 +655,19 @@ export default function SettingsPage() {
   };
 
   const onDepartmentSubmit = (data: DepartmentForm) => {
-    createDepartmentMutation.mutate(data);
+    if (editingDepartment) {
+      updateDepartmentMutation.mutate({ id: editingDepartment.id, data });
+    } else {
+      createDepartmentMutation.mutate(data);
+    }
   };
 
   const onDivisionSubmit = (data: DivisionForm) => {
-    createDivisionMutation.mutate(data);
+    if (editingDivision) {
+      updateDivisionMutation.mutate({ id: editingDivision.id, data });
+    } else {
+      createDivisionMutation.mutate(data);
+    }
   };
 
   const onHiringStageSubmit = (data: HiringStageForm) => {
@@ -569,6 +687,62 @@ export default function SettingsPage() {
       isActive: stage.isActive,
     });
     setIsHiringStageDialogOpen(true);
+  };
+
+  const handleEditDepartment = (department: any) => {
+    setEditingDepartment(department);
+    departmentForm.reset({
+      name: department.name,
+    });
+    setIsDepartmentDialogOpen(true);
+  };
+
+  const handleNewDepartment = () => {
+    setEditingDepartment(null);
+    departmentForm.reset({
+      name: "",
+    });
+    setIsDepartmentDialogOpen(true);
+  };
+
+  const handleArchiveDepartment = (department: any) => {
+    setArchivingDepartment(department);
+    setIsArchiveDepartmentDialogOpen(true);
+  };
+
+  const handleConfirmArchiveDepartment = () => {
+    if (archivingDepartment) {
+      archiveDepartmentMutation.mutate(archivingDepartment.id);
+    }
+  };
+
+  const handleEditDivision = (division: any) => {
+    setEditingDivision(division);
+    divisionForm.reset({
+      name: division.name,
+      departmentId: division.departmentId,
+    });
+    setIsDivisionDialogOpen(true);
+  };
+
+  const handleNewDivision = () => {
+    setEditingDivision(null);
+    divisionForm.reset({
+      name: "",
+      departmentId: "",
+    });
+    setIsDivisionDialogOpen(true);
+  };
+
+  const handleArchiveDivision = (division: any) => {
+    setArchivingDivision(division);
+    setIsArchiveDivisionDialogOpen(true);
+  };
+
+  const handleConfirmArchiveDivision = () => {
+    if (archivingDivision) {
+      archiveDivisionMutation.mutate(archivingDivision.id);
+    }
   };
 
   const handleNewHiringStage = () => {
@@ -801,14 +975,16 @@ export default function SettingsPage() {
                 </CardTitle>
                 <Dialog open={isDepartmentDialogOpen} onOpenChange={setIsDepartmentDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button data-testid="button-new-department">
+                    <Button onClick={handleNewDepartment} data-testid="button-new-department">
                       <Plus className="w-4 h-4 mr-2" />
                       New Department
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-[95vw] w-full sm:max-w-md max-h-[90vh] sm:max-h-min overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>Create New Department</DialogTitle>
+                      <DialogTitle>
+                        {editingDepartment ? "Edit Department" : "Create New Department"}
+                      </DialogTitle>
                     </DialogHeader>
                     <form onSubmit={departmentForm.handleSubmit(onDepartmentSubmit)} className="space-y-4">
                       <div>
@@ -827,11 +1003,24 @@ export default function SettingsPage() {
                       </div>
 
                       <div className="flex justify-end space-x-2">
-                        <Button type="button" variant="outline" onClick={() => setIsDepartmentDialogOpen(false)}>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => {
+                            setIsDepartmentDialogOpen(false);
+                            setEditingDepartment(null);
+                          }}
+                        >
                           Cancel
                         </Button>
-                        <Button type="submit" disabled={createDepartmentMutation.isPending}>
-                          {createDepartmentMutation.isPending ? "Creating..." : "Create Department"}
+                        <Button 
+                          type="submit" 
+                          disabled={createDepartmentMutation.isPending || updateDepartmentMutation.isPending}
+                        >
+                          {(createDepartmentMutation.isPending || updateDepartmentMutation.isPending) 
+                            ? (editingDepartment ? "Updating..." : "Creating...") 
+                            : (editingDepartment ? "Update Department" : "Create Department")
+                          }
                         </Button>
                       </div>
                     </form>
@@ -876,10 +1065,20 @@ export default function SettingsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
-                            <Button variant="ghost" size="sm" data-testid={`button-edit-department-${department.id}`}>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleEditDepartment(department)}
+                              data-testid={`button-edit-department-${department.id}`}
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" data-testid={`button-archive-department-${department.id}`}>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleArchiveDepartment(department)}
+                              data-testid={`button-archive-department-${department.id}`}
+                            >
                               <Archive className="w-4 h-4" />
                             </Button>
                           </div>
@@ -902,14 +1101,16 @@ export default function SettingsPage() {
                 </CardTitle>
                 <Dialog open={isDivisionDialogOpen} onOpenChange={setIsDivisionDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button data-testid="button-new-division">
+                    <Button onClick={handleNewDivision} data-testid="button-new-division">
                       <Plus className="w-4 h-4 mr-2" />
                       New Division
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-[95vw] w-full sm:max-w-md max-h-[90vh] sm:max-h-min overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>Create New Division</DialogTitle>
+                      <DialogTitle>
+                        {editingDivision ? "Edit Division" : "Create New Division"}
+                      </DialogTitle>
                     </DialogHeader>
                     <form onSubmit={divisionForm.handleSubmit(onDivisionSubmit)} className="space-y-4">
                       <div>
@@ -952,11 +1153,24 @@ export default function SettingsPage() {
                       </div>
 
                       <div className="flex justify-end space-x-2">
-                        <Button type="button" variant="outline" onClick={() => setIsDivisionDialogOpen(false)}>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => {
+                            setIsDivisionDialogOpen(false);
+                            setEditingDivision(null);
+                          }}
+                        >
                           Cancel
                         </Button>
-                        <Button type="submit" disabled={createDivisionMutation.isPending}>
-                          {createDivisionMutation.isPending ? "Creating..." : "Create Division"}
+                        <Button 
+                          type="submit" 
+                          disabled={createDivisionMutation.isPending || updateDivisionMutation.isPending}
+                        >
+                          {(createDivisionMutation.isPending || updateDivisionMutation.isPending) 
+                            ? (editingDivision ? "Updating..." : "Creating...") 
+                            : (editingDivision ? "Update Division" : "Create Division")
+                          }
                         </Button>
                       </div>
                     </form>
@@ -1003,10 +1217,20 @@ export default function SettingsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
-                            <Button variant="ghost" size="sm" data-testid={`button-edit-division-${division.id}`}>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleEditDivision(division)}
+                              data-testid={`button-edit-division-${division.id}`}
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" data-testid={`button-archive-division-${division.id}`}>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleArchiveDivision(division)}
+                              data-testid={`button-archive-division-${division.id}`}
+                            >
                               <Archive className="w-4 h-4" />
                             </Button>
                           </div>
@@ -1655,6 +1879,54 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Archive Department Dialog */}
+      <AlertDialog open={isArchiveDepartmentDialogOpen} onOpenChange={setIsArchiveDepartmentDialogOpen}>
+        <AlertDialogContent data-testid="dialog-archive-department">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive Department</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to archive <strong>{archivingDepartment?.name}</strong>? 
+              This will hide the department from the active list. You can restore it later if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-archive-department">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmArchiveDepartment}
+              disabled={archiveDepartmentMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-archive-department"
+            >
+              {archiveDepartmentMutation.isPending ? "Archiving..." : "Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Archive Division Dialog */}
+      <AlertDialog open={isArchiveDivisionDialogOpen} onOpenChange={setIsArchiveDivisionDialogOpen}>
+        <AlertDialogContent data-testid="dialog-archive-division">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive Division</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to archive <strong>{archivingDivision?.name}</strong>? 
+              This will hide the division from the active list. You can restore it later if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-archive-division">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmArchiveDivision}
+              disabled={archiveDivisionMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-archive-division"
+            >
+              {archiveDivisionMutation.isPending ? "Archiving..." : "Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

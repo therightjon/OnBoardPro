@@ -1167,6 +1167,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/departments/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertDepartmentSchema.partial().parse(req.body);
+      const department = await storage.updateDepartment(id, validatedData);
+      
+      if (!department) {
+        return res.status(404).json({ message: "Department not found" });
+      }
+      
+      res.json(department);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+
+  app.delete("/api/departments/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const department = await storage.updateDepartment(id, { archived: true, updatedAt: new Date() });
+      
+      if (!department) {
+        return res.status(404).json({ message: "Department not found" });
+      }
+      
+      res.json({ message: "Department archived successfully", department });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/divisions", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const validatedData = insertDivisionSchema.parse(req.body);
@@ -1176,6 +1210,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
+      next(error);
+    }
+  });
+
+  app.patch("/api/divisions/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertDivisionSchema.partial().parse(req.body);
+      const division = await storage.updateDivision(id, validatedData);
+      
+      if (!division) {
+        return res.status(404).json({ message: "Division not found" });
+      }
+      
+      res.json(division);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+
+  app.delete("/api/divisions/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const division = await storage.updateDivision(id, { archived: true, updatedAt: new Date() });
+      
+      if (!division) {
+        return res.status(404).json({ message: "Division not found" });
+      }
+      
+      res.json({ message: "Division archived successfully", division });
+    } catch (error) {
       next(error);
     }
   });
