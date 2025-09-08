@@ -547,7 +547,9 @@ export default function CandidateDetailPage() {
                     <Users className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <dt className="text-xs xs:text-sm font-medium">Manager</dt>
-                      <dd className="text-xs xs:text-sm text-muted-foreground break-words">{(candidate as any).manager.name}</dd>
+                      <dd className="text-xs xs:text-sm text-muted-foreground break-words">
+                        {`${(candidate as any).manager.firstName} ${(candidate as any).manager.lastName}`}
+                      </dd>
                     </div>
                   </div>
                 )}
@@ -675,7 +677,7 @@ export default function CandidateDetailPage() {
                                       <span>Priority: {task.priority?.toUpperCase()}</span>
                                       {task.assignee && (
                                         <span>
-                                          Assignee: <span className="font-bold">{task.assignee.name}</span>
+                                          Assignee: <span className="font-bold">{`${task.assignee.firstName} ${task.assignee.lastName}`}</span>
                                         </span>
                                       )}
                                     </div>

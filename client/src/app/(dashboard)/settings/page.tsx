@@ -1853,7 +1853,7 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div className="bg-orange-50 dark:bg-orange-950 p-4 rounded-lg">
                 <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                  Are you sure you want to disable {disablingUser?.name}?
+                  Are you sure you want to disable {disablingUser ? `${disablingUser.firstName} ${disablingUser.lastName}` : ''}?
                 </p>
                 <p className="text-sm text-orange-600 dark:text-orange-400 mt-1">
                   This will prevent them from logging in and accessing the system.
@@ -1878,11 +1878,11 @@ export default function SettingsPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="unassigned">Leave Unassigned</SelectItem>
-                        {reassignableUsers.map((u: any) => (
-                          <SelectItem key={u.id} value={u.id}>
-                            {u.name} - {u.role.replace('_', ' ').toUpperCase()}
+                          {reassignableUsers.map((u: any) => (
+                            <SelectItem key={u.id} value={u.id}>
+                            {`${u.firstName} ${u.lastName}`} - {u.role.replace('_', ' ').toUpperCase()}
                           </SelectItem>
-                        ))}
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
