@@ -265,6 +265,7 @@ export default function SettingsPage() {
   const canManageHiringStages = user?.role === "system_admin" || user?.role === "hr_staff";
   const canManageUsers = user?.role === "system_admin" || user?.role === "hr_staff";
   const canManageAuthProviders = user?.role === "system_admin" || user?.role === "hr_staff";
+  const canManageSystem = user?.role === "system_admin" || user?.role === "hr_staff";
 
   // Helper: robust archived detection across possible shapes
   const isArchived = (entity: any): boolean => {
@@ -342,6 +343,26 @@ export default function SettingsPage() {
   const { data: users = [], isLoading: usersLoading } = useQuery({
     queryKey: ["/api/users"],
     enabled: canManageUsers, // Only fetch if user has permission
+  });
+
+  // System settings
+  const { data: systemSettings = { auto_regress_on_prior_open: false } } = useQuery({
+    queryKey: ["/api/system-settings"],
+    enabled: canManageSystem,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/system-settings");
+      return res.json();
+    },
+  });
+  const toggleAutoRegress = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await apiRequest("PATCH", "/api/system-settings", { auto_regress_on_prior_open: enabled });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/system-settings"] });
+      toast({ title: "Updated", description: "System setting saved." });
+    }
   });
 
   // Optional server-side debug for departments
@@ -984,7 +1005,14 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="appearance" className="w-full">
-        <TabsList className={`grid w-full ${(canManageHiringStages && canManageUsers && canManageAuthProviders) ? 'grid-cols-6' : (canManageHiringStages && canManageUsers) || (canManageHiringStages && canManageAuthProviders) || (canManageUsers && canManageAuthProviders) ? 'grid-cols-5' : canManageHiringStages || canManageUsers || canManageAuthProviders ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full ${
+          (canManageHiringStages && canManageUsers && canManageAuthProviders && canManageSystem) ? 'grid-cols-7' :
+          (
+            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 3 ? 'grid-cols-6' :
+            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 2 ? 'grid-cols-5' :
+            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 1 ? 'grid-cols-4' : 'grid-cols-3'
+          )
+        }`}>
           <TabsTrigger value="appearance" data-testid="tab-appearance">
             <Palette className="w-4 h-4 mr-2" />
             Appearance
@@ -1009,6 +1037,12 @@ export default function SettingsPage() {
             <TabsTrigger value="authentication" data-testid="tab-authentication">
               <Shield className="w-4 h-4 mr-2" />
               Authentication
+            </TabsTrigger>
+          )}
+          {canManageSystem && (
+            <TabsTrigger value="system" data-testid="tab-system">
+              <SettingsIcon className="w-4 h-4 mr-2" />
+              System
             </TabsTrigger>
           )}
           <TabsTrigger value="system" data-testid="tab-system">
@@ -2090,55 +2124,70 @@ export default function SettingsPage() {
         )}
 
         {/* System Settings */}
-        <TabsContent value="system" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <SettingsIcon className="w-4 h-4 mr-2" />
-                System Preferences
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Email Notifications</p>
-                    <p className="text-sm text-muted-foreground">Receive email updates for task assignments and deadlines</p>
+        {canManageSystem && (
+          <TabsContent value="system" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <SettingsIcon className="w-4 h-4 mr-2" />
+                  System Preferences
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Auto regress on prior-stage open</p>
+                      <p className="text-sm text-muted-foreground">If enabled, regress to earliest stage with an open task.</p>
+                    </div>
+                    <Switch
+                      checked={!!(systemSettings as any)?.auto_regress_on_prior_open}
+                      onCheckedChange={(v) => toggleAutoRegress.mutate(v)}
+                      data-testid="switch-auto-regress-prior-open"
+                    />
                   </div>
-                  <Switch defaultChecked data-testid="switch-email-notifications" />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Auto-save Changes</p>
-                    <p className="text-sm text-muted-foreground">Automatically save form changes</p>
-                  </div>
-                  <Switch defaultChecked data-testid="switch-auto-save" />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Show Beta Features</p>
-                    <p className="text-sm text-muted-foreground">Enable access to experimental features</p>
-                  </div>
-                  <Switch data-testid="switch-beta-features" />
-                </div>
-              </div>
 
-              <div className="border-t pt-6">
-                <Label className="text-base font-medium mb-4 block">Data & Privacy</Label>
-                <div className="space-x-3">
-                  <Button variant="outline" className="justify-start" data-testid="button-export-data">
-                    Export My Data
-                  </Button>
-                  <Button variant="outline" className="justify-start" data-testid="button-privacy-settings">
-                    Privacy Settings
-                  </Button>
+                  {/* Existing placeholder settings retained below */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Email Notifications</p>
+                      <p className="text-sm text-muted-foreground">Receive email updates for task assignments and deadlines</p>
+                    </div>
+                    <Switch defaultChecked data-testid="switch-email-notifications" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Auto-save Changes</p>
+                      <p className="text-sm text-muted-foreground">Automatically save form changes</p>
+                    </div>
+                    <Switch defaultChecked data-testid="switch-auto-save" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Show Beta Features</p>
+                      <p className="text-sm text-muted-foreground">Enable access to experimental features</p>
+                    </div>
+                    <Switch data-testid="switch-beta-features" />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+
+                <div className="border-t pt-6">
+                  <Label className="text-base font-medium mb-4 block">Data & Privacy</Label>
+                  <div className="space-x-3">
+                    <Button variant="outline" className="justify-start" data-testid="button-export-data">
+                      Export My Data
+                    </Button>
+                    <Button variant="outline" className="justify-start" data-testid="button-privacy-settings">
+                      Privacy Settings
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
   {/* Archive Department Dialog */}

@@ -19,6 +19,7 @@ import {
   templateTasks,
   templateStages,
   userPreferences,
+  systemSettings,
   type User, 
   type InsertUser,
   type UserIdentity,
@@ -463,6 +464,8 @@ export class DatabaseStorage implements IStorage {
         archived: candidates.archived,
         archivedAt: candidates.archivedAt,
         archivedBy: candidates.archivedBy,
+        isBlockedByPriorStage: candidates.isBlockedByPriorStage,
+        blockerSummary: candidates.blockerSummary,
         createdAt: candidates.createdAt,
         updatedAt: candidates.updatedAt,
         candidateType: {
@@ -505,6 +508,29 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(hiringStages, eq(candidates.currentStageId, hiringStages.id))
       .where(eq(candidates.id, id));
     return candidate || undefined;
+  }
+
+  // System settings helpers
+  async getSystemSettings(): Promise<{ auto_regress_on_prior_open: boolean }> {
+    const rows = await db.select().from(systemSettings);
+    const map = new Map(rows.map((r: any) => [r.key, r.value]));
+    const autoRegress = Boolean(map.get('auto_regress_on_prior_open')?.enabled ?? false);
+    return { auto_regress_on_prior_open: autoRegress };
+  }
+
+  async setSystemSettings(patch: { auto_regress_on_prior_open?: boolean }): Promise<{ auto_regress_on_prior_open: boolean } | undefined> {
+    if (patch.auto_regress_on_prior_open !== undefined) {
+      const now = new Date();
+      const value = { enabled: !!patch.auto_regress_on_prior_open } as any;
+      await db
+        .insert(systemSettings)
+        .values({ key: 'auto_regress_on_prior_open', value, updatedAt: now, createdAt: now } as any)
+        .onConflictDoUpdate({
+          target: systemSettings.key,
+          set: { value, updatedAt: now }
+        });
+    }
+    return await this.getSystemSettings();
   }
 
   async createCandidate(insertCandidate: InsertCandidate): Promise<Candidate> {

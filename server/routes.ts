@@ -14,7 +14,7 @@ import {
   insertUserPreferencesSchema
 } from "@shared/schemas";
 import { z } from "zod";
-import { advanceStageIfComplete } from "./features/tasks/services/advance-stage.service";
+import { advanceStageIfComplete, recomputeCandidateStageState } from "./features/tasks/services/advance-stage.service";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -531,7 +531,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Task not found" });
       }
 
-      // Check if stage should advance after task status change
+      // Recompute candidate blocked state and possible auto-regression
+      let recompute: any = null;
+      try {
+        recompute = await recomputeCandidateStageState({ candidateId: existingTask.candidateId, invokerUserId: req.user!.id });
+      } catch (e) {
+        console.error('recomputeCandidateStageState error:', e);
+      }
+
+      // If blocked and auto-regress is disabled, surface guardrail as Conflict
+      if (recompute?.isBlocked && !recompute?.autoRegress) {
+        return res.status(409).json({
+          message: 'Candidate is blocked by open tasks in prior stages',
+          code: 'BLOCKED_BY_PRIOR_STAGE',
+          blockerSummary: recompute.blockerSummary,
+          task
+        });
+      }
+
+      // Check if stage should advance forward after task status change
       let advancement = null;
       if (req.body.status) {
         advancement = await advanceStageIfComplete({
@@ -564,8 +582,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fromStageId: advancement.fromStageId,
           toStageId: advancement.toStageId,
           toStageName: advancement.toStageName
-        } : { advanced: false }
+        } : { advanced: false },
+        recompute: recompute ? {
+          isBlocked: !!recompute.isBlocked,
+          autoRegress: !!recompute.autoRegress,
+          regressed: !!recompute.regressed
+        } : null
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // System settings endpoints (hr_staff, system_admin)
+  app.get("/api/system-settings", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+    try {
+      const settings = await storage.getSystemSettings();
+      res.json(settings);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/system-settings", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+    try {
+      const { auto_regress_on_prior_open } = req.body ?? {};
+      const updated = await storage.setSystemSettings({ auto_regress_on_prior_open });
+      res.json(updated);
     } catch (error) {
       next(error);
     }

@@ -707,9 +707,14 @@ export default function CandidateDetailPage() {
             <TabsContent value="timeline" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Clock className="w-4 h-4 mr-2" />
-                    Stage Timeline
+                  <CardTitle className="flex items-center gap-2 flex-wrap">
+                    <Clock className="w-4 h-4" />
+                    <span>Stage Timeline</span>
+                    {(candidate as any).isBlockedByPriorStage && (candidate as any).blockerSummary?.earliestPriorStage && (
+                      <span className="ml-auto inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/30" data-testid="pill-stage-blocked">
+                        Blocked by {(candidate as any).blockerSummary.earliestPriorStage.name}
+                      </span>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -731,6 +736,20 @@ export default function CandidateDetailPage() {
                     </p>
                   ) : (
                     <div className="space-y-4">
+                      {(candidate as any).isBlockedByPriorStage && (candidate as any).blockerSummary?.priorOpenTasks?.length > 0 && (
+                        <div className="p-3 rounded-md border bg-muted/30" data-testid="blocker-summary">
+                          <div className="text-sm font-medium mb-2">Open tasks in prior stages</div>
+                          <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                            {((candidate as any).blockerSummary.priorOpenTasks as any[]).map((t: any) => (
+                              <li key={t.id}>
+                                <span className="font-medium">{t.title}</span>
+                                <span className="ml-2">({t.stageName})</span>
+                                {t.dueAt && <span className="ml-2">Due: {new Date(t.dueAt).toLocaleDateString()}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                       {stageHistory.map((entry: any, index: number) => (
                         <div key={entry.id} className="flex items-start space-x-4">
                           <div className="flex flex-col items-center">

@@ -8,7 +8,8 @@ import {
   integer,
   date,
   pgEnum,
-  uniqueIndex
+  uniqueIndex,
+  jsonb
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -99,6 +100,9 @@ export const candidates = pgTable("candidates", {
   archived: boolean("archived").default(false).notNull(),
   archivedAt: timestamp("archived_at"),
   archivedBy: uuid("archived_by").references(() => users.id),
+  // New: prior-stage blocking fields
+  isBlockedByPriorStage: boolean("is_blocked_by_prior_stage").notNull().default(false),
+  blockerSummary: jsonb("blocker_summary"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
