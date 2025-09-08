@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:17.6
     container_name: onboardpro_db
     environment:
       POSTGRES_USER: db_user
