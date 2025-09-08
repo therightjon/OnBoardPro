@@ -745,7 +745,7 @@ export default function CandidateDetailPage() {
                               </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground mt-1">
-                              Changed by: {entry.changedBy?.name || 'Unknown User'}
+                              Changed by: {entry.changedBy ? `${entry.changedBy.firstName} ${entry.changedBy.lastName}` : 'Unknown User'}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {entry.changedAt ? format(new Date(entry.changedAt), "h:mm a") : ''}
