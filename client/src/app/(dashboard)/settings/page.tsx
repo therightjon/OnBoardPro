@@ -1700,13 +1700,19 @@ export default function SettingsPage() {
                               <SelectValue placeholder="Select division" />
                             </SelectTrigger>
                             <SelectContent>
-                              {(divisions as any[])
-                                .filter((div: any) => div.departmentId === userForm.watch("departmentId"))
-                                .map((div: any) => (
-                                <SelectItem key={div.id} value={div.id}>
-                                  {div.name}
-                                </SelectItem>
-                              ))}
+                              {(() => {
+                                const filtered = (divisions as any[]).filter((div: any) => div.departmentId === userForm.watch("departmentId"));
+                                if (filtered.length === 0) {
+                                  return (
+                                    <SelectItem disabled value="__no_divisions__">No divisions available.</SelectItem>
+                                  );
+                                }
+                                return filtered.map((div: any) => (
+                                  <SelectItem key={div.id} value={div.id}>
+                                    {div.name}
+                                  </SelectItem>
+                                ));
+                              })()}
                             </SelectContent>
                           </Select>
                           {userForm.formState.errors.divisionId && (

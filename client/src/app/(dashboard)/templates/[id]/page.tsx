@@ -807,11 +807,15 @@ export default function TemplateDetailPage() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="none">None</SelectItem>
-                              {users.map((user) => (
-                                <SelectItem key={user.id} value={user.id}>
-                                  {`${user.firstName} ${user.lastName}`}
-                                </SelectItem>
-                              ))}
+                              {users.length === 0 ? (
+                                <SelectItem disabled value="__no_users__">No users available.</SelectItem>
+                              ) : (
+                                users.map((user) => (
+                                  <SelectItem key={user.id} value={user.id}>
+                                    {`${user.firstName} ${user.lastName}`}
+                                  </SelectItem>
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -833,11 +837,15 @@ export default function TemplateDetailPage() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="none">None</SelectItem>
-                              {taskPriorities.map((priority) => (
-                                <SelectItem key={priority.id} value={priority.id}>
-                                  {priority.name}
-                                </SelectItem>
-                              ))}
+                              {taskPriorities.length === 0 ? (
+                                <SelectItem disabled value="__no_priorities__">No priorities available.</SelectItem>
+                              ) : (
+                                taskPriorities.map((priority) => (
+                                  <SelectItem key={priority.id} value={priority.id}>
+                                    {priority.name}
+                                  </SelectItem>
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -859,11 +867,15 @@ export default function TemplateDetailPage() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="none">None</SelectItem>
-                              {taskCategories.map((category) => (
-                                <SelectItem key={category.id} value={category.id}>
-                                  {category.name}
-                                </SelectItem>
-                              ))}
+                              {taskCategories.length === 0 ? (
+                                <SelectItem disabled value="__no_categories__">No categories available.</SelectItem>
+                              ) : (
+                                taskCategories.map((category) => (
+                                  <SelectItem key={category.id} value={category.id}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -914,13 +926,17 @@ export default function TemplateDetailPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {taskDefinitions
-                              .filter(td => !td.archived)
-                              .map((taskDef) => (
-                              <SelectItem key={taskDef.id} value={taskDef.id}>
-                                {taskDef.name}
-                              </SelectItem>
-                            ))}
+                            {taskDefinitions.filter(td => !td.archived).length === 0 ? (
+                              <SelectItem disabled value="__no_taskdefs__">No task definitions available.</SelectItem>
+                            ) : (
+                              taskDefinitions
+                                .filter(td => !td.archived)
+                                .map((taskDef) => (
+                                  <SelectItem key={taskDef.id} value={taskDef.id}>
+                                    {taskDef.name}
+                                  </SelectItem>
+                                ))
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -941,11 +957,15 @@ export default function TemplateDetailPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {hiringStages.map((stage) => (
-                              <SelectItem key={stage.id} value={stage.id}>
-                                {stage.name}
-                              </SelectItem>
-                            ))}
+                            {hiringStages.length === 0 ? (
+                              <SelectItem disabled value="__no_stages__">No stages available.</SelectItem>
+                            ) : (
+                              hiringStages.map((stage) => (
+                                <SelectItem key={stage.id} value={stage.id}>
+                                  {stage.name}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />

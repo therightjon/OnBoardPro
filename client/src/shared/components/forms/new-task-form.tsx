@@ -138,11 +138,15 @@ export function NewTaskForm({ candidateId, onSuccess }: NewTaskFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {candidates.map((candidate: Candidate) => (
-                      <SelectItem key={candidate.id} value={candidate.id}>
-                        {candidate.firstName} {candidate.lastName} - {candidate.email}
-                      </SelectItem>
-                    ))}
+                    {candidates.length === 0 ? (
+                      <SelectItem disabled value="__no_candidates__">No candidates available.</SelectItem>
+                    ) : (
+                      candidates.map((candidate: Candidate) => (
+                        <SelectItem key={candidate.id} value={candidate.id}>
+                          {candidate.firstName} {candidate.lastName} - {candidate.email}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -165,11 +169,15 @@ export function NewTaskForm({ candidateId, onSuccess }: NewTaskFormProps) {
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="custom">Create Custom Task</SelectItem>
-                    {taskDefinitions.filter(td => !td.archived).map((taskDef: TaskDefinition) => (
-                      <SelectItem key={taskDef.id} value={taskDef.id}>
-                        {taskDef.name}
-                      </SelectItem>
-                    ))}
+                    {taskDefinitions.filter(td => !td.archived).length === 0 ? (
+                      <SelectItem disabled value="__no_taskdefs__">No task definitions available.</SelectItem>
+                    ) : (
+                      taskDefinitions.filter(td => !td.archived).map((taskDef: TaskDefinition) => (
+                        <SelectItem key={taskDef.id} value={taskDef.id}>
+                          {taskDef.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -231,11 +239,15 @@ export function NewTaskForm({ candidateId, onSuccess }: NewTaskFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {candidates.map((candidate: any) => (
-                      <SelectItem key={candidate.id} value={candidate.id}>
-                        {candidate.firstName} {candidate.lastName}
-                      </SelectItem>
-                    ))}
+                    {candidates.length === 0 ? (
+                      <SelectItem disabled value="__no_candidates__">No candidates available.</SelectItem>
+                    ) : (
+                      candidates.map((candidate: any) => (
+                        <SelectItem key={candidate.id} value={candidate.id}>
+                          {candidate.firstName} {candidate.lastName}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -257,11 +269,15 @@ export function NewTaskForm({ candidateId, onSuccess }: NewTaskFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {hiringStages.map((stage: any) => (
-                      <SelectItem key={stage.id} value={stage.id}>
-                        {stage.name}
-                      </SelectItem>
-                    ))}
+                    {hiringStages.length === 0 ? (
+                      <SelectItem disabled value="__no_stages__">No stages available.</SelectItem>
+                    ) : (
+                      hiringStages.map((stage: any) => (
+                        <SelectItem key={stage.id} value={stage.id}>
+                          {stage.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -308,11 +324,15 @@ export function NewTaskForm({ candidateId, onSuccess }: NewTaskFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {taskCategories.map((category: any) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
+                    {taskCategories.length === 0 ? (
+                      <SelectItem disabled value="__no_categories__">No categories available.</SelectItem>
+                    ) : (
+                      taskCategories.map((category: any) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -334,11 +354,15 @@ export function NewTaskForm({ candidateId, onSuccess }: NewTaskFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {users.map((user: any) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.firstName} {user.lastName} ({user.email})
-                      </SelectItem>
-                    ))}
+                    {users.length === 0 ? (
+                      <SelectItem disabled value="__no_users__">No assignees available.</SelectItem>
+                    ) : (
+                      users.map((user: any) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.firstName} {user.lastName} ({user.email})
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />

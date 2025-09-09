@@ -12,6 +12,7 @@ type Props = {
   onChange: (id: string | null, item?: Item) => void;
   fetchItems: (q: string) => Promise<Item[]>;
   placeholder?: string;
+  emptyText?: string; // custom empty state when no items
   autoCommitThreshold?: number; // default 0.45
   minAutoCommitLen?: number; // default 2
   disabled?: boolean;
@@ -27,6 +28,7 @@ export function AutoSelectCombobox({
   onChange,
   fetchItems,
   placeholder,
+  emptyText,
   autoCommitThreshold = 0.45,
   minAutoCommitLen = 2,
   disabled,
@@ -139,7 +141,7 @@ export function AutoSelectCombobox({
             ) : query.trim().length === 0 && !loading && items.length === 0 ? (
               <div className="px-3 py-2 text-sm text-muted-foreground">Start typing to search…</div>
             ) : (
-              <CommandEmpty>{loading ? 'Loading…' : 'No results'}</CommandEmpty>
+              <CommandEmpty>{loading ? 'Loading…' : (emptyText ?? 'No results')}</CommandEmpty>
             )}
             <CommandGroup>
               {items.map((item) => (
