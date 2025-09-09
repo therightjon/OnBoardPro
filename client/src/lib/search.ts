@@ -42,8 +42,11 @@ export async function searchDivisions(q: string, departmentId?: string) {
   return (json.items ?? []) as { id: string; name: string; score?: number }[];
 }
 
-export async function searchManagers(q: string) {
-  const url = `/api/search/users?q=${encodeURIComponent(q)}&role=manager`;
+export async function searchManagers(q: string, departmentId?: string, divisionId?: string) {
+  const params = new URLSearchParams({ q, role: 'manager' });
+  if (divisionId) params.append('divisionId', divisionId);
+  else if (departmentId) params.append('departmentId', departmentId);
+  const url = `/api/search/users?${params.toString()}`;
   const r = await fetch(url, { 
     headers: { 'Accept': 'application/json' },
     credentials: 'include'

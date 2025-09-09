@@ -348,7 +348,7 @@ export default function CandidatesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell data-testid={`cell-stage-${candidate.id}`}>
-                      <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                      <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 whitespace-nowrap">
                         {candidate.currentStage?.name || "Not Started"}
                       </Badge>
                     </TableCell>
@@ -434,7 +434,7 @@ export default function CandidatesPage() {
                         <div className="col-span-2">
                           <dt className="text-muted-foreground">Stage</dt>
                           <dd>
-                            <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs">
+                            <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs whitespace-nowrap">
                               {candidate.currentStage?.name || "Not Started"}
                             </Badge>
                           </dd>

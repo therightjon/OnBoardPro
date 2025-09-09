@@ -453,7 +453,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                           label="Manager"
                           value={field.value || ""}
                           onChange={field.onChange}
-                          fetchItems={searchManagers}
+                          fetchItems={(q) => searchManagers(q, selectedDepartmentId, form.watch('divisionId') || undefined)}
                           placeholder="Search managers..."
                           disabled={!selectedDepartmentId}
                           onError={(e) => toast({ 

@@ -1937,10 +1937,14 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async searchUsers(query: string, role?: string): Promise<{ id: string; name: string; score?: number }[]> {
+  async searchUsers(query: string, role?: string, departmentId?: string, divisionId?: string): Promise<{ id: string; name: string; score?: number }[]> {
     const results = await db.execute(sql`
       WITH params AS (
-        SELECT NULLIF(${query}, '')::text AS q, NULLIF(${role || ''}, '')::text AS role
+        SELECT 
+          NULLIF(${query}, '')::text AS q, 
+          NULLIF(${role || ''}, '')::text AS role,
+          NULLIF(${departmentId || ''}, '')::uuid AS department_id,
+          NULLIF(${divisionId || ''}, '')::uuid AS division_id
       )
       SELECT u.id,
              u.first_name || ' ' || u.last_name AS name,
@@ -1951,6 +1955,10 @@ export class DatabaseStorage implements IStorage {
       FROM users u, params p
       WHERE u.status = 'active'
         AND (p.role IS NULL OR u.role::text = p.role)
+        AND (
+          p.division_id IS NOT NULL AND u.division_id = p.division_id
+          OR (p.division_id IS NULL AND (p.department_id IS NULL OR u.department_id = p.department_id))
+        )
         AND (
           p.q IS NULL
           OR u.first_name ILIKE '%' || p.q || '%'

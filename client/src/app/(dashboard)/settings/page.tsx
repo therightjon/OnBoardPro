@@ -1006,11 +1006,11 @@ export default function SettingsPage() {
 
       <Tabs defaultValue="appearance" className="w-full">
         <TabsList className={`grid w-full ${
-          (canManageHiringStages && canManageUsers && canManageAuthProviders && canManageSystem) ? 'grid-cols-7' :
+          (canManageHiringStages && canManageUsers && canManageAuthProviders && canManageSystem) ? 'grid-cols-6' :
           (
-            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 3 ? 'grid-cols-6' :
-            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 2 ? 'grid-cols-5' :
-            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 1 ? 'grid-cols-4' : 'grid-cols-3'
+            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 3 ? 'grid-cols-5' :
+            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 2 ? 'grid-cols-4' :
+            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 1 ? 'grid-cols-3' : 'grid-cols-2'
           )
         }`}>
           <TabsTrigger value="appearance" data-testid="tab-appearance">
@@ -1045,10 +1045,6 @@ export default function SettingsPage() {
               System
             </TabsTrigger>
           )}
-          <TabsTrigger value="system" data-testid="tab-system">
-            <SettingsIcon className="w-4 h-4 mr-2" />
-            System
-          </TabsTrigger>
         </TabsList>
 
         {/* Appearance Settings */}
