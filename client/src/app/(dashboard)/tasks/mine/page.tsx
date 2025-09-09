@@ -12,6 +12,8 @@ import { Label } from "@/shared/components/ui/label";
 import { useState, useEffect } from "react";
 import { Plus, Search, Filter, Edit, Calendar, Clock, AlertTriangle } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
+import { invalidateCandidate } from "@/lib/query-invalidate";
 import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/features/auth/hooks/use-auth.tsx";
 import { Link } from "wouter";
@@ -106,6 +108,10 @@ export default function MyTasksPage() {
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/mine"] });
+      // Keep candidate views in sync if we know the candidate
+      if (data?.task?.candidateId) {
+        invalidateCandidate(queryClient, data.task.candidateId);
+      }
       setEditingTask(null);
       setTaskNotes("");
       if (data?.advancement?.advanced) {
@@ -138,17 +144,6 @@ export default function MyTasksPage() {
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "todo": return "bg-muted text-muted-foreground";
-      case "in_progress": return "bg-chart-3/10 text-chart-3";
-      case "blocked": return "bg-chart-4/10 text-chart-4";
-      case "done": return "bg-accent/10 text-accent";
-      case "canceled": return "bg-destructive/10 text-destructive";
-      default: return "bg-muted text-muted-foreground";
-    }
-  };
-
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "critical": return "text-destructive";
@@ -166,16 +161,6 @@ export default function MyTasksPage() {
       case "medium": return <Calendar className="w-4 h-4" />;
       default: return null;
     }
-  };
-
-  const handleStatusUpdate = (taskId: string, newStatus: string) => {
-    updateTaskMutation.mutate({
-      id: taskId,
-      data: { 
-        status: newStatus,
-        ...(newStatus === "done" && { completedAt: new Date().toISOString() })
-      }
-    });
   };
 
   const handleTaskEdit = (task: any) => {
@@ -347,6 +332,7 @@ export default function MyTasksPage() {
                   <SelectItem value="in_progress">In Progress</SelectItem>
                   <SelectItem value="blocked">Blocked</SelectItem>
                   <SelectItem value="done">Done</SelectItem>
+                  <SelectItem value="canceled">Canceled</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
@@ -497,22 +483,12 @@ export default function MyTasksPage() {
                       </div>
                     </TableCell>
                     <TableCell className="p-2 xs:p-3 sm:p-4">
-                      <Select
+                      <TaskStatusCell
+                        taskId={task.id}
+                        candidateId={task.candidateId}
                         value={task.status}
-                        onValueChange={(value) => handleStatusUpdate(task.id, value)}
-                      >
-                        <SelectTrigger className="w-[100px] sm:w-[120px]">
-                          <Badge className={getStatusColor(task.status)}>
-                            <span className="text-xs">{task.status.replace('_', ' ').toUpperCase()}</span>
-                          </Badge>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todo">To Do</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
-                          <SelectItem value="blocked">Blocked</SelectItem>
-                          <SelectItem value="done">Done</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        colorStyle="filled"
+                      />
                     </TableCell>
                     <TableCell className="hidden md:table-cell p-2 xs:p-3 sm:p-4">
                       {task.dueAt ? (

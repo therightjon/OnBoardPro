@@ -4,7 +4,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/queryClient';
-import { invalidateCandidate } from '@/lib/query-invalidate';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -16,11 +15,13 @@ export function TaskStatusCell({
   candidateId,
   value,
   disabled,
+  colorStyle = 'text',
 }: {
   taskId: string;
   candidateId: string;
   value: string;   // current status
   disabled?: boolean;
+  colorStyle?: 'text' | 'filled';
 }) {
   const qc = useQueryClient();
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -65,6 +66,7 @@ export function TaskStatusCell({
       qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId] });
       qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'stage-history'] });
       qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }] });
+      qc.invalidateQueries({ queryKey: ['/api/tasks/mine'] });
       return;
     }
       // Otherwise revert optimistic update and show error
@@ -96,6 +98,8 @@ export function TaskStatusCell({
       qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'stage-history'] });
       qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }] });
       qc.invalidateQueries({ queryKey: ['/api/candidates'] });
+      // Also refresh My Tasks so assignee view stays in sync
+      qc.invalidateQueries({ queryKey: ['/api/tasks/mine'] });
       
       // Show appropriate success messages
       if (data.advancement?.advanced) {
@@ -108,7 +112,17 @@ export function TaskStatusCell({
     },
   });
 
-  const getStatusColor = (status: string) => {
+  const getStatusClasses = (status: string) => {
+    if (colorStyle === 'filled') {
+      switch (status) {
+        case 'todo': return 'bg-muted text-muted-foreground';
+        case 'in_progress': return 'bg-chart-3/10 text-chart-3';
+        case 'blocked': return 'bg-chart-4/10 text-chart-4';
+        case 'done': return 'bg-accent/10 text-accent';
+        case 'canceled': return 'bg-destructive/10 text-destructive';
+        default: return 'bg-muted text-muted-foreground';
+      }
+    }
     switch (status) {
       case 'todo': return 'text-muted-foreground';
       case 'in_progress': return 'text-blue-600 dark:text-blue-400';
@@ -133,7 +147,7 @@ export function TaskStatusCell({
       disabled={disabled || mutation.isPending || value === 'canceled'}
     >
       <SelectTrigger 
-        className={cn('w-[140px]', mutation.isPending && 'opacity-70', getStatusColor(value))}
+        className={cn('w-[140px]', mutation.isPending && 'opacity-70', 'justify-center rounded-full px-2', getStatusClasses(value))}
         aria-label="Task status"
         data-testid={`select-task-status-${taskId}`}
       >
