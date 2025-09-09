@@ -87,63 +87,79 @@ export async function advanceStageIfComplete({
       }
     }
 
-    // Check if current stage is complete - required tasks only
-    const openRequiredTasks = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(candidateTasks)
-      .where(
-        and(
-          eq(candidateTasks.candidateId, candidateId),
-          eq(candidateTasks.stageId, currentStageId),
-          eq(candidateTasks.required, true),
-          eq(candidateTasks.archived, false),
-          sql`${candidateTasks.status} <> 'done'`
-        )
-      );
+    // Loop advance: keep advancing while the current stage has no open required tasks
+    let fromStageId = currentStageId;
+    let toStageId = currentStageId;
+    let toStageName = stages.find(s => s.id === toStageId)?.name;
+    let madeProgress = false;
+    let curIndex = stages.findIndex(s => s.id === currentStageId);
 
-    if (openRequiredTasks[0].count > 0) {
+    const now = new Date();
+    const transitions: Array<{ from: string | null; to: string }> = [];
+
+    while (curIndex !== -1 && curIndex < stages.length) {
+      const stageId = stages[curIndex].id;
+
+      // Check if this stage has any open required tasks
+      const openReq = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(candidateTasks)
+        .where(
+          and(
+            eq(candidateTasks.candidateId, candidateId),
+            eq(candidateTasks.stageId, stageId),
+            eq(candidateTasks.required, true),
+            eq(candidateTasks.archived, false),
+            sql`${candidateTasks.status} <> 'done'`
+          )
+        );
+
+      if (openReq[0].count > 0) {
+        // Stop at the first stage that has required work remaining
+        break;
+      }
+
+      // If at final stage and it's clear, no further move
+      if (curIndex === stages.length - 1) {
+        break;
+      }
+
+      // Advance to the next stage
+      const next = stages[curIndex + 1];
+      transitions.push({ from: stages[curIndex].id, to: next.id });
+      curIndex = curIndex + 1;
+      toStageId = next.id;
+      toStageName = next.name;
+      madeProgress = true;
+    }
+
+    if (!madeProgress) {
       return { advanced: false, reason: "Required tasks not complete" };
     }
 
-    // Find next stage
-    const currentStageIndex = stages.findIndex(s => s.id === currentStageId);
-    if (currentStageIndex === -1 || currentStageIndex === stages.length - 1) {
-      return { advanced: false, reason: "Already at final stage or stage not found" };
-    }
-
-    const nextStage = stages[currentStageIndex + 1];
-
-    // Advance in a transaction
+    // Apply all transitions in a single transaction
     await db.transaction(async (trx) => {
-      // Update candidate's current stage
-      await trx
-        .update(candidates)
-        .set({ 
-          currentStageId: nextStage.id, 
-          updatedAt: new Date() 
-        })
+      await trx.update(candidates)
+        .set({ currentStageId: toStageId, updatedAt: now })
         .where(eq(candidates.id, candidateId));
 
-      // Record stage history
-      await trx
-        .insert(candidateStageHistory)
-        .values({
-          candidateId: candidateId,
-          fromStageId: currentStageId,
-          toStageId: nextStage.id,
-          changedAt: new Date(),
-          changedBy: invokerUserId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
+      if (transitions.length > 0) {
+        await trx.insert(candidateStageHistory)
+          .values(
+            transitions.map(t => ({
+              candidateId,
+              fromStageId: t.from,
+              toStageId: t.to,
+              changedAt: now,
+              changedBy: invokerUserId,
+              createdAt: now,
+              updatedAt: now
+            }))
+          );
+      }
     });
 
-    return { 
-      advanced: true, 
-      fromStageId: currentStageId,
-      toStageId: nextStage.id,
-      toStageName: nextStage.name
-    };
+    return { advanced: true, fromStageId, toStageId, toStageName };
   } catch (error) {
     console.error("Error in advanceStageIfComplete:", error);
     return { advanced: false, error: "Internal error" };

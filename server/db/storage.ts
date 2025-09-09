@@ -57,6 +57,7 @@ import {
 } from "@shared/schemas";
 import { db } from "./connection";
 import { eq, and, isNull, sql, desc, asc, ilike, inArray, or, ne } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./connection";
@@ -718,13 +719,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCandidateStageHistory(candidateId: string): Promise<any[]> {
-    return await db
+    const fromStages = alias(hiringStages, 'from_hs');
+    const rows = await db
       .select({
         id: candidateStageHistory.id,
         changedAt: candidateStageHistory.changedAt,
+        createdAt: candidateStageHistory.createdAt,
         stage: {
           id: hiringStages.id,
-          name: hiringStages.name
+          name: hiringStages.name,
+          orderIndex: hiringStages.orderIndex
+        },
+        fromStage: {
+          id: fromStages.id,
+          name: fromStages.name,
+          orderIndex: fromStages.orderIndex
         },
         changedBy: {
           id: users.id,
@@ -734,9 +743,12 @@ export class DatabaseStorage implements IStorage {
       })
       .from(candidateStageHistory)
       .leftJoin(hiringStages, eq(candidateStageHistory.toStageId, hiringStages.id))
+      .leftJoin(fromStages, eq(candidateStageHistory.fromStageId, fromStages.id))
       .leftJoin(users, eq(candidateStageHistory.changedBy, users.id))
       .where(eq(candidateStageHistory.candidateId, candidateId))
-      .orderBy(candidateStageHistory.changedAt);
+      .orderBy(asc(candidateStageHistory.changedAt), asc(hiringStages.orderIndex), asc(candidateStageHistory.createdAt));
+
+    return rows;
   }
 
   async getTemplates(): Promise<Template[]> {

@@ -539,16 +539,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('recomputeCandidateStageState error:', e);
       }
 
-      // If blocked and auto-regress is disabled, surface guardrail as Conflict
-      if (recompute?.isBlocked && !recompute?.autoRegress) {
-        return res.status(409).json({
-          message: 'Candidate is blocked by open tasks in prior stages',
-          code: 'BLOCKED_BY_PRIOR_STAGE',
-          blockerSummary: recompute.blockerSummary,
-          task
-        });
-      }
-
       // Check if stage should advance forward after task status change
       let advancement = null;
       if (req.body.status) {

@@ -104,21 +104,28 @@ export default function MyTasksPage() {
       const res = await apiRequest("PATCH", `/api/tasks/${id}`, data);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/mine"] });
       setEditingTask(null);
       setTaskNotes("");
-      toast({
-        title: "Success",
-        description: "Task updated successfully",
-      });
+      if (data?.advancement?.advanced) {
+        toast({ title: 'Success', description: `Task updated and advanced to ${data.advancement.toStageName}` });
+      } else if (data?.recompute?.isBlocked) {
+        toast({ title: 'Updated', description: 'Task updated. Candidate remains blocked by prior-stage tasks.' });
+      } else {
+        toast({ title: 'Success', description: 'Task updated successfully' });
+      }
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      if (error?.code === 'BLOCKED_BY_PRIOR_STAGE') {
+        // Treat as soft success
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks/mine"] });
+        setEditingTask(null);
+        setTaskNotes("");
+        toast({ title: 'Updated', description: 'Task updated. Candidate remains blocked by prior-stage tasks.' });
+        return;
+      }
+      toast({ title: 'Error', description: (error as Error).message, variant: 'destructive' });
     },
   });
 

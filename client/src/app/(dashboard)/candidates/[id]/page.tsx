@@ -737,9 +737,13 @@ export default function CandidateDetailPage() {
                   ) : (
                   (() => {
                     const sortedHistory = [...stageHistory].sort((a: any, b: any) => {
-                    const da = a.changedAt ? new Date(a.changedAt).getTime() : 0;
-                    const db = b.changedAt ? new Date(b.changedAt).getTime() : 0;
-                    return db - da; // Newest to oldest
+                      const da = a.changedAt ? new Date(a.changedAt).getTime() : 0;
+                      const db = b.changedAt ? new Date(b.changedAt).getTime() : 0;
+                      if (db !== da) return db - da; // Newest to oldest by time
+                      // Tie-breaker: for same timestamp, show higher stage order first (e.g., Stage 3 before Stage 2)
+                      const ao = a.stage?.orderIndex ?? 0;
+                      const bo = b.stage?.orderIndex ?? 0;
+                      return bo - ao;
                     });
                     return (
                     <div className="space-y-4">
@@ -757,7 +761,9 @@ export default function CandidateDetailPage() {
                         </ul>
                       </div>
                       )}
-                      {sortedHistory.map((entry: any, index: number) => (
+                      {sortedHistory.map((entry: any, index: number) => {
+                        const regressed = (entry?.fromStage?.orderIndex ?? 0) > (entry?.stage?.orderIndex ?? 0);
+                        return (
                       <div key={entry.id} className="flex items-start space-x-4">
                         <div className="flex flex-col items-center">
                         <div className="w-3 h-3 bg-primary rounded-full"></div>
@@ -775,12 +781,16 @@ export default function CandidateDetailPage() {
                         <p className="text-sm text-muted-foreground mt-1">
                           Changed by: {entry.changedBy ? `${entry.changedBy.firstName} ${entry.changedBy.lastName}` : 'Unknown User'}
                         </p>
+                        {regressed && (
+                          <p className="text-xs text-muted-foreground mt-1">Stage regressed due to a task reopening in a prior stage</p>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {entry.changedAt ? format(new Date(entry.changedAt), "h:mm a") : ''}
                         </p>
                         </div>
                       </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     );
                   })()

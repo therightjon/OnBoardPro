@@ -43,7 +43,16 @@ export function TaskStatusCell({
       
       return { previous, taskKey };
     },
-    onError: (err, _vars, ctx) => {
+    onError: (err: any, _vars, ctx) => {
+      // If server reports prior-stage block, treat as soft success: keep optimistic state and refresh
+      if (err?.code === 'BLOCKED_BY_PRIOR_STAGE') {
+        toast.message('Task updated. Candidate remains blocked by prior-stage tasks.');
+        qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'tasks'] });
+        qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId] });
+        qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'stage-history'] });
+        return;
+      }
+      // Otherwise revert optimistic update and show error
       if (ctx?.previous) qc.setQueryData(ctx.taskKey, ctx.previous);
       toast.error((err as Error).message);
     },
@@ -75,6 +84,8 @@ export function TaskStatusCell({
       // Show appropriate success messages
       if (data.advancement?.advanced) {
         toast.success(`Status updated and advanced to ${data.advancement.toStageName}`);
+      } else if (data?.recompute?.isBlocked) {
+        toast.message('Status updated. Candidate remains blocked by prior-stage tasks.');
       } else {
         toast.success('Status updated');
       }
