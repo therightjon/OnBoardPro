@@ -75,13 +75,17 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
     queryKey: ["/api/departments"],
   });
 
-  // Load divisions filtered by selected department
+  // Load divisions filtered by selected department (server-side filtering)
   const { data: divisions = [] } = useQuery({
-    queryKey: ["/api/divisions"],
-    select: (data: any[]) => 
-      selectedDepartmentId 
-        ? data.filter((div: any) => div.departmentId === selectedDepartmentId)
-        : data,
+    queryKey: ["/api/divisions", { departmentId: selectedDepartmentId }],
+    queryFn: async () => {
+      if (!selectedDepartmentId) return [];
+      const params = new URLSearchParams({ departmentId: selectedDepartmentId, limit: '50' });
+      const response = await fetch(`/api/divisions?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch divisions');
+      return response.json();
+    },
+    enabled: !!selectedDepartmentId,
   });
 
   // Load managers filtered by department and division
@@ -283,7 +287,14 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                   render={({ field }: { field: any }) => (
                     <FormItem>
                       <FormLabel>Division (Optional)</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          // Clear manager selection when division changes
+                          form.setValue("managerId", "");
+                        }} 
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger 
                             data-testid="select-division"
@@ -293,11 +304,17 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {divisions.map((div: any) => (
-                            <SelectItem key={div.id} value={div.id}>
-                              {div.name}
+                          {divisions.length === 0 ? (
+                            <SelectItem disabled value="__no_divisions__">
+                              No divisions available.
                             </SelectItem>
-                          ))}
+                          ) : (
+                            divisions.map((div: any) => (
+                              <SelectItem key={div.id} value={div.id}>
+                                {div.name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -321,11 +338,18 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {managers.map((manager: any) => (
-                            <SelectItem key={manager.id} value={manager.id}>
-                              {manager.firstName} {manager.lastName}
+                          {managers.length === 0 ? (
+                            // Disabled placeholder item when no managers available
+                            <SelectItem disabled value="__no_managers__">
+                              No managers available.
                             </SelectItem>
-                          ))}
+                          ) : (
+                            managers.map((manager: any) => (
+                              <SelectItem key={manager.id} value={manager.id}>
+                                {manager.name ?? `${manager.firstName ?? ''} ${manager.lastName ?? ''}`.trim()}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />

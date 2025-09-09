@@ -913,7 +913,8 @@ export class DatabaseStorage implements IStorage {
     limit: number = 20,
     offset: number = 0
   ): Promise<Array<{ id: string; name: string; email: string; role: string }>> {
-    const allowedRoles = ['manager', 'hr_staff', 'system_admin', 'department_admin', 'division_leader'];
+    // Only return users with the manager role
+    const allowedRoles = ['manager'];
     
     let whereConditions = [
       eq(users.active, true),
