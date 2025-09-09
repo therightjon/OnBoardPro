@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Input } from "@/shared/components/ui/input";
 import { Plus, Archive, ArrowLeft, Calendar, User, Edit } from "lucide-react";
 import { Link } from "wouter";
@@ -43,6 +44,7 @@ const templateTaskSchema = z.object({
   defaultAssigneeId: z.string().optional(),
   defaultPriorityId: z.string().optional(),
   defaultCategoryId: z.string().optional(),
+  isRequired: z.boolean().optional(),
 });
 
 type TemplateTaskForm = z.infer<typeof templateTaskSchema>;
@@ -125,6 +127,7 @@ export default function TemplateDetailPage() {
       defaultAssigneeId: "none",
       defaultPriorityId: "none",
       defaultCategoryId: "none",
+      isRequired: false,
     },
   });
 
@@ -139,6 +142,7 @@ export default function TemplateDetailPage() {
       defaultAssigneeId: "none",
       defaultPriorityId: "none",
       defaultCategoryId: "none",
+      isRequired: false,
     },
   });
 
@@ -375,6 +379,7 @@ export default function TemplateDetailPage() {
       defaultAssigneeId: task.defaultAssigneeId || "none",
       defaultPriorityId: task.defaultPriorityId || "none",
       defaultCategoryId: task.defaultCategoryId || "none",
+      isRequired: !!(task as any).isRequired,
     });
     setIsEditTaskDialogOpen(true);
   };
@@ -386,6 +391,7 @@ export default function TemplateDetailPage() {
       defaultAssigneeId: data.defaultAssigneeId === "none" ? undefined : data.defaultAssigneeId,
       defaultPriorityId: data.defaultPriorityId === "none" ? undefined : data.defaultPriorityId,
       defaultCategoryId: data.defaultCategoryId === "none" ? undefined : data.defaultCategoryId,
+      isRequired: !!data.isRequired,
     };
     createTemplateTaskMutation.mutate(processedData);
   };
@@ -401,6 +407,7 @@ export default function TemplateDetailPage() {
       defaultCategoryId: data.defaultCategoryId === "none" ? undefined : data.defaultCategoryId,
       fixedDate: data.fixedDate === "" ? undefined : data.fixedDate,
       dueRuleValue: data.dueRuleType === "fixed_date" ? undefined : data.dueRuleValue,
+      isRequired: !!data.isRequired,
     };
     updateTemplateTaskMutation.mutate(processedData);
   };
@@ -865,6 +872,14 @@ export default function TemplateDetailPage() {
                     />
                   </div>
 
+                  {/* Required checkbox */}
+                  <div className="pt-2 border-t">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="is-required" checked={!!form.watch('isRequired')} onCheckedChange={(v:any)=> form.setValue('isRequired', !!v)} />
+                      <label htmlFor="is-required" className="text-sm">Task is required</label>
+                    </div>
+                  </div>
+
                   <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={() => setIsAddTaskDialogOpen(false)}>
                       Cancel
@@ -1095,6 +1110,14 @@ export default function TemplateDetailPage() {
                         </FormItem>
                       )}
                     />
+                  </div>
+
+                  {/* Required checkbox */}
+                  <div className="pt-2 border-t">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="edit-is-required" checked={!!editForm.watch('isRequired')} onCheckedChange={(v:any)=> editForm.setValue('isRequired', !!v)} />
+                      <label htmlFor="edit-is-required" className="text-sm">Task is required</label>
+                    </div>
                   </div>
 
                   <div className="flex justify-end space-x-2">

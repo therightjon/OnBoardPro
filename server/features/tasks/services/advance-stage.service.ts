@@ -110,7 +110,7 @@ export async function advanceStageIfComplete({
             eq(candidateTasks.stageId, stageId),
             eq(candidateTasks.required, true),
             eq(candidateTasks.archived, false),
-            sql`${candidateTasks.status} <> 'done'`
+            sql`${candidateTasks.status} NOT IN ('done','canceled')`
           )
         );
 
@@ -144,18 +144,20 @@ export async function advanceStageIfComplete({
         .where(eq(candidates.id, candidateId));
 
       if (transitions.length > 0) {
-        await trx.insert(candidateStageHistory)
-          .values(
-            transitions.map(t => ({
-              candidateId,
-              fromStageId: t.from,
-              toStageId: t.to,
-              changedAt: now,
-              changedBy: invokerUserId,
-              createdAt: now,
-              updatedAt: now
-            }))
-          );
+        // Ensure deterministic chronological order by slightly incrementing changedAt
+        const values = transitions.map((t, idx) => {
+          const ts = new Date(now.getTime() + idx); // +1ms per hop
+          return {
+            candidateId,
+            fromStageId: t.from,
+            toStageId: t.to,
+            changedAt: ts,
+            changedBy: invokerUserId,
+            createdAt: ts,
+            updatedAt: ts,
+          } as any;
+        });
+        await trx.insert(candidateStageHistory).values(values);
       }
     });
 

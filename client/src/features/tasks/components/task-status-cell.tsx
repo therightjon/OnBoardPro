@@ -5,6 +5,11 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/queryClient';
 import { invalidateCandidate } from '@/lib/query-invalidate';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
+import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
+import { Checkbox } from '@/shared/components/ui/checkbox';
+import { useState } from 'react';
 
 export function TaskStatusCell({
   taskId,
@@ -18,13 +23,22 @@ export function TaskStatusCell({
   disabled?: boolean;
 }) {
   const qc = useQueryClient();
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [ack, setAck] = useState(false);
 
+  type MutVars = { status: string; reason?: string };
   const mutation = useMutation({
-    mutationFn: async (nextStatus: string) => {
-      const res = await apiRequest('PATCH', `/api/tasks/${taskId}`, { status: nextStatus });
+    mutationFn: async (vars: MutVars) => {
+      const payload: any = { status: vars.status };
+      if (vars.status === 'canceled') {
+        payload.cancel_reason = (vars.reason ?? '').trim();
+      }
+      const res = await apiRequest('PATCH', `/api/tasks/${taskId}`, payload);
       return res.json();
     },
-    onMutate: async (nextStatus) => {
+    onMutate: async (vars: MutVars) => {
+      const nextStatus = vars.status;
       // optimistic update: snapshot
       const taskKey = ['/api/candidates', candidateId, 'tasks'];
       await qc.cancelQueries({ queryKey: taskKey });
@@ -47,11 +61,12 @@ export function TaskStatusCell({
       // If server reports prior-stage block, treat as soft success: keep optimistic state and refresh
       if (err?.code === 'BLOCKED_BY_PRIOR_STAGE') {
         toast.message('Task updated. Candidate remains blocked by prior-stage tasks.');
-        qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'tasks'] });
-        qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId] });
-        qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'stage-history'] });
-        return;
-      }
+      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'tasks'] });
+      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId] });
+      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'stage-history'] });
+      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }] });
+      return;
+    }
       // Otherwise revert optimistic update and show error
       if (ctx?.previous) qc.setQueryData(ctx.taskKey, ctx.previous);
       toast.error((err as Error).message);
@@ -79,6 +94,7 @@ export function TaskStatusCell({
       qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'tasks'] });
       qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId] });
       qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'stage-history'] });
+      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }] });
       qc.invalidateQueries({ queryKey: ['/api/candidates'] });
       
       // Show appropriate success messages
@@ -104,10 +120,17 @@ export function TaskStatusCell({
   };
 
   return (
+    <>
     <Select
       value={value}
-      onValueChange={(v) => mutation.mutate(v)}
-      disabled={disabled || mutation.isPending}
+      onValueChange={(v) => {
+        if (v === 'canceled') {
+          setCancelOpen(true);
+        } else {
+          mutation.mutate({ status: v });
+        }
+      }}
+      disabled={disabled || mutation.isPending || value === 'canceled'}
     >
       <SelectTrigger 
         className={cn('w-[140px]', mutation.isPending && 'opacity-70', getStatusColor(value))}
@@ -124,5 +147,36 @@ export function TaskStatusCell({
         ))}
       </SelectContent>
     </Select>
+
+    <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+      <DialogContent className='max-h-min'>
+        <DialogHeader>
+          <DialogTitle>Cancel Task</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            This task will be excluded from blockers and may move the candidate forward.
+          </p>
+          <div>
+            <label className="text-sm font-medium">Reason</label>
+            <Input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Short reason" />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox id={`ack-${taskId}`} checked={ack} onCheckedChange={(v:any)=> setAck(!!v)} />
+            <label htmlFor={`ack-${taskId}`} className="text-sm">I understand this cannot be undone.</label>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={()=>{ setCancelOpen(false); setCancelReason(''); setAck(false); }}>Close</Button>
+            <Button disabled={!cancelReason.trim() || !ack || mutation.isPending} onClick={()=>{
+              setCancelOpen(false);
+              mutation.mutate({ status: 'canceled', reason: cancelReason });
+              setCancelReason('');
+              setAck(false);
+            }}>Confirm Cancel</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

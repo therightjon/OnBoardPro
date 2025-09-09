@@ -51,6 +51,7 @@ export const templateTasks = pgTable("template_tasks", {
   defaultAssigneeId: uuid("default_assignee_id"),
   defaultPriorityId: uuid("default_priority_id"),
   defaultCategoryId: uuid("default_category_id"),
+  isRequired: boolean("is_required").notNull().default(true),
   archived: boolean("archived").default(false).notNull(),
   createdBy: uuid("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),

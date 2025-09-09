@@ -456,10 +456,10 @@ export default function CandidateDetailPage() {
             Candidate Information
           </CardTitle>
           {(() => {
-            // Calculate if all tasks are completed
+            // Calculate if all tasks are completed (treat 'canceled' as non-blocking)
             const allTasks = Object.values(tasksByStage).flat() as any[];
             const hasAnyTasks = allTasks.length > 0;
-            const allTasksCompleted = hasAnyTasks && allTasks.every((task: any) => task.status === 'done');
+            const allTasksCompleted = hasAnyTasks && allTasks.every((task: any) => task.status === 'done' || task.status === 'canceled');
             
             return allTasksCompleted && (
               <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
@@ -661,7 +661,12 @@ export default function CandidateDetailPage() {
                             {(tasks as any[]).map((task: any) => (
                               <div key={task.id} className="border rounded-lg p-3 xs:p-4 hover:bg-muted/50 transition-colors" data-testid={`card-task-${task.id}`}>
                                 <div className="flex items-start justify-between gap-2 mb-2">
-                                  <h4 className="text-sm xs:text-base font-medium break-words min-w-0">{task.title}</h4>
+                                  <h4 className="text-sm xs:text-base font-medium break-words min-w-0 flex items-center gap-2">
+                                    {task.title}
+                                    {task.status === 'canceled' && (
+                                      <Badge variant="secondary" title={task.cancel_reason || ''}>CANCELED</Badge>
+                                    )}
+                                  </h4>
                                   <TaskStatusCell
                                     taskId={task.id}
                                     candidateId={(candidate as any).id}
@@ -740,10 +745,9 @@ export default function CandidateDetailPage() {
                       const da = a.changedAt ? new Date(a.changedAt).getTime() : 0;
                       const db = b.changedAt ? new Date(b.changedAt).getTime() : 0;
                       if (db !== da) return db - da; // Newest to oldest by time
-                      // Tie-breaker: for same timestamp, show higher stage order first (e.g., Stage 3 before Stage 2)
-                      const ao = a.stage?.orderIndex ?? 0;
-                      const bo = b.stage?.orderIndex ?? 0;
-                      return bo - ao;
+                      const ca = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                      const cb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                      return cb - ca; // Fallback to createdAt
                     });
                     return (
                     <div className="space-y-4">

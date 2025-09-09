@@ -80,10 +80,12 @@ export const candidateTasks = pgTable("candidate_tasks", {
   dueAt: timestamp("due_at"),
   status: taskStatusEnum("status").default("todo").notNull(),
   completedAt: timestamp("completed_at"),
+  cancelReason: text("cancel_reason"),
   notes: text("notes"),
   required: boolean("required").default(true).notNull(),
   archived: boolean("archived").default(false).notNull(),
   stageOrderIndex: integer("stage_order_index"),
+  updatedBy: uuid("updated_by").references(() => users.id),
   deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()

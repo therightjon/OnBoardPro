@@ -605,6 +605,7 @@ export class DatabaseStorage implements IStorage {
         dueAt: candidateTasks.dueAt,
         status: candidateTasks.status,
         required: candidateTasks.required,
+        cancel_reason: candidateTasks.cancelReason,
         updated_at: candidateTasks.updatedAt,
         // Add candidate fields to prevent "Unknown Candidate"
         candidate_id: candidates.id,
@@ -657,6 +658,7 @@ export class DatabaseStorage implements IStorage {
         dueAt: candidateTasks.dueAt,
         status: candidateTasks.status,
         required: candidateTasks.required,
+        cancel_reason: candidateTasks.cancelReason,
         updated_at: candidateTasks.updatedAt,
         candidate_status: candidates.status
       })
@@ -1376,7 +1378,7 @@ export class DatabaseStorage implements IStorage {
         categoryId: templateTask.defaultCategoryId || (await this.getTaskCategories())[0]?.id,
         dueAt,
         status: "todo" as const,
-        required: true,
+        required: (templateTask as any).isRequired ?? true,
         archived: false
       });
     }
@@ -1631,7 +1633,8 @@ export class DatabaseStorage implements IStorage {
 
     // Calculate offsets for remaining (incomplete) tasks based on their due dates
     for (const task of tasksQuery) {
-      if (task.status === 'done') {
+      // Treat 'canceled' as non-blocking (equivalent to 'done')
+      if (task.status === 'done' || task.status === 'canceled') {
         completedTasks++;
         continue;
       }

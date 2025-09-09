@@ -518,7 +518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Insufficient permissions to update this task" });
       }
 
-      // Handle completed_at field based on status
+      // Handle status transitions and attributes
       let updateData = { ...req.body };
       if (req.body.status === 'done' && !existingTask.completedAt) {
         updateData.completedAt = new Date();
@@ -526,9 +526,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.completedAt = null;
       }
 
+      // Treat canceled similar to done (non-blocking). Capture cancel_reason and who updated it.
+      if (req.body.status === 'canceled') {
+        // Accept both snake_case and camelCase from clients
+        const incomingReason = (req.body.cancel_reason ?? req.body.cancelReason ?? '').toString();
+        const reason = incomingReason.trim();
+        if (!reason) {
+          return res.status(400).json({ message: 'cancel_reason is required when canceling a task' });
+        }
+        // RBAC: Only hr_staff or system_admin can cancel required tasks
+        if (existingTask.required && !(req.user!.role === 'hr_staff' || req.user!.role === 'system_admin')) {
+          return res.status(403).json({ message: 'Only HR Staff or System Admin can cancel required tasks' });
+        }
+        updateData.cancelReason = reason;
+        updateData.updatedBy = req.user!.id;
+      }
+
       const task = await storage.updateCandidateTask(req.params.id, updateData);
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
+      }
+
+      // Audit log on cancellation
+      try {
+        if (req.body.status === 'canceled') {
+          await db.execute(sql`INSERT INTO audit_log (actor_id, candidate_id, task_id, event_type, details)
+            VALUES (${req.user!.id}::uuid, ${existingTask.candidateId}::uuid, ${existingTask.id}::uuid, 'task_canceled', ${JSON.stringify({ reason: updateData.cancelReason })}::jsonb)`);
+        }
+      } catch (e) {
+        console.error('audit log insert failed:', e);
       }
 
       // Recompute candidate blocked state and possible auto-regression
@@ -900,7 +926,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fixedDate,
         defaultAssigneeId: req.body.defaultAssigneeId || null,
         defaultPriorityId: req.body.defaultPriorityId || null,
-        defaultCategoryId: req.body.defaultCategoryId || null
+        defaultCategoryId: req.body.defaultCategoryId || null,
+        isRequired: req.body.isRequired === true
       });
       res.status(201).json(templateTask);
     } catch (error) {
@@ -918,6 +945,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         defaultAssigneeId: req.body.defaultAssigneeId === "" ? null : req.body.defaultAssigneeId,
         defaultPriorityId: req.body.defaultPriorityId === "" ? null : req.body.defaultPriorityId,
         defaultCategoryId: req.body.defaultCategoryId === "" ? null : req.body.defaultCategoryId,
+        isRequired: req.body.isRequired === true,
       };
       
       // Enforce database constraint rules for due_rule_type combinations
