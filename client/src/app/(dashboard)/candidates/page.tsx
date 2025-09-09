@@ -130,7 +130,7 @@ export default function CandidatesPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4 xs:space-y-5 sm:space-y-6">
+      <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
         <div className="animate-pulse space-y-4">
           <div className="h-6 xs:h-8 bg-muted rounded w-1/4"></div>
           <div className="h-24 xs:h-32 bg-muted rounded"></div>
@@ -140,7 +140,7 @@ export default function CandidatesPage() {
   }
 
   return (
-    <div className="space-y-4 xs:space-y-5 sm:space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
       {/* Page Header */}
       <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
         <div className="min-w-0">

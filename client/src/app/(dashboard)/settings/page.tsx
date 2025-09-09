@@ -995,12 +995,12 @@ export default function SettingsPage() {
   );
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground" data-testid="text-settings-title">Settings</h1>
-          <p className="text-muted-foreground">Manage your application preferences and organization structure</p>
+      <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-foreground" data-testid="text-settings-title">Settings</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage your application preferences and organization structure</p>
         </div>
       </div>
 

@@ -131,10 +131,10 @@ export default function TemplatesPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/4"></div>
-          <div className="h-32 bg-muted rounded"></div>
+          <div className="h-6 xs:h-8 bg-muted rounded w-1/4"></div>
+          <div className="h-24 xs:h-32 bg-muted rounded"></div>
         </div>
       </div>
     );
@@ -142,12 +142,12 @@ export default function TemplatesPage() {
 
   return (
     <RouteGuard allowedRoles={["system_admin", "hr_staff"]}>
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground" data-testid="text-templates-title">Templates</h1>
-          <p className="text-muted-foreground">Manage onboarding templates and workflows</p>
+      <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-foreground" data-testid="text-templates-title">Templates</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage onboarding templates and workflows</p>
         </div>
         <div className="flex items-center space-x-3">
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -270,13 +270,13 @@ export default function TemplatesPage() {
 
       {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
+        <CardHeader className="p-3 xs:p-4 sm:p-6">
+          <CardTitle className="flex items-center text-base xs:text-lg">
             <Filter className="w-4 h-4 mr-2" />
             Filters
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 xs:p-4 sm:p-6 pt-0">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">

@@ -15,10 +15,10 @@ export function RouteGuard({ children, allowedRoles, fallbackPath = "/" }: Route
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/4"></div>
-          <div className="h-32 bg-muted rounded"></div>
+          <div className="h-6 xs:h-8 bg-muted rounded w-1/4"></div>
+          <div className="h-24 xs:h-32 bg-muted rounded"></div>
         </div>
       </div>
     );
@@ -26,7 +26,7 @@ export function RouteGuard({ children, allowedRoles, fallbackPath = "/" }: Route
 
   if (!user || !allowedRoles.includes(user.role)) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
         <Card className="max-w-md mx-auto">
           <CardHeader className="text-center">
             <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">

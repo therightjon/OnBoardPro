@@ -65,16 +65,16 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left side - Forms */}
-      <div className="flex-1 flex items-center justify-center p-8">
+    <div className="min-h-screen bg-background flex flex-col lg:flex-row">
+      {/* Forms Section */}
+      <div className="flex-1 flex items-center justify-center px-3 py-6 xs:px-4 xs:py-8 sm:px-6 lg:p-8">
         <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-primary-foreground" />
+          <div className="text-center mb-6 sm:mb-8">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary rounded-lg flex items-center justify-center mx-auto mb-3 sm:mb-4">
+              <Users className="w-6 h-6 sm:w-8 sm:h-8 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">OnboardPro</h1>
-            <p className="text-muted-foreground">Hiring & Onboarding Management</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">OnboardPro</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Hiring & Onboarding Management</p>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -253,43 +253,43 @@ export default function AuthPage() {
         </div>
       </div>
 
-      {/* Right side - Hero */}
-      <div className="flex-1 bg-primary text-primary-foreground p-8 flex items-center justify-center">
+      {/* Hero Section - Hidden on mobile, shown on desktop */}
+      <div className="hidden lg:flex lg:flex-1 bg-primary text-primary-foreground p-8 items-center justify-center">
         <div className="max-w-md text-center space-y-6">
-          <h2 className="text-3xl font-bold">Streamline Your Hiring Process</h2>
-          <p className="text-lg text-primary-foreground/90">
+          <h2 className="text-2xl xl:text-3xl font-bold">Streamline Your Hiring Process</h2>
+          <p className="text-base xl:text-lg text-primary-foreground/90">
             Manage candidates, track tasks, and automate onboarding workflows with our comprehensive platform.
           </p>
           
           <div className="space-y-4 text-left">
             <div className="flex items-center space-x-3">
-              <CheckCircle className="w-5 h-5 text-accent" />
-              <span>Role-based access control</span>
+              <CheckCircle className="w-5 h-5 text-accent flex-shrink-0" />
+              <span className="text-sm xl:text-base">Role-based access control</span>
             </div>
             <div className="flex items-center space-x-3">
-              <CheckCircle className="w-5 h-5 text-accent" />
-              <span>Template-driven workflows</span>
+              <CheckCircle className="w-5 h-5 text-accent flex-shrink-0" />
+              <span className="text-sm xl:text-base">Template-driven workflows</span>
             </div>
             <div className="flex items-center space-x-3">
-              <CheckCircle className="w-5 h-5 text-accent" />
-              <span>Real-time task tracking</span>
+              <CheckCircle className="w-5 h-5 text-accent flex-shrink-0" />
+              <span className="text-sm xl:text-base">Real-time task tracking</span>
             </div>
             <div className="flex items-center space-x-3">
-              <CheckCircle className="w-5 h-5 text-accent" />
-              <span>Comprehensive analytics</span>
+              <CheckCircle className="w-5 h-5 text-accent flex-shrink-0" />
+              <span className="text-sm xl:text-base">Comprehensive analytics</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-6">
             <div className="text-center">
-              <Shield className="w-8 h-8 mx-auto mb-2 text-accent" />
-              <h3 className="font-semibold">Secure</h3>
-              <p className="text-sm text-primary-foreground/80">Enterprise-grade security</p>
+              <Shield className="w-6 h-6 xl:w-8 xl:h-8 mx-auto mb-2 text-accent" />
+              <h3 className="text-sm xl:text-base font-semibold">Secure</h3>
+              <p className="text-xs xl:text-sm text-primary-foreground/80">Enterprise-grade security</p>
             </div>
             <div className="text-center">
-              <Clock className="w-8 h-8 mx-auto mb-2 text-accent" />
-              <h3 className="font-semibold">Efficient</h3>
-              <p className="text-sm text-primary-foreground/80">Streamlined processes</p>
+              <Clock className="w-6 h-6 xl:w-8 xl:h-8 mx-auto mb-2 text-accent" />
+              <h3 className="text-sm xl:text-base font-semibold">Efficient</h3>
+              <p className="text-xs xl:text-sm text-primary-foreground/80">Streamlined processes</p>
             </div>
           </div>
         </div>

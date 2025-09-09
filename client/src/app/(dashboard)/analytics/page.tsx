@@ -4,14 +4,14 @@ import { ChartBar, TrendingUp, Users, Clock, AlertTriangle, CheckCircle } from "
 
 export default function AnalyticsPage() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground" data-testid="text-analytics-title">Analytics</h1>
-          <p className="text-muted-foreground">Insights and performance metrics for your hiring pipeline</p>
+      <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-foreground" data-testid="text-analytics-title">Analytics</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Insights and performance metrics for your hiring pipeline</p>
         </div>
-        <Button variant="outline" data-testid="button-export-analytics">
+        <Button variant="outline" className="w-full xs:w-auto" data-testid="button-export-analytics">
           Export Report
         </Button>
       </div>

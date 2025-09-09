@@ -719,62 +719,71 @@ export default function CandidateDetailPage() {
                 </CardHeader>
                 <CardContent>
                   {historyLoading ? (
-                    <div className="space-y-4">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="animate-pulse flex items-center space-x-4">
-                          <div className="w-4 h-4 bg-muted rounded-full"></div>
-                          <div className="flex-1 space-y-2">
-                            <div className="h-4 bg-muted rounded w-1/4"></div>
-                            <div className="h-3 bg-muted rounded w-1/2"></div>
-                          </div>
-                        </div>
-                      ))}
+                  <div className="space-y-4">
+                    {[...Array(3)].map((_, i) => (
+                    <div key={i} className="animate-pulse flex items-center space-x-4">
+                      <div className="w-4 h-4 bg-muted rounded-full"></div>
+                      <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-muted rounded w-1/4"></div>
+                      <div className="h-3 bg-muted rounded w-1/2"></div>
+                      </div>
                     </div>
+                    ))}
+                  </div>
                   ) : stageHistory.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      No stage history for this candidate.
-                    </p>
+                  <p className="text-center text-muted-foreground py-8">
+                    No stage history for this candidate.
+                  </p>
                   ) : (
+                  (() => {
+                    const sortedHistory = [...stageHistory].sort((a: any, b: any) => {
+                    const da = a.changedAt ? new Date(a.changedAt).getTime() : 0;
+                    const db = b.changedAt ? new Date(b.changedAt).getTime() : 0;
+                    return db - da; // Newest to oldest
+                    });
+                    return (
                     <div className="space-y-4">
                       {(candidate as any).isBlockedByPriorStage && (candidate as any).blockerSummary?.priorOpenTasks?.length > 0 && (
-                        <div className="p-3 rounded-md border bg-muted/30" data-testid="blocker-summary">
-                          <div className="text-sm font-medium mb-2">Open tasks in prior stages</div>
-                          <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-                            {((candidate as any).blockerSummary.priorOpenTasks as any[]).map((t: any) => (
-                              <li key={t.id}>
-                                <span className="font-medium">{t.title}</span>
-                                <span className="ml-2">({t.stageName})</span>
-                                {t.dueAt && <span className="ml-2">Due: {new Date(t.dueAt).toLocaleDateString()}</span>}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                      <div className="p-3 rounded-md border bg-muted/30" data-testid="blocker-summary">
+                        <div className="text-sm font-medium mb-2">Open tasks in prior stages</div>
+                        <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                        {((candidate as any).blockerSummary.priorOpenTasks as any[]).map((t: any) => (
+                          <li key={t.id}>
+                          <span className="font-medium">{t.title}</span>
+                          <span className="ml-2">({t.stageName})</span>
+                          {t.dueAt && <span className="ml-2">Due: {new Date(t.dueAt).toLocaleDateString()}</span>}
+                          </li>
+                        ))}
+                        </ul>
+                      </div>
                       )}
-                      {stageHistory.map((entry: any, index: number) => (
-                        <div key={entry.id} className="flex items-start space-x-4">
-                          <div className="flex flex-col items-center">
-                            <div className="w-3 h-3 bg-primary rounded-full"></div>
-                            {index < stageHistory.length - 1 && (
-                              <div className="w-px h-8 bg-border mt-2"></div>
-                            )}
-                          </div>
-                          <div className="flex-1 pb-4">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-medium">{entry.stage?.name || 'Unknown Stage'}</h4>
-                              <Badge variant="outline">
-                                {entry.changedAt ? format(new Date(entry.changedAt), "MMM d, yyyy") : 'Unknown Date'}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Changed by: {entry.changedBy ? `${entry.changedBy.firstName} ${entry.changedBy.lastName}` : 'Unknown User'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {entry.changedAt ? format(new Date(entry.changedAt), "h:mm a") : ''}
-                            </p>
-                          </div>
+                      {sortedHistory.map((entry: any, index: number) => (
+                      <div key={entry.id} className="flex items-start space-x-4">
+                        <div className="flex flex-col items-center">
+                        <div className="w-3 h-3 bg-primary rounded-full"></div>
+                        {index < sortedHistory.length - 1 && (
+                          <div className="w-px h-8 bg-border mt-2"></div>
+                        )}
                         </div>
+                        <div className="flex-1 pb-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium">{entry.stage?.name || 'Unknown Stage'}</h4>
+                          <Badge variant="outline">
+                          {entry.changedAt ? format(new Date(entry.changedAt), "MMM d, yyyy") : 'Unknown Date'}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Changed by: {entry.changedBy ? `${entry.changedBy.firstName} ${entry.changedBy.lastName}` : 'Unknown User'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {entry.changedAt ? format(new Date(entry.changedAt), "h:mm a") : ''}
+                        </p>
+                        </div>
+                      </div>
                       ))}
                     </div>
+                    );
+                  })()
                   )}
                 </CardContent>
               </Card>

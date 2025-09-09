@@ -228,27 +228,29 @@ export default function MyTasksPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/4"></div>
-          <div className="h-32 bg-muted rounded"></div>
+          <div className="h-6 xs:h-8 bg-muted rounded w-1/4"></div>
+          <div className="h-24 xs:h-32 bg-muted rounded"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground" data-testid="text-my-tasks-title">My Tasks</h1>
-        <p className="text-muted-foreground">Tasks assigned to you</p>
+      <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-foreground" data-testid="text-my-tasks-title">My Tasks</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Tasks assigned to you</p>
+        </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 xs:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">To Do</p>
@@ -262,7 +264,7 @@ export default function MyTasksPage() {
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 xs:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">In Progress</p>
@@ -276,7 +278,7 @@ export default function MyTasksPage() {
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 xs:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Due Soon</p>
@@ -290,7 +292,7 @@ export default function MyTasksPage() {
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 xs:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Overdue</p>
@@ -306,51 +308,56 @@ export default function MyTasksPage() {
 
       {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
+        <CardHeader className="p-3 xs:p-4 sm:p-6">
+          <CardTitle className="flex items-center text-base xs:text-lg">
             <Filter className="w-4 h-4 mr-2" />
             Filters
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input
-                  placeholder="Search my tasks..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                  data-testid="input-search-my-tasks"
-                />
+        <CardContent className="p-3 xs:p-4 sm:p-6 pt-0">
+          <div className="space-y-4">
+            {/* Search and Select Filters */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Search my tasks..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search-my-tasks"
+                  />
+                </div>
               </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-status-filter">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="todo">To Do</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="blocked">Blocked</SelectItem>
+                  <SelectItem value="done">Done</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-priority-filter">
+                  <SelectValue placeholder="Filter by priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="todo">To Do</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="blocked">Blocked</SelectItem>
-                <SelectItem value="done">Done</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-[180px]" data-testid="select-priority-filter">
-                <SelectValue placeholder="Filter by priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priorities</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex flex-col sm:flex-row gap-4">
+            
+            {/* Toggle Switches */}
+            <div className="flex flex-col xs:flex-row flex-wrap gap-3 xs:gap-4">
               <div className="flex items-center space-x-2">
                 <Switch 
                   id="show-archived" 
@@ -392,21 +399,22 @@ export default function MyTasksPage() {
       {/* Tasks Table */}
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Task</TableHead>
-                <TableHead>Candidate</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+          <div className="overflow-x-auto">
+            <Table className="min-w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[140px]">Task</TableHead>
+                  <TableHead className="min-w-[120px]">Candidate</TableHead>
+                  <TableHead className="min-w-[80px] hidden sm:table-cell">Priority</TableHead>
+                  <TableHead className="min-w-[100px]">Status</TableHead>
+                  <TableHead className="min-w-[100px] hidden md:table-cell">Due Date</TableHead>
+                  <TableHead className="min-w-[80px] w-[80px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {filteredTasks.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-6 sm:py-8 text-muted-foreground text-sm sm:text-base">
                     {myTasks.length === 0 ? "No tasks assigned to you" : "No tasks found matching your criteria"}
                   </TableCell>
                 </TableRow>
@@ -423,22 +431,29 @@ export default function MyTasksPage() {
                     }`}
                     data-testid={`row-my-task-${task.id}`}
                   >
-                    <TableCell>
+                    <TableCell className="p-2 xs:p-3 sm:p-4">
                       <div>
-                        <div className="font-medium">{task.title}</div>
+                        <div className="font-medium text-sm sm:text-base break-words">{task.title}</div>
                         {task.description && (
-                          <div className="text-sm text-muted-foreground">{task.description}</div>
+                          <div className="text-xs sm:text-sm text-muted-foreground mt-1 break-words">{task.description}</div>
                         )}
+                        {/* Show priority on mobile when priority column is hidden */}
+                        <div className="sm:hidden mt-1">
+                          <div className={`flex items-center space-x-1 text-xs ${getPriorityColor(task.priority)}`}>
+                            {getPriorityIcon(task.priority)}
+                            <span className="capitalize">{task.priority}</span>
+                          </div>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Link href={`/candidates/${task.candidateId}`} className="text-primary hover:underline">
+                    <TableCell className="p-2 xs:p-3 sm:p-4">
+                      <div className="flex flex-col gap-1">
+                        <Link href={`/candidates/${task.candidateId}`} className="text-primary hover:underline text-sm break-words">
                           {getCandidateName(task)}
                         </Link>
                         {/* Show candidate status badge if not active/on_hold */}
                         {(task as any).candidate?.status && !['active', 'on_hold'].includes((task as any).candidate.status) && (
-                          <Badge variant="outline" className="text-xs bg-muted text-muted-foreground">
+                          <Badge variant="outline" className="text-xs bg-muted text-muted-foreground w-fit">
                             {(task as any).candidate.status === 'archived' && '(Archived)'}
                             {(task as any).candidate.status === 'canceled' && '(Canceled)'}
                             {(task as any).candidate.status === 'completed' && '(Completed)'}
@@ -446,26 +461,42 @@ export default function MyTasksPage() {
                         )}
                         {/* Show on hold status */}
                         {(task as any).candidate?.status === 'on_hold' && (
-                          <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                          <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 w-fit">
                             On Hold
                           </Badge>
                         )}
+                        {/* Show due date on mobile when due date column is hidden */}
+                        <div className="md:hidden text-xs text-muted-foreground">
+                          {task.dueAt ? (
+                            <div className={`${isOverdue(task.dueAt) && task.status !== "done" ? "text-destructive font-medium" : ""}`}>
+                              Due: {new Date(task.dueAt).toLocaleDateString()}
+                              {isOverdue(task.dueAt) && task.status !== "done" && (
+                                <span className="block text-destructive">Overdue</span>
+                              )}
+                              {isDueSoon(task.dueAt) && task.status !== "done" && !isOverdue(task.dueAt) && (
+                                <span className="block text-chart-3">Due Soon</span>
+                              )}
+                            </div>
+                          ) : (
+                            "No due date"
+                          )}
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell p-2 xs:p-3 sm:p-4">
                       <div className={`flex items-center space-x-2 ${getPriorityColor(task.priority)}`}>
                         {getPriorityIcon(task.priority)}
-                        <span className="capitalize">{task.priority}</span>
+                        <span className="capitalize text-sm">{task.priority}</span>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="p-2 xs:p-3 sm:p-4">
                       <Select
                         value={task.status}
                         onValueChange={(value) => handleStatusUpdate(task.id, value)}
                       >
-                        <SelectTrigger className="w-[120px]">
+                        <SelectTrigger className="w-[100px] sm:w-[120px]">
                           <Badge className={getStatusColor(task.status)}>
-                            {task.status.replace('_', ' ').toUpperCase()}
+                            <span className="text-xs">{task.status.replace('_', ' ').toUpperCase()}</span>
                           </Badge>
                         </SelectTrigger>
                         <SelectContent>
@@ -476,9 +507,9 @@ export default function MyTasksPage() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell p-2 xs:p-3 sm:p-4">
                       {task.dueAt ? (
-                        <div className={`${isOverdue(task.dueAt) && task.status !== "done" ? "text-destructive font-medium" : ""}`}>
+                        <div className={`text-sm ${isOverdue(task.dueAt) && task.status !== "done" ? "text-destructive font-medium" : ""}`}>
                           {new Date(task.dueAt).toLocaleDateString()}
                           {isOverdue(task.dueAt) && task.status !== "done" && (
                             <span className="block text-xs">Overdue</span>
@@ -488,15 +519,16 @@ export default function MyTasksPage() {
                           )}
                         </div>
                       ) : (
-                        "-"
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="p-2 xs:p-3 sm:p-4">
                       <Dialog open={editingTask?.id === task.id} onOpenChange={(open) => !open && setEditingTask(null)}>
                         <DialogTrigger asChild>
                           <Button 
                             variant="ghost" 
-                            size="sm" 
+                            size="sm"
+                            className="min-h-[44px] min-w-[44px] p-2"
                             onClick={() => handleTaskEdit(task)}
                             data-testid={`button-edit-my-task-${task.id}`}
                           >
@@ -541,7 +573,7 @@ export default function MyTasksPage() {
                               />
                             </div>
 
-                            <div className="flex justify-end space-x-2">
+                            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-0 sm:space-x-2">
                               <Button variant="outline" onClick={() => setEditingTask(null)}>
                                 Cancel
                               </Button>
@@ -557,7 +589,8 @@ export default function MyTasksPage() {
                 ))
               )}
             </TableBody>
-          </Table>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>
