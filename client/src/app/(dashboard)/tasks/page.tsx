@@ -296,8 +296,8 @@ export default function TasksPage() {
         </CardContent>
       </Card>
 
-      {/* Task Definitions Table */}
-      <Card>
+      {/* Task Definitions Table (Desktop) */}
+      <Card className="hidden md:block">
         <CardHeader className="p-3 xs:p-4 sm:p-6">
           <CardTitle className="flex items-center text-base xs:text-lg">
             <BookOpen className="w-4 h-4 mr-2" />
@@ -384,6 +384,67 @@ export default function TasksPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Task Definitions (Mobile Cards) */}
+      <div className="space-y-3 md:hidden">
+        {filteredTaskDefinitions.length === 0 ? (
+          <Card>
+            <CardContent className="p-4 text-center text-muted-foreground text-sm">
+              {taskDefinitions.length === 0 
+                ? "No task definitions found. Create your first task definition to get started." 
+                : "No task definitions found matching your search criteria"}
+            </CardContent>
+          </Card>
+        ) : (
+          filteredTaskDefinitions.map((taskDef) => (
+            <Card key={taskDef.id} className="p-4" data-testid={`card-task-def-${taskDef.id}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-medium break-words">{taskDef.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 break-words">{taskDef.description || "-"}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Status</span>
+                      <div>
+                        <Badge variant={taskDef.archived ? "secondary" : "default"}>
+                          {taskDef.archived ? "Archived" : "Active"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Created</span>
+                      <div>{new Date(taskDef.createdAt).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-start gap-2 mt-3 pt-3 border-t">
+                <Button 
+                  variant="ghost" size="sm" className="min-h-[40px]"
+                  onClick={() => handleEdit(taskDef)}
+                >
+                  Edit
+                </Button>
+                {taskDef.archived ? (
+                  <Button 
+                    variant="ghost" size="sm" className="min-h-[40px]"
+                    onClick={() => setIsRestoreDialogOpen(true) || setRestoringTaskDef(taskDef)}
+                  >
+                    Restore
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="ghost" size="sm" className="min-h-[40px] text-destructive"
+                    onClick={() => setIsArchiveDialogOpen(true) || setArchivingTaskDef(taskDef)}
+                  >
+                    Archive
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
 
       {/* Edit Dialog */}
       {editingTaskDef && (

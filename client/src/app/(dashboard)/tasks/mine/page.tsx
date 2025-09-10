@@ -389,8 +389,8 @@ export default function MyTasksPage() {
         </CardContent>
       </Card>
 
-      {/* Tasks Table */}
-      <Card>
+      {/* Tasks Table (Desktop) */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table className="min-w-full">
@@ -576,6 +576,116 @@ export default function MyTasksPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Tasks List (Mobile) */}
+      <div className="space-y-3 md:hidden">
+        {filteredTasks.length === 0 ? (
+          <Card>
+            <CardContent className="p-4 text-center text-muted-foreground text-sm">
+              {myTasks.length === 0 ? "No tasks assigned to you" : "No tasks found matching your criteria"}
+            </CardContent>
+          </Card>
+        ) : (
+          filteredTasks.map((task: CandidateTask) => (
+            <Card key={task.id} className={`p-4 ${isOverdue(task.dueAt) && task.status !== "done" ? "bg-destructive/5" : ""}`} data-testid={`card-my-task-${task.id}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-medium text-foreground break-words">{task.title}</h3>
+                  {task.description && (
+                    <p className="text-xs text-muted-foreground mt-1 break-words">{task.description}</p>
+                  )}
+                  <div className="mt-2 grid grid-cols-2 gap-y-2 gap-x-3 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Candidate</span>
+                      <div>
+                        <Link href={`/candidates/${task.candidateId}`} className="text-primary hover:underline break-words">
+                          {getCandidateName(task)}
+                        </Link>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Priority</span>
+                      <div className={`${getPriorityColor(task.priority)} capitalize`}>{task.priority}</div>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Due</span>
+                      <div className={`mt-0.5 ${isOverdue(task.dueAt) && task.status !== "done" ? "text-destructive font-medium" : ""}`}>
+                        {task.dueAt ? new Date(task.dueAt).toLocaleDateString() : "-"}
+                        {isOverdue(task.dueAt) && task.status !== "done" && (
+                          <span className="ml-2 text-xs">Overdue</span>
+                        )}
+                        {isDueSoon(task.dueAt) && task.status !== "done" && !isOverdue(task.dueAt) && (
+                          <span className="ml-2 text-xs text-chart-3">Due Soon</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-start gap-2 mt-3 pt-3 border-t">
+                <Dialog open={editingTask?.id === task.id} onOpenChange={(open) => !open && setEditingTask(null)}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="min-h-[44px]"
+                      onClick={() => handleTaskEdit(task)}
+                      data-testid={`button-edit-my-task-${task.id}`}
+                    >
+                      Edit
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Update Task</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-medium">{editingTask?.title}</h3>
+                        <p className="text-sm text-muted-foreground">{editingTask?.description}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Status</label>
+                        <Select
+                          value={editingTask?.status}
+                          onValueChange={(value) => setEditingTask({ ...editingTask, status: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="todo">To Do</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="blocked">Blocked</SelectItem>
+                            <SelectItem value="done">Done</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Notes</label>
+                        <Textarea
+                          value={taskNotes}
+                          onChange={(e) => setTaskNotes(e.target.value)}
+                          placeholder="Add notes about this task..."
+                          className="mt-1"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setEditingTask(null)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleTaskUpdate} disabled={updateTaskMutation.isPending}>
+                          {updateTaskMutation.isPending ? "Updating..." : "Update Task"}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   );
 }

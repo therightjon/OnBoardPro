@@ -307,8 +307,8 @@ export default function TemplatesPage() {
         </CardContent>
       </Card>
 
-      {/* Templates Table */}
-      <Card>
+      {/* Templates Table (Desktop) */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -397,6 +397,65 @@ export default function TemplatesPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Templates (Mobile Cards) */}
+      <div className="space-y-3 md:hidden">
+        {filteredTemplates.length === 0 ? (
+          <Card>
+            <CardContent className="p-4 text-center text-muted-foreground text-sm">
+              {templates.length === 0 ? "No templates found. Create your first template to get started." : "No templates found matching your criteria"}
+            </CardContent>
+          </Card>
+        ) : (
+          filteredTemplates.map((template: any) => (
+            <Card key={template.id} className="p-4" data-testid={`card-template-${template.id}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-medium break-words">{template.name}</h3>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Type</span>
+                      <div>{getCandidateTypeName(template.candidateTypeId)}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Status</span>
+                      <div>
+                        <Badge variant={template.isActive ? "default" : "secondary"}>
+                          {template.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Created</span>
+                      <div>{new Date(template.createdAt).toLocaleDateString()}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Updated</span>
+                      <div>{new Date(template.updatedAt).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-start gap-2 mt-3 pt-3 border-t">
+                <Link href={`/templates/${template.id}`}>
+                  <Button variant="ghost" size="sm" className="min-h-[40px]">View</Button>
+                </Link>
+                <Link href={`/templates/${template.id}`}>
+                  <Button variant="ghost" size="sm" className="min-h-[40px]">Edit</Button>
+                </Link>
+                {user && ["system_admin", "hr_staff"].includes(user.role) && (
+                  <Button 
+                    variant="ghost" size="sm" className="min-h-[40px] text-destructive"
+                    onClick={() => setDeleteTemplateId(template.id)}
+                  >
+                    Delete
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
       </div>
     </RouteGuard>
   );

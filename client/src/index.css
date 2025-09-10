@@ -145,6 +145,15 @@
     transition: transform 0.3s ease-in-out;
   }
 
+  /* Hide scrollbars for overflow-x auto containers on mobile */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
+  }
+
   .metric-card {
     transition: all 0.2s ease-in-out;
   }

@@ -163,65 +163,104 @@ function AuthenticationProvidersCard() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Provider</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Configuration</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(providers as any[]).map((provider: any) => (
-                <TableRow key={provider.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium" data-testid={`provider-name-${provider.id}`}>
-                        {provider.name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {provider.notes}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {getStatusBadge(provider)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      {provider.configured ? (
-                        <div className="text-sm space-y-1">
-                          {provider.clientIdMasked && (
-                            <p className="text-muted-foreground">
-                              Client ID: {provider.clientIdMasked}
-                            </p>
-                          )}
-                          {provider.callbackUrl && (
-                            <p className="text-muted-foreground">
-                              Callback: {provider.callbackUrl}
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Provider</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Configuration</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(providers as any[]).map((provider: any) => (
+                    <TableRow key={provider.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium" data-testid={`provider-name-${provider.id}`}>
+                            {provider.name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {provider.notes}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(provider)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          {provider.configured ? (
+                            <div className="text-sm space-y-1">
+                              {provider.clientIdMasked && (
+                                <p className="text-muted-foreground">
+                                  Client ID: {provider.clientIdMasked}
+                                </p>
+                              )}
+                              {provider.callbackUrl && (
+                                <p className="text-muted-foreground">
+                                  Callback: {provider.callbackUrl}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">
+                              Missing required environment variables
                             </p>
                           )}
                         </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          Missing required environment variables
-                        </p>
-                      )}
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={provider.effectiveEnabled}
+                          disabled={!provider.canEnable || toggleProviderMutation.isPending}
+                          onCheckedChange={() => handleToggleProvider(provider.id, provider.effectiveEnabled)}
+                          data-testid={`switch-${provider.id}`}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="space-y-3 md:hidden">
+              {(providers as any[]).length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground text-sm">No providers found.</div>
+              ) : (
+                (providers as any[]).map((provider: any) => (
+                  <div key={provider.id} className="p-4 border rounded-lg">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium break-words">{provider.name}</div>
+                        <div className="text-xs text-muted-foreground break-words">{provider.notes}</div>
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-muted-foreground">Status</span>
+                            <div className="mt-0.5">{getStatusBadge(provider)}</div>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Configured</span>
+                            <div className="mt-0.5">{provider.configured ? 'Yes' : 'No'}</div>
+                          </div>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={provider.effectiveEnabled}
+                        disabled={!provider.canEnable || toggleProviderMutation.isPending}
+                        onCheckedChange={() => handleToggleProvider(provider.id, provider.effectiveEnabled)}
+                        data-testid={`switch-${provider.id}`}
+                      />
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={provider.effectiveEnabled}
-                      disabled={!provider.canEnable || toggleProviderMutation.isPending}
-                      onCheckedChange={() => handleToggleProvider(provider.id, provider.effectiveEnabled)}
-                      data-testid={`switch-${provider.id}`}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
@@ -1018,42 +1057,42 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="appearance" className="w-full">
-        <TabsList className={`grid w-full ${
-          (canManageHiringStages && canManageUsers && canManageAuthProviders && canManageSystem) ? 'grid-cols-6' :
+        <TabsList className={`grid grid-cols-2 md:grid w-full gap-2 h-auto items-start ${
+          (canManageHiringStages && canManageUsers && canManageAuthProviders && canManageSystem) ? 'md:grid-cols-6' :
           (
-            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 3 ? 'grid-cols-5' :
-            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 2 ? 'grid-cols-4' :
-            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 1 ? 'grid-cols-3' : 'grid-cols-2'
+            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 3 ? 'md:grid-cols-5' :
+            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 2 ? 'md:grid-cols-4' :
+            [canManageHiringStages, canManageUsers, canManageAuthProviders, canManageSystem].filter(Boolean).length === 1 ? 'md:grid-cols-3' : 'md:grid-cols-2'
           )
         }`}>
-          <TabsTrigger value="appearance" data-testid="tab-appearance">
+          <TabsTrigger value="appearance" data-testid="tab-appearance" className="w-full">
             <Palette className="w-4 h-4 mr-2" />
             Appearance
           </TabsTrigger>
-          <TabsTrigger value="departments" data-testid="tab-departments">
+          <TabsTrigger value="departments" data-testid="tab-departments" className="w-full">
             <Building className="w-4 h-4 mr-2" />
             Departments
           </TabsTrigger>
           {canManageUsers && (
-            <TabsTrigger value="users" data-testid="tab-users">
+            <TabsTrigger value="users" data-testid="tab-users" className="w-full">
               <Users className="w-4 h-4 mr-2" />
               Users
             </TabsTrigger>
           )}
           {canManageHiringStages && (
-            <TabsTrigger value="hiring-stages" data-testid="tab-hiring-stages">
+            <TabsTrigger value="hiring-stages" data-testid="tab-hiring-stages" className="w-full">
               <Target className="w-4 h-4 mr-2" />
               Hiring Stages
             </TabsTrigger>
           )}
           {canManageAuthProviders && (
-            <TabsTrigger value="authentication" data-testid="tab-authentication">
+            <TabsTrigger value="authentication" data-testid="tab-authentication" className="w-full">
               <Shield className="w-4 h-4 mr-2" />
               Authentication
             </TabsTrigger>
           )}
           {canManageSystem && (
-            <TabsTrigger value="system" data-testid="tab-system">
+            <TabsTrigger value="system" data-testid="tab-system" className="w-full">
               <SettingsIcon className="w-4 h-4 mr-2" />
               System
             </TabsTrigger>
@@ -1219,7 +1258,7 @@ export default function SettingsPage() {
             </CardHeader>
             
             {/* Search and Filter for Departments */}
-            <div className="px-6 py-4 border-b">
+            <div className="p-3 xs:p-4 sm:p-6 pt-0 border-b">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1">
                   <div className="relative">
@@ -1247,7 +1286,9 @@ export default function SettingsPage() {
             </div>
 
             <CardContent className="p-0">
-              <Table>
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+              <Table className="min-w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
@@ -1328,6 +1369,50 @@ export default function SettingsPage() {
                   )}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="space-y-3 p-4 md:hidden">
+                {departmentsLoading ? (
+                  <div className="text-center py-6 text-muted-foreground text-sm">Loading departments...</div>
+                ) : filteredDepartments.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground text-sm">
+                    {(departments as any[]).length === 0 ? "No departments found. Create your first department to get started." : "No departments match your search criteria."}
+                  </div>
+                ) : (
+                  filteredDepartments.map((department: any) => (
+                    <div key={department.id} className="p-4 border rounded-lg" data-testid={`card-department-${department.id}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium break-words">{department.name}</div>
+                          <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-muted-foreground">Status</span>
+                              <div className="mt-0.5">
+                                <Badge variant={isArchived(department) ? "secondary" : "default"}>
+                                  {isArchived(department) ? "Archived" : "Active"}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Created</span>
+                              <div className="mt-0.5">{new Date(department.createdAt).toLocaleDateString()}</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditDepartment(department)}>Edit</Button>
+                          {isArchived(department) ? (
+                            <Button variant="ghost" size="sm" onClick={() => handleRestoreDepartment(department)}>Restore</Button>
+                          ) : (
+                            <Button variant="ghost" size="sm" onClick={() => handleArchiveDepartment(department)}>Archive</Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -1421,7 +1506,7 @@ export default function SettingsPage() {
             </CardHeader>
             
             {/* Search and Filter for Divisions */}
-            <div className="px-6 py-4 border-b">
+            <div className="p-3 xs:p-4 sm:p-6 pt-0 border-b">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1">
                   <div className="relative">
@@ -1464,7 +1549,9 @@ export default function SettingsPage() {
             </div>
 
             <CardContent className="p-0">
-              <Table>
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+              <Table className="min-w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
@@ -1547,6 +1634,54 @@ export default function SettingsPage() {
                   )}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="space-y-3 p-4 md:hidden">
+                {divisionsLoading ? (
+                  <div className="text-center py-6 text-muted-foreground text-sm">Loading divisions...</div>
+                ) : filteredDivisions.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground text-sm">
+                    {(divisions as any[]).length === 0 ? "No divisions found. Create your first division to get started." : "No divisions match your search criteria."}
+                  </div>
+                ) : (
+                  filteredDivisions.map((division: any) => (
+                    <div key={division.id} className="p-4 border rounded-lg" data-testid={`card-division-${division.id}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium break-words">{division.name}</div>
+                          <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-muted-foreground">Department</span>
+                              <div className="mt-0.5">{getDepartmentName(division.departmentId)}</div>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Status</span>
+                              <div className="mt-0.5">
+                                <Badge variant={isArchived(division) ? "secondary" : "default"}>
+                                  {isArchived(division) ? "Archived" : "Active"}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Created</span>
+                              <div className="mt-0.5">{new Date(division.createdAt).toLocaleDateString()}</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditDivision(division)}>Edit</Button>
+                          {isArchived(division) ? (
+                            <Button variant="ghost" size="sm" onClick={() => handleRestoreDivision(division)}>Restore</Button>
+                          ) : (
+                            <Button variant="ghost" size="sm" onClick={() => handleArchiveDivision(division)}>Archive</Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1754,11 +1889,11 @@ export default function SettingsPage() {
                       placeholder="Search users by name or email..."
                       value={userSearchTerm}
                       onChange={(e) => setUserSearchTerm(e.target.value)}
-                      className="max-w-sm"
+                      className="w-full sm:max-w-sm"
                       data-testid="input-search-users"
                     />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Select value={userStatusFilter} onValueChange={setUserStatusFilter}>
                       <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
                         <SelectValue placeholder="All Status" />
@@ -1787,9 +1922,9 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Users Table */}
-                <div className="border rounded-lg">
-                  <Table>
+                {/* Users Table (Desktop) */}
+                <div className="border rounded-lg hidden md:block overflow-x-auto">
+                  <Table className="min-w-full">
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
@@ -1883,6 +2018,72 @@ export default function SettingsPage() {
                       )}
                     </TableBody>
                   </Table>
+                </div>
+
+                {/* Users (Mobile Cards) */}
+                <div className="space-y-3 md:hidden">
+                  {usersLoading ? (
+                    <Card>
+                      <CardContent className="p-4 text-center text-muted-foreground text-sm">Loading users...</CardContent>
+                    </Card>
+                  ) : (users as any[]).length === 0 ? (
+                    <Card>
+                      <CardContent className="p-4 text-center text-muted-foreground text-sm">No users found. Create your first user to get started.</CardContent>
+                    </Card>
+                  ) : (
+                    (users as any[])
+                      .filter((user: any) => {
+                        const matchesSearch = (user.firstName + ' ' + user.lastName).toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+                                             user.email.toLowerCase().includes(userSearchTerm.toLowerCase());
+                        const matchesStatus = userStatusFilter === "all" || user.status === userStatusFilter;
+                        const matchesRole = userRoleFilter === "all" || user.role === userRoleFilter;
+                        return matchesSearch && matchesStatus && matchesRole;
+                      })
+                      .map((user: any) => (
+                        <Card key={user.id} className="p-4" data-testid={`card-user-${user.id}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <h3 className="text-sm font-medium break-words">{user.firstName} {user.lastName}</h3>
+                              <p className="text-xs text-muted-foreground break-words">{user.email}</p>
+                              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="text-muted-foreground">Role</span>
+                                  <div className="mt-0.5">
+                                    <Badge variant="outline" className={getRoleBadgeColor(user.role)}>
+                                      {user.role.replace('_', ' ').toUpperCase()}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Status</span>
+                                  <div className="mt-0.5">
+                                    <Badge variant={user.status === 'active' ? 'default' : user.status === 'disabled' ? 'destructive' : 'secondary'}>
+                                      {user.status.toUpperCase()}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Department</span>
+                                  <div className="mt-0.5">{user.department?.name || 'Not Assigned'}</div>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Division</span>
+                                  <div className="mt-0.5">{user.division?.name || 'Not Assigned'}</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-start gap-2 mt-3 pt-3 border-t">
+                            <Button variant="ghost" size="sm" onClick={() => handleEditUser(user)}>Edit</Button>
+                            {user.status === 'disabled' ? (
+                              <Button variant="ghost" size="sm" onClick={() => handleEnableUser(user)}>Enable</Button>
+                            ) : (
+                              <Button variant="ghost" size="sm" onClick={() => handleDisableUser(user)} className="text-destructive">Disable</Button>
+                            )}
+                          </div>
+                        </Card>
+                      ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -2058,7 +2259,9 @@ export default function SettingsPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <Table>
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                <Table className="min-w-full">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
@@ -2122,6 +2325,45 @@ export default function SettingsPage() {
                     )}
                   </TableBody>
                 </Table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="space-y-3 p-4 md:hidden">
+                  {hiringStagesLoading ? (
+                    <div className="text-center py-6 text-muted-foreground text-sm">Loading hiring stages...</div>
+                  ) : (hiringStages as any[]).length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground text-sm">No hiring stages found. Create your first hiring stage to get started.</div>
+                  ) : (
+                    (hiringStages as any[]).map((stage: any) => (
+                      <div key={stage.id} className="p-4 border rounded-lg" data-testid={`card-hiring-stage-${stage.id}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium break-words">{stage.name}</div>
+                            <p className="text-xs text-muted-foreground break-words">{stage.description || '-'}</p>
+                            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <span className="text-muted-foreground">Order</span>
+                                <div className="mt-0.5">{stage.orderIndex}</div>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Status</span>
+                                <div className="mt-0.5">
+                                  <Badge variant={stage.isActive ? 'default' : 'secondary'}>
+                                    {stage.isActive ? 'Active' : 'Inactive'}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => handleEditHiringStage(stage)}>Edit</Button>
+                            <Button variant="ghost" size="sm" onClick={() => deleteHiringStageMutation.mutate(stage.id)} className="text-destructive">Delete</Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
