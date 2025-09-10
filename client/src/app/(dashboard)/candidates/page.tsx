@@ -330,7 +330,9 @@ export default function CandidatesPage() {
                   <TableRow key={candidate.id} className={`hover:bg-muted/50 ${candidate.archived ? 'opacity-60' : ''}`} data-testid={`row-candidate-${candidate.id}`}>
                     <TableCell className="font-medium">
                       <div className="flex items-center space-x-2">
-                        <span>{candidate.firstName} {candidate.lastName}</span>
+                        <Link href={`/candidates/${candidate.id}`} className="text-primary hover:underline">
+                          {candidate.firstName} {candidate.lastName}
+                        </Link>
                         {candidate.archived && (
                           <Badge variant="destructive" className="text-xs" data-testid={`badge-archived-${candidate.id}`}>
                             ARCHIVED
@@ -338,7 +340,11 @@ export default function CandidatesPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{candidate.email}</TableCell>
+                    <TableCell>
+                      <Link href={`/candidates/${candidate.id}`} className="text-primary hover:underline break-words">
+                        {candidate.email}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       {candidateTypes.find((type) => type.id === candidate.candidateTypeId)?.name || "Unknown"}
                     </TableCell>
@@ -407,7 +413,9 @@ export default function CandidatesPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-sm font-medium text-foreground truncate">
-                          {candidate.firstName} {candidate.lastName}
+                          <Link href={`/candidates/${candidate.id}`} className="text-primary hover:underline">
+                            {candidate.firstName} {candidate.lastName}
+                          </Link>
                         </h3>
                         {candidate.archived && (
                           <Badge variant="destructive" className="text-xs" data-testid={`badge-archived-${candidate.id}`}>
@@ -415,7 +423,11 @@ export default function CandidatesPage() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground truncate mb-2">{candidate.email}</p>
+                      <p className="text-xs truncate mb-2">
+                        <Link href={`/candidates/${candidate.id}`} className="text-primary hover:underline break-words">
+                          {candidate.email}
+                        </Link>
+                      </p>
                       <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                         <div>
                           <dt className="text-muted-foreground">Type</dt>
