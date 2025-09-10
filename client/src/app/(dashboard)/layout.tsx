@@ -28,16 +28,16 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         Skip to content
       </a>
       
-      <div className="min-h-screen grid md:grid-cols-[260px_1fr]">
+      <div className="min-h-screen grid md:grid-cols-[260px_1fr] max-w-[100vw] overflow-x-hidden">
         {/* Sidebar for desktop */}
         <aside className="hidden md:flex border-r">
           <Sidebar />
         </aside>
 
-        <div className="flex min-h-screen flex-col">
+        <div className="flex min-h-screen flex-col max-w-full overflow-x-hidden">
           <Header onMenuClick={() => setIsMobileMenuOpen(true)} />
           
-          <main id="main" className="flex-1">
+          <main id="main" className="flex-1 max-w-full overflow-x-hidden">
             {children}
           </main>
         </div>

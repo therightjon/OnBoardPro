@@ -994,6 +994,19 @@ export default function SettingsPage() {
     u.status === 'active' && u.id !== disablingUser?.id
   );
 
+  // Divisions filtered by selected department for the User form (server-side)
+  const selectedUserDepartmentId = userForm?.watch ? userForm.watch("departmentId") : undefined;
+  const { data: divisionsForUserDept = [] } = useQuery({
+    queryKey: ["/api/divisions", { departmentId: selectedUserDepartmentId }],
+    queryFn: async () => {
+      if (!selectedUserDepartmentId) return [] as any[];
+      const params = new URLSearchParams({ departmentId: selectedUserDepartmentId, limit: '100' });
+      const res = await apiRequest("GET", `/api/divisions?${params.toString()}`);
+      return res.json();
+    },
+    enabled: !!selectedUserDepartmentId,
+  });
+
   return (
     <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
       {/* Page Header */}
@@ -1700,19 +1713,15 @@ export default function SettingsPage() {
                               <SelectValue placeholder="Select division" />
                             </SelectTrigger>
                             <SelectContent>
-                              {(() => {
-                                const filtered = (divisions as any[]).filter((div: any) => div.departmentId === userForm.watch("departmentId"));
-                                if (filtered.length === 0) {
-                                  return (
-                                    <SelectItem disabled value="__no_divisions__">No divisions available.</SelectItem>
-                                  );
-                                }
-                                return filtered.map((div: any) => (
+                              {(!selectedUserDepartmentId || divisionsForUserDept.length === 0) ? (
+                                <SelectItem disabled value="__no_divisions__">No divisions available.</SelectItem>
+                              ) : (
+                                (divisionsForUserDept as any[]).map((div: any) => (
                                   <SelectItem key={div.id} value={div.id}>
                                     {div.name}
                                   </SelectItem>
-                                ));
-                              })()}
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
                           {userForm.formState.errors.divisionId && (

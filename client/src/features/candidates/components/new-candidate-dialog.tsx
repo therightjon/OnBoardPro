@@ -409,6 +409,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                             if (id) handleDepartmentChange(id);
                           }}
                           fetchItems={searchDepartments}
+                          emptyText="No departments available."
                           placeholder="Search departments..."
                           required
                           data-testid="select-department"
@@ -433,6 +434,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                             field.onChange(id || undefined);
                           }}
                           fetchItems={(q) => searchDivisions(q, selectedDepartmentId)}
+                          emptyText="No divisions available."
                           placeholder="Search divisions..."
                           disabled={!selectedDepartmentId}
                           data-testid="select-division"

@@ -141,7 +141,7 @@ export function AutoSelectCombobox({
             ) : query.trim().length === 0 && !loading && items.length === 0 ? (
               <div className="px-3 py-2 text-sm text-muted-foreground">Start typing to search…</div>
             ) : (
-              <CommandEmpty>{loading ? 'Loading…' : (emptyText ?? 'No results')}</CommandEmpty>
+              <CommandEmpty>{loading ? 'Loading…' : (emptyText ?? 'No items available.')}</CommandEmpty>
             )}
             <CommandGroup>
               {items.map((item) => (
