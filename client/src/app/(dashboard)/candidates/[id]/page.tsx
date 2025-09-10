@@ -381,12 +381,6 @@ export default function CandidateDetailPage() {
               <span className="hidden xs:inline">Back to </span>Candidates
             </Button>
           </Link>
-          <div className="min-w-0">
-            <h1 className="text-base xs:text-lg sm:text-xl lg:text-2xl font-bold text-foreground break-words" data-testid="text-candidate-name">
-              {(candidate as any).salutation ? `${(candidate as any).salutation} ` : ''}{(candidate as any).firstName} {(candidate as any).lastName}
-            </h1>
-            <p className="text-xs xs:text-sm text-muted-foreground break-all">{(candidate as any).email}</p>
-          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 xs:gap-3">
           <EditableStatusBadge 
@@ -451,9 +445,9 @@ export default function CandidateDetailPage() {
       {/* Full-width Candidate Information */}
       <Card>
         <CardHeader className="p-3 xs:p-4 sm:p-6">
-          <CardTitle className="flex items-center text-base xs:text-lg sm:text-xl">
+          <CardTitle className="flex items-center text-base xs:text-lg sm:text-xl lg:text-3xl" data-testid="text-candidate-name">
             <User className="w-4 h-4 mr-2" />
-            Candidate Information
+            {(candidate as any).salutation ? `${(candidate as any).salutation} ` : ''}{(candidate as any).firstName} {(candidate as any).lastName}
           </CardTitle>
           {(() => {
             // Calculate if all tasks are completed (treat 'canceled' as non-blocking)
