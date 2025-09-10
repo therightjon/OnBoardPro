@@ -56,7 +56,7 @@ import {
   type InsertUserRole
 } from "@shared/schemas";
 import { db } from "./connection";
-import { eq, and, isNull, sql, desc, asc, ilike, inArray, or, ne } from "drizzle-orm";
+import { eq, and, isNull, sql, desc, asc, ilike, inArray, or, ne, lte } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -169,6 +169,14 @@ export interface IStorage {
   
   // Template estimation
   estimateTemplate(templateId: string, startDate?: string, businessDays?: boolean): Promise<any>;
+
+  // Comments
+  getCandidateComments(params: { candidateId: string; visibility?: 'all'|'internal'|'external'; role: string; cursor?: string; limit?: number }): Promise<{ items: any[]; nextCursor?: string; totalVisibleCount: number }>;
+  getTaskComments(params: { taskId: string; visibility?: 'all'|'internal'|'external'; role: string; cursor?: string; limit?: number }): Promise<{ items: any[]; nextCursor?: string; totalVisibleCount: number }>;
+  createComment(params: { entityType: 'candidate'|'task'; entityId: string; authorUserId: string; role: string; body: string; visibility: 'internal'|'external'; parentId?: string | null }): Promise<any>;
+  editComment(params: { id: string; userId: string; userRole: string; body: string }): Promise<any>;
+  deleteComment(params: { id: string; userId: string; userRole: string }): Promise<void>;
+  getCommentStats(params: { candidateId: string; role: string }): Promise<{ profile: { internalCount: number; externalCount: number; totalVisible: number }; byTask: Record<string, { internalCount: number; externalCount: number; totalVisible: number }> }>;
 }
 
 // Business day utility functions
@@ -210,6 +218,21 @@ export class DatabaseStorage implements IStorage {
       pool, 
       createTableIfMissing: true 
     });
+  }
+
+  private decodeCursor(cursor?: string): { createdAt: Date; id: string } | undefined {
+    if (!cursor) return undefined;
+    try {
+      const raw = Buffer.from(cursor, 'base64').toString('utf8');
+      const obj = JSON.parse(raw);
+      return { createdAt: new Date(obj.createdAt), id: obj.id };
+    } catch {
+      return undefined;
+    }
+  }
+
+  private encodeCursor(row: { createdAt: Date; id: string }): string {
+    return Buffer.from(JSON.stringify({ createdAt: row.createdAt.toISOString(), id: row.id })).toString('base64');
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -1554,6 +1577,204 @@ export class DatabaseStorage implements IStorage {
       nonEstimable,
       perStage
     };
+  }
+
+  // Comments implementation
+  async getCandidateComments(params: { candidateId: string; visibility?: 'all'|'internal'|'external'; role: string; cursor?: string; limit?: number }): Promise<{ items: any[]; nextCursor?: string; totalVisibleCount: number }> {
+    const { candidateId, visibility = 'all', role, cursor, limit = 20 } = params;
+    const { comments, users } = await import("@shared/schemas");
+    const cursorObj = this.decodeCursor(cursor);
+    const visibilityFilter = role === 'candidate' ? 'external' : visibility;
+    const whereParts: any[] = [eq(comments.entityType, 'candidate' as any), eq(comments.entityId, candidateId), eq(comments.isDeleted, false)];
+    if (visibilityFilter !== 'all') whereParts.push(eq(comments.visibility, visibilityFilter as any));
+    if (cursorObj) whereParts.push(lte(comments.createdAt, cursorObj.createdAt));
+
+    const rows = await db
+      .select({
+        id: comments.id,
+        entityType: comments.entityType,
+        entityId: comments.entityId,
+        body: comments.body,
+        visibility: comments.visibility,
+        parentId: comments.parentId,
+        isDeleted: comments.isDeleted,
+        createdAt: comments.createdAt,
+        updatedAt: comments.updatedAt,
+        author: { id: users.id, firstName: users.firstName, lastName: users.lastName }
+      })
+      .from(comments)
+      .leftJoin(users, eq(users.id, comments.authorUserId))
+      .where(and(...whereParts))
+      .orderBy(desc(comments.createdAt), desc(comments.id))
+      .limit(limit + 1);
+
+    const items = rows.slice(0, limit);
+    const next = rows.length > limit ? this.encodeCursor({ createdAt: items[items.length - 1].createdAt as any, id: items[items.length - 1].id }) : undefined;
+
+    const countRows = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(comments)
+      .where(and(
+        eq(comments.entityType, 'candidate' as any),
+        eq(comments.entityId, candidateId),
+        eq(comments.isDeleted, false),
+        visibilityFilter === 'all' ? sql`true` : eq(comments.visibility, visibilityFilter as any)
+      ));
+
+    return { items, nextCursor: next, totalVisibleCount: countRows[0]?.count || 0 };
+  }
+
+  async getTaskComments(params: { taskId: string; visibility?: 'all'|'internal'|'external'; role: string; cursor?: string; limit?: number }): Promise<{ items: any[]; nextCursor?: string; totalVisibleCount: number }> {
+    const { taskId, visibility = 'all', role, cursor, limit = 20 } = params;
+    const { comments, users } = await import("@shared/schemas");
+    const cursorObj = this.decodeCursor(cursor);
+    const visibilityFilter = role === 'candidate' ? 'external' : visibility;
+    const whereParts: any[] = [eq(comments.entityType, 'task' as any), eq(comments.entityId, taskId), eq(comments.isDeleted, false)];
+    if (visibilityFilter !== 'all') whereParts.push(eq(comments.visibility, visibilityFilter as any));
+    if (cursorObj) whereParts.push(lte(comments.createdAt, cursorObj.createdAt));
+
+    const rows = await db
+      .select({
+        id: comments.id,
+        entityType: comments.entityType,
+        entityId: comments.entityId,
+        body: comments.body,
+        visibility: comments.visibility,
+        parentId: comments.parentId,
+        isDeleted: comments.isDeleted,
+        createdAt: comments.createdAt,
+        updatedAt: comments.updatedAt,
+        author: { id: users.id, firstName: users.firstName, lastName: users.lastName }
+      })
+      .from(comments)
+      .leftJoin(users, eq(users.id, comments.authorUserId))
+      .where(and(...whereParts))
+      .orderBy(desc(comments.createdAt), desc(comments.id))
+      .limit(limit + 1);
+
+    const items = rows.slice(0, limit);
+    const next = rows.length > limit ? this.encodeCursor({ createdAt: items[items.length - 1].createdAt as any, id: items[items.length - 1].id }) : undefined;
+
+    const countRows = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(comments)
+      .where(and(
+        eq(comments.entityType, 'task' as any),
+        eq(comments.entityId, taskId),
+        eq(comments.isDeleted, false),
+        visibilityFilter === 'all' ? sql`true` : eq(comments.visibility, visibilityFilter as any)
+      ));
+
+    return { items, nextCursor: next, totalVisibleCount: countRows[0]?.count || 0 };
+  }
+
+  async createComment(params: { entityType: 'candidate'|'task'; entityId: string; authorUserId: string; role: string; body: string; visibility: 'internal'|'external'; parentId?: string | null }): Promise<any> {
+    const { entityType, entityId, authorUserId, role, body, visibility, parentId } = params;
+    const { comments, users } = await import("@shared/schemas");
+    let finalVisibility = visibility;
+    if (role === 'candidate' && visibility === 'internal') {
+      throw new Error('Candidates can only create external comments');
+    }
+    if (parentId) {
+      const [parent] = await db.select().from(comments).where(eq(comments.id, parentId));
+      if (!parent) throw new Error('Parent comment not found');
+      finalVisibility = parent.visibility as any;
+    }
+    const [createdRow] = await db
+      .insert(comments)
+      .values({ entityType: entityType as any, entityId, authorUserId, body, visibility: finalVisibility as any, parentId: parentId || null })
+      .returning();
+    const [created] = await db
+      .select({
+        id: comments.id,
+        entityType: comments.entityType,
+        entityId: comments.entityId,
+        body: comments.body,
+        visibility: comments.visibility,
+        parentId: comments.parentId,
+        isDeleted: comments.isDeleted,
+        createdAt: comments.createdAt,
+        updatedAt: comments.updatedAt,
+        author: { id: users.id, firstName: users.firstName, lastName: users.lastName }
+      })
+      .from(comments)
+      .leftJoin(users, eq(users.id, comments.authorUserId))
+      .where(eq(comments.id, createdRow.id));
+    return created;
+  }
+
+  async editComment(params: { id: string; userId: string; userRole: string; body: string }): Promise<any> {
+    const { id, userId, userRole, body } = params;
+    const { comments } = await import("@shared/schemas");
+    const [existing] = await db.select().from(comments).where(eq(comments.id, id));
+    if (!existing || existing.isDeleted) throw new Error('Comment not found');
+    const now = new Date();
+    const createdAt = new Date(existing.createdAt as any);
+    const diffMs = now.getTime() - createdAt.getTime();
+    const canEdit = (existing.authorUserId === userId && diffMs <= 5 * 60 * 1000) || ['system_admin','hr_staff'].includes(userRole);
+    if (!canEdit) throw new Error('Not permitted to edit comment');
+    const [updated] = await db
+      .update(comments)
+      .set({ body, updatedAt: new Date() })
+      .where(eq(comments.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteComment(params: { id: string; userId: string; userRole: string }): Promise<void> {
+    const { id, userId, userRole } = params;
+    const { comments } = await import("@shared/schemas");
+    const [existing] = await db.select().from(comments).where(eq(comments.id, id));
+    if (!existing || existing.isDeleted) throw new Error('Comment not found');
+    const now = new Date();
+    const createdAt = new Date(existing.createdAt as any);
+    const diffMs = now.getTime() - createdAt.getTime();
+    const canDelete = (existing.authorUserId === userId && diffMs <= 5 * 60 * 1000) || ['system_admin','hr_staff'].includes(userRole);
+    if (!canDelete) throw new Error('Not permitted to delete comment');
+    await db.update(comments).set({ isDeleted: true, updatedAt: new Date() }).where(eq(comments.id, id));
+  }
+
+  async getCommentStats(params: { candidateId: string; role: string }): Promise<{ profile: { internalCount: number; externalCount: number; totalVisible: number }; byTask: Record<string, { internalCount: number; externalCount: number; totalVisible: number }> }> {
+    const { candidateId, role } = params;
+    const { comments, candidateTasks } = await import("@shared/schemas");
+    const visibleSet = role === 'candidate' ? ['external'] : ['internal','external'];
+
+    const profileCounts = await db
+      .select({ visibility: comments.visibility, count: sql<number>`count(*)::int` })
+      .from(comments)
+      .where(and(eq(comments.entityType, 'candidate' as any), eq(comments.entityId, candidateId), eq(comments.isDeleted, false), inArray(comments.visibility, visibleSet as any)))
+      .groupBy(comments.visibility);
+    const profile = { internalCount: 0, externalCount: 0, totalVisible: 0 };
+    for (const row of profileCounts) {
+      if ((row.visibility as any) === 'internal') profile.internalCount = row.count;
+      if ((row.visibility as any) === 'external') profile.externalCount = row.count;
+    }
+    profile.totalVisible = profile.internalCount + profile.externalCount;
+
+    const taskIdsRows = await db
+      .select({ id: candidateTasks.id })
+      .from(candidateTasks)
+      .where(eq(candidateTasks.candidateId, candidateId));
+    const taskIds = taskIdsRows.map(r => r.id);
+    const byTask: Record<string, { internalCount: number; externalCount: number; totalVisible: number }> = {};
+    if (taskIds.length > 0) {
+      const taskCounts = await db
+        .select({ entityId: comments.entityId, visibility: comments.visibility, count: sql<number>`count(*)::int` })
+        .from(comments)
+        .where(and(eq(comments.entityType, 'task' as any), inArray(comments.entityId, taskIds), eq(comments.isDeleted, false), inArray(comments.visibility, visibleSet as any)))
+        .groupBy(comments.entityId, comments.visibility);
+      for (const row of taskCounts) {
+        const id = row.entityId as string;
+        if (!byTask[id]) byTask[id] = { internalCount: 0, externalCount: 0, totalVisible: 0 };
+        if ((row.visibility as any) === 'internal') byTask[id].internalCount = row.count;
+        if ((row.visibility as any) === 'external') byTask[id].externalCount = row.count;
+      }
+      for (const id of Object.keys(byTask)) {
+        byTask[id].totalVisible = byTask[id].internalCount + byTask[id].externalCount;
+      }
+    }
+
+    return { profile, byTask };
   }
 
   async estimateCandidate(candidateId: string, businessDays: boolean = false): Promise<any> {

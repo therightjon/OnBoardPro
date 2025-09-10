@@ -16,6 +16,10 @@ import { ArrowLeft, Edit, Calendar, User, Mail, Building, Clock, Users, CheckCir
 import { Link, useParams } from "wouter";
 import { format } from "date-fns";
 import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
+import { useCommentStats } from "@/features/comments/api";
+import { TaskCommentsButton } from "@/features/comments/components/task-comments-button";
+import { TaskCommentsModal } from "@/features/comments/components/task-comments-modal";
+import { CommentsTab } from "@/features/comments/components/comments-tab";
 import { EditCandidateDialog } from "@/features/candidates/components/edit-candidate-dialog";
 import { ArchiveCandidateDialog } from "@/features/candidates/components/archive-candidate-dialog";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -30,6 +34,7 @@ export default function CandidateDetailPage() {
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [openTaskComments, setOpenTaskComments] = useState<{ id: string; title?: string } | null>(null);
 
   const { data: candidate, isLoading: candidateLoading, error: candidateError } = useQuery({
     queryKey: ["/api/candidates", id],
@@ -52,6 +57,7 @@ export default function CandidateDetailPage() {
   });
 
   const stageHistory = (stageHistoryData as any)?.history || [];
+  const { data: commentStats } = useCommentStats(id);
 
   // Build order map from snapshotted stages
   const orderMap = useMemo(() => {
@@ -613,8 +619,11 @@ export default function CandidateDetailPage() {
       <Card>
         <CardContent className="p-3 xs:p-4 sm:p-6">
           <Tabs defaultValue="tasks" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="tasks" className="" data-testid="tab-tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="comments" className="" data-testid="tab-comments">
+                Comments{(commentStats as any)?.profile?.totalVisible ? ` (${(commentStats as any).profile.totalVisible})` : ''}
+              </TabsTrigger>
               <TabsTrigger value="timeline" className="" data-testid="tab-timeline">Timeline</TabsTrigger>
             </TabsList>
 
@@ -661,11 +670,19 @@ export default function CandidateDetailPage() {
                                       <Badge variant="secondary" title={task.cancel_reason || ''}>CANCELED</Badge>
                                     )}
                                   </h4>
-                                  <TaskStatusCell
-                                    taskId={task.id}
-                                    candidateId={(candidate as any).id}
-                                    value={task.status}
-                                  />
+                                  <div className="flex items-center gap-1">
+                                    {/* comments button injected here */}
+                                    <TaskCommentsButton 
+                                      count={(commentStats as any)?.byTask?.[task.id]?.totalVisible || 0}
+                                      onClick={() => setOpenTaskComments({ id: task.id, title: task.title })}
+                                      ariaLabel={`Open comments for task ${task.title}`}
+                                    />
+                                    <TaskStatusCell
+                                      taskId={task.id}
+                                      candidateId={(candidate as any).id}
+                                      value={task.status}
+                                    />
+                                  </div>
                                 </div>
                                 {task.description && (
                                   <p className="text-xs xs:text-sm text-muted-foreground mb-2 break-words">{task.description}</p>
@@ -701,6 +718,10 @@ export default function CandidateDetailPage() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="comments" className="space-y-4">
+              <CommentsTab candidateId={(candidate as any).id} />
             </TabsContent>
 
             <TabsContent value="timeline" className="space-y-4">
@@ -813,6 +834,15 @@ export default function CandidateDetailPage() {
         open={isArchiveDialogOpen}
         onOpenChange={setIsArchiveDialogOpen}
       />
+      {openTaskComments && (
+        <TaskCommentsModal
+          open={!!openTaskComments}
+          taskId={openTaskComments.id}
+          taskTitle={openTaskComments.title}
+          candidateId={(candidate as any).id}
+          onClose={() => setOpenTaskComments(null)}
+        />
+      )}
     </div>
   );
 }

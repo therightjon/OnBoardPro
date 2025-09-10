@@ -199,6 +199,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Candidate comments
+  app.get("/api/candidates/:id/comments", requireAuth, async (req: any, res, next) => {
+    try {
+      const visibility = (req.query.visibility as string) || 'all';
+      const cursor = req.query.cursor as string | undefined;
+      const data = await storage.getCandidateComments({ candidateId: req.params.id, visibility: visibility as any, role: req.user.role, cursor });
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  app.post("/api/candidates/:id/comments", requireAuth, async (req: any, res, next) => {
+    try {
+      const { body, visibility, parentId } = req.body || {};
+      if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
+      const created = await storage.createComment({ entityType: 'candidate', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
+      res.status(201).json(created);
+    } catch (error: any) { res.status(400).json({ message: error.message || 'Unable to create comment' }); }
+  });
+
   app.post("/api/candidates", requireAuth, requireRole(["system_admin", "hr_staff", "department_admin", "division_leader", "manager"]), async (req, res, next) => {
     try {
       const user = req.user!;
@@ -466,6 +485,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Task comments
+  app.get("/api/tasks/:id/comments", requireAuth, async (req: any, res, next) => {
+    try {
+      const visibility = (req.query.visibility as string) || 'all';
+      const cursor = req.query.cursor as string | undefined;
+      const data = await storage.getTaskComments({ taskId: req.params.id, visibility: visibility as any, role: req.user.role, cursor });
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  app.post("/api/tasks/:id/comments", requireAuth, async (req: any, res, next) => {
+    try {
+      const { body, visibility, parentId } = req.body || {};
+      if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
+      const created = await storage.createComment({ entityType: 'task', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
+      res.status(201).json(created);
+    } catch (error: any) { res.status(400).json({ message: error.message || 'Unable to create comment' }); }
+  });
+
   app.post("/api/tasks", requireAuth, async (req, res, next) => {
     try {
       // Validate candidate_id is required
@@ -648,6 +686,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       next(error);
     }
+  });
+
+  // Comment item routes
+  app.patch("/api/comments/:id", requireAuth, async (req: any, res, next) => {
+    try {
+      const { body } = req.body || {};
+      if (!body) return res.status(400).json({ message: 'body is required' });
+      const updated = await storage.editComment({ id: req.params.id, userId: req.user.id, userRole: req.user.role, body });
+      res.json(updated);
+    } catch (error: any) { res.status(400).json({ message: error.message || 'Unable to edit comment' }); }
+  });
+
+  app.delete("/api/comments/:id", requireAuth, async (req: any, res, next) => {
+    try {
+      await storage.deleteComment({ id: req.params.id, userId: req.user.id, userRole: req.user.role });
+      res.sendStatus(204);
+    } catch (error: any) { res.status(400).json({ message: error.message || 'Unable to delete comment' }); }
+  });
+
+  // Comment stats
+  app.get("/api/candidates/:id/comment-stats", requireAuth, async (req: any, res, next) => {
+    try {
+      const stats = await storage.getCommentStats({ candidateId: req.params.id, role: req.user.role });
+      res.json(stats);
+    } catch (error) { next(error); }
   });
 
   app.get("/api/templates/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
