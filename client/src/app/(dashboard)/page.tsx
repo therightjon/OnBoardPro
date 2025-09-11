@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Progress } from "@/shared/components/ui/progress";
 import { 
@@ -213,54 +214,79 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="p-3 xs:p-4 sm:p-6 pt-0 max-w-full">
-            <div className="space-y-4">
-              <div className="flex items-start space-x-3">
+            <div className="space-y-2">
+              <div className="flex items-start gap-3 p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0">
                   <UserPlus className="text-accent text-sm" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground">New candidate <span className="font-medium">Sarah Johnson</span> added</p>
-                  <p className="text-xs text-muted-foreground">2 hours ago</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 w-full">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm text-foreground truncate">New candidate <span className="font-medium">Sarah Johnson</span> added</p>
+                      <Badge variant="secondary" className="shrink-0">New</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground whitespace-nowrap sm:ml-2">2 hours ago</p>
+                  </div>
                 </div>
               </div>
               
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start gap-3 p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                   <CheckCircle className="text-primary text-sm" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground">Task completed: <span className="font-medium">Background Check</span></p>
-                  <p className="text-xs text-muted-foreground">4 hours ago</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 w-full">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm text-foreground truncate">Task completed: <span className="font-medium">Background Check</span></p>
+                      <Badge className="shrink-0">Completed</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground whitespace-nowrap sm:ml-2">4 hours ago</p>
+                  </div>
                 </div>
               </div>
               
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start gap-3 p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="w-8 h-8 bg-chart-3/10 rounded-full flex items-center justify-center flex-shrink-0">
                   <ArrowRight className="text-chart-3 text-sm" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground"><span className="font-medium">Michael Chen</span> moved to Offer stage</p>
-                  <p className="text-xs text-muted-foreground">6 hours ago</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 w-full">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm text-foreground truncate"><span className="font-medium">Michael Chen</span> moved to Offer stage</p>
+                      <Badge variant="outline" className="shrink-0">Stage</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground whitespace-nowrap sm:ml-2">6 hours ago</p>
+                  </div>
                 </div>
               </div>
               
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start gap-3 p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="w-8 h-8 bg-destructive/10 rounded-full flex items-center justify-center flex-shrink-0">
                   <CircleAlert className="text-destructive text-sm" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground">Task overdue: <span className="font-medium">Reference Check</span></p>
-                  <p className="text-xs text-muted-foreground">1 day ago</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 w-full">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm text-foreground truncate">Task overdue: <span className="font-medium">Reference Check</span></p>
+                      <Badge variant="destructive" className="shrink-0">Overdue</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground whitespace-nowrap sm:ml-2">1 day ago</p>
+                  </div>
                 </div>
               </div>
               
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start gap-3 p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="w-8 h-8 bg-chart-2/10 rounded-full flex items-center justify-center flex-shrink-0">
                   <ClipboardList className="text-chart-2 text-sm" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground">Template applied: <span className="font-medium">Faculty - Base</span></p>
-                  <p className="text-xs text-muted-foreground">2 days ago</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 w-full">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm text-foreground truncate">Template applied: <span className="font-medium">Faculty - Base</span></p>
+                      <Badge variant="secondary" className="shrink-0">Template</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground whitespace-nowrap sm:ml-2">2 days ago</p>
+                  </div>
                 </div>
               </div>
             </div>
