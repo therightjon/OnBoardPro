@@ -23,6 +23,7 @@ import { RouteGuard } from "@/shared/components/route-guard";
 import { TemplateStatusControl } from "@/features/templates/components/template-status-control";
 import { TemplateStagesList } from "@/features/templates/components/TemplateStagesList";
 import { PerStageMiniBar } from "@/features/templates/components/PerStageMiniBar";
+import { AutoSelectCombobox } from "@/shared/components/inputs/AutoSelectCombobox";
 import type { 
   Template, 
   TemplateTask,
@@ -663,23 +664,23 @@ export default function TemplateDetailPage() {
                     name="taskDefId"
                     render={({ field }: { field: any }) => (
                       <FormItem>
-                        <FormLabel>Task Definition</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-task-definition">
-                              <SelectValue placeholder="Select task definition" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {taskDefinitions
-                              .filter(td => !td.archived)
-                              .map((taskDef) => (
-                              <SelectItem key={taskDef.id} value={taskDef.id}>
-                                {taskDef.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <AutoSelectCombobox
+                            label="Task Definition"
+                            value={field.value || ""}
+                            onChange={(id) => field.onChange(id || "")}
+                            fetchItems={async (q: string) => {
+                              const ql = q.trim().toLowerCase()
+                              return taskDefinitions
+                                .filter(td => !td.archived)
+                                .filter(td => td.name.toLowerCase().includes(ql))
+                                .map(td => ({ id: td.id, name: td.name }))
+                            }}
+                            placeholder="Search task definitions..."
+                            emptyText="No task definitions found."
+                            data-testid="select-task-definition"
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -690,24 +691,25 @@ export default function TemplateDetailPage() {
                     name="stageId"
                     render={({ field }: { field: any }) => (
                       <FormItem>
-                        <FormLabel>Hiring Stage</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-stage">
-                              <SelectValue placeholder="Select hiring stage" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {templateStages.map((templateStage) => {
-                              const stage = hiringStages.find(s => s.id === templateStage.stageId);
-                              return stage ? (
-                                <SelectItem key={stage.id} value={stage.id}>
-                                  {stage.name}
-                                </SelectItem>
-                              ) : null;
-                            })}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <AutoSelectCombobox
+                            label="Hiring Stage"
+                            value={field.value || ""}
+                            onChange={(id) => field.onChange(id || "")}
+                            fetchItems={async (q: string) => {
+                              const ql = q.trim().toLowerCase()
+                              const stages = templateStages
+                                .map(ts => hiringStages.find(s => s.id === ts.stageId))
+                                .filter((s): s is HiringStage => !!s)
+                                .filter(s => s.name.toLowerCase().includes(ql))
+                                .map(s => ({ id: s.id, name: s.name }))
+                              return stages
+                            }}
+                            placeholder="Search stages..."
+                            emptyText="No stages available."
+                            data-testid="select-stage"
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -798,26 +800,23 @@ export default function TemplateDetailPage() {
                       name="defaultAssigneeId"
                       render={({ field }: { field: any }) => (
                         <FormItem>
-                          <FormLabel>Default Assignee (Optional)</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-default-assignee">
-                                <SelectValue placeholder="Select assignee" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {users.length === 0 ? (
-                                <SelectItem disabled value="__no_users__">No users available.</SelectItem>
-                              ) : (
-                                users.map((user) => (
-                                  <SelectItem key={user.id} value={user.id}>
-                                    {`${user.firstName} ${user.lastName}`}
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <AutoSelectCombobox
+                              label="Default Assignee (Optional)"
+                              value={field.value || "none"}
+                              onChange={(id) => field.onChange(id || "none")}
+                              fetchItems={async (q: string) => {
+                                const ql = q.trim().toLowerCase()
+                                const list = users
+                                  .map(u => ({ id: u.id, name: `${u.firstName} ${u.lastName}` }))
+                                  .filter(u => u.name.toLowerCase().includes(ql))
+                                return [{ id: "none", name: "None" }, ...list]
+                              }}
+                              placeholder="Search assignees..."
+                              emptyText="No users available."
+                              data-testid="select-default-assignee"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -828,26 +827,23 @@ export default function TemplateDetailPage() {
                       name="defaultPriorityId"
                       render={({ field }: { field: any }) => (
                         <FormItem>
-                          <FormLabel>Default Priority (Optional)</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-default-priority">
-                                <SelectValue placeholder="Select priority" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {taskPriorities.length === 0 ? (
-                                <SelectItem disabled value="__no_priorities__">No priorities available.</SelectItem>
-                              ) : (
-                                taskPriorities.map((priority) => (
-                                  <SelectItem key={priority.id} value={priority.id}>
-                                    {priority.name}
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <AutoSelectCombobox
+                              label="Default Priority (Optional)"
+                              value={field.value || "none"}
+                              onChange={(id) => field.onChange(id || "none")}
+                              fetchItems={async (q: string) => {
+                                const ql = q.trim().toLowerCase()
+                                const list = taskPriorities
+                                  .map(p => ({ id: p.id, name: p.name }))
+                                  .filter(p => p.name.toLowerCase().includes(ql))
+                                return [{ id: "none", name: "None" }, ...list]
+                              }}
+                              placeholder="Search priorities..."
+                              emptyText="No priorities available."
+                              data-testid="select-default-priority"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -858,26 +854,23 @@ export default function TemplateDetailPage() {
                       name="defaultCategoryId"
                       render={({ field }: { field: any }) => (
                         <FormItem>
-                          <FormLabel>Default Category (Optional)</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-default-category">
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {taskCategories.length === 0 ? (
-                                <SelectItem disabled value="__no_categories__">No categories available.</SelectItem>
-                              ) : (
-                                taskCategories.map((category) => (
-                                  <SelectItem key={category.id} value={category.id}>
-                                    {category.name}
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <AutoSelectCombobox
+                              label="Default Category (Optional)"
+                              value={field.value || "none"}
+                              onChange={(id) => field.onChange(id || "none")}
+                              fetchItems={async (q: string) => {
+                                const ql = q.trim().toLowerCase()
+                                const list = taskCategories
+                                  .map(c => ({ id: c.id, name: c.name }))
+                                  .filter(c => c.name.toLowerCase().includes(ql))
+                                return [{ id: "none", name: "None" }, ...list]
+                              }}
+                              placeholder="Search categories..."
+                              emptyText="No categories available."
+                              data-testid="select-default-category"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -913,61 +906,55 @@ export default function TemplateDetailPage() {
               </DialogHeader>
               <Form {...editForm}>
                 <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-                  <FormField
-                    control={editForm.control}
-                    name="taskDefId"
-                    render={({ field }: { field: any }) => (
-                      <FormItem>
-                        <FormLabel>Task Definition</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                    <FormField
+                      control={editForm.control}
+                      name="taskDefId"
+                      render={({ field }: { field: any }) => (
+                        <FormItem>
                           <FormControl>
-                            <SelectTrigger data-testid="edit-select-task-definition">
-                              <SelectValue placeholder="Select task definition" />
-                            </SelectTrigger>
+                            <AutoSelectCombobox
+                              label="Task Definition"
+                              value={field.value || ""}
+                              onChange={(id) => field.onChange(id || "")}
+                              fetchItems={async (q: string) => {
+                                const ql = q.trim().toLowerCase()
+                                const list = taskDefinitions
+                                  .filter(td => !td.archived)
+                                  .filter(td => td.name.toLowerCase().includes(ql))
+                                  .map(td => ({ id: td.id, name: td.name }))
+                                return list
+                              }}
+                              placeholder="Search task definitions..."
+                              emptyText="No task definitions available."
+                              data-testid="edit-select-task-definition"
+                            />
                           </FormControl>
-                          <SelectContent>
-                            {taskDefinitions.filter(td => !td.archived).length === 0 ? (
-                              <SelectItem disabled value="__no_taskdefs__">No task definitions available.</SelectItem>
-                            ) : (
-                              taskDefinitions
-                                .filter(td => !td.archived)
-                                .map((taskDef) => (
-                                  <SelectItem key={taskDef.id} value={taskDef.id}>
-                                    {taskDef.name}
-                                  </SelectItem>
-                                ))
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
                   <FormField
                     control={editForm.control}
                     name="stageId"
                     render={({ field }: { field: any }) => (
                       <FormItem>
-                        <FormLabel>Hiring Stage</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="edit-select-stage">
-                              <SelectValue placeholder="Select hiring stage" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {hiringStages.length === 0 ? (
-                              <SelectItem disabled value="__no_stages__">No stages available.</SelectItem>
-                            ) : (
-                              hiringStages.map((stage) => (
-                                <SelectItem key={stage.id} value={stage.id}>
-                                  {stage.name}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <AutoSelectCombobox
+                            label="Hiring Stage"
+                            value={field.value || ""}
+                            onChange={(id) => field.onChange(id || "")}
+                            fetchItems={async (q: string) => {
+                              const ql = q.trim().toLowerCase()
+                              return hiringStages
+                                .filter(s => s.name.toLowerCase().includes(ql))
+                                .map(s => ({ id: s.id, name: s.name }))
+                            }}
+                            placeholder="Search stages..."
+                            emptyText="No stages available."
+                            data-testid="edit-select-stage"
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1058,22 +1045,23 @@ export default function TemplateDetailPage() {
                       name="defaultAssigneeId"
                       render={({ field }: { field: any }) => (
                         <FormItem>
-                          <FormLabel>Default Assignee (Optional)</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="edit-select-default-assignee">
-                                <SelectValue placeholder="Select assignee" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {users.map((user) => (
-                                <SelectItem key={user.id} value={user.id}>
-                                  {`${user.firstName} ${user.lastName}`}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <AutoSelectCombobox
+                              label="Default Assignee (Optional)"
+                              value={field.value || "none"}
+                              onChange={(id) => field.onChange(id || "none")}
+                              fetchItems={async (q: string) => {
+                                const ql = q.trim().toLowerCase()
+                                const list = users
+                                  .map(u => ({ id: u.id, name: `${u.firstName} ${u.lastName}` }))
+                                  .filter(u => u.name.toLowerCase().includes(ql))
+                                return [{ id: "none", name: "None" }, ...list]
+                              }}
+                              placeholder="Search assignees..."
+                              emptyText="No users found."
+                              data-testid="edit-select-default-assignee"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1084,22 +1072,23 @@ export default function TemplateDetailPage() {
                       name="defaultPriorityId"
                       render={({ field }: { field: any }) => (
                         <FormItem>
-                          <FormLabel>Default Priority (Optional)</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="edit-select-default-priority">
-                                <SelectValue placeholder="Select priority" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {taskPriorities.map((priority) => (
-                                <SelectItem key={priority.id} value={priority.id}>
-                                  {priority.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <AutoSelectCombobox
+                              label="Default Priority (Optional)"
+                              value={field.value || "none"}
+                              onChange={(id) => field.onChange(id || "none")}
+                              fetchItems={async (q: string) => {
+                                const ql = q.trim().toLowerCase()
+                                const list = taskPriorities
+                                  .map(p => ({ id: p.id, name: p.name }))
+                                  .filter(p => p.name.toLowerCase().includes(ql))
+                                return [{ id: "none", name: "None" }, ...list]
+                              }}
+                              placeholder="Search priorities..."
+                              emptyText="No priorities found."
+                              data-testid="edit-select-default-priority"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1110,22 +1099,23 @@ export default function TemplateDetailPage() {
                       name="defaultCategoryId"
                       render={({ field }: { field: any }) => (
                         <FormItem>
-                          <FormLabel>Default Category (Optional)</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="edit-select-default-category">
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {taskCategories.map((category) => (
-                                <SelectItem key={category.id} value={category.id}>
-                                  {category.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <AutoSelectCombobox
+                              label="Default Category (Optional)"
+                              value={field.value || "none"}
+                              onChange={(id) => field.onChange(id || "none")}
+                              fetchItems={async (q: string) => {
+                                const ql = q.trim().toLowerCase()
+                                const list = taskCategories
+                                  .map(c => ({ id: c.id, name: c.name }))
+                                  .filter(c => c.name.toLowerCase().includes(ql))
+                                return [{ id: "none", name: "None" }, ...list]
+                              }}
+                              placeholder="Search categories..."
+                              emptyText="No categories found."
+                              data-testid="edit-select-default-category"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1493,21 +1483,20 @@ function AddStageForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Stage Selection */}
       <div>
-        <label htmlFor="stageSelect" className="block text-sm font-medium mb-2">
-          Select Stage to Add *
-        </label>
-        <Select value={selectedStageId} onValueChange={setSelectedStageId}>
-          <SelectTrigger data-testid="select-add-stage">
-            <SelectValue placeholder="Choose a hiring stage" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableStages.map((stage) => (
-              <SelectItem key={stage.id} value={stage.id}>
-                {stage.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <AutoSelectCombobox
+          label="Select Stage to Add *"
+          value={selectedStageId || ""}
+          onChange={(id) => setSelectedStageId(id || "")}
+          fetchItems={async (q: string) => {
+            const ql = q.trim().toLowerCase()
+            return availableStages
+              .filter(s => s.name.toLowerCase().includes(ql))
+              .map(s => ({ id: s.id, name: s.name }))
+          }}
+          placeholder="Search stages..."
+          emptyText="No stages available."
+          data-testid="select-add-stage"
+        />
       </div>
 
       {/* Task Selection - Only show if stage is selected */}
