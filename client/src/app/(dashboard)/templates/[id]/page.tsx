@@ -394,6 +394,16 @@ export default function TemplateDetailPage() {
       defaultCategoryId: data.defaultCategoryId === "none" ? undefined : data.defaultCategoryId,
       isRequired: !!data.isRequired,
     };
+
+    // Race-condition guard: prevent adding a task definition already on the template
+    if (existingTaskDefIds.has(processedData.taskDefId)) {
+      toast({
+        title: "Cannot add task",
+        description: "This task definition is already in the template.",
+        variant: "destructive",
+      });
+      return;
+    }
     createTemplateTaskMutation.mutate(processedData);
   };
 
@@ -417,6 +427,12 @@ export default function TemplateDetailPage() {
     const taskDef = taskDefinitions.find(td => td.id === taskDefId);
     return taskDef?.name || "Unknown Task";
   };
+
+  // Existing task definition IDs for this template (used to prevent duplicates)
+  const existingTaskDefIds = new Set(templateTasks.map(t => t.taskDefId));
+  const availableTaskDefinitionsForAdd = taskDefinitions.filter(
+    (td) => !td.archived && !existingTaskDefIds.has(td.id)
+  );
 
   // Function to check if a task is the last one in its stage
   const isLastTaskInStage = (task: TemplateTask): boolean => {
@@ -673,12 +689,14 @@ export default function TemplateDetailPage() {
                             fetchItems={async (q: string) => {
                               const ql = q.trim().toLowerCase()
                               return taskDefinitions
-                                .filter(td => !td.archived)
+                                .filter(td => !td.archived && !existingTaskDefIds.has(td.id))
                                 .filter(td => td.name.toLowerCase().includes(ql))
                                 .map(td => ({ id: td.id, name: td.name }))
                             }}
                             placeholder="Search task definitions..."
-                            emptyText="No task definitions found."
+                            emptyText={availableTaskDefinitionsForAdd.length === 0 
+                              ? "All task definitions are already in this template"
+                              : "No task definitions found."}
                             data-testid="select-task-definition"
                           />
                         </FormControl>
@@ -890,7 +908,10 @@ export default function TemplateDetailPage() {
                     <Button type="button" variant="outline" onClick={() => setIsAddTaskDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={createTemplateTaskMutation.isPending}>
+                    <Button 
+                      type="submit" 
+                      disabled={createTemplateTaskMutation.isPending || (!!form.watch("taskDefId") && existingTaskDefIds.has(form.watch("taskDefId")))}
+                    >
                       {createTemplateTaskMutation.isPending ? "Adding..." : "Add Task"}
                     </Button>
                   </div>
@@ -1425,6 +1446,7 @@ function AddStageForm({
   createStageWithTaskMutation, 
   onClose 
 }: AddStageFormProps) {
+  const { toast } = useToast();
   const [selectedStageId, setSelectedStageId] = useState("");
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [taskSearch, setTaskSearch] = useState("");
@@ -1456,11 +1478,32 @@ function AddStageForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStageId || selectedTaskIds.length === 0) return;
+
+    // Race-condition guard: exclude tasks that have been added since dialog opened
+    const existingIds = new Set(templateTasks.map(t => t.taskDefId));
+    const uniqueTaskIds = selectedTaskIds.filter(id => !existingIds.has(id));
+
+    if (uniqueTaskIds.length === 0) {
+      toast({
+        title: "Nothing to add",
+        description: "All selected tasks are already in this template.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (uniqueTaskIds.length !== selectedTaskIds.length) {
+      const removed = selectedTaskIds.length - uniqueTaskIds.length;
+      toast({
+        title: "Some tasks skipped",
+        description: `${removed} already-added task(s) were excluded.`,
+      });
+    }
     
     createStageWithTaskMutation.mutate(
       { 
         stageId: selectedStageId, 
-        taskDefIds: selectedTaskIds,
+        taskDefIds: uniqueTaskIds,
         dueRuleType,
         dueRuleValue: dueRuleType === 'on_start_date' ? null : dueRuleValue,
         priorityId: priorityId || null,
@@ -1482,7 +1525,7 @@ function AddStageForm({
     );
   };
 
-  const isFormValid = selectedStageId && selectedTaskIds.length > 0;
+  const isFormValid = selectedStageId && selectedTaskIds.some(id => !existingTaskDefIds.has(id));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -1537,7 +1580,11 @@ function AddStageForm({
               </div>
             ))}
             {filteredTaskDefinitions.length === 0 && (
-              <div className="text-sm text-muted-foreground px-1 py-1">No tasks match your search.</div>
+              <div className="text-sm text-muted-foreground px-1 py-1">
+                {availableTaskDefinitions.length === 0
+                  ? "All tasks are already in this template"
+                  : "No tasks match your search."}
+              </div>
             )}
           </div>
           {selectedTaskIds.length > 0 && (
