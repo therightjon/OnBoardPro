@@ -1889,7 +1889,7 @@ export default function SettingsPage() {
                       placeholder="Search users by name or email..."
                       value={userSearchTerm}
                       onChange={(e) => setUserSearchTerm(e.target.value)}
-                      className="w-full sm:max-w-sm"
+                      className="w-full sm:max-w-sm lg:max-w-full"
                       data-testid="input-search-users"
                     />
                   </div>

@@ -45,7 +45,8 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   return (
     <div 
       className={cn(
-        "w-full h-full bg-card flex flex-col",
+        // Full-height column; entire sidebar scrolls as needed
+        "w-full h-full bg-card flex flex-col overflow-y-auto",
         className
       )}
       data-testid="sidebar"
@@ -62,7 +63,8 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         </div>
       </div>
       
-      <nav className="p-4 space-y-2 flex-1">
+      {/* Nav sits directly above the user panel; tighter spacing */}
+      <nav className="p-3 space-y-1">
         {navigation.map((item) => {
           const isActive = location === item.href || 
             (item.href !== "/" && item.href !== "/tasks" && location.startsWith(item.href));
@@ -88,8 +90,9 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         })}
       </nav>
 
-      <div className="p-4 border-t border-border">
-        <div className="flex items-center space-x-3 mb-3">
+      {/* User panel directly below nav with tighter spacing */}
+      <div className="px-3 pb-3 pt-2 border-t border-border">
+        <div className="flex items-center space-x-3 mb-2">
           <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
             <span className="text-primary-foreground text-sm font-medium" data-testid="text-user-initials">
               {((user.firstName || '').charAt(0) + (user.lastName || '').charAt(0)).toUpperCase()}

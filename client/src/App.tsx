@@ -51,7 +51,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       
       <div className="min-h-screen grid md:grid-cols-[260px_1fr]">
         {/* Sidebar for desktop */}
-        <aside className="hidden md:flex border-r">
+        <aside className="hidden md:flex border-r md:sticky md:top-0 md:h-screen">
           <Sidebar />
         </aside>
 
