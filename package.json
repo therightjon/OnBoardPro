@@ -9,7 +9,8 @@
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push",
-    "db:import": "tsx scripts/importDatabaseExport.ts database_export.sql"
+    "db:import": "tsx scripts/importDatabaseExport.ts database_export.sql",
+    "db:run-sql": "node scripts/runSqlFiles.mjs"
   ,"user:set-password": "tsx scripts/setPassword.ts"
   },
   "dependencies": {
