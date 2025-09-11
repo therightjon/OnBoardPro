@@ -597,6 +597,7 @@ export default function TemplateDetailPage() {
                 templateId={templateId!} 
                 hiringStages={hiringStages}
                 templateStages={templateStages}
+                templateTasks={templateTasks}
                 taskDefinitions={taskDefinitions}
                 taskPriorities={taskPriorities}
                 taskCategories={taskCategories}
@@ -1403,6 +1404,7 @@ interface AddStageFormProps {
   templateId: string;
   hiringStages: HiringStage[];
   templateStages: TemplateStage[];
+  templateTasks: TemplateTask[];
   taskDefinitions: TaskDefinition[];
   taskPriorities: TaskPriority[];
   taskCategories: TaskCategory[];
@@ -1415,6 +1417,7 @@ function AddStageForm({
   templateId, 
   hiringStages, 
   templateStages, 
+  templateTasks,
   taskDefinitions,
   taskPriorities,
   taskCategories,
@@ -1435,7 +1438,9 @@ function AddStageForm({
     !templateStages.some(ts => ts.stageId === stage.id)
   );
 
-  const availableTaskDefinitions = taskDefinitions.filter(td => !td.archived);
+  // Exclude task definitions that are already added to this template
+  const existingTaskDefIds = new Set(templateTasks.map(t => t.taskDefId));
+  const availableTaskDefinitions = taskDefinitions.filter(td => !td.archived && !existingTaskDefIds.has(td.id));
   const filteredTaskDefinitions = availableTaskDefinitions.filter(td =>
     td.name.toLowerCase().includes(taskSearch.trim().toLowerCase())
   );
