@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Button } from '@/shared/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
 import { Label } from '@/shared/components/ui/label';
 import { Switch } from '@/shared/components/ui/switch';
 import { useAuth } from '@/features/auth/hooks/use-auth';
@@ -80,9 +80,12 @@ export function CommentComposer({ entityType, entityId, defaultVisibility, locke
         </Button>
       </div>
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent className='max-h-min' role="dialog">
+        <DialogContent className='max-h-min'>
           <DialogHeader>
             <DialogTitle>Make this comment external?</DialogTitle>
+            <DialogDescription className="sr-only">
+              Confirm changing comment visibility from internal to external.
+            </DialogDescription>
           </DialogHeader>
           <div className="text-sm">You're changing visibility to External. Proceed?</div>
           <div className="flex justify-end gap-2 mt-4">
