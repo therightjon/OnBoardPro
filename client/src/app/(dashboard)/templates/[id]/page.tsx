@@ -1434,6 +1434,7 @@ function AddStageForm({
 }: AddStageFormProps) {
   const [selectedStageId, setSelectedStageId] = useState("");
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [taskSearch, setTaskSearch] = useState("");
   const [dueRuleType, setDueRuleType] = useState("on_start_date");
   const [dueRuleValue, setDueRuleValue] = useState<number | string>("");
   const [priorityId, setPriorityId] = useState("");
@@ -1445,6 +1446,9 @@ function AddStageForm({
   );
 
   const availableTaskDefinitions = taskDefinitions.filter(td => !td.archived);
+  const filteredTaskDefinitions = availableTaskDefinitions.filter(td =>
+    td.name.toLowerCase().includes(taskSearch.trim().toLowerCase())
+  );
 
   const handleTaskSelection = (taskId: string) => {
     setSelectedTaskIds(prev => 
@@ -1512,8 +1516,19 @@ function AddStageForm({
           <label className="block text-sm font-medium mb-2">
             Select Tasks to Add * (at least one required)
           </label>
-          <div className="border rounded-md max-h-40 overflow-y-auto p-2 space-y-2">
-            {availableTaskDefinitions.map((taskDef) => (
+          {/* Search input for tasks */}
+          <div className="mb-2">
+            <Input
+              value={taskSearch}
+              onChange={(e) => setTaskSearch(e.target.value)}
+              placeholder="Search tasks..."
+              aria-label="Search tasks to add"
+              className="h-9"
+              type="search"
+            />
+          </div>
+          <div className="border rounded-md max-h-36 sm:max-h-48 overflow-y-auto p-2 space-y-2">
+            {filteredTaskDefinitions.map((taskDef) => (
               <div key={taskDef.id} className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -1527,6 +1542,9 @@ function AddStageForm({
                 </label>
               </div>
             ))}
+            {filteredTaskDefinitions.length === 0 && (
+              <div className="text-sm text-muted-foreground px-1 py-1">No tasks match your search.</div>
+            )}
           </div>
           {selectedTaskIds.length > 0 && (
             <p className="text-xs text-muted-foreground mt-1">
