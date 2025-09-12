@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -7,7 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/shared/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { Plus, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, Archive, RotateCcw } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
 import { NewCandidateDialog } from "@/features/candidates/components/new-candidate-dialog";
 import { ArchiveCandidateDialog } from "@/features/candidates/components/archive-candidate-dialog";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -22,6 +31,7 @@ type CandidateWithStage = Candidate & {
 };
 
 export default function CandidatesPage() {
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -32,6 +42,7 @@ export default function CandidatesPage() {
   const [isNewCandidateDialogOpen, setIsNewCandidateDialogOpen] = useState(false);
   const [archiveDialogCandidate, setArchiveDialogCandidate] = useState<any>(null);
   const { user } = useAuth();
+  const [showNoPermission, setShowNoPermission] = useState(false);
 
   const { data: candidates = [], isLoading } = useQuery<CandidateWithStage[]>({
     queryKey: ["/api/candidates", showArchived],
@@ -127,6 +138,41 @@ export default function CandidatesPage() {
     }
     return sortOrder === "asc" ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />;
   };
+
+  // Open dialog from query param (?new=1 or ?new=true)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const wantNew = params.get("new");
+      if (wantNew && ["1", "true", "yes"].includes(wantNew.toLowerCase())) {
+        const canCreate = user && [
+          "system_admin",
+          "hr_staff",
+          "department_admin",
+          "division_leader",
+          "manager",
+        ].includes(user.role);
+        if (canCreate) {
+          setIsNewCandidateDialogOpen(true);
+        } else {
+          setShowNoPermission(true);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [user]);
+
+  // Clean the query once opened to keep URL tidy
+  useEffect(() => {
+    if (isNewCandidateDialogOpen || showNoPermission) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("new")) {
+        url.searchParams.delete("new");
+        setLocation(url.pathname + (url.search || ""), { replace: true });
+      }
+    }
+  }, [isNewCandidateDialogOpen, showNoPermission, setLocation]);
 
   if (isLoading) {
     return (
@@ -510,6 +556,21 @@ export default function CandidatesPage() {
           if (!open) setArchiveDialogCandidate(null);
         }}
       />
+
+      {/* No-permission notice if new candidate requested via URL */}
+      <AlertDialog open={showNoPermission} onOpenChange={setShowNoPermission}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Insufficient Permissions</AlertDialogTitle>
+            <AlertDialogDescription>
+              You don’t have permission to create candidates. Please contact an administrator if you believe this is a mistake.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowNoPermission(false)}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

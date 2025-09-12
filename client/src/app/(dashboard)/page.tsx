@@ -19,8 +19,23 @@ import {
   Laptop,
   UsersIcon
 } from "lucide-react";
+import { useLocation } from "wouter";
+import { useState } from "react";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import { 
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogAction,
+} from "@/shared/components/ui/alert-dialog";
 
 export default function Dashboard() {
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const [showNoPermission, setShowNoPermission] = useState(false);
   const { data: candidates = [] } = useQuery<any[]>({
     queryKey: ["/api/candidates"],
   });
@@ -64,7 +79,25 @@ export default function Dashboard() {
             <Download className="w-4 h-4 xs:mr-2" />
             <span className="hidden xs:inline">Export Report</span>
           </Button>
-          <Button size="sm" className="min-h-[44px] px-3 xs:px-4" data-testid="button-new-candidate">
+          <Button
+            size="sm"
+            className="min-h-[44px] px-3 xs:px-4"
+            data-testid="button-new-candidate"
+            onClick={() => {
+              const canCreate = user && [
+                'system_admin',
+                'hr_staff',
+                'department_admin',
+                'division_leader',
+                'manager',
+              ].includes(user.role);
+              if (canCreate) {
+                setLocation('/candidates?new=1');
+              } else {
+                setShowNoPermission(true);
+              }
+            }}
+          >
             <Plus className="w-4 h-4 xs:mr-2" />
             <span className="hidden xs:inline">New Candidate</span>
           </Button>
@@ -421,6 +454,20 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={showNoPermission} onOpenChange={setShowNoPermission}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Insufficient Permissions</AlertDialogTitle>
+            <AlertDialogDescription>
+              You don’t have permission to create candidates. Please contact an administrator if you believe this is a mistake.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowNoPermission(false)}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
