@@ -43,11 +43,23 @@ export default function TemplatesPage() {
   const { user } = useAuth();
 
   const { data: templates = [], isLoading } = useQuery<Template[]>({
-    queryKey: ["/api/templates"],
+    // Include user id in key, but fetch base URL explicitly
+    queryKey: ["/api/templates", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/templates");
+      return res.json();
+    }
   });
 
   const { data: candidateTypes = [] } = useQuery<CandidateType[]>({
-    queryKey: ["/api/candidate-types"],
+    // Candidate types could be role-restricted in some deployments; keep consistent
+    queryKey: ["/api/candidate-types", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/candidate-types");
+      return res.json();
+    }
   });
 
   const form = useForm<TemplateForm>({

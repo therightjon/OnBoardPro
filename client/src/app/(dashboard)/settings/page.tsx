@@ -89,9 +89,15 @@ type UserForm = z.infer<typeof userSchema>;
 // Authentication Providers Card Component
 function AuthenticationProvidersCard() {
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: providers = [], isLoading, error } = useQuery({
-    queryKey: ["/api/auth/providers"],
+    queryKey: ["/api/auth/providers", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/auth/providers");
+      return res.json();
+    }
   });
 
   const toggleProviderMutation = useMutation({
@@ -330,7 +336,8 @@ export default function SettingsPage() {
 
   // Departments (include archived to support Archived Only filter)
   const { data: departments = [], isLoading: departmentsLoading, isError: departmentsError } = useQuery({
-    queryKey: ["/api/departments", { includeArchived: true }],
+    queryKey: ["/api/departments", user?.id, { includeArchived: true }],
+    enabled: !!user,
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/departments?includeArchived=true");
       return res.json();
@@ -351,7 +358,8 @@ export default function SettingsPage() {
   });
 
   const { data: divisions = [], isLoading: divisionsLoading, isError: divisionsError } = useQuery({
-    queryKey: ["/api/divisions", { includeArchived: true, v: 2 }],
+    queryKey: ["/api/divisions", user?.id, { includeArchived: true, v: 2 }],
+    enabled: !!user,
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/divisions?includeArchived=true");
       return res.json();
@@ -375,19 +383,27 @@ export default function SettingsPage() {
   });
 
   const { data: hiringStages = [], isLoading: hiringStagesLoading } = useQuery({
-    queryKey: ["/api/hiring-stages"],
-    enabled: canManageHiringStages, // Only fetch if user has permission
+    queryKey: ["/api/hiring-stages", user?.id],
+    enabled: !!user && canManageHiringStages, // Only fetch if user has permission
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/hiring-stages");
+      return res.json();
+    }
   });
 
   const { data: users = [], isLoading: usersLoading } = useQuery({
-    queryKey: ["/api/users"],
-    enabled: canManageUsers, // Only fetch if user has permission
+    queryKey: ["/api/users", user?.id],
+    enabled: !!user && canManageUsers, // Only fetch if user has permission
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/users");
+      return res.json();
+    }
   });
 
   // System settings
   const { data: systemSettings = { auto_regress_on_prior_open: false } } = useQuery({
-    queryKey: ["/api/system-settings"],
-    enabled: canManageSystem,
+    queryKey: ["/api/system-settings", user?.id],
+    enabled: !!user && canManageSystem,
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/system-settings");
       return res.json();
@@ -408,12 +424,12 @@ export default function SettingsPage() {
   // No client debug queries in production UI
 
   const { data: userTaskCount } = useQuery({
-    queryKey: ["/api/users", disablingUser?.id, "task-count"],
+    queryKey: ["/api/users", user?.id, disablingUser?.id, "task-count"],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/users/${disablingUser.id}/task-count`);
       return res.json();
     },
-    enabled: !!disablingUser?.id,
+    enabled: !!user && !!disablingUser?.id,
   });
 
   const roleBadgeBase =
@@ -1036,14 +1052,14 @@ export default function SettingsPage() {
   // Divisions filtered by selected department for the User form (server-side)
   const selectedUserDepartmentId = userForm?.watch ? userForm.watch("departmentId") : undefined;
   const { data: divisionsForUserDept = [] } = useQuery({
-    queryKey: ["/api/divisions", { departmentId: selectedUserDepartmentId }],
+    queryKey: ["/api/divisions", user?.id, { departmentId: selectedUserDepartmentId }],
     queryFn: async () => {
       if (!selectedUserDepartmentId) return [] as any[];
       const params = new URLSearchParams({ departmentId: selectedUserDepartmentId, limit: '100' });
       const res = await apiRequest("GET", `/api/divisions?${params.toString()}`);
       return res.json();
     },
-    enabled: !!selectedUserDepartmentId,
+    enabled: !!user && !!selectedUserDepartmentId,
   });
 
   return (

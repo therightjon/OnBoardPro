@@ -45,22 +45,27 @@ export default function CandidatesPage() {
   const [showNoPermission, setShowNoPermission] = useState(false);
 
   const { data: candidates = [], isLoading } = useQuery<CandidateWithStage[]>({
-    queryKey: ["/api/candidates", showArchived],
+    // Include user id to avoid cross-user cache reuse when list visibility differs by role
+    queryKey: ["/api/candidates", user?.id, showArchived],
     queryFn: async ({ queryKey }) => {
       const url = new URL(`${queryKey[0]}`, window.location.origin);
-      url.searchParams.set('includeArchived', String(queryKey[1]));
+      // queryKey: [path, userId, showArchived]
+      url.searchParams.set('includeArchived', String(queryKey[2]));
       const response = await fetch(url.toString(), { credentials: 'include' });
       if (!response.ok) throw new Error(`${response.status}: ${response.statusText}`);
       return response.json();
     },
+    enabled: !!user,
   });
 
   const { data: candidateTypes = [] } = useQuery<CandidateType[]>({
-    queryKey: ["/api/candidate-types"],
+    queryKey: ["/api/candidate-types", user?.id],
+    enabled: !!user,
   });
 
   const { data: hiringStages = [] } = useQuery<HiringStage[]>({
-    queryKey: ["/api/hiring-stages"],
+    queryKey: ["/api/hiring-stages", user?.id],
+    enabled: !!user,
   });
 
   const filteredAndSortedCandidates = candidates

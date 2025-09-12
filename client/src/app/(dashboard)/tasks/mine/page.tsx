@@ -32,7 +32,8 @@ export default function MyTasksPage() {
   const { user } = useAuth();
 
   const { data: myTasks = [], isLoading } = useQuery<CandidateTask[]>({
-    queryKey: ["/api/tasks/mine", { showArchived, showCanceled, showCompleted }],
+    // Include user id in key to prevent cross-user cache reuse
+    queryKey: ["/api/tasks/mine", user?.id, { showArchived, showCanceled, showCompleted }],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (showArchived) params.append('showArchived', '1');
@@ -44,7 +45,8 @@ export default function MyTasksPage() {
         throw new Error('Network response was not ok');
       }
       return response.json();
-    }
+    },
+    enabled: !!user,
   });
 
   const { data: candidates = [] } = useQuery<Candidate[]>({
@@ -53,12 +55,14 @@ export default function MyTasksPage() {
 
   // User preferences query
   const { data: preferences } = useQuery({
-    queryKey: ["/api/me/preferences"],
+    // Include user id in key to avoid sharing prefs between sessions
+    queryKey: ["/api/me/preferences", user?.id],
     queryFn: async () => {
       const response = await fetch("/api/me/preferences");
       if (!response.ok) throw new Error('Failed to fetch preferences');
       return response.json();
-    }
+    },
+    enabled: !!user,
   });
 
   // Update preferences mutation

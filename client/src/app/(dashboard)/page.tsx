@@ -37,11 +37,25 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [showNoPermission, setShowNoPermission] = useState(false);
   const { data: candidates = [] } = useQuery<any[]>({
-    queryKey: ["/api/candidates"],
+    // Include user id in the key, but fetch base URL explicitly
+    queryKey: ["/api/candidates", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await fetch('/api/candidates', { credentials: 'include' });
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json();
+    }
   });
 
   const { data: tasks = [] } = useQuery<any[]>({
-    queryKey: ["/api/tasks/dashboard"],
+    // Include user id in the key, but fetch base URL explicitly
+    queryKey: ["/api/tasks/dashboard", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await fetch('/api/tasks/dashboard', { credentials: 'include' });
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json();
+    }
   });
 
   // Calculate metrics

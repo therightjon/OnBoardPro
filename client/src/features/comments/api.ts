@@ -1,9 +1,12 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest, parseJsonSafe } from '@/lib/queryClient';
+import { useAuth } from '@/features/auth/hooks/use-auth';
 
 export function useCandidateComments(candidateId: string, visibility: 'all'|'internal'|'external') {
+  const { user } = useAuth();
   return useInfiniteQuery({
-    queryKey: ['/api/candidates', candidateId, 'comments', { visibility }],
+    // Include user id to avoid cross-user cache reuse of visibility-scoped data
+    queryKey: ['/api/candidates', candidateId, 'comments', { visibility }, user?.id],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
       if (visibility !== 'all') params.set('visibility', visibility);
@@ -12,13 +15,15 @@ export function useCandidateComments(candidateId: string, visibility: 'all'|'int
       return parseJsonSafe(res);
     },
     getNextPageParam: (last) => last.nextCursor ?? undefined,
-    enabled: !!candidateId
+    enabled: !!candidateId && !!user,
   });
 }
 
 export function useTaskComments(taskId: string, visibility: 'all'|'internal'|'external') {
+  const { user } = useAuth();
   return useInfiniteQuery({
-    queryKey: ['/api/tasks', taskId, 'comments', { visibility }],
+    // Include user id to avoid cross-user cache reuse of visibility-scoped data
+    queryKey: ['/api/tasks', taskId, 'comments', { visibility }, user?.id],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
       if (visibility !== 'all') params.set('visibility', visibility);
@@ -27,14 +32,16 @@ export function useTaskComments(taskId: string, visibility: 'all'|'internal'|'ex
       return parseJsonSafe(res);
     },
     getNextPageParam: (last) => last.nextCursor ?? undefined,
-    enabled: !!taskId
+    enabled: !!taskId && !!user,
   });
 }
 
 export function useCommentStats(candidateId: string) {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ['/api/candidates', candidateId, 'comment-stats'],
-    enabled: !!candidateId,
+    // Include user id to ensure role/visibility-specific stats are not shared
+    queryKey: ['/api/candidates', candidateId, 'comment-stats', user?.id],
+    enabled: !!candidateId && !!user,
     queryFn: async () => {
       const res = await apiRequest('GET', `/api/candidates/${candidateId}/comment-stats`);
       return parseJsonSafe(res);
