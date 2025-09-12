@@ -39,21 +39,37 @@ export default function CandidateDetailPage() {
   const { data: candidate, isLoading: candidateLoading, error: candidateError } = useQuery({
     queryKey: ["/api/candidates", id],
     enabled: !!id && id !== 'undefined',
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/candidates/${id}`);
+      return res.json();
+    }
   });
 
   const { data: candidateTasks = [], isLoading: tasksLoading } = useQuery({
     queryKey: ["/api/candidates", id, "tasks"],
     enabled: !!id && id !== 'undefined',
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/candidates/${id}/tasks`);
+      return res.json();
+    }
   });
 
   const { data: candidateStages = [], isLoading: stagesLoading } = useQuery({
     queryKey: ["/api/candidates", id, "stages"],
     enabled: !!id && id !== 'undefined',
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/candidates/${id}/stages`);
+      return res.json();
+    }
   });
 
   const { data: stageHistoryData, isLoading: historyLoading } = useQuery({
     queryKey: ["/api/candidates", id, "stage-history"],
     enabled: !!id && id !== 'undefined',
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/candidates/${id}/stage-history`);
+      return res.json();
+    }
   });
 
   const stageHistory = (stageHistoryData as any)?.history || [];
@@ -384,7 +400,7 @@ export default function CandidateDetailPage() {
           <Link href="/candidates">
             <Button variant="ghost" size="sm" className="min-h-[44px] w-full xs:w-auto" data-testid="button-back">
               <ArrowLeft className="w-4 h-4 xs:mr-2" />
-              <span className="hidden xs:inline">Back to </span>Candidates
+              <span className="hidden xs:inline">Back to</span> Candidates
             </Button>
           </Link>
         </div>
@@ -456,18 +472,30 @@ export default function CandidateDetailPage() {
             {(candidate as any).salutation ? `${(candidate as any).salutation} ` : ''}{(candidate as any).firstName} {(candidate as any).lastName}
           </CardTitle>
           {(() => {
-            // Calculate if all tasks are completed (treat 'canceled' as non-blocking)
+            const status = (candidate as any).status as string | undefined;
+            // Show a clear banner when candidate is canceled
+            if (status === 'canceled') {
+              return (
+                <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg">
+                  <p className="text-2xl font-bold text-orange-700 dark:text-orange-300 text-center" data-testid="text-candidate-canceled">
+                    Candidate Canceled
+                  </p>
+                </div>
+              );
+            }
+
+            // Calculate if all tasks are completed (require 'done'; do not count 'canceled')
             const allTasks = Object.values(tasksByStage).flat() as any[];
             const hasAnyTasks = allTasks.length > 0;
-            const allTasksCompleted = hasAnyTasks && allTasks.every((task: any) => task.status === 'done' || task.status === 'canceled');
-            
-            return allTasksCompleted && (
+            const allTasksCompleted = hasAnyTasks && allTasks.every((task: any) => task.status === 'done');
+
+            return allTasksCompleted ? (
               <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
                 <p className="text-2xl font-bold text-green-700 dark:text-green-400 text-center" data-testid="text-onboarding-complete">
-                  🎉 Onboarding Complete! 🎉
+                  Onboarding Complete!
                 </p>
               </div>
-            );
+            ) : null;
           })()}
         </CardHeader>
         <CardContent className="p-3 xs:p-4 sm:p-6 pt-0">
@@ -572,7 +600,12 @@ export default function CandidateDetailPage() {
               </div>
 
               {/* Pipeline Duration Estimate */}
-              {(candidate as any).templateAppliedFromId && <CandidatePipelineEstimate candidateId={(candidate as any).id} />}
+              {(candidate as any).templateAppliedFromId && (
+                <CandidatePipelineEstimate 
+                  candidateId={(candidate as any).id}
+                  status={(candidate as any).status}
+                />
+              )}
             </div>
           </div>
 
@@ -848,7 +881,7 @@ export default function CandidateDetailPage() {
 }
 
 // Candidate Pipeline Duration Estimate Component
-function CandidatePipelineEstimate({ candidateId }: { candidateId: string }) {
+function CandidatePipelineEstimate({ candidateId, status }: { candidateId: string; status?: string }) {
   const { data: estimate, isLoading, error } = useQuery({
     queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }],
     queryFn: async () => {
@@ -884,6 +917,17 @@ function CandidatePipelineEstimate({ candidateId }: { candidateId: string }) {
       <div className="mt-4 p-3 bg-muted/20 rounded-lg">
         <div className="text-sm text-muted-foreground">
           Pipeline estimate unavailable
+        </div>
+      </div>
+    );
+  }
+
+  // If candidate is canceled, show a canceled message instead of completion
+  if (status === 'canceled') {
+    return (
+      <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800">
+        <div className="text-sm font-medium text-orange-800 dark:text-orange-200">
+          Candidate canceled — task estimates are not applicable.
         </div>
       </div>
     );

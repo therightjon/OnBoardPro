@@ -41,7 +41,11 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    // Only use the first element of queryKey as the URL.
+    // Additional elements are for cache scoping, not URL path construction.
+    const first = (queryKey as ReadonlyArray<unknown>)[0];
+    const url = typeof first === "string" ? first : String(first);
+    const res = await fetch(url, {
       credentials: "include",
     });
 

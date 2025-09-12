@@ -20,6 +20,7 @@ import {
 import { NewCandidateDialog } from "@/features/candidates/components/new-candidate-dialog";
 import { ArchiveCandidateDialog } from "@/features/candidates/components/archive-candidate-dialog";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
 import type { Candidate, CandidateType, HiringStage } from "@shared/schemas";
 
 type CandidateWithStage = Candidate & {
@@ -61,11 +62,19 @@ export default function CandidatesPage() {
   const { data: candidateTypes = [] } = useQuery<CandidateType[]>({
     queryKey: ["/api/candidate-types", user?.id],
     enabled: !!user,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/candidate-types");
+      return res.json();
+    },
   });
 
   const { data: hiringStages = [] } = useQuery<HiringStage[]>({
     queryKey: ["/api/hiring-stages", user?.id],
     enabled: !!user,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/hiring-stages");
+      return res.json();
+    },
   });
 
   const filteredAndSortedCandidates = candidates
