@@ -149,8 +149,8 @@ export default function Dashboard() {
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* Stage Distribution Chart */}
-        <Card className="" data-testid="card-stage-distribution">
-          <CardHeader className="p-3 xs:p-4 sm:p-6">
+        <Card className="flex flex-col" data-testid="card-stage-distribution">
+          <CardHeader className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base xs:text-lg sm:text-xl">Hiring Stage Distribution</CardTitle>
               <Button variant="ghost" size="sm" className="min-h-[44px]">
@@ -160,9 +160,9 @@ export default function Dashboard() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="p-3 xs:p-4 sm:p-6 pt-0">
-            <div className="space-y-4">
-              <div className="space-y-2">
+          <CardContent className="p-3 sm:p-4 pt-0 flex-1">
+            <div className="grid grid-rows-5 gap-y-2.5 sm:gap-y-3 h-full">
+              <div className="space-y-2 flex flex-col justify-center">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-foreground">LOI</span>
                   <span className="text-sm text-muted-foreground">8 candidates</span>
@@ -170,7 +170,7 @@ export default function Dashboard() {
                 <Progress value={33} className="h-2" />
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-2 flex flex-col justify-center">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-foreground">Offer</span>
                   <span className="text-sm text-muted-foreground">6 candidates</span>
@@ -178,7 +178,7 @@ export default function Dashboard() {
                 <Progress value={25} className="h-2" />
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-2 flex flex-col justify-center">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-foreground">Admin Processing</span>
                   <span className="text-sm text-muted-foreground">5 candidates</span>
@@ -186,7 +186,7 @@ export default function Dashboard() {
                 <Progress value={21} className="h-2" />
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-2 flex flex-col justify-center">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-foreground">Credentialing</span>
                   <span className="text-sm text-muted-foreground">3 candidates</span>
@@ -194,7 +194,7 @@ export default function Dashboard() {
                 <Progress value={13} className="h-2" />
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-2 flex flex-col justify-center">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-foreground">Onboarding</span>
                   <span className="text-sm text-muted-foreground">2 candidates</span>
@@ -207,15 +207,15 @@ export default function Dashboard() {
 
         {/* Recent Activity */}
         <Card data-testid="card-recent-activity">
-          <CardHeader className="p-3 xs:p-4 sm:p-6">
+          <CardHeader className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base xs:text-lg sm:text-xl">Recent Activity</CardTitle>
               <Button variant="link" size="sm" className="text-primary text-xs xs:text-sm">View All</Button>
             </div>
           </CardHeader>
-          <CardContent className="p-3 xs:p-4 sm:p-6 pt-0 max-w-full">
+          <CardContent className="p-3 sm:p-4 pt-0 max-w-full">
             <div className="space-y-2">
-              <div className="flex items-start gap-3 p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
+              <div className="flex items-start gap-2.5 p-2.5 sm:p-3 rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0">
                   <UserPlus className="text-accent text-sm" />
                 </div>
@@ -230,7 +230,7 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div className="flex items-start gap-3 p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
+              <div className="flex items-start gap-2.5 p-2.5 sm:p-3 rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                   <CheckCircle className="text-primary text-sm" />
                 </div>
@@ -245,7 +245,7 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div className="flex items-start gap-3 p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
+              <div className="flex items-start gap-2.5 p-2.5 sm:p-3 rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="w-8 h-8 bg-chart-3/10 rounded-full flex items-center justify-center flex-shrink-0">
                   <ArrowRight className="text-chart-3 text-sm" />
                 </div>
@@ -260,7 +260,7 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div className="flex items-start gap-3 p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
+              <div className="flex items-start gap-2.5 p-2.5 sm:p-3 rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="w-8 h-8 bg-destructive/10 rounded-full flex items-center justify-center flex-shrink-0">
                   <CircleAlert className="text-destructive text-sm" />
                 </div>
@@ -298,19 +298,19 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* Urgent Tasks */}
         <Card data-testid="card-urgent-tasks">
-          <CardHeader className="p-3 xs:p-4 sm:p-6">
+          <CardHeader className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base xs:text-lg sm:text-xl">Urgent Tasks</CardTitle>
               <Button variant="link" size="sm" className="text-primary text-xs xs:text-sm">View All Tasks</Button>
             </div>
           </CardHeader>
-          <CardContent className="p-3 xs:p-4 sm:p-6 pt-0">
-            <div className="space-y-4">
+          <CardContent className="p-3 sm:p-4 pt-0">
+            <div className="space-y-3">
               {urgentTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No urgent tasks at the moment</p>
+                <p className="text-sm text-muted-foreground text-center py-2.5">No urgent tasks at the moment</p>
               ) : (
                 urgentTasks.map((task: any, index: number) => (
-                  <div key={task.id} className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors" data-testid={`card-urgent-task-${index}`}>
+                  <div key={task.id} className="border border-border rounded-lg p-3 hover:bg-muted/50 transition-colors" data-testid={`card-urgent-task-${index}`}>
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-sm font-medium text-foreground">{task.title}</h4>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -342,7 +342,7 @@ export default function Dashboard() {
 
         {/* Department Overview */}
         <Card data-testid="card-department-overview">
-          <CardHeader className="p-3 xs:p-4 sm:p-6">
+          <CardHeader className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base xs:text-lg sm:text-xl">Department Overview</CardTitle>
               <Button variant="ghost" size="sm" className="min-h-[44px]">
@@ -352,9 +352,9 @@ export default function Dashboard() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="p-3 xs:p-4 sm:p-6 pt-0">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+          <CardContent className="p-3 sm:p-4 pt-0">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                     <Stethoscope className="text-primary" />
@@ -370,7 +370,7 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-chart-2/10 rounded-lg flex items-center justify-center">
                     <UserRound className="text-chart-2" />
@@ -386,7 +386,7 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-chart-3/10 rounded-lg flex items-center justify-center">
                     <Laptop className="text-chart-3" />
@@ -402,7 +402,7 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-chart-4/10 rounded-lg flex items-center justify-center">
                     <UsersIcon className="text-chart-4" />
