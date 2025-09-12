@@ -41,10 +41,27 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // Only use the first element of queryKey as the URL.
-    // Additional elements are for cache scoping, not URL path construction.
-    const first = (queryKey as ReadonlyArray<unknown>)[0];
-    const url = typeof first === "string" ? first : String(first);
+    // Build URL from all leading string segments of the queryKey.
+    // This allows patterns like ["/api/templates", id, "template-tasks"]
+    // to correctly request "/api/templates/:id/template-tasks" while still
+    // supporting additional non-string items for cache scoping.
+    const parts = queryKey as ReadonlyArray<unknown>;
+    const stringParts: string[] = [];
+    for (const p of parts) {
+      if (typeof p !== "string") break;
+      stringParts.push(p);
+    }
+
+    let url = stringParts[0] ?? "";
+    if (stringParts.length > 1) {
+      // Join remaining parts as URL path segments, trimming redundant slashes
+      const rest = stringParts
+        .slice(1)
+        .map((s) => s.replace(/^\/+|\/+$/g, ""))
+        .join("/");
+      url = `${url.replace(/\/$/, "")}/${rest}`;
+    }
+
     const res = await fetch(url, {
       credentials: "include",
     });
