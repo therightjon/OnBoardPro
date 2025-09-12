@@ -2020,6 +2020,7 @@ export class DatabaseStorage implements IStorage {
     };
 
     let closedTasksCount = 0;
+    let reopenedTasksCount = 0;
 
     // Handle side effects based on new status
     switch (newStatus) {
@@ -2035,6 +2036,19 @@ export class DatabaseStorage implements IStorage {
           updateData.archived = false;
           updateData.archivedAt = null;
           updateData.archivedBy = null;
+        }
+        if (currentStatus === 'canceled') {
+          // Restore previously canceled tasks back to default status
+          const reopened = await db
+            .update(candidateTasks)
+            .set({ status: 'todo', updatedAt: new Date(), completedAt: null })
+            .where(and(
+              eq(candidateTasks.candidateId, candidateId),
+              eq(candidateTasks.archived, false),
+              eq(candidateTasks.status, 'canceled')
+            ))
+            .returning({ id: candidateTasks.id });
+          reopenedTasksCount = reopened.length;
         }
         break;
         
@@ -2091,7 +2105,8 @@ export class DatabaseStorage implements IStorage {
       success: true,
       cascaded: {
         closedTasks: closedTasksCount,
-        affectedCandidateStatus: newStatus
+        affectedCandidateStatus: newStatus,
+        reopenedTasks: reopenedTasksCount
       }
     };
   }
