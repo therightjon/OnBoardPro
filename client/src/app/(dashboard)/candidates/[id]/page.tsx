@@ -427,7 +427,8 @@ export default function CandidateDetailPage() {
           <Link href="/candidates">
             <Button variant="ghost" size="sm" className="min-h-[44px] w-full xs:w-auto" data-testid="button-back">
               <ArrowLeft className="w-4 h-4 xs:mr-2" />
-              <span className="hidden xs:inline">Back to</span> Candidates
+              <span className="hidden xs:inline">Back to Candidates</span>
+              <span className="inline xs:hidden">Candidates</span>
             </Button>
           </Link>
         </div>
@@ -981,32 +982,32 @@ function CandidatePipelineEstimate({ candidateId, status }: { candidateId: strin
     <div className="mt-4 p-0 bg-muted/20 rounded-lg">
       <h4 className="text-sm font-medium text-foreground mb-3 ml-7">Pipeline Duration Estimate</h4>
       <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="flex items-center space-x-2">
-          <CheckCircle className="w-4 h-4 text-muted-foreground" />
+        <div className="flex items-start space-x-3">
+          <CheckCircle className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
           <div>
-            <div className="text-xs text-muted-foreground mb-1 ml-1">Remaining Tasks</div>
-            <div className="font-medium ml-1" data-testid="text-remaining-tasks">
+            <div className="text-xs text-muted-foreground mb-1">Remaining Tasks</div>
+            <div className="font-medium" data-testid="text-remaining-tasks">
               {estimate.remainingTasks} of {estimate.taskCount}
             </div>
           </div>
         </div>
         {estimate.totalBusinessDays !== null && (
-          <div className="flex items-center space-x-2">
-            <Clock className="w-4 h-4 text-muted-foreground" />
+          <div className="flex items-start space-x-3">
+            <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
             <div>
-              <div className="text-xs text-muted-foreground mb-1 ml-1">Business Days</div>
-              <div className="font-medium ml-1" data-testid="text-business-days">
+              <div className="text-xs text-muted-foreground mb-1">Business Days</div>
+              <div className="font-medium" data-testid="text-business-days">
                 {estimate.totalBusinessDays}
               </div>
             </div>
           </div>
         )}
         {estimate.lastDueDate && (
-          <div className="col-span-2 flex items-center space-x-2">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
+          <div className="col-span-2 flex items-start space-x-3">
+            <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
             <div>
-              <div className="text-xs text-muted-foreground mb-1 ml-1">Est. Completion</div>
-              <div className="font-medium ml-1" data-testid="text-completion-date">
+              <div className="text-xs text-muted-foreground mb-1">Est. Completion</div>
+              <div className="font-medium" data-testid="text-completion-date">
                 {formatDate(estimate.lastDueDate)}
               </div>
             </div>

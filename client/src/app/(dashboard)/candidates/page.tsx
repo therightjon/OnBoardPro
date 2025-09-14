@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/shared/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { Plus, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, Archive, RotateCcw } from "lucide-react";
+import { Switch } from "@/shared/components/ui/switch";
+import { Label } from "@/shared/components/ui/label";
 import { Link, useLocation } from "wouter";
 import { 
   AlertDialog,
@@ -288,19 +290,17 @@ export default function CandidatesPage() {
                 </SelectContent>
               </Select>
 
-              {/* Archive Toggle */}
+              {/* Archive Toggle (match My Tasks style) */}
               <div className="flex items-center space-x-2 min-h-[44px] xs:col-span-2 sm:col-span-1">
-                <input
-                  type="checkbox"
+                <Switch 
                   id="show-archived"
                   checked={showArchived}
-                  onChange={(e) => setShowArchived(e.target.checked)}
-                  className="rounded border-gray-300 w-4 h-4"
-                  data-testid="checkbox-show-archived"
+                  onCheckedChange={setShowArchived}
+                  data-testid="switch-show-archived"
                 />
-                <label htmlFor="show-archived" className="text-xs xs:text-sm font-medium">
-                  Show archived
-                </label>
+                <Label htmlFor="show-archived" className="text-xs xs:text-sm font-medium">
+                  Show Archived
+                </Label>
               </div>
             </div>
           </div>
