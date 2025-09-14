@@ -15,6 +15,8 @@ import {
 } from "@shared/schemas";
 import { z } from "zod";
 import { advanceStageIfComplete, recomputeCandidateStageState } from "./features/tasks/services/advance-stage.service";
+import { db } from "./db/connection";
+import { sql } from "drizzle-orm";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {

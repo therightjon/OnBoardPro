@@ -428,14 +428,14 @@ export default function TasksPage() {
                 {taskDef.archived ? (
                   <Button 
                     variant="ghost" size="sm" className="min-h-[40px]"
-                    onClick={() => setIsRestoreDialogOpen(true) || setRestoringTaskDef(taskDef)}
+                    onClick={() => { setRestoringTaskDef(taskDef); setIsRestoreDialogOpen(true); }}
                   >
                     Restore
                   </Button>
                 ) : (
                   <Button 
                     variant="ghost" size="sm" className="min-h-[40px] text-destructive"
-                    onClick={() => setIsArchiveDialogOpen(true) || setArchivingTaskDef(taskDef)}
+                    onClick={() => { setArchivingTaskDef(taskDef); setIsArchiveDialogOpen(true); }}
                   >
                     Archive
                   </Button>

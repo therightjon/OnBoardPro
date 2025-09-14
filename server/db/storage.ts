@@ -1955,6 +1955,7 @@ export class DatabaseStorage implements IStorage {
     cascaded?: {
       closedTasks: number;
       affectedCandidateStatus: string;
+      reopenedTasks?: number;
     }
   }> {
     

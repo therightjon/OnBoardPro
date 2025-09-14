@@ -7,6 +7,7 @@ export function useCandidateComments(candidateId: string, visibility: 'all'|'int
   return useInfiniteQuery({
     // Include user id to avoid cross-user cache reuse of visibility-scoped data
     queryKey: ['/api/candidates', candidateId, 'comments', { visibility }, user?.id],
+    initialPageParam: undefined,
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
       if (visibility !== 'all') params.set('visibility', visibility);
@@ -14,7 +15,7 @@ export function useCandidateComments(candidateId: string, visibility: 'all'|'int
       const res = await apiRequest('GET', `/api/candidates/${candidateId}/comments?${params}`);
       return parseJsonSafe(res);
     },
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    getNextPageParam: (last: any) => last?.nextCursor ?? undefined,
     enabled: !!candidateId && !!user,
   });
 }
@@ -24,6 +25,7 @@ export function useTaskComments(taskId: string, visibility: 'all'|'internal'|'ex
   return useInfiniteQuery({
     // Include user id to avoid cross-user cache reuse of visibility-scoped data
     queryKey: ['/api/tasks', taskId, 'comments', { visibility }, user?.id],
+    initialPageParam: undefined,
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
       if (visibility !== 'all') params.set('visibility', visibility);
@@ -31,7 +33,7 @@ export function useTaskComments(taskId: string, visibility: 'all'|'internal'|'ex
       const res = await apiRequest('GET', `/api/tasks/${taskId}/comments?${params}`);
       return parseJsonSafe(res);
     },
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    getNextPageParam: (last: any) => last?.nextCursor ?? undefined,
     enabled: !!taskId && !!user,
   });
 }

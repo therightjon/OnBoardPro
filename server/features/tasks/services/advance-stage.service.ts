@@ -1,7 +1,7 @@
 import { db } from "../../../db/connection";
 import { candidates, candidateStageHistory, hiringStages, candidateTasks, templateStages } from "@shared/schemas";
 import { eq, desc, and, sql, inArray } from "drizzle-orm";
-import { systemSettings } from "@shared/schemas";
+import { systemSettings, readToggleEnabled } from "@shared/schemas";
 
 export async function advanceStageIfComplete({
   candidateId,
@@ -26,7 +26,7 @@ export async function advanceStageIfComplete({
 
     // Guardrail: if blocked by prior stage and auto-regress disabled, do not advance
     const settingsRows = await db.select().from(systemSettings);
-    const autoRegress = Boolean(settingsRows.find(r => r.key === 'auto_regress_on_prior_open')?.value?.enabled ?? false);
+    const autoRegress = readToggleEnabled(settingsRows, 'auto_regress_on_prior_open', false);
     if (candidateRecord.isBlockedByPriorStage && !autoRegress) {
       return { advanced: false, blocked: true, blockers: candidateRecord.blockerSummary } as any;
     }
@@ -238,7 +238,7 @@ export async function recomputeCandidateStageState({
 
   // Read settings
   const settingsRows = await db.select().from(systemSettings);
-  const autoRegress = Boolean(settingsRows.find(r => r.key === 'auto_regress_on_prior_open')?.value?.enabled ?? false);
+  const autoRegress = readToggleEnabled(settingsRows, 'auto_regress_on_prior_open', false);
 
   // Determine updates
   let nextStageId = cand.currentStageId;
@@ -258,15 +258,16 @@ export async function recomputeCandidateStageState({
       .where(eq(candidates.id, candidateId));
 
     if (regressed) {
-      await trx.insert(candidateStageHistory).values({
+      const base: any = {
         candidateId,
-        fromStageId: cand.currentStageId,
         toStageId: nextStageId,
         changedAt: new Date(),
         changedBy: invokerUserId,
         createdAt: new Date(),
         updatedAt: new Date()
-      });
+      };
+      if (cand.currentStageId) base.fromStageId = cand.currentStageId;
+      await trx.insert(candidateStageHistory).values(base);
     }
   });
 
