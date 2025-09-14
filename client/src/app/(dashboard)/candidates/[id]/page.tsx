@@ -703,7 +703,7 @@ export default function CandidateDetailPage() {
                                       <Badge variant="secondary" title={task.cancel_reason || ''}>CANCELED</Badge>
                                     )}
                                   </h4>
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex items-center gap-4">
                                     {/* comments button injected here */}
                                     <TaskCommentsButton 
                                       count={(commentStats as any)?.byTask?.[task.id]?.totalVisible || 0}

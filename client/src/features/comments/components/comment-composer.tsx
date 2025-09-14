@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Button } from '@/shared/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
+import { 
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from '@/shared/components/ui/alert-dialog';
 import { Label } from '@/shared/components/ui/label';
 import { Switch } from '@/shared/components/ui/switch';
 import { useAuth } from '@/features/auth/hooks/use-auth';
@@ -50,7 +59,8 @@ export function CommentComposer({ entityType, entityId, defaultVisibility, locke
 
   const handleToggle = (val: boolean) => {
     const next = val ? 'external' : 'internal';
-    if (visibility === 'internal' && next === 'external' && body.trim().length > 0) {
+    // Always confirm when changing from internal -> external, regardless of body content
+    if (visibility === 'internal' && next === 'external') {
       setShowConfirm(true);
     } else {
       setVisibility(next);
@@ -79,21 +89,20 @@ export function CommentComposer({ entityType, entityId, defaultVisibility, locke
           {submitting ? 'Submitting…' : 'Submit'}
         </Button>
       </div>
-      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent className='max-h-min'>
-          <DialogHeader>
-            <DialogTitle>Make this comment external?</DialogTitle>
-            <DialogDescription className="sr-only">
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Make this comment external?</AlertDialogTitle>
+            <AlertDialogDescription>
               Confirm changing comment visibility from internal to external.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="text-sm">You're changing visibility to External. Proceed?</div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" size="sm" onClick={() => setShowConfirm(false)} aria-label="Cancel visibility change">Cancel</Button>
-            <Button size="sm" onClick={() => { setVisibility('external'); setShowConfirm(false); }} aria-label="Confirm visibility change">Confirm</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel aria-label="Cancel visibility change">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setVisibility('external'); setShowConfirm(false); }} aria-label="Confirm visibility change">Confirm</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
