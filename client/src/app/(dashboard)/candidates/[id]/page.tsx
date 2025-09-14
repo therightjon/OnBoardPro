@@ -484,10 +484,13 @@ export default function CandidateDetailPage() {
               );
             }
 
-            // Calculate if all tasks are completed (require 'done'; do not count 'canceled')
+            // Calculate if all tasks are completed
+            // Treat both 'done' and 'canceled' as non-blocking for completion
             const allTasks = Object.values(tasksByStage).flat() as any[];
             const hasAnyTasks = allTasks.length > 0;
-            const allTasksCompleted = hasAnyTasks && allTasks.every((task: any) => task.status === 'done');
+            const allTasksCompleted = hasAnyTasks && allTasks.every((task: any) => (
+              task.status === 'done' || task.status === 'canceled'
+            ));
 
             return allTasksCompleted ? (
               <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
