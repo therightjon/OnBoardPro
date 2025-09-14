@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -131,6 +131,31 @@ export default function CandidateDetailPage() {
         return acc;
       }, {});
   }, [tasksWithOrder, candidateStages]);
+
+  // Compute onboarding completion: all tasks are either done or canceled
+  const allTasksFlat = useMemo(() => (Object.values(tasksByStage).flat() as any[]), [tasksByStage]);
+  const hasAnyTasks = allTasksFlat.length > 0;
+  const onboardingComplete = hasAnyTasks && allTasksFlat.every((task: any) => task.status === 'done' || task.status === 'canceled');
+
+  // Automatically set status to completed when onboarding is complete (excluding canceled/archived)
+  useEffect(() => {
+    // no-op on server / ensure candidate exists
+    if (!candidate) return;
+    const status = (candidate as any).status as string | undefined;
+    if (!onboardingComplete) return;
+    if (!status || status === 'completed' || status === 'canceled' || status === 'archived') return;
+    // Fire-and-forget status update; ignore errors here and let manual update handle it
+    (async () => {
+      try {
+        await apiRequest('PATCH', `/api/candidates/${(candidate as any).id}/status`, { status: 'completed' });
+        // Invalidate related queries to refresh UI
+        queryClient.invalidateQueries({ queryKey: ["/api/candidates", (candidate as any).id] });
+        queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
+      } catch (_) {
+        // Silently ignore; user can manually adjust if needed
+      }
+    })();
+  }, [candidate, onboardingComplete, queryClient]);
 
   if (candidateLoading) {
     return (
@@ -281,8 +306,10 @@ export default function CandidateDetailPage() {
       });
     };
 
-    // Only show editable for authorized roles
-    const canEdit = user?.role === 'system_admin' || user?.role === 'hr_staff';
+    // Only show editable for authorized roles and when not already fully onboarded
+    const canEdit = (user?.role === 'system_admin' || user?.role === 'hr_staff') 
+      && candidate?.status !== 'completed'
+      && !onboardingComplete;
     
     if (!canEdit) {
       return (
@@ -427,6 +454,8 @@ export default function CandidateDetailPage() {
                 onClick={() => setIsEditDialogOpen(true)}
                 className="min-h-[44px] w-full xs:w-auto"
                 data-testid="button-edit-candidate"
+                disabled={(candidate as any).status === 'completed'}
+                title={(candidate as any).status === 'completed' ? 'Profile is locked after completion' : undefined}
               >
                 <Edit className="w-4 h-4 xs:mr-2" />
                 <span className="hidden xs:inline">Edit</span>
@@ -484,15 +513,7 @@ export default function CandidateDetailPage() {
               );
             }
 
-            // Calculate if all tasks are completed
-            // Treat both 'done' and 'canceled' as non-blocking for completion
-            const allTasks = Object.values(tasksByStage).flat() as any[];
-            const hasAnyTasks = allTasks.length > 0;
-            const allTasksCompleted = hasAnyTasks && allTasks.every((task: any) => (
-              task.status === 'done' || task.status === 'canceled'
-            ));
-
-            return allTasksCompleted ? (
+            return onboardingComplete ? (
               <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
                 <p className="text-2xl font-bold text-green-700 dark:text-green-400 text-center" data-testid="text-onboarding-complete">
                   Onboarding Complete!
@@ -596,11 +617,17 @@ export default function CandidateDetailPage() {
                 <CheckCircle className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                 <div className="min-w-0">
                   <div className="text-xs xs:text-sm font-medium">Current Hiring Stage</div>
-                  <div className="text-xs xs:text-sm text-muted-foreground break-words" data-testid="text-current-stage">
-                    {(candidate as any).currentStage?.name || "Not set"}
-                  </div>
-                </div>
+                  {onboardingComplete ? (
+                    <div className="text-xs xs:text-sm font-bold text-green-700 dark:text-green-400 break-words" data-testid="text-current-stage">
+                      Fully Onboarded!
+                    </div>
+                  ) : (
+                    <div className="text-xs xs:text-sm text-muted-foreground break-words" data-testid="text-current-stage">
+                      {(candidate as any).currentStage?.name || "Not set"}
+                    </div>
+                  )}
               </div>
+            </div>
 
               {/* Pipeline Duration Estimate */}
               {(candidate as any).templateAppliedFromId && (
@@ -717,6 +744,7 @@ export default function CandidateDetailPage() {
                                       taskId={task.id}
                                       candidateId={(candidate as any).id}
                                       value={task.status}
+                                      disabled={onboardingComplete || (candidate as any).status === 'completed'}
                                     />
                                   </div>
                                 </div>
@@ -766,6 +794,9 @@ export default function CandidateDetailPage() {
                   <CardTitle className="flex items-center gap-2 flex-wrap">
                     <Clock className="w-4 h-4" />
                     <span>Stage Timeline</span>
+                    {onboardingComplete && (
+                      <span className="font-bold text-green-700 dark:text-green-400" data-testid="text-fully-onboarded-timeline">Fully Onboarded!</span>
+                    )}
                     {(candidate as any).isBlockedByPriorStage && (candidate as any).blockerSummary?.earliestPriorStage && (
                       <span className="ml-auto inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/30" data-testid="pill-stage-blocked">
                         Blocked by {(candidate as any).blockerSummary.earliestPriorStage.name}

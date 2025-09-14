@@ -2001,7 +2001,10 @@ export class DatabaseStorage implements IStorage {
           eq(candidateTasks.candidateId, candidateId),
           eq(candidateTasks.archived, false),
           eq(candidateTasks.required, true),
-          ne(candidateTasks.status, 'done')
+          and(
+            ne(candidateTasks.status, 'done'),
+            ne(candidateTasks.status, 'canceled')
+          )
         ));
 
       if (incompleteRequiredTasks.length > 0) {
