@@ -34,24 +34,22 @@ export async function initializeAuthProviders() {
       console.log("⚠ Local provider disabled in database");
     }
 
-    // Register LDAP provider if configured AND enabled in database
+    // Register LDAP provider if enabled in database and DB-configured
     const ldapEnabled = dbProviderMap.get('ldap') ?? false;
-    if (authConfig.ldap.enabled && ldapEnabled) {
+    if (ldapEnabled) {
       try {
-        // Validate LDAP configuration
-        const ldapErrors = validateLdapConfig(authConfig.ldap);
-        if (ldapErrors.length > 0) {
-          throw new Error(`LDAP configuration errors: ${ldapErrors.join(", ")}`);
-        }
+        const ldapCfg = await storage.getLdapSettings();
+        const ldapErrors = validateLdapConfig({ enabled: true, ...ldapCfg } as any);
+        if (ldapErrors.length > 0) throw new Error(`LDAP configuration errors: ${ldapErrors.join(", ")}`);
 
-        const ldapProvider = new LdapAuthProvider(authConfig.ldap);
+        const ldapProvider = new LdapAuthProvider(ldapCfg as any);
         providerRegistry.register(ldapProvider);
         console.log("✓ LDAP authentication provider registered");
       } catch (error) {
         console.error("✗ Failed to register LDAP provider:", error);
         throw error;
       }
-    } else if (authConfig.ldap.enabled && !ldapEnabled) {
+    } else if (!ldapEnabled) {
       console.log("⚠ LDAP provider disabled in database");
     }
 

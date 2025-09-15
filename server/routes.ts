@@ -1645,12 +1645,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Helper functions for provider management
-  function checkProviderConfiguration(providerId: string): boolean {
+  async function checkProviderConfiguration(providerId: string): Promise<boolean> {
     switch (providerId) {
       case 'local':
         return true; // Local is always configured
       case 'ldap':
-        return !!(process.env.LDAP_URL && process.env.LDAP_BIND_DN);
+        return await storage.getLdapConfigured();
       case 'google':
         return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
       case 'azuread':
@@ -1665,7 +1665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return `${"x".repeat(Math.max(0, s.length - 4))}${s.slice(-4)}`;
   }
 
-  function getProviderDetails(providerId: string) {
+  async function getProviderDetails(providerId: string) {
     switch (providerId) {
       case 'local':
         return {
@@ -1673,12 +1673,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           callbackUrl: undefined,
           notes: 'Built-in password authentication'
         };
-      case 'ldap':
+      case 'ldap': {
+        const cfg = await storage.getLdapSettings();
         return {
-          clientIdMasked: maskId(process.env.LDAP_BIND_DN),
-          callbackUrl: process.env.LDAP_URL,
+          clientIdMasked: maskId(cfg.bindDn),
+          callbackUrl: cfg.url,
           notes: 'Active Directory/LDAP authentication'
         };
+      }
       case 'google':
         return {
           clientIdMasked: maskId(process.env.GOOGLE_CLIENT_ID),
@@ -1704,11 +1706,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/providers", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const dbProviders = await storage.getAllAuthProviders();
-      
-      const providerInfos = dbProviders.map(dbProvider => {
-        const configured = checkProviderConfiguration(dbProvider.id);
-        const details = getProviderDetails(dbProvider.id);
-        
+      const providerInfos = await Promise.all(dbProviders.map(async (dbProvider) => {
+        const configured = await checkProviderConfiguration(dbProvider.id);
+        const details = await getProviderDetails(dbProvider.id);
         return {
           id: dbProvider.id as "local" | "ldap" | "google" | "azuread",
           name: dbProvider.name,
@@ -1718,8 +1718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           canEnable: Boolean(configured),
           ...details
         };
-      });
-      
+      }));
       res.json(providerInfos);
     } catch (error) {
       next(error);
@@ -1741,10 +1740,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if trying to enable an unconfigured provider
-      const configured = checkProviderConfiguration(id);
+      const configured = await checkProviderConfiguration(id);
       if (enabled && !configured) {
         return res.status(400).json({ 
-          message: "Provider is not configured. Set required environment variables first." 
+          message: "Provider is not configured. Please configure settings first." 
         });
       }
 
@@ -1770,7 +1769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Provider not found" });
       }
       
-      const details = getProviderDetails(id);
+      const details = await getProviderDetails(id);
       
       const result = {
         id: updatedProvider.id as "local" | "ldap" | "google" | "azuread",
@@ -1783,6 +1782,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // LDAP Settings API
+  app.get("/api/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+    try {
+      const cfg = await storage.getLdapSettings();
+      const configured = await storage.getLdapConfigured();
+      const warnings: string[] = [];
+      if (cfg.url && !cfg.url.startsWith('ldaps://') && !cfg.startTls) {
+        warnings.push('LDAP requires LDAPS (ldaps://) or StartTLS for security');
+      }
+      // Prepare masked response
+      const response = {
+        settings: {
+          url: cfg.url,
+          startTls: !!cfg.startTls,
+          baseDn: cfg.baseDn,
+          userFilter: cfg.userFilter,
+          usernameAttr: cfg.usernameAttr,
+          firstNameAttr: cfg.firstNameAttr,
+          lastNameAttr: cfg.lastNameAttr,
+          emailAttr: cfg.emailAttr,
+          disabledFilter: cfg.disabledFilter,
+          bindDnMasked: cfg.bindDn ? maskId(cfg.bindDn) : undefined,
+          hasPassword: !!cfg.bindPassword,
+        },
+        configured,
+        warnings
+      };
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put("/api/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+    try {
+      const patch = req.body || {};
+      // Normalize boolean
+      if (patch.startTls !== undefined) patch.startTls = !!patch.startTls;
+      const updated = await storage.setLdapSettings(patch);
+      // Reinitialize providers to apply changes immediately
+      try {
+        const { initializeAuthProviders } = await import('./features/auth/services');
+        await initializeAuthProviders();
+      } catch (e) {
+        console.error('Failed to reinitialize auth providers after LDAP settings update:', e);
+      }
+      res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+    const start = Date.now();
+    try {
+      const override = req.body || {};
+      const current = await storage.getLdapSettings();
+      const cfg = { ...current, ...override };
+
+      if (!cfg.url || !cfg.bindDn || !cfg.bindPassword || !cfg.baseDn) {
+        return res.status(400).json({ ok: false, message: 'Missing required settings (url, bindDn, bindPassword, baseDn)' });
+      }
+
+      const ldap = await import('ldapjs');
+      const client = ldap.createClient({ url: cfg.url, connectTimeout: 10000, timeout: 10000 });
+
+      const doTest = () => new Promise<{ ok: boolean; message: string }>((resolve) => {
+        client.on('error', (err: any) => {
+          console.error('LDAP test connection error:', err);
+          resolve({ ok: false, message: 'Connection failed' });
+        });
+
+        client.bind(cfg.bindDn!, cfg.bindPassword!, (bindErr: any) => {
+          if (bindErr) {
+            console.error('LDAP test bind error:', bindErr);
+            client.destroy();
+            resolve({ ok: false, message: 'Bind failed' });
+            return;
+          }
+          // Optional: quick search to verify baseDn reachable
+          const opts = { filter: cfg.userFilter || '(objectClass=person)', scope: 'base' as const };
+          client.search(cfg.baseDn!, opts, (searchErr: any, searchRes: any) => {
+            if (searchErr) {
+              console.error('LDAP test search error:', searchErr);
+              client.destroy();
+              resolve({ ok: false, message: 'Search failed' });
+              return;
+            }
+            searchRes.on('end', () => {
+              client.destroy();
+              resolve({ ok: true, message: 'OK' });
+            });
+            searchRes.on('error', (err: any) => {
+              console.error('LDAP test search result error:', err);
+              client.destroy();
+              resolve({ ok: false, message: 'Search error' });
+            });
+          });
+        });
+      });
+
+      const result = await doTest();
+      res.json({ ...result, durationMs: Date.now() - start });
     } catch (error) {
       next(error);
     }

@@ -273,6 +273,217 @@ function AuthenticationProvidersCard() {
   );
 }
 
+// LDAP Settings Card Component
+function LdapSettingsCard() {
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["/api/auth/ldap", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/auth/ldap");
+      return res.json();
+    },
+  });
+
+  const [form, setForm] = useState<any>({
+    url: "",
+    startTls: false,
+    baseDn: "",
+    bindDn: "",
+    bindPassword: "",
+    userFilter: "(uid={{username}})",
+    usernameAttr: "uid",
+    firstNameAttr: "givenName",
+    lastNameAttr: "sn",
+    emailAttr: "mail",
+    disabledFilter: "",
+  });
+  const [hasPassword, setHasPassword] = useState(false);
+
+  useEffect(() => {
+    if (data?.settings) {
+      const s = data.settings;
+      setForm((prev: any) => ({
+        ...prev,
+        url: s.url || "",
+        startTls: !!s.startTls,
+        baseDn: s.baseDn || "",
+        bindDn: s.bindDnMasked ? "" : prev.bindDn, // don't backfill masked; force admin to confirm value if changing
+        bindPassword: "",
+        userFilter: s.userFilter || "(uid={{username}})",
+        usernameAttr: s.usernameAttr || "uid",
+        firstNameAttr: s.firstNameAttr || "givenName",
+        lastNameAttr: s.lastNameAttr || "sn",
+        emailAttr: s.emailAttr || "mail",
+        disabledFilter: s.disabledFilter || "",
+      }));
+      setHasPassword(!!s.hasPassword);
+    }
+  }, [data]);
+
+  const onChange = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload: any = {
+        url: form.url || undefined,
+        startTls: !!form.startTls,
+        baseDn: form.baseDn || undefined,
+        bindDn: form.bindDn || undefined,
+        userFilter: form.userFilter || undefined,
+        usernameAttr: form.usernameAttr || undefined,
+        firstNameAttr: form.firstNameAttr || undefined,
+        lastNameAttr: form.lastNameAttr || undefined,
+        emailAttr: form.emailAttr || undefined,
+        disabledFilter: form.disabledFilter || undefined,
+      };
+      // Only send bindPassword if user provided a value; empty string preserves existing
+      payload.bindPassword = form.bindPassword === "" ? undefined : form.bindPassword;
+      const res = await apiRequest("PUT", "/api/auth/ldap", payload);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Saved", description: "LDAP settings updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/ldap"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/providers"] });
+      setForm((f: any) => ({ ...f, bindPassword: "" }));
+    },
+    onError: (error: any) => {
+      toast({ title: "Save failed", description: error?.message || "Unable to save LDAP settings", variant: "destructive" });
+    }
+  });
+
+  const testMutation = useMutation({
+    mutationFn: async () => {
+      const payload: any = {
+        url: form.url || undefined,
+        startTls: !!form.startTls,
+        baseDn: form.baseDn || undefined,
+        bindDn: form.bindDn || undefined,
+        userFilter: form.userFilter || undefined,
+        usernameAttr: form.usernameAttr || undefined,
+        firstNameAttr: form.firstNameAttr || undefined,
+        lastNameAttr: form.lastNameAttr || undefined,
+        emailAttr: form.emailAttr || undefined,
+        disabledFilter: form.disabledFilter || undefined,
+      };
+      // For test, attempt to use entered password if present, else omit
+      if (form.bindPassword) payload.bindPassword = form.bindPassword;
+      const res = await apiRequest("POST", "/api/auth/ldap/test", payload);
+      return res.json();
+    },
+    onSuccess: (r: any) => {
+      if (r.ok) {
+        toast({ title: "Connection successful", description: `LDAP responded in ${r.durationMs} ms` });
+      } else {
+        toast({ title: "Connection failed", description: r.message || "Could not connect to LDAP", variant: "destructive" });
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "Test failed", description: error?.message || "Unable to test LDAP connection", variant: "destructive" });
+    }
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <Shield className="w-4 h-4 mr-2" />
+          LDAP Settings
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Configure LDAP/Active Directory connection. Use Authentication Providers to enable or disable LDAP.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : error ? (
+          <div className="text-destructive text-sm">Failed to load LDAP settings</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>LDAP URL</Label>
+                <Input placeholder="ldaps://ldap.company.com" value={form.url} onChange={(e) => onChange('url', e.target.value)} data-testid="ldap-url" />
+              </div>
+              <div className="flex items-end justify-between">
+                <div className="flex flex-col">
+                  <Label>Use StartTLS</Label>
+                  <span className="text-xs text-muted-foreground">Required if not using LDAPS</span>
+                </div>
+                <Switch checked={!!form.startTls} onCheckedChange={(v) => onChange('startTls', v)} data-testid="ldap-starttls" />
+              </div>
+
+              <div>
+                <Label>Base DN</Label>
+                <Input placeholder="dc=company,dc=com" value={form.baseDn} onChange={(e) => onChange('baseDn', e.target.value)} data-testid="ldap-basedn" />
+              </div>
+              <div>
+                <Label>Bind DN</Label>
+                <Input placeholder={data?.settings?.bindDnMasked || "cn=service,ou=svc,dc=company,dc=com"} value={form.bindDn} onChange={(e) => onChange('bindDn', e.target.value)} data-testid="ldap-binddn" />
+                {data?.settings?.bindDnMasked && (
+                  <p className="text-xs text-muted-foreground mt-1">Stored as {data.settings.bindDnMasked}. Leave empty to keep.</p>
+                )}
+              </div>
+
+              <div>
+                <Label>Bind Password</Label>
+                <Input type="password" placeholder={hasPassword ? "•••••• (set)" : "Enter password"} value={form.bindPassword} onChange={(e) => onChange('bindPassword', e.target.value)} data-testid="ldap-bindpw" />
+                {hasPassword && <p className="text-xs text-muted-foreground mt-1">Leave blank to keep current password</p>}
+              </div>
+              <div>
+                <Label>User Filter</Label>
+                <Input placeholder="(uid={{username}})" value={form.userFilter} onChange={(e) => onChange('userFilter', e.target.value)} data-testid="ldap-userfilter" />
+              </div>
+
+              <div>
+                <Label>Username Attribute</Label>
+                <Input placeholder="uid" value={form.usernameAttr} onChange={(e) => onChange('usernameAttr', e.target.value)} data-testid="ldap-attr-username" />
+              </div>
+              <div>
+                <Label>First Name Attribute</Label>
+                <Input placeholder="givenName" value={form.firstNameAttr} onChange={(e) => onChange('firstNameAttr', e.target.value)} data-testid="ldap-attr-firstname" />
+              </div>
+              <div>
+                <Label>Last Name Attribute</Label>
+                <Input placeholder="sn" value={form.lastNameAttr} onChange={(e) => onChange('lastNameAttr', e.target.value)} data-testid="ldap-attr-lastname" />
+              </div>
+              <div>
+                <Label>Email Attribute</Label>
+                <Input placeholder="mail" value={form.emailAttr} onChange={(e) => onChange('emailAttr', e.target.value)} data-testid="ldap-attr-email" />
+              </div>
+              <div>
+                <Label>Disabled Filter (optional)</Label>
+                <Input placeholder="(userAccountControl:1.2.840.113556.1.4.803:=2)" value={form.disabledFilter} onChange={(e) => onChange('disabledFilter', e.target.value)} data-testid="ldap-disabled-filter" />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} data-testid="ldap-save">
+                {saveMutation.isPending ? 'Saving…' : 'Save Settings'}
+              </Button>
+              <Button variant="outline" onClick={() => testMutation.mutate()} disabled={testMutation.isPending} data-testid="ldap-test">
+                {testMutation.isPending ? 'Testing…' : 'Test Connection'}
+              </Button>
+              {data?.configured === false && (
+                <div className="text-xs text-muted-foreground sm:ml-2 self-center">Not configured</div>
+              )}
+            </div>
+            {data?.warnings?.length > 0 && (
+              <div className="text-xs text-amber-600 dark:text-amber-400">{data.warnings[0]}</div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
@@ -2389,6 +2600,7 @@ export default function SettingsPage() {
         {canManageAuthProviders && (
           <TabsContent value="authentication" className="space-y-6">
             <AuthenticationProvidersCard />
+            <LdapSettingsCard />
           </TabsContent>
         )}
 
