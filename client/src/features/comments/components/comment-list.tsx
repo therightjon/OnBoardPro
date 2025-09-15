@@ -44,17 +44,48 @@ export function CommentList({ candidateId, taskId, initialVisibility, candidateI
         })()}
       </div>
 
-      {/* Base composer is owned by parent (tab/modal). Reply composer remains here. */}
-
       <div className="space-y-3">
         {grouped.parents.map((p) => (
           <div key={p.id}>
-            <CommentItem comment={p} candidateId={(candidateId || candidateIdForTask || '')} taskId={taskId} onReply={onReply} />
+            <CommentItem 
+              comment={p}
+              candidateId={(candidateId || candidateIdForTask || '')}
+              taskId={taskId}
+              onReply={onReply}
+              onDeleted={(id) => { if (replyTo?.parentId === id) setReplyTo(null); }}
+            />
             {(grouped.byParent[p.id] || []).map((child) => (
               <div key={child.id} className="mt-2 ml-4 pl-3 border-l">
                 <CommentItem comment={child} candidateId={(candidateId || candidateIdForTask || '')} taskId={taskId} />
               </div>
             ))}
+            {replyTo?.parentId === p.id && (
+              <div className="mt-2 ml-4 pl-3 border-l">
+                <Badge variant="outline" className="mb-1">Replying</Badge>
+                {candidateId ? (
+                  <CommentComposer 
+                    entityType="candidate" 
+                    entityId={candidateId} 
+                    defaultVisibility={replyTo.lockedVisibility} 
+                    lockedVisibility={replyTo.lockedVisibility}
+                    parentId={replyTo.parentId}
+                    onSubmitted={() => { setReplyTo(null); query?.refetch(); }}
+                    onCancel={() => setReplyTo(null)}
+                  />
+                ) : (
+                  <CommentComposer 
+                    entityType="task" 
+                    entityId={taskId!} 
+                    defaultVisibility={replyTo.lockedVisibility}
+                    lockedVisibility={replyTo.lockedVisibility}
+                    parentId={replyTo.parentId}
+                    candidateIdForTask={candidateIdForTask}
+                    onSubmitted={() => { setReplyTo(null); query?.refetch(); }}
+                    onCancel={() => setReplyTo(null)}
+                  />
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -63,31 +94,7 @@ export function CommentList({ candidateId, taskId, initialVisibility, candidateI
         <Button size="sm" variant="outline" onClick={() => query.fetchNextPage()} aria-label="Load more comments">Load more</Button>
       )}
 
-      {replyTo && (candidateId || taskId) && (
-        <div className="mt-2">
-          <Badge variant="outline" className="mb-1">Replying</Badge>
-          {candidateId ? (
-            <CommentComposer 
-              entityType="candidate" 
-              entityId={candidateId} 
-              defaultVisibility={replyTo.lockedVisibility} 
-              lockedVisibility={replyTo.lockedVisibility}
-              parentId={replyTo.parentId}
-              onSubmitted={() => { setReplyTo(null); query?.refetch(); }}
-            />
-          ) : (
-            <CommentComposer 
-              entityType="task" 
-              entityId={taskId!} 
-              defaultVisibility={replyTo.lockedVisibility}
-              lockedVisibility={replyTo.lockedVisibility}
-              parentId={replyTo.parentId}
-              candidateIdForTask={candidateIdForTask}
-              onSubmitted={() => { setReplyTo(null); query?.refetch(); }}
-            />
-          )}
-        </div>
-      )}
+      {/* No global reply composer; reply is shown inline beneath the selected parent. */}
     </div>
   );
 }

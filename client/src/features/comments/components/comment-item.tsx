@@ -6,7 +6,7 @@ import { useAuth } from '@/features/auth/hooks/use-auth';
 import { useEditComment, useDeleteComment } from '../api';
 import type { CommentDto } from '../types';
 
-export function CommentItem({ comment, candidateId, taskId, onReply }: { comment: CommentDto; candidateId: string; taskId?: string; onReply?: (parentId: string, lockedVisibility: 'internal'|'external') => void }) {
+export function CommentItem({ comment, candidateId, taskId, onReply, onDeleted }: { comment: CommentDto; candidateId: string; taskId?: string; onReply?: (parentId: string, lockedVisibility: 'internal'|'external') => void; onDeleted?: (id: string) => void }) {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(comment.body);
@@ -27,6 +27,7 @@ export function CommentItem({ comment, candidateId, taskId, onReply }: { comment
 
   const onDelete = async () => {
     await del.mutateAsync({ id: comment.id });
+    onDeleted?.(comment.id);
   };
 
   return (

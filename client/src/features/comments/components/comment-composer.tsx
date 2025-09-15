@@ -25,9 +25,10 @@ type Props = {
   parentId?: string;
   candidateIdForTask?: string; // needed for stats invalidation when entityType==='task'
   onSubmitted?: () => void;
+  onCancel?: () => void;
 };
 
-export function CommentComposer({ entityType, entityId, defaultVisibility, lockedVisibility, parentId, candidateIdForTask, onSubmitted }: Props) {
+export function CommentComposer({ entityType, entityId, defaultVisibility, lockedVisibility, parentId, candidateIdForTask, onSubmitted, onCancel }: Props) {
   const { user } = useAuth();
   const [body, setBody] = useState('');
   const [visibility, setVisibility] = useState<'internal'|'external'>(lockedVisibility || defaultVisibility);
@@ -85,9 +86,14 @@ export function CommentComposer({ entityType, entityId, defaultVisibility, locke
       />
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{body.length} chars</span>
-        <Button size="sm" className="min-h-[36px]" onClick={handleSubmit} aria-label="Submit comment" disabled={submitting || body.trim().length === 0}>
-          {submitting ? 'Submitting…' : 'Submit'}
-        </Button>
+        <div className="flex items-center gap-2">
+          {onCancel && (
+            <Button size="sm" variant="outline" className="min-h-[36px]" onClick={onCancel} aria-label="Cancel reply">Cancel</Button>
+          )}
+          <Button size="sm" className="min-h-[36px]" onClick={handleSubmit} aria-label="Submit comment" disabled={submitting || body.trim().length === 0}>
+            {submitting ? 'Submitting…' : 'Submit'}
+          </Button>
+        </div>
       </div>
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
         <AlertDialogContent>

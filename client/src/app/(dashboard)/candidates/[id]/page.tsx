@@ -745,7 +745,10 @@ export default function CandidateDetailPage() {
                                       taskId={task.id}
                                       candidateId={(candidate as any).id}
                                       value={task.status}
-                                      disabled={onboardingComplete || (candidate as any).status === 'completed'}
+                                      disabled={
+                                        onboardingComplete ||
+                                        !['draft', 'active', 'on_hold'].includes(((candidate as any).status || 'draft'))
+                                      }
                                     />
                                   </div>
                                 </div>

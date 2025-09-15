@@ -5,16 +5,15 @@ import { Input } from "@/shared/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Badge } from "@/shared/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
-import { Textarea } from "@/shared/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { TaskCommentsModal } from "@/features/comments/components/task-comments-modal";
+import { TaskCommentsButton } from "@/features/comments/components/task-comments-button";
+import { useCommentStats } from "@/features/comments/api";
 import { Switch } from "@/shared/components/ui/switch";
 import { Label } from "@/shared/components/ui/label";
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Edit, Calendar, Clock, AlertTriangle } from "lucide-react";
+import { Plus, Search, Filter, Calendar, Clock, AlertTriangle, MessageSquare } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
-import { invalidateCandidate } from "@/lib/query-invalidate";
-import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/features/auth/hooks/use-auth.tsx";
 import { Link } from "wouter";
 import type { CandidateTask, Candidate } from "@shared/schemas";
@@ -23,12 +22,10 @@ export default function MyTasksPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [editingTask, setEditingTask] = useState<any>(null);
-  const [taskNotes, setTaskNotes] = useState("");
+  const [openTaskComments, setOpenTaskComments] = useState<{ id: string; title?: string; candidateId: string } | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [showCanceled, setShowCanceled] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
-  const { toast } = useToast();
   const { user } = useAuth();
 
   const { data: myTasks = [], isLoading } = useQuery<CandidateTask[]>({
@@ -52,6 +49,19 @@ export default function MyTasksPage() {
   const { data: candidates = [] } = useQuery<Candidate[]>({
     queryKey: ["/api/candidates"],
   });
+
+  function TaskCommentsAction({ candidateId, taskId, taskTitle, onOpen }: { candidateId: string; taskId: string; taskTitle: string; onOpen: () => void }) {
+    const { data: commentStats } = useCommentStats(candidateId);
+    const count = (commentStats as any)?.byTask?.[taskId]?.totalVisible || 0;
+    const aria = `Open comments for task ${taskTitle}`; // TaskCommentsButton appends ", N comments"
+    return (
+      <TaskCommentsButton
+        count={count}
+        onClick={onOpen}
+        ariaLabel={aria}
+      />
+    );
+  }
 
   // User preferences query
   const { data: preferences } = useQuery({
@@ -105,39 +115,7 @@ export default function MyTasksPage() {
     updatePreferencesMutation.mutate(updates);
   };
 
-  const updateTaskMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const res = await apiRequest("PATCH", `/api/tasks/${id}`, data);
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/mine"] });
-      // Keep candidate views in sync if we know the candidate
-      if (data?.task?.candidateId) {
-        invalidateCandidate(queryClient, data.task.candidateId);
-      }
-      setEditingTask(null);
-      setTaskNotes("");
-      if (data?.advancement?.advanced) {
-        toast({ title: 'Success', description: `Task updated and advanced to ${data.advancement.toStageName}` });
-      } else if (data?.recompute?.isBlocked) {
-        toast({ title: 'Updated', description: 'Task updated. Candidate remains blocked by prior-stage tasks.' });
-      } else {
-        toast({ title: 'Success', description: 'Task updated successfully' });
-      }
-    },
-    onError: (error: any) => {
-      if (error?.code === 'BLOCKED_BY_PRIOR_STAGE') {
-        // Treat as soft success
-        queryClient.invalidateQueries({ queryKey: ["/api/tasks/mine"] });
-        setEditingTask(null);
-        setTaskNotes("");
-        toast({ title: 'Updated', description: 'Task updated. Candidate remains blocked by prior-stage tasks.' });
-        return;
-      }
-      toast({ title: 'Error', description: (error as Error).message, variant: 'destructive' });
-    },
-  });
+  // Removed task update mutation (dialog removed). Status changes are handled inline via TaskStatusCell.
 
   const filteredTasks = myTasks.filter((task: CandidateTask) => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -167,22 +145,7 @@ export default function MyTasksPage() {
     }
   };
 
-  const handleTaskEdit = (task: any) => {
-    setEditingTask(task);
-    setTaskNotes(task.notes || "");
-  };
-
-  const handleTaskUpdate = () => {
-    if (!editingTask) return;
-    
-    updateTaskMutation.mutate({
-      id: editingTask.id,
-      data: {
-        status: editingTask.status,
-        notes: taskNotes,
-      }
-    });
-  };
+  // No edit/update handlers needed; comments open via modal per-row.
 
   const getCandidateName = (task: any) => {
     // Use candidate info from task response (guaranteed by backend INNER JOIN)
@@ -192,6 +155,22 @@ export default function MyTasksPage() {
     // Fallback to candidates query
     const candidate = candidates.find((c: Candidate) => c.id === task.candidateId);
     return candidate ? `${candidate.firstName} ${candidate.lastName}` : `Task ${task.id.slice(0, 8)}...`;
+  };
+
+  const getCandidateStatusForTask = (task: any): string => {
+    // Prefer embedded candidate status when present
+    const embedded = (task as any)?.candidate?.status as string | undefined;
+    if (embedded) return embedded;
+    // Fallback to candidates query cache
+    const cid = (task as any)?.candidateId as string | undefined;
+    const match = cid ? (candidates as any[])?.find((c: any) => c.id === cid) : undefined;
+    return (match?.status as string | undefined) ?? 'draft';
+  };
+
+  const isTaskStatusEditable = (task: any): boolean => {
+    if (!task) return true;
+    const status = getCandidateStatusForTask(task);
+    return ['draft', 'active', 'on_hold'].includes(status);
   };
 
   const isOverdue = (dueAt: Date | null) => {
@@ -491,6 +470,7 @@ export default function MyTasksPage() {
                         taskId={task.id}
                         candidateId={task.candidateId}
                         value={task.status}
+                        disabled={!isTaskStatusEditable(task)}
                         colorStyle="filled"
                       />
                     </TableCell>
@@ -510,67 +490,12 @@ export default function MyTasksPage() {
                       )}
                     </TableCell>
                     <TableCell className="p-2 xs:p-3 sm:p-4">
-                      <Dialog open={editingTask?.id === task.id} onOpenChange={(open) => !open && setEditingTask(null)}>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="min-h-[44px] min-w-[44px] p-2"
-                            onClick={() => handleTaskEdit(task)}
-                            data-testid={`button-edit-my-task-${task.id}`}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>Update Task</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div>
-                              <h3 className="font-medium">{editingTask?.title}</h3>
-                              <p className="text-sm text-muted-foreground">{editingTask?.description}</p>
-                            </div>
-                            
-                            <div>
-                              <label className="text-sm font-medium">Status</label>
-                              <Select
-                                value={editingTask?.status}
-                                onValueChange={(value) => setEditingTask({ ...editingTask, status: value })}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="todo">To Do</SelectItem>
-                                  <SelectItem value="in_progress">In Progress</SelectItem>
-                                  <SelectItem value="blocked">Blocked</SelectItem>
-                                  <SelectItem value="done">Done</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div>
-                              <label className="text-sm font-medium">Notes</label>
-                              <Textarea
-                                value={taskNotes}
-                                onChange={(e) => setTaskNotes(e.target.value)}
-                                placeholder="Add notes about this task..."
-                                className="mt-1"
-                              />
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-0 sm:space-x-2">
-                              <Button variant="outline" onClick={() => setEditingTask(null)}>
-                                Cancel
-                              </Button>
-                              <Button onClick={handleTaskUpdate} disabled={updateTaskMutation.isPending}>
-                                {updateTaskMutation.isPending ? "Updating..." : "Update Task"}
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <TaskCommentsAction
+                        candidateId={task.candidateId}
+                        taskId={task.id}
+                        taskTitle={task.title}
+                        onOpen={() => setOpenTaskComments({ id: task.id, title: task.title, candidateId: task.candidateId })}
+                      />
                     </TableCell>
                   </TableRow>
                 ))
@@ -627,69 +552,26 @@ export default function MyTasksPage() {
                 </div>
               </div>
               <div className="flex items-center justify-start gap-2 mt-3 pt-3 border-t">
-                <Dialog open={editingTask?.id === task.id} onOpenChange={(open) => !open && setEditingTask(null)}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      className="min-h-[44px]"
-                      onClick={() => handleTaskEdit(task)}
-                      data-testid={`button-edit-my-task-${task.id}`}
-                    >
-                      Edit
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Update Task</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-medium">{editingTask?.title}</h3>
-                        <p className="text-sm text-muted-foreground">{editingTask?.description}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Status</label>
-                        <Select
-                          value={editingTask?.status}
-                          onValueChange={(value) => setEditingTask({ ...editingTask, status: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="todo">To Do</SelectItem>
-                            <SelectItem value="in_progress">In Progress</SelectItem>
-                            <SelectItem value="blocked">Blocked</SelectItem>
-                            <SelectItem value="done">Done</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Notes</label>
-                        <Textarea
-                          value={taskNotes}
-                          onChange={(e) => setTaskNotes(e.target.value)}
-                          placeholder="Add notes about this task..."
-                          className="mt-1"
-                        />
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setEditingTask(null)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleTaskUpdate} disabled={updateTaskMutation.isPending}>
-                          {updateTaskMutation.isPending ? "Updating..." : "Update Task"}
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <TaskCommentsAction
+                  candidateId={task.candidateId}
+                  taskId={task.id}
+                  taskTitle={task.title}
+                  onOpen={() => setOpenTaskComments({ id: task.id, title: task.title, candidateId: task.candidateId })}
+                />
               </div>
             </Card>
           ))
         )}
       </div>
+      {openTaskComments && (
+        <TaskCommentsModal
+          open={!!openTaskComments}
+          taskId={openTaskComments.id}
+          taskTitle={openTaskComments.title}
+          candidateId={openTaskComments.candidateId}
+          onClose={() => setOpenTaskComments(null)}
+        />
+      )}
     </div>
   );
 }
