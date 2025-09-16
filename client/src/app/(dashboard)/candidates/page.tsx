@@ -317,7 +317,7 @@ export default function CandidatesPage() {
                 <TableHead>
                   <Button
                     variant="ghost"
-                    className="h-auto p-0 font-semibold hover:bg-transparent focus-visible"
+                    className="h-auto p-0 font-semibold bg-transparent hover:bg-transparent hover:text-amber-700 focus-visible"
                     onClick={() => handleSort("name")}
                     data-testid="header-sort-name"
                   >
@@ -327,7 +327,7 @@ export default function CandidatesPage() {
                 <TableHead>
                   <Button
                     variant="ghost"
-                    className="h-auto p-0 font-semibold hover:bg-transparent focus-visible"
+                    className="h-auto p-0 font-semibold bg-transparent hover:bg-transparent hover:text-amber-700 focus-visible"
                     onClick={() => handleSort("email")}
                     data-testid="header-sort-email"
                   >
@@ -338,7 +338,7 @@ export default function CandidatesPage() {
                 <TableHead>
                   <Button
                     variant="ghost"
-                    className="h-auto p-0 font-semibold hover:bg-transparent focus-visible"
+                    className="h-auto p-0 font-semibold bg-transparent hover:bg-transparent hover:text-amber-700 focus-visible"
                     onClick={() => handleSort("status")}
                     data-testid="header-sort-status"
                   >
@@ -348,7 +348,7 @@ export default function CandidatesPage() {
                 <TableHead>
                   <Button
                     variant="ghost"
-                    className="h-auto p-0 font-semibold hover:bg-transparent focus-visible"
+                    className="h-auto p-0 font-semibold bg-transparent hover:bg-transparent hover:text-amber-700 focus-visible"
                     onClick={() => handleSort("stage")}
                     data-testid="header-sort-stage"
                   >
@@ -358,7 +358,7 @@ export default function CandidatesPage() {
                 <TableHead className="hidden lg:table-cell">
                   <Button
                     variant="ghost"
-                    className="h-auto p-0 font-semibold hover:bg-transparent focus-visible"
+                    className="h-auto p-0 font-semibold bg-transparent hover:bg-transparent hover:text-amber-700 focus-visible"
                     onClick={() => handleSort("startDate")}
                     data-testid="header-sort-start-date"
                   >
@@ -368,14 +368,14 @@ export default function CandidatesPage() {
                 <TableHead className="hidden xl:table-cell">
                   <Button
                     variant="ghost"
-                    className="h-auto p-0 font-semibold hover:bg-transparent focus-visible"
+                    className="h-auto p-0 font-semibold bg-transparent hover:bg-transparent hover:text-amber-700 focus-visible"
                     onClick={() => handleSort("createdAt")}
                     data-testid="header-sort-created"
                   >
                     Created {getSortIcon("createdAt")}
                   </Button>
                 </TableHead>
-                <TableHead className="w-[150px] text-center">Actions</TableHead>
+                <TableHead className="h-auto p-0 w-[150px] font-semibold text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
