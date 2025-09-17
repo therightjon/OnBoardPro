@@ -2011,8 +2011,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ ok: false, message: 'Missing required settings (url, bindDn, bindPassword, baseDn)' });
       }
 
-      const ldap = await import('ldapjs');
-      const client = ldap.createClient({ url: cfg.url, connectTimeout: 10000, timeout: 10000 });
+      const ldapMod: any = await import('ldapjs');
+      const createClient: any = ldapMod?.createClient ?? ldapMod?.default?.createClient;
+      if (typeof createClient !== 'function') {
+        console.error('ldapjs module shape unexpected:', Object.keys(ldapMod || {}));
+        return res.status(500).json({ ok: false, message: 'LDAP library load failed' });
+      }
+      const client = createClient({ url: cfg.url, connectTimeout: 10000, timeout: 10000 });
 
       const doTest = () => new Promise<{ ok: boolean; message: string }>((resolve) => {
         client.on('error', (err: any) => {
