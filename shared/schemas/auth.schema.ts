@@ -6,9 +6,12 @@ import {
   timestamp, 
   boolean,
   pgEnum,
-  uniqueIndex
+  uniqueIndex,
+  check,
+  customType
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import { departments, divisions } from "./candidate.schema";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -85,6 +88,34 @@ export const userRoles = pgTable("user_roles", {
   uniqueUserRole: uniqueIndex("unique_user_role").on(t.userId, t.role)
 }));
 
+const citext = customType<{ data: string }>({
+  dataType() {
+    return "citext";
+  }
+});
+
+export const invitations = pgTable("invitations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: citext("email").notNull(),
+  username: citext("username").notNull(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  roles: text("roles").array().notNull(),
+  token: text("token").notNull(),
+  status: text("status").notNull().default("pending"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  invitedBy: uuid("invited_by").references(() => users.id),
+  departmentId: uuid("department_id").references(() => departments.id),
+  divisionId: uuid("division_id").references(() => divisions.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (t) => ({
+  emailUnique: uniqueIndex("invitations_email_unique").on(sql`lower(${t.email})`),
+  tokenUnique: uniqueIndex("invitations_token_unique").on(t.token),
+  emailCheck: check("invitations_email_has_at", sql`${t.email} LIKE '%@%'`)
+}));
+
 export const authProviders = pgTable("auth_providers", {
   id: text("id").primaryKey(), // 'local', 'ldap', 'google', 'azuread'
   name: text("name").notNull(),
@@ -140,6 +171,9 @@ export type InsertUserIdentity = typeof userIdentities.$inferInsert; // Legacy c
 export type UserRole = typeof userRoles.$inferSelect;
 export type NewUserRole = typeof userRoles.$inferInsert;
 export type InsertUserRole = typeof userRoles.$inferInsert; // Legacy compatibility
+export type Invitation = typeof invitations.$inferSelect;
+export type NewInvitation = typeof invitations.$inferInsert;
+export type InsertInvitation = typeof invitations.$inferInsert;
 export type UserPreferences = typeof userPreferences.$inferSelect;
 export type NewUserPreferences = typeof userPreferences.$inferInsert;
 export type InsertUserPreferences = typeof userPreferences.$inferInsert; // Legacy compatibility

@@ -2,6 +2,7 @@ import {
   users, 
   userRoles,
   userIdentities,
+  invitations,
   authProviders,
   departments, 
   divisions, 
@@ -53,10 +54,11 @@ import {
   type UserPreferences,
   type InsertUserPreferences,
   type UserRole,
-  type InsertUserRole
+  type InsertUserRole,
+  type Invitation
 } from "@shared/schemas";
 import { db } from "./connection";
-import { eq, and, isNull, sql, desc, asc, ilike, inArray, or, ne, lte } from "drizzle-orm";
+import { eq, and, isNull, sql, desc, asc, ilike, inArray, or, ne, lte, gt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { decryptSecret, encryptSecret } from "../utils/secret";
 
@@ -91,6 +93,14 @@ export interface IStorage {
   // User role management
   getUserRoles(userId: string): Promise<UserRole[]>;
   setUserRoles(userId: string, roles: string[]): Promise<UserRole[]>;
+  addUserRoles(userId: string, roles: string[]): Promise<UserRole[]>;
+
+  // Invitations
+  createInvitation(params: { email: string; roles: string[]; invitedBy?: string | null; token: string; expiresAt: Date; departmentId?: string | null; divisionId?: string | null; firstName?: string | null; lastName?: string | null }): Promise<Invitation>;
+  getInvitationByToken(token: string): Promise<Invitation | null>;
+  consumeInvitation(id: string): Promise<Invitation | null>;
+  findValidPendingInviteForIdentifier(identifier: string): Promise<Invitation | null>;
+  getPendingInvitationsForUsersList(filters?: { role?: string; departmentId?: string; divisionId?: string; search?: string }): Promise<Array<Invitation & { department?: { id: string; name: string } | null; division?: { id: string; name: string } | null }>>;
   
   // User status management
   disableUser(userId: string, reassignOpenTasksTo?: string): Promise<{ success: boolean; tasksReassigned?: number }>;
@@ -368,6 +378,28 @@ export class DatabaseStorage implements IStorage {
     }
     
     return [];
+  }
+
+  async addUserRoles(userId: string, roles: string[]): Promise<UserRole[]> {
+    if (!roles.length) {
+      return await this.getUserRoles(userId);
+    }
+
+    const roleValues = roles.map(role => ({
+      userId,
+      role: role as any,
+      updatedAt: new Date(),
+      createdAt: new Date()
+    }));
+
+    await db
+      .insert(userRoles)
+      .values(roleValues)
+      .onConflictDoNothing({
+        target: [userRoles.userId, userRoles.role]
+      });
+
+    return await this.getUserRoles(userId);
   }
 
   async disableUser(userId: string, reassignOpenTasksTo?: string): Promise<{ success: boolean; tasksReassigned?: number }> {
@@ -2376,6 +2408,164 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userIdentities.id, id))
       .returning();
     return identity || undefined;
+  }
+
+  async createInvitation(params: { email: string; roles: string[]; invitedBy?: string | null; token: string; expiresAt: Date; departmentId?: string | null; divisionId?: string | null; firstName?: string | null; lastName?: string | null }): Promise<Invitation> {
+    const normalizedEmail = params.email.trim().toLowerCase();
+    const usernameLocal = normalizedEmail.includes("@") ? normalizedEmail.split("@")[0] : normalizedEmail;
+    const roles = Array.from(new Set(params.roles.map(role => role.trim()).filter(Boolean)));
+    const now = new Date();
+    const expiresAt = new Date(params.expiresAt);
+
+    return await db.transaction(async (tx) => {
+      const existing = await tx
+        .select()
+        .from(invitations)
+        .where(eq(invitations.email, normalizedEmail))
+        .limit(1);
+
+      if (existing.length > 0) {
+        const [updated] = await tx
+          .update(invitations)
+          .set({
+            email: normalizedEmail,
+            username: usernameLocal,
+            roles,
+            firstName: params.firstName ?? null,
+            lastName: params.lastName ?? null,
+            token: params.token,
+            status: "pending",
+            expiresAt,
+            consumedAt: null,
+            invitedBy: params.invitedBy ?? existing[0].invitedBy ?? null,
+            departmentId: params.departmentId ?? null,
+            divisionId: params.divisionId ?? null,
+            updatedAt: now
+          })
+          .where(eq(invitations.id, existing[0].id))
+          .returning();
+        return updated;
+      }
+
+      const [created] = await tx
+        .insert(invitations)
+        .values({
+          email: normalizedEmail,
+          username: usernameLocal,
+          roles,
+          firstName: params.firstName ?? null,
+          lastName: params.lastName ?? null,
+          token: params.token,
+          status: "pending",
+          expiresAt,
+          consumedAt: null,
+          invitedBy: params.invitedBy ?? null,
+          departmentId: params.departmentId ?? null,
+          divisionId: params.divisionId ?? null,
+          createdAt: now,
+          updatedAt: now
+        })
+        .returning();
+      return created;
+    });
+  }
+
+  async getInvitationByToken(token: string): Promise<Invitation | null> {
+    const [invite] = await db
+      .select()
+      .from(invitations)
+      .where(eq(invitations.token, token))
+      .limit(1);
+    return invite ?? null;
+  }
+
+  async consumeInvitation(id: string): Promise<Invitation | null> {
+    const [updated] = await db
+      .update(invitations)
+      .set({
+        status: "consumed",
+        consumedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(invitations.id, id))
+      .returning();
+    return updated ?? null;
+  }
+
+  async findValidPendingInviteForIdentifier(identifier: string): Promise<Invitation | null> {
+    const normalized = identifier.trim().toLowerCase();
+    const usernameLocal = normalized.includes("@") ? normalized.split("@")[0] : normalized;
+    const now = new Date();
+
+    const [invite] = await db
+      .select()
+      .from(invitations)
+      .where(and(
+        eq(invitations.status, "pending"),
+        gt(invitations.expiresAt, now),
+        or(
+          eq(invitations.email, normalized),
+          eq(invitations.username, usernameLocal)
+        )
+      ))
+      .orderBy(desc(invitations.updatedAt))
+      .limit(1);
+
+    return invite ?? null;
+  }
+
+  async getPendingInvitationsForUsersList(filters?: { role?: string; departmentId?: string; divisionId?: string; search?: string }): Promise<Array<Invitation & { department?: { id: string; name: string } | null; division?: { id: string; name: string } | null }>> {
+    const where: any[] = [
+      eq(invitations.status, 'pending')
+    ];
+    if (filters?.role) {
+      // roles is text[]; use sql to check
+      where.push(sql`$${filters.role} = ANY(${invitations.roles})`);
+    }
+    if (filters?.departmentId) {
+      where.push(eq(invitations.departmentId, filters.departmentId));
+    }
+    if (filters?.divisionId) {
+      where.push(eq(invitations.divisionId, filters.divisionId));
+    }
+    if (filters?.search) {
+      const q = `%${filters.search.toLowerCase()}%`;
+      where.push(sql`lower(${invitations.email}) like ${q}`);
+    }
+
+    const rows = await db
+      .select({
+        id: invitations.id,
+        email: invitations.email,
+        username: invitations.username,
+        firstName: invitations.firstName,
+        lastName: invitations.lastName,
+        roles: invitations.roles,
+        token: invitations.token,
+        status: invitations.status,
+        expiresAt: invitations.expiresAt,
+        consumedAt: invitations.consumedAt,
+        invitedBy: invitations.invitedBy,
+        departmentId: invitations.departmentId,
+        divisionId: invitations.divisionId,
+        createdAt: invitations.createdAt,
+        updatedAt: invitations.updatedAt,
+        department: {
+          id: departments.id,
+          name: departments.name
+        },
+        division: {
+          id: divisions.id,
+          name: divisions.name
+        }
+      })
+      .from(invitations)
+      .leftJoin(departments, eq(invitations.departmentId, departments.id))
+      .leftJoin(divisions, eq(invitations.divisionId, divisions.id))
+      .where(and(...where))
+      .orderBy(desc(invitations.updatedAt));
+
+    return rows as any;
   }
 
   async getUserIdentities(userId: string): Promise<UserIdentity[]> {

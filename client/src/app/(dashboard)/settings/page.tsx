@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/shared/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { Checkbox } from "@/shared/components/ui/checkbox";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +37,8 @@ import {
   Target,
   Shield,
   Search,
-  Filter
+  Filter,
+  Send
 } from "lucide-react";
 import { apiRequest, queryClient, parseJsonSafe } from "@/lib/queryClient";
 import { useToast } from "@/shared/hooks/use-toast";
@@ -81,10 +83,29 @@ const editUserSchema = userSchema.extend({
   passwordHash: z.string().min(6, "Password must be at least 6 characters").or(z.literal("")),
 });
 
+const inviteSchema = z.object({
+  email: z.string().email("Valid email is required"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  roles: z.array(z.string()).min(1, "Select at least one role"),
+  departmentId: z.string().optional(),
+  divisionId: z.string().optional(),
+});
+
 type DepartmentForm = z.infer<typeof departmentSchema>;
 type DivisionForm = z.infer<typeof divisionSchema>;
 type HiringStageForm = z.infer<typeof hiringStageSchema>;
 type UserForm = z.infer<typeof userSchema>;
+type InviteForm = z.infer<typeof inviteSchema>;
+
+const inviteRoleOptions = [
+  { value: "system_admin", label: "System Admin" },
+  { value: "hr_staff", label: "HR Staff" },
+  { value: "department_admin", label: "Department Admin" },
+  { value: "division_leader", label: "Division Leader" },
+  { value: "manager", label: "Manager" },
+  { value: "candidate", label: "Candidate" },
+];
 
 // Authentication Providers Card Component
 function AuthenticationProvidersCard() {
@@ -394,7 +415,7 @@ function LdapSettingsCard() {
           LDAP Settings
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Configure LDAP/Active Directory connection. Use Authentication Providers to enable or disable LDAP.
+          Configure LDAP/Active Directory connection. Use Authentication Providers to enable or disable LDAP. Users may enter either their username or full email when signing in. If an email is entered, only the part before @ is used to authenticate with Active Directory.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -490,6 +511,7 @@ export default function SettingsPage() {
   const [isDivisionDialogOpen, setIsDivisionDialogOpen] = useState(false);
   const [isHiringStageDialogOpen, setIsHiringStageDialogOpen] = useState(false);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isDisableDialogOpen, setIsDisableDialogOpen] = useState(false);
   const [isArchiveDepartmentDialogOpen, setIsArchiveDepartmentDialogOpen] = useState(false);
   const [isArchiveDivisionDialogOpen, setIsArchiveDivisionDialogOpen] = useState(false);
@@ -946,6 +968,37 @@ export default function SettingsPage() {
     },
   });
 
+  const sendInviteMutation = useMutation({
+    mutationFn: async (data: InviteForm) => {
+      const res = await apiRequest("POST", "/api/invitations", {
+        email: data.email.trim().toLowerCase(),
+        firstName: data.firstName?.trim() || undefined,
+        lastName: data.lastName?.trim() || undefined,
+        roles: data.roles,
+        departmentId: data.departmentId || undefined,
+        divisionId: data.divisionId || undefined,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      inviteForm.reset({ email: "", roles: [] });
+      setIsInviteDialogOpen(false);
+      // Refresh users so the invited entry appears immediately
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({
+        title: "Invitation sent",
+        description: "Invite email was queued for delivery.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to send invite",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const updateUserMutation = useMutation({
     mutationFn: async (data: UserForm & { id: string }) => {
       const { id, ...updateData } = data;
@@ -1055,6 +1108,16 @@ export default function SettingsPage() {
       departmentId: undefined,
       divisionId: undefined,
       roles: []
+    },
+  });
+
+  const inviteForm = useForm<InviteForm>({
+    resolver: zodResolver(inviteSchema),
+    defaultValues: {
+      email: "",
+      roles: [],
+      departmentId: "",
+      divisionId: "",
     },
   });
 
@@ -1236,6 +1299,16 @@ export default function SettingsPage() {
     setIsUserDialogOpen(true);
   };
 
+  const onInviteSubmit = (data: InviteForm) => {
+    sendInviteMutation.mutate(data);
+  };
+
+  const toggleInviteRole = (role: string, checked: boolean) => {
+    const current = inviteForm.getValues("roles");
+    const next = checked ? Array.from(new Set([...current, role])) : current.filter((r) => r !== role);
+    inviteForm.setValue("roles", next, { shouldValidate: true });
+  };
+
   const handleDisableUser = (user: any) => {
     setDisablingUser(user);
     setReassignTo("");
@@ -1262,6 +1335,8 @@ export default function SettingsPage() {
 
   // Divisions filtered by selected department for the User form (server-side)
   const selectedUserDepartmentId = userForm?.watch ? userForm.watch("departmentId") : undefined;
+  const selectedInviteDepartmentId = inviteForm?.watch ? inviteForm.watch("departmentId") : undefined;
+  const selectedInviteRoles = inviteForm.watch("roles");
   const { data: divisionsForUserDept = [] } = useQuery({
     queryKey: ["/api/divisions", user?.id, { departmentId: selectedUserDepartmentId }],
     queryFn: async () => {
@@ -1271,6 +1346,17 @@ export default function SettingsPage() {
       return res.json();
     },
     enabled: !!user && !!selectedUserDepartmentId,
+  });
+  // Divisions filtered for the Invite dialog department selection
+  const { data: divisionsForInviteDept = [] } = useQuery({
+    queryKey: ["/api/divisions", user?.id, { departmentId: selectedInviteDepartmentId, for: 'invite' }],
+    queryFn: async () => {
+      if (!selectedInviteDepartmentId) return [] as any[];
+      const params = new URLSearchParams({ departmentId: selectedInviteDepartmentId as string, limit: '100' });
+      const res = await apiRequest("GET", `/api/divisions?${params.toString()}`);
+      return res.json();
+    },
+    enabled: !!user && !!selectedInviteDepartmentId,
   });
 
   return (
@@ -1917,25 +2003,147 @@ export default function SettingsPage() {
           <TabsContent value="users" className="space-y-6">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <CardTitle className="flex items-center">
                     <Users className="w-4 h-4 mr-2" />
                     User Management
                   </CardTitle>
-                  <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button onClick={handleNewUser} data-testid="button-new-user">
-                        <Plus className="w-4 h-4 mr-2" />
-                        New User
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-[95vw] w-full sm:max-w-md max-h-[90vh] sm:max-h-min overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>
-                          {editingUser ? "Edit User" : "Create New User"}
-                        </DialogTitle>
-                      </DialogHeader>
-                      <form onSubmit={userForm.handleSubmit(onUserSubmit)} className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Dialog
+                      open={isInviteDialogOpen}
+                      onOpenChange={(open) => {
+                        setIsInviteDialogOpen(open);
+                        if (!open) {
+                          inviteForm.reset({ email: "", roles: [] });
+                          inviteForm.clearErrors();
+                        }
+                      }}
+                    >
+                      <DialogTrigger asChild>
+                        <Button variant="outline" data-testid="button-send-invite">
+                          <Send className="w-4 h-4 mr-2" />
+                          Invite Users
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-h-min max-w-[95vw] w-full sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Invite Users</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={inviteForm.handleSubmit(onInviteSubmit)} className="space-y-4" data-testid="form-send-invite">
+                          <div className="space-y-2">
+                            <Label htmlFor="invite-email">Email</Label>
+                            <Input
+                              id="invite-email"
+                              type="email"
+                              placeholder="person@example.edu"
+                              {...inviteForm.register("email")}
+                              data-testid="input-invite-email"
+                            />
+                            {inviteForm.formState.errors.email && (
+                              <p className="text-sm text-destructive mt-1">
+                                {inviteForm.formState.errors.email.message}
+                              </p>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label htmlFor="invite-firstName">First name</Label>
+                              <Input id="invite-firstName" placeholder="First name" {...inviteForm.register("firstName")} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="invite-lastName">Last name</Label>
+                              <Input id="invite-lastName" placeholder="Last name" {...inviteForm.register("lastName")} />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="invite-department">Department</Label>
+                            <Select onValueChange={(value) => { inviteForm.setValue('departmentId', value); inviteForm.setValue('divisionId', ''); }} value={inviteForm.watch('departmentId') || ''}>
+                              <SelectTrigger data-testid="select-invite-department">
+                                <SelectValue placeholder="Select department" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(departments as any[]).map((dept: any) => (
+                                  <SelectItem key={dept.id} value={dept.id}>
+                                    {dept.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="invite-division">Division</Label>
+                          <Select onValueChange={(value) => inviteForm.setValue('divisionId', value)} value={inviteForm.watch('divisionId') || ''} disabled={!inviteForm.watch('departmentId')}>
+                            <SelectTrigger data-testid="select-invite-division">
+                              <SelectValue placeholder="Select division" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(!inviteForm.watch('departmentId') || divisionsForInviteDept.length === 0) ? (
+                                <SelectItem disabled value="__no_divisions__">No divisions available.</SelectItem>
+                              ) : (
+                                (divisionsForInviteDept as any[]).map((div: any) => (
+                                  <SelectItem key={div.id} value={div.id}>
+                                    {div.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Select Roles</Label>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {inviteRoleOptions.map((role) => (
+                                <div key={role.value} className="flex items-center gap-2 rounded border px-3 py-2">
+                                  <Checkbox
+                                    id={`invite-role-${role.value}`}
+                                    checked={selectedInviteRoles.includes(role.value)}
+                                    onCheckedChange={(checked) => toggleInviteRole(role.value, !!checked)}
+                                  />
+                                  <Label htmlFor={`invite-role-${role.value}`} className="font-normal">
+                                    {role.label}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                            {inviteForm.formState.errors.roles && (
+                              <p className="text-sm text-destructive mt-1">
+                                {inviteForm.formState.errors.roles.message}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                inviteForm.reset({ email: "", roles: [] });
+                                inviteForm.clearErrors();
+                                setIsInviteDialogOpen(false);
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button type="submit" disabled={sendInviteMutation.isPending} data-testid="button-submit-invite">
+                              {sendInviteMutation.isPending ? "Sending…" : "Send Invite"}
+                            </Button>
+                          </div>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                    <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button onClick={handleNewUser} data-testid="button-new-user">
+                          <Plus className="w-4 h-4 mr-2" />
+                          New User
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-[95vw] w-full sm:max-w-md max-h-[90vh] sm:max-h-min overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>
+                            {editingUser ? "Edit User" : "Create New User"}
+                          </DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={userForm.handleSubmit(onUserSubmit)} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <Label htmlFor="user-firstName">First Name</Label>
@@ -2106,6 +2314,7 @@ export default function SettingsPage() {
                       </form>
                     </DialogContent>
                   </Dialog>
+                </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

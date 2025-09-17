@@ -1,14 +1,17 @@
 // Core authentication service for provider-agnostic sign-in flow
 
 import { storage } from "../../../db/storage";
-import type { User, InsertUser, UserIdentity, InsertUserIdentity } from "@shared/schemas";
-import type { UserProfile, AuthResult } from "./providers";
+import type { User, InsertUser, UserIdentity, InsertUserIdentity, Invitation } from "@shared/schemas";
+import type { UserProfile } from "./providers";
 
 export interface SignInResult {
   success: boolean;
   user?: User;
   error?: string;
   isNewUser?: boolean;
+  statusCode?: number;
+  consumedInvitationId?: string;
+  assignedRoles?: string[];
 }
 
 export class AuthService {
@@ -22,14 +25,18 @@ export class AuthService {
    * 5) Insert or update user_identities linking
    * 6) Return local user for session
    */
-  async signInWithProvider(provider: string, profile: UserProfile): Promise<SignInResult> {
+  async signInWithProvider(
+    provider: string,
+    profile: UserProfile,
+    options?: { inviteToken?: string | null }
+  ): Promise<SignInResult> {
     try {
       // Step 1: Normalize data
-      const normalizedEmail = profile.email.toLowerCase();
-      const normalizedUsername = profile.username?.toLowerCase();
+      const normalizedEmail = (profile.email ?? "").trim().toLowerCase();
+      const normalizedUsername = profile.username ? profile.username.trim().toLowerCase() : undefined;
       
       // Step 2: Try to find existing user
-      let existingUser = await this.findExistingUser(provider, profile, normalizedEmail, normalizedUsername);
+      const existingUser = await this.findExistingUser(provider, profile, normalizedEmail, normalizedUsername);
       
       if (existingUser) {
         // Step 3: Update existing user
@@ -37,7 +44,7 @@ export class AuthService {
         
         // Check if user is disabled
         if (existingUser.status === 'disabled') {
-          return { success: false, error: 'Account is disabled' };
+          return { success: false, error: 'Account is disabled', statusCode: 403 };
         }
         
         // Update or create identity record
@@ -52,16 +59,51 @@ export class AuthService {
         };
         
       } else {
-        // Step 4: Create new user
-        const newUser = await this.createNewUser(provider, profile, normalizedEmail, normalizedUsername);
+        const invitation = await this.resolveInvitation({
+          normalizedEmail,
+          normalizedUsername,
+          inviteToken: options?.inviteToken ?? null
+        });
+
+        if (!invitation) {
+          return {
+            success: false,
+            error: 'You must be invited to use this application.',
+            statusCode: 403
+          };
+        }
+
+        // Step 4: Create new user anchored to invitation details
+        const newUser = await this.createNewUser(
+          provider,
+          profile,
+          invitation.email.toLowerCase(),
+          invitation.username.toLowerCase(),
+          invitation
+        );
         
-        // Step 5: Create identity record
-        await this.upsertUserIdentity(newUser.id, provider, profile);
-        
+        // Step 5: Create identity record with invitation fallbacks
+        const identityProfile: UserProfile = {
+          ...profile,
+          email: profile.email || invitation.email,
+          username: profile.username || invitation.username
+        };
+        await this.upsertUserIdentity(newUser.id, provider, identityProfile);
+
+        if (invitation.roles?.length) {
+          await storage.addUserRoles(newUser.id, invitation.roles);
+        }
+
+        await storage.consumeInvitation(invitation.id);
+
+        const hydratedUser = await storage.getUser(newUser.id);
+
         return { 
           success: true, 
-          user: newUser,
-          isNewUser: true 
+          user: hydratedUser ?? newUser,
+          isNewUser: true,
+          consumedInvitationId: invitation.id,
+          assignedRoles: invitation.roles
         };
       }
       
@@ -99,7 +141,7 @@ export class AuthService {
     }
     
     // Try to find by verified email (careful with email-based linking)
-    if (profile.emailVerified) {
+    if (profile.emailVerified && normalizedEmail) {
       const userByEmail = await storage.getUserByEmail(normalizedEmail);
       if (userByEmail && userByEmail.emailVerified) {
         return userByEmail;
@@ -126,8 +168,11 @@ export class AuthService {
       updateData.lastName = profile.lastName;
     }
     
-    if (profile.email && profile.email !== user.email) {
-      updateData.email = profile.email;
+    if (profile.email) {
+      const candidateEmail = profile.email.trim().toLowerCase();
+      if (candidateEmail && candidateEmail !== user.email?.toLowerCase()) {
+        updateData.email = candidateEmail;
+      }
     }
     
     if (profile.emailVerified && !user.emailVerified) {
@@ -149,23 +194,113 @@ export class AuthService {
     provider: string, 
     profile: UserProfile, 
     normalizedEmail: string, 
-    normalizedUsername?: string
+    normalizedUsername?: string,
+    invitation?: Invitation
   ): Promise<User> {
-    
+    const email = (invitation?.email ?? normalizedEmail).trim().toLowerCase();
+    const username = (invitation?.username ?? normalizedUsername)?.trim().toLowerCase();
+    const primaryRole = invitation?.roles?.[0] ?? 'candidate';
+    const firstName = (invitation?.firstName ?? profile.firstName)?.trim() || username || email.split('@')[0] || 'Invited';
+    const lastName = (invitation?.lastName ?? profile.lastName)?.trim() || 'User';
+
     const userData: InsertUser = {
-      email: normalizedEmail,
-      firstName: profile.firstName,
-      lastName: profile.lastName,
+      email,
+      firstName,
+      lastName,
       authProvider: provider,
       externalId: profile.externalId,
-      username: normalizedUsername,
-      emailVerified: profile.emailVerified || false,
-      role: 'candidate', // Default role - can be changed by admins
-      status: 'active', // Or 'invited' if approval is required
+      username,
+      emailVerified: profile.emailVerified ?? true,
+      role: primaryRole as User['role'],
+      status: 'active',
+      departmentId: invitation?.departmentId ?? undefined,
+      divisionId: invitation?.divisionId ?? undefined,
       lastLoginAt: new Date()
     };
     
     return await storage.createUser(userData);
+  }
+
+  private invitationMatches(
+    invitation: Invitation,
+    normalizedEmail: string,
+    normalizedUsername?: string
+  ): boolean {
+    // NOTE: If the email alias differs from the canonical LDAP username, this lookup fails by default.
+    // Future strategies:
+    //   a) allow admins to override the username at invite acceptance time;
+    //   b) resolve the canonical username from the directory when creating invitations.
+    const emailCandidate = normalizedEmail?.trim();
+    const usernameCandidate = normalizedUsername?.trim();
+    const invitedEmail = invitation.email.trim().toLowerCase();
+    const invitedUsername = invitation.username.trim().toLowerCase();
+
+    if (emailCandidate && invitedEmail === emailCandidate) {
+      return true;
+    }
+
+    if (emailCandidate && emailCandidate.includes('@')) {
+      const localPart = emailCandidate.split('@')[0];
+      if (localPart && invitedUsername === localPart) {
+        return true;
+      }
+    }
+
+    if (usernameCandidate && invitedUsername === usernameCandidate) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private async resolveInvitation(params: {
+    normalizedEmail: string;
+    normalizedUsername?: string;
+    inviteToken?: string | null;
+  }): Promise<Invitation | null> {
+    const now = new Date();
+
+    if (params.inviteToken) {
+      const invitation = await storage.getInvitationByToken(params.inviteToken);
+      if (!invitation || invitation.status !== 'pending') {
+        return null;
+      }
+
+      const expiresAt = new Date(invitation.expiresAt);
+      if (Number.isNaN(expiresAt.getTime()) || expiresAt <= now) {
+        return null;
+      }
+
+      return this.invitationMatches(invitation, params.normalizedEmail, params.normalizedUsername)
+        ? invitation
+        : null;
+    }
+
+    const identifiers = new Set<string>();
+    if (params.normalizedEmail) identifiers.add(params.normalizedEmail);
+    if (params.normalizedUsername) identifiers.add(params.normalizedUsername);
+
+    for (const identifier of identifiers) {
+      const invitation = await storage.findValidPendingInviteForIdentifier(identifier);
+      if (!invitation) {
+        continue;
+      }
+
+      if (invitation.status !== 'pending') {
+        continue;
+      }
+
+      const expiresAt = new Date(invitation.expiresAt);
+      if (Number.isNaN(expiresAt.getTime()) || expiresAt <= now) {
+        continue;
+      }
+
+      if (this.invitationMatches(invitation, params.normalizedEmail, params.normalizedUsername)) {
+        return invitation;
+      }
+    }
+
+    return null;
   }
   
   /**

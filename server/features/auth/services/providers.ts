@@ -1,6 +1,7 @@
 // Authentication provider interfaces and implementations
 
 import type { User, InsertUser, UserIdentity, InsertUserIdentity } from "@shared/schemas";
+import { toLdapUsername } from "../identifier";
 
 // Common user profile from any provider
 export interface UserProfile {
@@ -52,8 +53,10 @@ export class LdapAuthProvider implements AuthProvider {
 
   async authenticate(credentials: { username: string; password: string }): Promise<AuthResult> {
     const { username, password } = credentials;
-    
-    if (!username || !password) {
+    const originalInput = username;
+    const ldapUser = toLdapUsername(username ?? "");
+
+    if (!ldapUser || !password) {
       return { success: false, error: "Username and password required" };
     }
 
@@ -87,7 +90,9 @@ export class LdapAuthProvider implements AuthProvider {
           }
 
           // Step 2: Search for user
-          const searchFilter = this.config.userFilter.replace('{{username}}', username);
+          const searchFilter = this.config.userFilter
+            .replace(/\{\{username\}\}/g, ldapUser)
+            .replace(/\{username\}/g, ldapUser);
           const searchOptions = {
             filter: searchFilter,
             scope: 'sub' as const,
@@ -120,12 +125,14 @@ export class LdapAuthProvider implements AuthProvider {
                 return acc;
               }, {});
 
+              const rawUsername = (attrs[this.config.usernameAttr] ?? ldapUser) as string;
+              const rawEmail = (attrs[this.config.emailAttr] ?? '') as string;
               userProfile = {
                 externalId: userDn,
-                username: attrs[this.config.usernameAttr] || username,
+                username: rawUsername ? String(rawUsername).toLowerCase() : '',
                 firstName: attrs[this.config.firstNameAttr] || '',
                 lastName: attrs[this.config.lastNameAttr] || '',
-                email: attrs[this.config.emailAttr] || '',
+                email: rawEmail ? String(rawEmail).toLowerCase() : '',
                 emailVerified: true // Assume LDAP emails are verified
               };
             });
@@ -148,7 +155,7 @@ export class LdapAuthProvider implements AuthProvider {
                 client.destroy();
                 
                 if (userBindErr) {
-                  console.error('LDAP user bind error:', userBindErr);
+                  console.error('LDAP user bind error:', userBindErr, { input: originalInput });
                   resolve({ success: false, error: 'Invalid credentials' });
                   return;
                 }

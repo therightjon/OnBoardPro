@@ -169,8 +169,11 @@ export default function AuthPage() {
           <CardContent>
             <form onSubmit={adLoginForm.handleSubmit((data) => adLoginMutation.mutate(data))} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="ad-username">Username</Label>
-                <Input id="ad-username" type="text" placeholder="Enter your AD username" data-testid="input-ad-username" {...adLoginForm.register("username")} />
+                <Label htmlFor="ad-username">Username or Email</Label>
+                <Input id="ad-username" type="text" placeholder="Enter your username or email" data-testid="input-ad-username" {...adLoginForm.register("username")} />
+                <p className="text-xs text-muted-foreground">
+                  If you enter your email, only the part before @ is used for LDAP sign-in.
+                </p>
                 {adLoginForm.formState.errors.username && (
                   <p className="text-sm text-destructive">{adLoginForm.formState.errors.username.message}</p>
                 )}

@@ -2,11 +2,11 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import bcrypt from "bcrypt";
 import { storage } from "../../../db/storage";
-import { User as SelectUser, insertUserSchema } from "@shared/schemas";
+import { User as SelectUser } from "@shared/schemas";
 import { z } from "zod";
 import connectPg from "connect-pg-simple";
 import { pool } from "../../../config/database.config";
@@ -24,15 +24,17 @@ declare global {
   }
 }
 
+declare module "express-session" {
+  interface SessionData {
+    inviteToken?: string;
+    inviteTokenEmail?: string;
+    inviteTokenIssuedAt?: string;
+  }
+}
+
 const PostgresSessionStore = connectPg(session);
 
 const scryptAsync = promisify(scrypt);
-
-async function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
-}
 
 async function comparePasswords(supplied: string, stored: string) {
   try {
@@ -126,35 +128,10 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/register", async (req, res, next) => {
-    try {
-      const validatedData = insertUserSchema.parse(req.body);
-      
-      const existingUser = await storage.getUserByEmail(validatedData.email);
-      if (existingUser) {
-        return res.status(400).json({ message: "Email already exists" });
-      }
-
-      // Hash password only if provided (for local authentication)
-      const passwordHash = validatedData.passwordHash 
-        ? await hashPassword(validatedData.passwordHash)
-        : undefined;
-
-      const user = await storage.createUser({
-        ...validatedData,
-        passwordHash,
-      });
-
-      req.login(user, (err) => {
-        if (err) return next(err);
-        res.status(201).json(user);
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
-      }
-      next(error);
-    }
+  app.post("/api/register", (_req, res) => {
+    res.status(403).json({
+      message: "Self-service registration is disabled. Please request an invitation."
+    });
   });
 
   app.post("/api/login", passport.authenticate("local"), async (req, res) => {
@@ -216,12 +193,21 @@ export async function setupAuth(app: Express) {
       }
 
       // Use AuthService to handle user creation/update and sign-in
-      const signInResult = await authService.signInWithProvider(provider, authResult.user!);
+      const signInResult = await authService.signInWithProvider(provider, authResult.user!, {
+        inviteToken: req.session?.inviteToken
+      });
       
       if (!signInResult.success) {
-        return res.status(401).json({ 
+        const statusCode = signInResult.statusCode ?? 401;
+        return res.status(statusCode).json({ 
           message: signInResult.error || "Sign-in failed" 
         });
+      }
+
+      if (signInResult.consumedInvitationId && req.session) {
+        delete req.session.inviteToken;
+        delete req.session.inviteTokenEmail;
+        delete req.session.inviteTokenIssuedAt;
       }
 
       // Log the user in using passport
@@ -233,7 +219,8 @@ export async function setupAuth(app: Express) {
         
         res.json({
           user: signInResult.user,
-          isNewUser: signInResult.isNewUser
+          isNewUser: signInResult.isNewUser,
+          assignedRoles: signInResult.assignedRoles
         });
       });
     } catch (error) {

@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { randomBytes } from "crypto";
 import { setupAuth } from "./features/auth/services/auth.service";
 import { storage } from "./db/storage";
 import { 
@@ -11,7 +12,8 @@ import {
   insertDepartmentSchema,
   insertDivisionSchema,
   insertHiringStageSchema,
-  insertUserPreferencesSchema
+  insertUserPreferencesSchema,
+  appRoleEnum
 } from "@shared/schemas";
 import { z } from "zod";
 import { advanceStageIfComplete, recomputeCandidateStageState } from "./features/tasks/services/advance-stage.service";
@@ -34,8 +36,126 @@ function requireRole(roles: string[]) {
   };
 }
 
+const INVITE_TOKEN_BYTES = 32;
+
+function generateInviteToken(): string {
+  const raw = randomBytes(INVITE_TOKEN_BYTES).toString("base64");
+  return raw.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function getInviteBaseUrl(): string {
+  const value = process.env.APP_BASE_URL 
+    || process.env.PUBLIC_URL 
+    || process.env.CLIENT_URL 
+    || process.env.VITE_APP_URL;
+  return value ? value.replace(/\/$/, "") : "http://localhost:5173";
+}
+
+async function sendInviteEmail(email: string, token: string, expiresAt: Date) {
+  const link = `${getInviteBaseUrl()}/accept-invite?token=${token}`;
+  console.info(`[invite] Sent invitation`, { email, link, expiresAt: expiresAt.toISOString() });
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
+
+  const inviteRequestSchema = z.object({
+    email: z.string().email(),
+    roles: z.array(z.string().min(1)).min(1),
+    departmentId: z.string().uuid().optional().or(z.literal('').transform(()=>undefined)),
+    divisionId: z.string().uuid().optional().or(z.literal('').transform(()=>undefined)),
+    firstName: z.string().min(1).optional(),
+    lastName: z.string().min(1).optional(),
+  });
+
+  app.post(
+    "/api/invitations",
+    requireAuth,
+    requireRole(["system_admin", "hr_staff"]),
+    async (req, res, next) => {
+      try {
+        const parsed = inviteRequestSchema.parse(req.body ?? {});
+        const normalizedEmail = parsed.email.trim().toLowerCase();
+        const rolesInput = parsed.roles.map(role => role.trim().toLowerCase());
+        const allowedRoles = new Set<string>([...appRoleEnum.enumValues]);
+        const invalidRoles = rolesInput.filter(role => !allowedRoles.has(role));
+
+        if (invalidRoles.length > 0) {
+          return res.status(400).json({
+            message: `Invalid role(s): ${invalidRoles.join(', ')}`
+          });
+        }
+
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const token = generateInviteToken();
+
+        const invitation = await storage.createInvitation({
+          email: normalizedEmail,
+          roles: rolesInput,
+          invitedBy: req.user!.id,
+          token,
+          expiresAt,
+          departmentId: parsed.departmentId,
+          divisionId: parsed.divisionId,
+          firstName: parsed.firstName,
+          lastName: parsed.lastName
+        });
+
+        await sendInviteEmail(invitation.email, invitation.token, new Date(invitation.expiresAt));
+
+        res.status(201).json({
+          id: invitation.id,
+          expiresAt: invitation.expiresAt
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({
+            message: "Invalid data",
+            errors: error.flatten()
+          });
+        }
+        next(error);
+      }
+    }
+  );
+
+  app.get("/api/invitations/accept", async (req: any, res, next) => {
+    try {
+      const tokenParam = req.query?.token;
+      const token = Array.isArray(tokenParam) ? tokenParam[0] : tokenParam;
+
+      if (!token || typeof token !== "string" || token.trim() === "") {
+        return res.status(400).json({ message: "Invite token is required" });
+      }
+
+      const invitation = await storage.getInvitationByToken(token);
+
+      if (!invitation || invitation.status !== "pending") {
+        return res.status(410).json({ message: "Invite is invalid or expired" });
+      }
+
+      const expiresAt = new Date(invitation.expiresAt);
+      if (Number.isNaN(expiresAt.getTime()) || expiresAt <= new Date()) {
+        return res.status(410).json({ message: "Invite is invalid or expired" });
+      }
+
+      req.session.inviteToken = token;
+      req.session.inviteTokenEmail = invitation.email;
+      req.session.inviteTokenIssuedAt = new Date().toISOString();
+      req.session.save((err: unknown) => {
+        if (err) {
+          console.error("Failed to persist invitation token in session", err);
+          return res.status(500).json({ message: "Unable to store invite token" });
+        }
+        res.json({
+          email: invitation.email,
+          expiresAt: invitation.expiresAt
+        });
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   // Divisions routes (single handler; supports departmentId search and includeArchived)
   app.get("/api/divisions", requireAuth, requireRole(["system_admin", "hr_staff", "department_admin", "division_leader", "manager"]), async (req, res, next) => {
@@ -1493,7 +1613,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (search) filters.search = search as string;
       
       const users = await storage.getAllUsers(filters);
-      res.json(users);
+
+      // Append pending invitations as pseudo-users unless status filter excludes them
+      let includeInvites = true;
+      if (filters.status && filters.status !== 'all' && filters.status !== 'invited') {
+        includeInvites = false;
+      }
+
+      if (!includeInvites) {
+        return res.json(users);
+      }
+
+      const inviteFilters = {
+        role: filters.role,
+        departmentId: filters.departmentId,
+        divisionId: filters.divisionId,
+        search: filters.search,
+      };
+      const invites = await storage.getPendingInvitationsForUsersList(inviteFilters);
+
+      const inviteAsUsers = invites.map((inv: any) => ({
+        id: `invite:${inv.id}`,
+        email: inv.email,
+        firstName: inv.firstName || "",
+        lastName: inv.lastName || "",
+        passwordHash: null,
+        role: (inv.roles && inv.roles[0]) || 'candidate',
+        status: 'invited',
+        departmentId: inv.departmentId,
+        divisionId: inv.divisionId,
+        active: true,
+        lastLoginAt: null,
+        authProvider: 'ldap',
+        externalId: null,
+        username: inv.username,
+        emailVerified: false,
+        createdAt: inv.createdAt,
+        updatedAt: inv.updatedAt,
+        department: inv.department ? { id: inv.department.id, name: inv.department.name } : null,
+        division: inv.division ? { id: inv.division.id, name: inv.division.name } : null,
+      }));
+
+      res.json([ ...users, ...inviteAsUsers ]);
     } catch (error) {
       next(error);
     }
