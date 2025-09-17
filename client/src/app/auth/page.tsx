@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -10,7 +10,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Redirect } from "wouter";
-import { Users, CheckCircle, Shield, Clock } from "lucide-react";
+import { Users, CheckCircle, Shield, Clock, Building2, Mail, Cloud, Landmark } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/shared/hooks/use-toast";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -28,9 +31,66 @@ const registerSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>;
 type RegisterForm = z.infer<typeof registerSchema>;
 
+// Active Directory / LDAP login schema mirrors local login UX
+const adLoginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+});
+type AdLoginForm = z.infer<typeof adLoginSchema>;
+
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("login");
+  const [activeProvider, setActiveProvider] = useState<string>("local");
+
+  // Load enabled providers (public endpoint). Fallback to ["local"] if not available
+  const { data: providerResp } = useQuery({
+    queryKey: ["/api/auth/available-providers"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/auth/available-providers");
+      return res.json() as Promise<{ providers: string[] }>; 
+    }
+  });
+  const providersRaw = providerResp?.providers?.length ? providerResp.providers : ["local"];
+
+  const providerMetadata = useMemo(() => ({
+    ldap: {
+      label: "Active Directory",
+      description: "Use your AD/LDAP username and password",
+      Icon: Building2,
+    },
+    azuread: {
+      label: "Azure AD",
+      description: "Use your Microsoft work account",
+      Icon: Landmark,
+    },
+    google: {
+      label: "Google",
+      description: "Use your Google Workspace account",
+      Icon: Cloud,
+    },
+    local: {
+      label: "Local",
+      description: "Sign in with your email and password",
+      Icon: Mail,
+    },
+  }), []);
+
+  const providers = useMemo(() => {
+    const withoutLocal = providersRaw.filter((p) => p !== "local");
+    const locals = providersRaw.filter((p) => p === "local");
+    return [...withoutLocal, ...locals];
+  }, [providersRaw]);
+
+  // Default provider: LDAP if enabled, else Local. Preserve selection if still available.
+  useEffect(() => {
+    if (!providers || providers.length === 0) return;
+    setActiveProvider((prev) => {
+      if (prev && providers.includes(prev)) return prev;
+      return providers.includes("ldap") ? "ldap" : "local";
+    });
+  }, [providers.join(",")]);
 
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -50,6 +110,137 @@ export default function AuthPage() {
       role: "candidate",
     },
   });
+
+  // AD/LDAP login form and mutation
+  const adLoginForm = useForm<AdLoginForm>({
+    resolver: zodResolver(adLoginSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+    },
+  });
+
+  const adLoginMutation = useMutation({
+    mutationFn: async (credentials: AdLoginForm) => {
+      const res = await apiRequest("POST", "/api/auth/login", {
+        provider: "ldap",
+        credentials,
+      });
+      return await res.json();
+    },
+    onSuccess: (result: any) => {
+      // Server returns { user, isNewUser }
+      if (result?.user) {
+        queryClient.setQueryData(["/api/user"], result.user);
+      } else {
+        // Fallback in case shape changes
+        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "AD sign-in failed",
+        description: error?.message || "Authentication failed",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const showProviderTabs = providers.length > 1;
+
+  const renderProviderCard = (provider: string) => {
+    const meta = providerMetadata[provider as keyof typeof providerMetadata] ?? {
+      label: provider,
+      description: "Sign in with this provider",
+      Icon: Mail,
+    };
+    const { Icon } = meta;
+
+    if (provider === "ldap") {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Icon className="h-4 w-4" />
+              {meta.label}
+            </CardTitle>
+            <CardDescription>{meta.description}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={adLoginForm.handleSubmit((data) => adLoginMutation.mutate(data))} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="ad-username">Username</Label>
+                <Input id="ad-username" type="text" placeholder="Enter your AD username" data-testid="input-ad-username" {...adLoginForm.register("username")} />
+                {adLoginForm.formState.errors.username && (
+                  <p className="text-sm text-destructive">{adLoginForm.formState.errors.username.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ad-password">Password</Label>
+                <Input id="ad-password" type="password" placeholder="Enter your password" data-testid="input-ad-password" {...adLoginForm.register("password")} />
+                {adLoginForm.formState.errors.password && (
+                  <p className="text-sm text-destructive">{adLoginForm.formState.errors.password.message}</p>
+                )}
+              </div>
+              <Button type="submit" className="w-full" disabled={adLoginMutation.isPending} data-testid="button-ad-login">
+                {adLoginMutation.isPending ? "Signing in…" : "Sign In with AD"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (provider === "local") {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Icon className="h-4 w-4" />
+              {meta.label}
+            </CardTitle>
+            <CardDescription>{meta.description}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email</Label>
+                <Input id="login-email" type="email" placeholder="Enter your email" data-testid="input-email" {...loginForm.register("email")} />
+                {loginForm.formState.errors.email && (
+                  <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="login-password">Password</Label>
+                <Input id="login-password" type="password" placeholder="Enter your password" data-testid="input-password" {...loginForm.register("password")} />
+                {loginForm.formState.errors.password && (
+                  <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>
+                )}
+              </div>
+              <Button type="submit" className="w-full" disabled={loginMutation.isPending} data-testid="button-login">
+                {loginMutation.isPending ? "Signing in..." : "Sign In"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Icon className="h-4 w-4" />
+            {meta.label}
+          </CardTitle>
+          <CardDescription>{meta.description}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">This provider is not available yet.</p>
+        </CardContent>
+      </Card>
+    );
+  };
 
   // Redirect if already logged in
   if (user) {
@@ -84,58 +275,33 @@ export default function AuthPage() {
             </TabsList>
 
             <TabsContent value="login">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Welcome back</CardTitle>
-                  <CardDescription>
-                    Sign in to your account to continue
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="login-email">Email</Label>
-                      <Input
-                        id="login-email"
-                        type="email"
-                        placeholder="Enter your email"
-                        data-testid="input-email"
-                        {...loginForm.register("email")}
-                      />
-                      {loginForm.formState.errors.email && (
-                        <p className="text-sm text-destructive">
-                          {loginForm.formState.errors.email.message}
-                        </p>
-                      )}
-                    </div>
+              {showProviderTabs ? (
+                <Tabs value={activeProvider} onValueChange={setActiveProvider} className="w-full">
+                  <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${providers.length}, minmax(0, 1fr))` }}>
+                    {providers.map((p) => {
+                      const meta = providerMetadata[p as keyof typeof providerMetadata] ?? {
+                        label: p,
+                        Icon: Mail,
+                      };
+                      const Icon = meta.Icon;
+                      return (
+                        <TabsTrigger key={p} value={p} data-testid={`tab-provider-${p}`} className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          <span>{meta.label}</span>
+                        </TabsTrigger>
+                      );
+                    })}
+                  </TabsList>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="login-password">Password</Label>
-                      <Input
-                        id="login-password"
-                        type="password"
-                        placeholder="Enter your password"
-                        data-testid="input-password"
-                        {...loginForm.register("password")}
-                      />
-                      {loginForm.formState.errors.password && (
-                        <p className="text-sm text-destructive">
-                          {loginForm.formState.errors.password.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={loginMutation.isPending}
-                      data-testid="button-login"
-                    >
-                      {loginMutation.isPending ? "Signing in..." : "Sign In"}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
+                  {providers.map((p) => (
+                    <TabsContent key={p} value={p}>
+                      {renderProviderCard(p)}
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              ) : (
+                <div>{renderProviderCard(activeProvider)}</div>
+              )}
             </TabsContent>
 
             <TabsContent value="register">

@@ -305,6 +305,17 @@ export async function setupAuth(app: Express) {
     }
   });
 
+  // Public: list available/registered authentication providers for the sign-in screen
+  app.get("/api/auth/available-providers", (_req, res) => {
+    try {
+      const providers = providerRegistry.getEnabledProviders();
+      res.json({ providers });
+    } catch (error) {
+      console.error("Failed to get available providers:", error);
+      res.status(500).json({ message: "Failed to load providers" });
+    }
+  });
+
   // Provider configuration validation endpoint
   app.get("/api/auth/validation", (req, res) => {
     const validationResults = validateProviderConfigurations();
