@@ -1298,7 +1298,7 @@ export default function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="departments" data-testid="tab-departments" className="w-full">
             <Building className="w-4 h-4 mr-2" />
-            Departments
+            Organization
           </TabsTrigger>
           {canManageUsers && (
             <TabsTrigger value="users" data-testid="tab-users" className="w-full">
