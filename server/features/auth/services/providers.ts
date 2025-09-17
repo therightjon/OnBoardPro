@@ -71,7 +71,7 @@ export class LdapAuthProvider implements AuthProvider {
 
       // Create LDAP client
       const client = createClient({
-        url: this.config.url,
+        url: (this.config.url || '').trim(),
         connectTimeout: 10000,
         timeout: 10000,
       });
@@ -123,7 +123,13 @@ export class LdapAuthProvider implements AuthProvider {
 
             searchRes.on('searchEntry', (entry: any) => {
               foundUser = true;
-              userDn = entry.objectName || '';
+              // Extract DN robustly across ldapjs versions
+              try {
+                const dnCandidate = (entry && (entry.objectName ?? entry.dn)) as any;
+                userDn = typeof dnCandidate === 'string' ? dnCandidate : (dnCandidate?.toString?.() ?? '');
+              } catch {
+                userDn = '';
+              }
               
               const attrs = entry.attributes.reduce((acc: any, attr: any) => {
                 acc[attr.type] = Array.isArray(attr.values) ? attr.values[0] : attr.values;
@@ -149,14 +155,21 @@ export class LdapAuthProvider implements AuthProvider {
             });
 
             searchRes.on('end', () => {
-              if (!foundUser || !userDn) {
+              if (!foundUser || !userDn || typeof userDn !== 'string') {
                 client.destroy();
                 resolve({ success: false, error: 'User not found' });
                 return;
               }
 
               // Step 3: Verify user password by binding with user credentials
-              client.bind(userDn, password, (userBindErr: any) => {
+              const passwordStr = typeof password === 'string' ? password : String(password ?? '');
+              if (!passwordStr) {
+                client.destroy();
+                resolve({ success: false, error: 'Username and password required' });
+                return;
+              }
+
+              client.bind(userDn, passwordStr, (userBindErr: any) => {
                 client.destroy();
                 
                 if (userBindErr) {
