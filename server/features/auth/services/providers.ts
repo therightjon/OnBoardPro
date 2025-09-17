@@ -61,11 +61,16 @@ export class LdapAuthProvider implements AuthProvider {
     }
 
     try {
-      // Import LDAP library dynamically
-      const ldap = await import('ldapjs');
-      
+      // Import LDAP library dynamically (support ESM/CJS shapes)
+      const ldapMod: any = await import('ldapjs');
+      const createClient: any = ldapMod?.createClient ?? ldapMod?.default?.createClient;
+      if (typeof createClient !== 'function') {
+        console.error('ldapjs module shape unexpected in provider:', Object.keys(ldapMod || {}));
+        return { success: false, error: 'LDAP library load failed' };
+      }
+
       // Create LDAP client
-      const client = ldap.createClient({
+      const client = createClient({
         url: this.config.url,
         connectTimeout: 10000,
         timeout: 10000,
