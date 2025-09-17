@@ -1296,7 +1296,7 @@ export default function SettingsPage() {
             <Palette className="w-4 h-4 mr-2" />
             Appearance
           </TabsTrigger>
-          <TabsTrigger value="departments" data-testid="tab-departments" className="w-full">
+          <TabsTrigger value="organization" data-testid="tab-organization" className="w-full">
             <Building className="w-4 h-4 mr-2" />
             Organization
           </TabsTrigger>
@@ -1417,7 +1417,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* Departments & Divisions */}
-        <TabsContent value="departments" className="space-y-6">
+        <TabsContent value="organization" className="space-y-6">
           {/* Departments */}
           <Card>
             <CardHeader>
