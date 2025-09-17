@@ -210,25 +210,82 @@ export function useDeleteComment(params: { candidateId?: string; taskId?: string
       };
 
       if (candidateId) {
-        // Remove from lists and adjust overall count by total removed
-        let removedCount = 0;
+        const removalSummary: {
+          total: number;
+          internal: number;
+          external: number;
+          byTask: Record<string, { total: number; internal: number; external: number }>;
+        } = {
+          total: 0,
+          internal: 0,
+          external: 0,
+          byTask: {},
+        };
+
         const captureRemove = (data: any) => {
           if (!data) return data;
-          let localRemoved = 0;
           const pages = (data.pages || []).map((p: any) => {
-            const before = (p.items || []).length;
-            const newItems = (p.items || []).filter((it: any) => it.id !== payload.id && it.parentId !== payload.id);
-            localRemoved += before - newItems.length;
+            const newItems = (p.items || []).filter((it: any) => {
+              const shouldRemove = it.id === payload.id || it.parentId === payload.id;
+              if (!shouldRemove) return true;
+
+              removalSummary.total += 1;
+              if (it.visibility === 'external') {
+                removalSummary.external += 1;
+              } else {
+                removalSummary.internal += 1;
+              }
+
+              if (it.entityType === 'task' && it.entityId) {
+                const existing = removalSummary.byTask[it.entityId] || { total: 0, internal: 0, external: 0 };
+                const isExternal = it.visibility === 'external';
+                removalSummary.byTask[it.entityId] = {
+                  total: existing.total + 1,
+                  internal: existing.internal + (isExternal ? 0 : 1),
+                  external: existing.external + (isExternal ? 1 : 0),
+                };
+              }
+
+              return false;
+            });
             return { ...p, items: newItems };
           });
-          removedCount = localRemoved;
-          if (pages.length > 0) {
-            pages[0] = { ...pages[0], totalVisibleCount: Math.max(0, (pages[0].totalVisibleCount ?? 0) - removedCount) };
+
+          if (pages.length > 0 && removalSummary.total > 0) {
+            pages[0] = {
+              ...pages[0],
+              totalVisibleCount: Math.max(0, (pages[0].totalVisibleCount ?? 0) - removalSummary.total),
+            };
           }
+
           return { ...data, pages };
         };
+
         qc.setQueriesData({ queryKey: ['/api/candidates', candidateId, 'comments'], exact: false }, captureRemove);
-        qc.setQueriesData({ queryKey: ['/api/candidates', candidateId, 'comment-stats'] }, (d: any) => d ? { ...d, profile: { ...d.profile, totalVisible: Math.max(0, (d.profile.totalVisible ?? 0) - removedCount) } } : d);
+        if (removalSummary.total > 0) {
+          qc.setQueriesData({ queryKey: ['/api/candidates', candidateId, 'comment-stats'] }, (d: any) => {
+            if (!d) return d;
+
+            const profile = {
+              ...d.profile,
+              totalVisible: Math.max(0, (d.profile.totalVisible ?? 0) - removalSummary.total),
+              internalCount: Math.max(0, (d.profile.internalCount ?? 0) - removalSummary.internal),
+              externalCount: Math.max(0, (d.profile.externalCount ?? 0) - removalSummary.external),
+            };
+
+            const byTask = { ...(d.byTask || {}) };
+            for (const [taskId, counts] of Object.entries(removalSummary.byTask)) {
+              const current = byTask[taskId] || { totalVisible: 0, internalCount: 0, externalCount: 0 };
+              byTask[taskId] = {
+                totalVisible: Math.max(0, (current.totalVisible ?? 0) - counts.total),
+                internalCount: Math.max(0, (current.internalCount ?? 0) - counts.internal),
+                externalCount: Math.max(0, (current.externalCount ?? 0) - counts.external),
+              };
+            }
+
+            return { ...d, profile, byTask };
+          });
+        }
       }
       if (taskId) {
         qc.setQueriesData({ queryKey: ['/api/tasks', taskId, 'comments'], exact: false }, remove);

@@ -1822,7 +1822,11 @@ export class DatabaseStorage implements IStorage {
     const diffMs = now.getTime() - createdAt.getTime();
     const canDelete = (existing.authorUserId === userId && diffMs <= 5 * 60 * 1000) || ['system_admin','hr_staff'].includes(userRole);
     if (!canDelete) throw new Error('Not permitted to delete comment');
-    await db.update(comments).set({ isDeleted: true, updatedAt: new Date() }).where(eq(comments.id, id));
+    // Soft-delete the target comment and any direct replies
+    await db
+      .update(comments)
+      .set({ isDeleted: true, updatedAt: new Date() })
+      .where(or(eq(comments.id, id), eq(comments.parentId, id)));
   }
 
   async getCommentStats(params: { candidateId: string; role: string }): Promise<{ profile: { internalCount: number; externalCount: number; totalVisible: number }; byTask: Record<string, { internalCount: number; externalCount: number; totalVisible: number }> }> {
