@@ -43,6 +43,7 @@ export function AutoSelectCombobox({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [selected, setSelected] = React.useState<Item | null>(null);
+  const preloadedValueRef = React.useRef<string | null>(null);
 
   const load = React.useCallback(async (q: string) => {
     setLoading(true);
@@ -86,15 +87,28 @@ export function AutoSelectCombobox({
 
   // Keep displayed label in sync
   React.useEffect(() => {
-    if (!value) { 
-      setSelected(null); 
-      return; 
+    if (preloadedValueRef.current !== value) {
+      preloadedValueRef.current = null;
     }
+
+    if (!value) {
+      setSelected(null);
+      return;
+    }
+
     const found = items.find(i => i.id === value);
     if (found) {
       setSelected(found);
+      return;
     }
-  }, [value, items]);
+
+    if (loading || preloadedValueRef.current === value) {
+      return;
+    }
+
+    preloadedValueRef.current = value;
+    load('');
+  }, [value, items, load, loading]);
 
   return (
     <div className="grid gap-1.5">
