@@ -5,3 +5,4 @@ export * from "./task.schema";
 export * from "./template.schema";
 export * from "./system.schema";
 export * from "./comments.schema";
+export * from "../preferences";

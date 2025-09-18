@@ -17,6 +17,7 @@ import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
 import { useAuth } from "@/features/auth/hooks/use-auth.tsx";
 import { Link } from "wouter";
 import type { CandidateTask, Candidate } from "@shared/schemas";
+import { mergeUserPreferences, type UserPreferencesDTO } from "@shared/preferences";
 
 export default function MyTasksPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -64,12 +65,11 @@ export default function MyTasksPage() {
   }
 
   // User preferences query
-  const { data: preferences } = useQuery({
+  const { data: preferences } = useQuery<UserPreferencesDTO>({
     // Include user id in key to avoid sharing prefs between sessions
     queryKey: ["/api/me/preferences", user?.id],
     queryFn: async () => {
-      const response = await fetch("/api/me/preferences");
-      if (!response.ok) throw new Error('Failed to fetch preferences');
+      const response = await apiRequest("GET", "/api/me/preferences");
       return response.json();
     },
     enabled: !!user,
@@ -90,9 +90,10 @@ export default function MyTasksPage() {
   // Initialize toggle states from preferences
   useEffect(() => {
     if (preferences) {
-      setShowArchived(preferences.mytasksShowArchived || false);
-      setShowCanceled(preferences.mytasksShowCanceled || false);
-      setShowCompleted(preferences.mytasksShowCompleted || false);
+      const merged = mergeUserPreferences(preferences);
+      setShowArchived(!!merged.mytasksShowArchived);
+      setShowCanceled(!!merged.mytasksShowCanceled);
+      setShowCompleted(!!merged.mytasksShowCompleted);
     }
   }, [preferences]);
 

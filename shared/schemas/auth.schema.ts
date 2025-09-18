@@ -5,6 +5,8 @@ import {
   text, 
   timestamp, 
   boolean,
+  time,
+  jsonb,
   pgEnum,
   uniqueIndex,
   check,
@@ -129,6 +131,12 @@ export const userPreferences = pgTable("user_preferences", {
   mytasksShowArchived: boolean("mytasks_show_archived").notNull().default(false),
   mytasksShowCanceled: boolean("mytasks_show_canceled").notNull().default(false),
   mytasksShowCompleted: boolean("mytasks_show_completed").notNull().default(false),
+  notifyInApp: boolean("notify_in_app").notNull().default(true),
+  notifyEmail: boolean("notify_email").notNull().default(false),
+  digestFrequency: text("digest_frequency").notNull().default("immediate"),
+  quietHoursStart: time("quiet_hours_start"),
+  quietHoursEnd: time("quiet_hours_end"),
+  eventSubscriptions: jsonb("event_subscriptions").$type<Record<string, boolean>>().notNull().default(sql`'{}'::jsonb`),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 

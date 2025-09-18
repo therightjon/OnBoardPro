@@ -52,10 +52,10 @@ import {
   type CandidateType,
   type FacultyRank,
   type UserPreferences,
-  type InsertUserPreferences,
   type UserRole,
   type InsertUserRole,
-  type Invitation
+  type Invitation,
+  USER_PREFERENCES_DEFAULTS
 } from "@shared/schemas";
 import { db } from "./connection";
 import { eq, and, isNull, sql, desc, asc, ilike, inArray, or, ne, lte, gt } from "drizzle-orm";
@@ -81,6 +81,8 @@ import connectPg from "connect-pg-simple";
 import { pool } from "./connection";
 
 const PostgresSessionStore = connectPg(session);
+
+type UserPreferencesUpdateInput = Partial<Omit<UserPreferences, "userId" | "updatedAt">>;
 
 export interface IStorage {
   // Basic user operations
@@ -112,7 +114,7 @@ export interface IStorage {
   
   // User Preferences
   getUserPreferences(userId: string): Promise<UserPreferences | undefined>;
-  upsertUserPreferences(preferences: InsertUserPreferences): Promise<UserPreferences>;
+  upsertUserPreferences(userId: string, updates: UserPreferencesUpdateInput): Promise<UserPreferences>;
   
   // Candidates
   getCandidates(filters?: any): Promise<Candidate[]>;
@@ -2355,20 +2357,46 @@ export class DatabaseStorage implements IStorage {
     return preferences || undefined;
   }
 
-  async upsertUserPreferences(preferences: InsertUserPreferences): Promise<UserPreferences> {
+  async upsertUserPreferences(userId: string, updates: UserPreferencesUpdateInput): Promise<UserPreferences> {
+    const now = new Date();
+    const existing = await this.getUserPreferences(userId);
+
+    const mergedEventSubscriptions = updates.eventSubscriptions !== undefined
+      ? {
+        ...USER_PREFERENCES_DEFAULTS.eventSubscriptions,
+        ...(existing?.eventSubscriptions ?? {}),
+        ...updates.eventSubscriptions,
+      }
+      : {
+        ...USER_PREFERENCES_DEFAULTS.eventSubscriptions,
+        ...(existing?.eventSubscriptions ?? {}),
+      };
+
+    const resolved = {
+      userId,
+      mytasksShowArchived: updates.mytasksShowArchived ?? existing?.mytasksShowArchived ?? USER_PREFERENCES_DEFAULTS.mytasksShowArchived,
+      mytasksShowCanceled: updates.mytasksShowCanceled ?? existing?.mytasksShowCanceled ?? USER_PREFERENCES_DEFAULTS.mytasksShowCanceled,
+      mytasksShowCompleted: updates.mytasksShowCompleted ?? existing?.mytasksShowCompleted ?? USER_PREFERENCES_DEFAULTS.mytasksShowCompleted,
+      notifyInApp: updates.notifyInApp ?? existing?.notifyInApp ?? USER_PREFERENCES_DEFAULTS.notifyInApp,
+      notifyEmail: updates.notifyEmail ?? existing?.notifyEmail ?? USER_PREFERENCES_DEFAULTS.notifyEmail,
+      digestFrequency: updates.digestFrequency ?? existing?.digestFrequency ?? USER_PREFERENCES_DEFAULTS.digestFrequency,
+      quietHoursStart: updates.quietHoursStart === undefined ? (existing?.quietHoursStart ?? USER_PREFERENCES_DEFAULTS.quietHoursStart) : updates.quietHoursStart,
+      quietHoursEnd: updates.quietHoursEnd === undefined ? (existing?.quietHoursEnd ?? USER_PREFERENCES_DEFAULTS.quietHoursEnd) : updates.quietHoursEnd,
+      eventSubscriptions: mergedEventSubscriptions,
+    } satisfies typeof userPreferences.$inferInsert;
+
     const [result] = await db
       .insert(userPreferences)
-      .values({ ...preferences, updatedAt: new Date() })
+      .values({ ...resolved, updatedAt: now })
       .onConflictDoUpdate({
         target: userPreferences.userId,
         set: {
-          mytasksShowArchived: preferences.mytasksShowArchived,
-          mytasksShowCanceled: preferences.mytasksShowCanceled,
-          mytasksShowCompleted: preferences.mytasksShowCompleted,
-          updatedAt: new Date()
+          ...resolved,
+          updatedAt: now,
         }
       })
       .returning();
+
     return result;
   }
 

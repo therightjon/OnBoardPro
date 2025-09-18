@@ -12,8 +12,12 @@ import {
   insertDepartmentSchema,
   insertDivisionSchema,
   insertHiringStageSchema,
-  insertUserPreferencesSchema,
-  appRoleEnum
+  appRoleEnum,
+  USER_PREFERENCES_DEFAULTS,
+  DIGEST_FREQUENCIES,
+  mergeUserPreferences,
+  type UserPreferences,
+  type UserPreferencesDTO
 } from "@shared/schemas";
 import { z } from "zod";
 import { advanceStageIfComplete, recomputeCandidateStageState } from "./features/tasks/services/advance-stage.service";
@@ -37,6 +41,81 @@ function requireRole(roles: string[]) {
 }
 
 const INVITE_TOKEN_BYTES = 32;
+
+export const PREFERENCE_KEYS = [
+  "mytasksShowArchived",
+  "mytasksShowCanceled",
+  "mytasksShowCompleted",
+  "notifyInApp",
+  "notifyEmail",
+  "digestFrequency",
+  "quietHoursStart",
+  "quietHoursEnd",
+  "eventSubscriptions"
+] as const;
+
+type PreferenceKey = (typeof PREFERENCE_KEYS)[number];
+
+const candidatePreferenceKeys = new Set<PreferenceKey>(PREFERENCE_KEYS);
+const defaultPreferenceKeys = new Set<PreferenceKey>(PREFERENCE_KEYS);
+
+const timePattern = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/;
+
+const nullableTimeSchema = z.union([
+  z.string().regex(timePattern, "Time must be in HH:MM or HH:MM:SS format"),
+  z.null(),
+  z.literal("")
+]).transform((value) => (value === "" ? null : value));
+
+export const preferencesUpdateSchema = z.object({
+  mytasksShowArchived: z.boolean().optional(),
+  mytasksShowCanceled: z.boolean().optional(),
+  mytasksShowCompleted: z.boolean().optional(),
+  notifyInApp: z.boolean().optional(),
+  notifyEmail: z.boolean().optional(),
+  digestFrequency: z.enum(DIGEST_FREQUENCIES).optional(),
+  quietHoursStart: nullableTimeSchema.optional(),
+  quietHoursEnd: nullableTimeSchema.optional(),
+  eventSubscriptions: z.record(z.boolean()).optional()
+}).strict();
+
+type PreferencesUpdatePayload = z.infer<typeof preferencesUpdateSchema>;
+
+type PreferencesResponse = typeof USER_PREFERENCES_DEFAULTS & {
+  eventSubscriptions: Record<string, boolean>;
+};
+
+type UserPreferencesUpdate = Partial<Omit<UserPreferences, "userId" | "updatedAt">>;
+
+export function getAllowedPreferenceKeys(role: string): Set<PreferenceKey> {
+  return role === "candidate" ? candidatePreferenceKeys : defaultPreferenceKeys;
+}
+
+export function buildPreferenceResponse(preferences?: UserPreferences): PreferencesResponse {
+  const merged = mergeUserPreferences(preferences as Partial<UserPreferencesDTO> | undefined);
+  return {
+    ...merged,
+    eventSubscriptions: { ...merged.eventSubscriptions }
+  };
+}
+
+export function pickPreferencesForRole(preferences: PreferencesResponse, role: string) {
+  const allowedKeys = getAllowedPreferenceKeys(role);
+  return Array.from(allowedKeys).reduce<Record<string, unknown>>((acc, key) => {
+    acc[key] = preferences[key as keyof PreferencesResponse];
+    return acc;
+  }, {});
+}
+
+export function filterUpdatesForRole(updates: PreferencesUpdatePayload, role: string): UserPreferencesUpdate {
+  const allowedKeys = getAllowedPreferenceKeys(role);
+  return Object.entries(updates).reduce<UserPreferencesUpdate>((acc, [key, value]) => {
+    if (allowedKeys.has(key as PreferenceKey)) {
+      acc[key as PreferenceKey] = value as any;
+    }
+    return acc;
+  }, {} as UserPreferencesUpdate);
+}
 
 function generateInviteToken(): string {
   const raw = randomBytes(INVITE_TOKEN_BYTES).toString("base64");
@@ -186,22 +265,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/me/preferences", requireAuth, async (req, res, next) => {
     try {
       const userId = req.user!.id;
+      const role = req.user!.role;
       const preferences = await storage.getUserPreferences(userId);
-      
-      // If no preferences exist, return defaults
-      if (!preferences) {
-        return res.json({
-          mytasksShowArchived: false,
-          mytasksShowCanceled: false,
-          mytasksShowCompleted: false
-        });
-      }
-      
-      res.json({
-        mytasksShowArchived: preferences.mytasksShowArchived,
-        mytasksShowCanceled: preferences.mytasksShowCanceled,
-        mytasksShowCompleted: preferences.mytasksShowCompleted
-      });
+      const response = buildPreferenceResponse(preferences);
+      res.json(pickPreferencesForRole(response, role));
     } catch (error) {
       next(error);
     }
@@ -210,28 +277,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/me/preferences", requireAuth, async (req, res, next) => {
     try {
       const userId = req.user!.id;
-      const updateSchema = insertUserPreferencesSchema.partial().extend({
-        userId: z.string().optional()
-      });
-      
-      const validatedData = updateSchema.parse(req.body);
-      
-      // Merge with userId
-      const preferencesToUpdate = {
-        userId,
-        ...validatedData
-      };
-      
-      const updatedPreferences = await storage.upsertUserPreferences(preferencesToUpdate);
-      
-      res.json({
-        mytasksShowArchived: updatedPreferences.mytasksShowArchived,
-        mytasksShowCanceled: updatedPreferences.mytasksShowCanceled,
-        mytasksShowCompleted: updatedPreferences.mytasksShowCompleted
-      });
+      const role = req.user!.role;
+      const parsedUpdates = preferencesUpdateSchema.parse(req.body ?? {});
+      const filteredUpdates = filterUpdatesForRole(parsedUpdates, role);
+      const updatedPreferences = await storage.upsertUserPreferences(userId, filteredUpdates);
+      const response = buildPreferenceResponse(updatedPreferences);
+      res.json(pickPreferencesForRole(response, role));
     } catch (error) {
       next(error);
     }
+  });
+
+  app.post("/api/me/preferences/test-email", requireAuth, (_req, res) => {
+    res.status(200).json({ message: "Test email requested" });
   });
 
   // Managers routes

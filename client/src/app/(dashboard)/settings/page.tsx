@@ -46,6 +46,7 @@ import { useTheme } from "@/shared/components/layout/theme-provider";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { NotificationsCard } from "./NotificationsCard";
 
 const departmentSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -1500,6 +1501,8 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          <NotificationsCard />
         </TabsContent>
 
         {/* Departments & Divisions */}
