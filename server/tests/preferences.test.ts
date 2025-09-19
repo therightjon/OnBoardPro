@@ -36,6 +36,8 @@ test("GET /api/me/preferences returns defaults with all fields", () => {
   const keys = Object.keys(response).sort();
   assert.deepEqual(keys, [...PREFERENCE_KEYS].sort());
 
+  assert.equal(response.allowSelfNotifications, false, "default allowSelfNotifications should be false");
+
   const candidateView = pickPreferencesForRole(response, "candidate");
   for (const key of PREFERENCE_KEYS) {
     assert.ok(key in candidateView, `response should include ${key}`);
@@ -67,6 +69,7 @@ test("PATCH /api/me/preferences merges updates and preserves existing values", (
   assert.equal(merged.mytasksShowArchived, true, "should keep existing task visibility setting");
   assert.equal(merged.notifyEmail, true, "should apply email update");
   assert.equal(merged.notifyInApp, true, "should retain in-app setting");
+  assert.equal(merged.allowSelfNotifications, existing.allowSelfNotifications, "should retain self-notification setting");
   assert.equal(merged.eventSubscriptions["task.assigned"], false, "should update assigned subscription");
   assert.equal(merged.eventSubscriptions.mention, false, "should retain mention override");
   for (const eventKey of EVENT_SUBSCRIPTION_KEYS) {

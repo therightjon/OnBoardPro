@@ -19,6 +19,8 @@ import {
   candidateStageHistory,
   templateTasks,
   templateStages,
+  candidateFollowers,
+  notifications,
   userPreferences,
   systemSettings,
   type User, 
@@ -39,6 +41,8 @@ import {
   type InsertTemplateStage,
   type CandidateTemplateStage,
   type InsertCandidateTemplateStage,
+  type CandidateFollower,
+  type InsertCandidateFollower,
   type TaskDefinition,
   type InsertTaskDefinition,
   type Department,
@@ -55,12 +59,28 @@ import {
   type UserRole,
   type InsertUserRole,
   type Invitation,
+  type Notification,
+  type InsertNotification,
   USER_PREFERENCES_DEFAULTS
 } from "@shared/schemas";
 import { db } from "./connection";
-import { eq, and, isNull, sql, desc, asc, ilike, inArray, or, ne, lte, gt } from "drizzle-orm";
+import { eq, and, isNull, sql, desc, asc, ilike, inArray, or, ne, lte, gt, lt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { decryptSecret, encryptSecret } from "../utils/secret";
+
+const MENTION_KEY_REPLACE = /[^a-z0-9]+/g;
+const MENTION_KEY_DOTS = /\.\.+/g;
+
+function sanitizeMentionKey(value?: string | null): string | null {
+  if (!value) return null;
+  const cleaned = value
+    .trim()
+    .toLowerCase()
+    .replace(MENTION_KEY_REPLACE, ".")
+    .replace(MENTION_KEY_DOTS, ".")
+    .replace(/^\.+|\.+$/g, "");
+  return cleaned || null;
+}
 
 // LDAP settings stored under system_settings key 'auth.ldap'
 export type LdapSettings = {
@@ -159,6 +179,16 @@ export interface IStorage {
   getCandidateTemplateStages(candidateId: string): Promise<CandidateTemplateStage[]>;
   createCandidateTemplateStage(stage: InsertCandidateTemplateStage): Promise<CandidateTemplateStage>;
   upsertCandidateTemplateStages(candidateId: string, stages: InsertCandidateTemplateStage[]): Promise<void>;
+
+  // Candidate followers
+  getCandidateFollowers(candidateId: string): Promise<CandidateFollower[]>;
+  addCandidateFollower(candidateId: string, userId: string): Promise<void>;
+  removeCandidateFollower(candidateId: string, userId: string): Promise<void>;
+
+  // Notifications
+  getNotifications(params: { userId: string; limit?: number; cursor?: string; unreadOnly?: boolean; types?: string[] }): Promise<{ items: Notification[]; nextCursor?: string; unreadCount: number }>;
+  setNotificationRead(userId: string, notificationId: string, isRead: boolean): Promise<boolean>;
+  markAllNotificationsRead(userId: string): Promise<number>;
   
   // Task Definitions
   getTaskDefinitions(): Promise<TaskDefinition[]>;
@@ -263,6 +293,41 @@ export class DatabaseStorage implements IStorage {
     return Buffer.from(JSON.stringify({ createdAt: row.createdAt.toISOString(), id: row.id })).toString('base64');
   }
 
+  private buildMentionKeyBase(source: { mentionKey?: string | null; username?: string | null; firstName?: string | null; lastName?: string | null; email?: string | null }): string {
+    return (
+      sanitizeMentionKey(source.mentionKey)
+      ?? sanitizeMentionKey(source.username)
+      ?? sanitizeMentionKey(`${source.firstName ?? ''}.${source.lastName ?? ''}`)
+      ?? sanitizeMentionKey(source.email?.split('@')[0])
+      ?? 'user'
+    );
+  }
+
+  private async ensureUniqueMentionKey(base: string, excludeUserId?: string): Promise<string> {
+    let attempt = 1;
+    while (true) {
+      const candidate = attempt === 1 ? base : `${base}.${attempt}`;
+      const existing = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(
+          excludeUserId
+            ? and(eq(users.mentionKey, candidate), ne(users.id, excludeUserId))
+            : eq(users.mentionKey, candidate)
+        )
+        .limit(1);
+      if (existing.length === 0) {
+        return candidate;
+      }
+      attempt += 1;
+    }
+  }
+
+  private async generateMentionKey(source: { mentionKey?: string | null; username?: string | null; firstName?: string | null; lastName?: string | null; email?: string | null }, excludeUserId?: string): Promise<string> {
+    const base = this.buildMentionKeyBase(source);
+    return this.ensureUniqueMentionKey(base, excludeUserId);
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
@@ -274,17 +339,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
+    const mentionKey = await this.generateMentionKey(insertUser);
     const [user] = await db
       .insert(users)
-      .values(insertUser)
+      .values({ ...insertUser, mentionKey })
       .returning();
     return user;
   }
 
   async updateUser(id: string, data: Partial<User>): Promise<User | undefined> {
+    const existing = await this.getUser(id);
+    if (!existing) return undefined;
+
+    const updates: Partial<User> = { ...data };
+
+    if (Object.prototype.hasOwnProperty.call(updates, 'mentionKey')) {
+      updates.mentionKey = await this.generateMentionKey(
+        {
+          mentionKey: updates.mentionKey,
+          username: updates.username ?? existing.username,
+          firstName: updates.firstName ?? existing.firstName,
+          lastName: updates.lastName ?? existing.lastName,
+          email: updates.email ?? existing.email
+        },
+        id
+      );
+    }
+
     const [user] = await db
       .update(users)
-      .set({ ...data, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: new Date() })
       .where(eq(users.id, id))
       .returning();
     return user || undefined;
@@ -325,6 +409,7 @@ export class DatabaseStorage implements IStorage {
         email: users.email,
         firstName: users.firstName,
         lastName: users.lastName,
+        mentionKey: users.mentionKey,
         passwordHash: users.passwordHash,
         role: users.role,
         status: users.status,
@@ -517,6 +602,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCandidate(id: string): Promise<any> {
+    const primaryOwner = alias(users, "primary_owner");
     const [candidate] = await db
       .select({
         id: candidates.id,
@@ -531,6 +617,7 @@ export class DatabaseStorage implements IStorage {
         facultyRankId: candidates.facultyRankId,
         startDate: candidates.startDate,
         status: candidates.status,
+        primaryOwnerId: candidates.primaryOwnerId,
         currentStageId: candidates.currentStageId,
         templateAppliedFromId: candidates.templateAppliedFromId,
         templateAppliedAt: candidates.templateAppliedAt,
@@ -560,6 +647,12 @@ export class DatabaseStorage implements IStorage {
           lastName: users.lastName,
           email: users.email
         },
+        primaryOwner: {
+          id: primaryOwner.id,
+          firstName: primaryOwner.firstName,
+          lastName: primaryOwner.lastName,
+          email: primaryOwner.email
+        },
         facultyRank: {
           id: facultyRanks.id,
           name: facultyRanks.name
@@ -578,6 +671,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(departments, eq(candidates.departmentId, departments.id))
       .leftJoin(divisions, eq(candidates.divisionId, divisions.id))
       .leftJoin(users, eq(candidates.managerId, users.id))
+      .leftJoin(primaryOwner, eq(candidates.primaryOwnerId, primaryOwner.id))
       .leftJoin(facultyRanks, eq(candidates.facultyRankId, facultyRanks.id))
       .leftJoin(hiringStages, eq(candidates.currentStageId, hiringStages.id))
       .where(eq(candidates.id, id));
@@ -683,9 +777,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCandidate(insertCandidate: InsertCandidate): Promise<Candidate> {
+    const payload = {
+      ...insertCandidate,
+      primaryOwnerId: insertCandidate.primaryOwnerId ?? null
+    };
     const [candidate] = await db
       .insert(candidates)
-      .values(insertCandidate)
+      .values(payload)
       .returning();
     return candidate;
   }
@@ -1092,7 +1190,8 @@ export class DatabaseStorage implements IStorage {
         id: users.id,
         name: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
         email: users.email,
-        role: users.role
+        role: users.role,
+        mentionKey: users.mentionKey
       })
       .from(users)
       .where(and(...whereConditions))
@@ -1390,6 +1489,96 @@ export class DatabaseStorage implements IStorage {
           }
         });
     }
+  }
+
+  async getCandidateFollowers(candidateId: string): Promise<CandidateFollower[]> {
+    return await db
+      .select()
+      .from(candidateFollowers)
+      .where(eq(candidateFollowers.candidateId, candidateId));
+  }
+
+  async addCandidateFollower(candidateId: string, userId: string): Promise<void> {
+    await db
+      .insert(candidateFollowers)
+      .values({ candidateId, userId })
+      .onConflictDoNothing();
+  }
+
+  async removeCandidateFollower(candidateId: string, userId: string): Promise<void> {
+    await db
+      .delete(candidateFollowers)
+      .where(and(eq(candidateFollowers.candidateId, candidateId), eq(candidateFollowers.userId, userId)));
+  }
+
+  async getNotifications(params: { userId: string; limit?: number; cursor?: string; unreadOnly?: boolean; types?: string[] }): Promise<{ items: Notification[]; nextCursor?: string; unreadCount: number }> {
+    const { userId, limit = 20, cursor, unreadOnly = false, types } = params;
+    const cursorObj = this.decodeCursor(cursor);
+    let query: any = db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId));
+
+    if (unreadOnly) {
+      query = query.where(eq(notifications.isRead, false));
+    }
+
+    if (types && types.length > 0) {
+      query = query.where(inArray(notifications.type, types));
+    }
+
+    if (cursorObj) {
+      const cursorCondition = or(
+        lt(notifications.createdAt, cursorObj.createdAt),
+        and(
+          eq(notifications.createdAt, cursorObj.createdAt),
+          lt(notifications.id, cursorObj.id)
+        )
+      );
+      query = query.where(cursorCondition as any);
+    }
+
+    const rows = await query
+      .orderBy(desc(notifications.createdAt), desc(notifications.id))
+      .limit(limit + 1);
+
+    const items = rows.slice(0, limit);
+    const nextCursor = items.length === limit
+      ? this.encodeCursor({ createdAt: items[items.length - 1].createdAt as Date, id: items[items.length - 1].id })
+      : undefined;
+
+    const unreadResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+
+    const unreadCount = unreadResult[0]?.count ?? 0;
+
+    return { items: items as Notification[], nextCursor, unreadCount };
+  }
+
+  async setNotificationRead(userId: string, notificationId: string, isRead: boolean): Promise<boolean> {
+    const [updated] = await db
+      .update(notifications)
+      .set({
+        isRead,
+        readAt: isRead ? new Date() : null
+      })
+      .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)))
+      .returning({ id: notifications.id });
+
+    return !!updated;
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<number> {
+    const now = new Date();
+    const result = await db
+      .update(notifications)
+      .set({ isRead: true, readAt: now })
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)))
+      .returning({ id: notifications.id });
+
+    return result.length;
   }
 
   async archiveTemplate(id: string): Promise<void> {
@@ -2382,6 +2571,7 @@ export class DatabaseStorage implements IStorage {
       digestFrequency: updates.digestFrequency ?? existing?.digestFrequency ?? USER_PREFERENCES_DEFAULTS.digestFrequency,
       quietHoursStart: updates.quietHoursStart === undefined ? (existing?.quietHoursStart ?? USER_PREFERENCES_DEFAULTS.quietHoursStart) : updates.quietHoursStart,
       quietHoursEnd: updates.quietHoursEnd === undefined ? (existing?.quietHoursEnd ?? USER_PREFERENCES_DEFAULTS.quietHoursEnd) : updates.quietHoursEnd,
+      allowSelfNotifications: updates.allowSelfNotifications ?? existing?.allowSelfNotifications ?? USER_PREFERENCES_DEFAULTS.allowSelfNotifications,
       eventSubscriptions: mergedEventSubscriptions,
     } satisfies typeof userPreferences.$inferInsert;
 

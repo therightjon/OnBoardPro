@@ -20,6 +20,7 @@ export type UserPreferencesDTO = {
   digestFrequency: DigestFrequency;
   quietHoursStart: string | null;
   quietHoursEnd: string | null;
+  allowSelfNotifications: boolean;
   eventSubscriptions: EventSubscriptions;
 };
 
@@ -32,6 +33,7 @@ export const USER_PREFERENCES_DEFAULTS: UserPreferencesDTO = {
   digestFrequency: DIGEST_FREQUENCIES[0],
   quietHoursStart: null as string | null,
   quietHoursEnd: null as string | null,
+  allowSelfNotifications: false,
   eventSubscriptions: EVENT_SUBSCRIPTION_KEYS.reduce<EventSubscriptions>((acc, key) => {
     acc[key] = true;
     return acc;

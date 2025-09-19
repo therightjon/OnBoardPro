@@ -9,6 +9,7 @@ import {
   UserCheck, 
   ClipboardList, 
   ChartBar, 
+  Bell,
   Settings,
   Users,
   LogOut
@@ -24,6 +25,7 @@ const allNavigation = [
   { name: "Candidates", href: "/candidates", icon: Bus, roles: ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"] },
   { name: "Task Library", href: "/tasks", icon: BookOpen, roles: ["system_admin", "hr_staff"] },
   { name: "My Tasks", href: "/tasks/mine", icon: UserCheck, roles: ["system_admin", "hr_staff", "department_admin", "division_leader", "manager", "candidate"] },
+  { name: "Notifications", href: "/notifications", icon: Bell, roles: ["system_admin", "hr_staff", "department_admin", "division_leader", "manager", "candidate"] },
   { name: "Templates", href: "/templates", icon: ClipboardList, roles: ["system_admin", "hr_staff"] },
   { name: "Analytics", href: "/analytics", icon: ChartBar, roles: ["system_admin", "hr_staff", "department_admin"] },
   { name: "Settings", href: "/settings", icon: Settings, roles: ["system_admin", "hr_staff", "department_admin", "division_leader", "manager", "candidate"] },

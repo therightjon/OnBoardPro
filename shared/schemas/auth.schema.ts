@@ -48,6 +48,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
+  mentionKey: text("mention_key").notNull(),
   passwordHash: text("password_hash"), // Nullable for external providers
   role: roleEnum("role").notNull(),
   status: userStatusEnum("status").default("active").notNull(),
@@ -64,7 +65,8 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 }, (t) => ({
   externalIdIndex: uniqueIndex("users_external_id_idx").on(t.externalId),
-  usernameUniqueIndex: uniqueIndex("users_username_unique").on(sql`lower(${t.username})`)
+  usernameUniqueIndex: uniqueIndex("users_username_unique").on(sql`lower(${t.username})`),
+  mentionKeyUniqueIndex: uniqueIndex("users_mention_key_unique").on(t.mentionKey)
 }));
 
 export const userIdentities = pgTable("user_identities", {
@@ -136,6 +138,7 @@ export const userPreferences = pgTable("user_preferences", {
   digestFrequency: text("digest_frequency").notNull().default("immediate"),
   quietHoursStart: time("quiet_hours_start"),
   quietHoursEnd: time("quiet_hours_end"),
+  allowSelfNotifications: boolean("allow_self_notifications").notNull().default(false),
   eventSubscriptions: jsonb("event_subscriptions").$type<Record<string, boolean>>().notNull().default(sql`'{}'::jsonb`),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -165,14 +168,16 @@ export const userIdentitiesRelations = relations(userIdentities, ({ one }) => ({
 }));
 
 // Zod schemas for validation
-export const insertUserSchema = createInsertSchema(users);
+export const insertUserSchema = createInsertSchema(users).extend({
+  mentionKey: z.string().optional()
+});
 export const insertUserIdentitySchema = createInsertSchema(userIdentities);
 export const insertUserRoleSchema = createInsertSchema(userRoles);
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences);
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
-export type InsertUser = typeof users.$inferInsert; // Legacy compatibility
+export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UserIdentity = typeof userIdentities.$inferSelect;
 export type NewUserIdentity = typeof userIdentities.$inferInsert;
 export type InsertUserIdentity = typeof userIdentities.$inferInsert; // Legacy compatibility

@@ -11,7 +11,9 @@ import {
   time,
   jsonb,
   pgEnum,
-  uniqueIndex
+  uniqueIndex,
+  primaryKey,
+  index
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -85,12 +87,19 @@ export const salutationEnum = pgEnum("salutation_type", [
   "Other"
 ]);
 
+export const notificationEntityEnum = pgEnum("notification_entity", [
+  "candidate",
+  "task",
+  "comment"
+]);
+
 // Base tables
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
+  mentionKey: text("mention_key").notNull(),
   passwordHash: text("password_hash"), // Nullable for external providers
   role: roleEnum("role").notNull(),
   status: userStatusEnum("status").default("active").notNull(),
@@ -107,7 +116,8 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 }, (t) => ({
   externalIdIndex: uniqueIndex("users_external_id_idx").on(t.externalId),
-  usernameUniqueIndex: uniqueIndex("users_username_unique").on(sql`lower(${t.username})`)
+  usernameUniqueIndex: uniqueIndex("users_username_unique").on(sql`lower(${t.username})`),
+  mentionKeyUniqueIndex: uniqueIndex("users_mention_key_unique").on(t.mentionKey)
 }));
 
 export const userIdentities = pgTable("user_identities", {
@@ -201,6 +211,7 @@ export const candidates = pgTable("candidates", {
   facultyRankId: uuid("faculty_rank_id"),
   startDate: date("start_date").notNull(),
   status: candidateStatusEnum("status").default("active").notNull(),
+  primaryOwnerId: uuid("primary_owner_id").references(() => users.id),
   currentStageId: uuid("current_stage_id").references(() => hiringStages.id),
   templateAppliedFromId: uuid("template_applied_from_id"),
   templateAppliedAt: timestamp("template_applied_at"),
@@ -313,6 +324,15 @@ export const candidateTemplateStages = pgTable("candidate_template_stages", {
   candidateStageOrder: uniqueIndex("idx_candidate_stage_order").on(t.candidateId, t.orderIndex)
 }));
 
+export const candidateFollowers = pgTable("candidate_followers", {
+  candidateId: uuid("candidate_id").notNull().references(() => candidates.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+}, (t) => ({
+  pk: primaryKey({ columns: [t.candidateId, t.userId], name: "candidate_followers_pkey" }),
+  userIdx: index("candidate_followers_user_idx").on(t.userId)
+}));
+
 export const userPreferences = pgTable("user_preferences", {
   userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   mytasksShowArchived: boolean("mytasks_show_archived").notNull().default(false),
@@ -323,6 +343,7 @@ export const userPreferences = pgTable("user_preferences", {
   digestFrequency: text("digest_frequency").notNull().default("immediate"),
   quietHoursStart: time("quiet_hours_start"),
   quietHoursEnd: time("quiet_hours_end"),
+  allowSelfNotifications: boolean("allow_self_notifications").notNull().default(false),
   eventSubscriptions: jsonb("event_subscriptions").$type<Record<string, boolean>>().notNull().default(sql`'{}'::jsonb`),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -335,6 +356,21 @@ export const authProviders = pgTable("auth_providers", {
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  entityType: notificationEntityEnum("entity_type").notNull(),
+  entityId: uuid("entity_id").notNull(),
+  payload: jsonb("payload").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  readAt: timestamp("read_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  deliveredChannels: text("delivered_channels").array().notNull().default(sql`'{}'::text[]`)
+}, (t) => ({
+  userReadCreatedIdx: index("notifications_user_read_created_idx").on(t.userId, t.isRead, t.createdAt)
+}));
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   department: one(departments, {
@@ -346,14 +382,17 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     references: [divisions.id]
   }),
   managedCandidates: many(candidates),
+  ownedCandidates: many(candidates, { relationName: "candidateOwner" }),
   assignedTasks: many(candidateTasks),
   stageChanges: many(candidateStageHistory),
+  notifications: many(notifications),
   preferences: one(userPreferences, {
     fields: [users.id],
     references: [userPreferences.userId]
   }),
   userRoles: many(userRoles),
-  identities: many(userIdentities)
+  identities: many(userIdentities),
+  followingCandidates: many(candidateFollowers, { relationName: "userCandidateFollows" })
 }));
 
 export const userRolesRelations = relations(userRoles, ({ one }) => ({
@@ -402,13 +441,19 @@ export const candidatesRelations = relations(candidates, ({ one, many }) => ({
     fields: [candidates.managerId],
     references: [users.id]
   }),
+  primaryOwner: one(users, {
+    fields: [candidates.primaryOwnerId],
+    references: [users.id],
+    relationName: "candidateOwner"
+  }),
   template: one(templates, {
     fields: [candidates.templateAppliedFromId],
     references: [templates.id]
   }),
   tasks: many(candidateTasks),
   templateStages: many(candidateTemplateStages),
-  stageHistory: many(candidateStageHistory)
+  stageHistory: many(candidateStageHistory),
+  followers: many(candidateFollowers, { relationName: "candidateFollowers" })
 }));
 
 export const candidateTasksRelations = relations(candidateTasks, ({ one }) => ({
@@ -442,6 +487,26 @@ export const candidateTemplateStagesRelations = relations(candidateTemplateStage
   stage: one(hiringStages, {
     fields: [candidateTemplateStages.stageId],
     references: [hiringStages.id]
+  })
+}));
+
+export const candidateFollowersRelations = relations(candidateFollowers, ({ one }) => ({
+  candidate: one(candidates, {
+    fields: [candidateFollowers.candidateId],
+    references: [candidates.id],
+    relationName: "candidateFollowers"
+  }),
+  user: one(users, {
+    fields: [candidateFollowers.userId],
+    references: [users.id],
+    relationName: "userCandidateFollows"
+  })
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id]
   })
 }));
 
@@ -526,7 +591,8 @@ export const insertUserSchema = createInsertSchema(users).omit({
   updatedAt: true
 }).extend({
   // Make passwordHash optional since external providers don't need it
-  passwordHash: z.string().optional()
+  passwordHash: z.string().optional(),
+  mentionKey: z.string().optional()
 });
 
 export const insertUserRoleSchema = createInsertSchema(userRoles).omit({
@@ -630,6 +696,8 @@ export type TemplateStage = typeof templateStages.$inferSelect;
 export type InsertTemplateStage = z.infer<typeof insertTemplateStageSchema>;
 export type CandidateTemplateStage = typeof candidateTemplateStages.$inferSelect;
 export type InsertCandidateTemplateStage = z.infer<typeof insertCandidateTemplateStageSchema>;
+export type CandidateFollower = typeof candidateFollowers.$inferSelect;
+export type InsertCandidateFollower = typeof candidateFollowers.$inferInsert;
 export type TaskDefinition = typeof taskDefinitions.$inferSelect;
 export type InsertTaskDefinition = z.infer<typeof insertTaskDefinitionSchema>;
 export type Department = typeof departments.$inferSelect;
@@ -638,6 +706,8 @@ export type Division = typeof divisions.$inferSelect;
 export type InsertDivision = z.infer<typeof insertDivisionSchema>;
 export type HiringStage = typeof hiringStages.$inferSelect;
 export type InsertHiringStage = z.infer<typeof insertHiringStageSchema>;
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
 export type TaskCategory = typeof taskCategories.$inferSelect;
 export type TaskPriority = typeof taskPriorities.$inferSelect;
 export type CandidateType = typeof candidateTypes.$inferSelect;

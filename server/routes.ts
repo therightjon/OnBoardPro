@@ -23,6 +23,12 @@ import { z } from "zod";
 import { advanceStageIfComplete, recomputeCandidateStageState } from "./features/tasks/services/advance-stage.service";
 import { db } from "./db/connection";
 import { sql } from "drizzle-orm";
+import { createNotifications, extractMentionKeys, resolveMentionedUsers } from "./features/notifications/services";
+import {
+  listNotificationsHandler,
+  markNotificationReadHandler,
+  markAllNotificationsReadHandler
+} from "./features/notifications/routes";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -51,6 +57,7 @@ export const PREFERENCE_KEYS = [
   "digestFrequency",
   "quietHoursStart",
   "quietHoursEnd",
+  "allowSelfNotifications",
   "eventSubscriptions"
 ] as const;
 
@@ -67,6 +74,120 @@ const nullableTimeSchema = z.union([
   z.literal("")
 ]).transform((value) => (value === "" ? null : value));
 
+const COMMENT_SNIPPET_LIMIT = 240;
+
+function buildActorLabel(user: Express.User): string {
+  const parts = [user.firstName, user.lastName].filter(Boolean);
+  return parts.join(" ").trim() || user.email || user.id;
+}
+
+function buildCommentSnippet(body: string, limit = COMMENT_SNIPPET_LIMIT): string {
+  const normalized = (body ?? "").replace(/\s+/g, " ").trim();
+  if (normalized.length <= limit) {
+    return normalized;
+  }
+  return normalized.slice(0, limit - 3).trimEnd() + "...";
+}
+
+async function gatherCandidateNotificationContext(candidateId: string) {
+  const [candidate, followers] = await Promise.all([
+    storage.getCandidate(candidateId),
+    storage.getCandidateFollowers(candidateId)
+  ]);
+
+  const watcherIds = new Set<string>();
+  if (candidate?.primaryOwnerId) {
+    watcherIds.add(candidate.primaryOwnerId);
+  }
+  for (const follower of followers) {
+    watcherIds.add(follower.userId);
+  }
+
+  return { candidate, watcherIds } as const;
+}
+
+async function gatherCandidateAssigneeIds(candidateId: string): Promise<string[]> {
+  const tasks = await storage.getCandidateTasks({ candidateId });
+  const ids = new Set<string>();
+  for (const task of tasks) {
+    if (task.assigneeId && task.status !== 'done' && task.status !== 'canceled') {
+      ids.add(task.assigneeId);
+    }
+  }
+  return Array.from(ids);
+}
+
+async function notifyTaskAssignees(task: any, actor: Express.User, reason: 'assignment' | 'status_change', extraPayload?: Record<string, unknown>) {
+  if (!task?.assigneeId) {
+    return;
+  }
+
+  const candidate = await storage.getCandidate(task.candidateId);
+  const actorName = buildActorLabel(actor);
+  const payload = {
+    actor: { id: actor.id, name: actorName },
+    task: {
+      id: task.id,
+      title: task.title,
+      status: task.status
+    },
+    candidate: candidate ? {
+      id: candidate.id,
+      name: `${candidate.firstName} ${candidate.lastName}`
+    } : { id: task.candidateId },
+    reason,
+    ...extraPayload
+  } as const;
+
+  await createNotifications({
+    type: "task.assigned",
+    actorId: actor.id,
+    recipients: [task.assigneeId],
+    entity: { type: "task", id: task.id },
+    payload,
+    visibility: "internal"
+  });
+}
+
+async function notifyCandidateStageChange(params: { candidateId: string; actor: Express.User; fromStageId?: string | null; toStageId: string; toStageName?: string | null }) {
+  const { candidateId, actor, fromStageId, toStageId, toStageName } = params;
+  const [{ candidate, watcherIds }, assigneeIds] = await Promise.all([
+    gatherCandidateNotificationContext(candidateId),
+    gatherCandidateAssigneeIds(candidateId)
+  ]);
+
+  for (const assigneeId of assigneeIds) {
+    watcherIds.add(assigneeId);
+  }
+
+  if (watcherIds.size === 0) {
+    return;
+  }
+
+  const actorName = buildActorLabel(actor);
+  const payload = {
+    actor: { id: actor.id, name: actorName },
+    candidate: candidate ? {
+      id: candidate.id,
+      name: `${candidate.firstName} ${candidate.lastName}`
+    } : { id: candidateId },
+    stage: {
+      fromStageId: fromStageId ?? null,
+      toStageId,
+      toStageName: toStageName ?? null
+    }
+  } as const;
+
+  await createNotifications({
+    type: "stage.changed",
+    actorId: actor.id,
+    recipients: Array.from(watcherIds),
+    entity: { type: "candidate", id: candidateId },
+    payload,
+    visibility: "internal"
+  });
+}
+
 export const preferencesUpdateSchema = z.object({
   mytasksShowArchived: z.boolean().optional(),
   mytasksShowCanceled: z.boolean().optional(),
@@ -76,6 +197,7 @@ export const preferencesUpdateSchema = z.object({
   digestFrequency: z.enum(DIGEST_FREQUENCIES).optional(),
   quietHoursStart: nullableTimeSchema.optional(),
   quietHoursEnd: nullableTimeSchema.optional(),
+  allowSelfNotifications: z.boolean().optional(),
   eventSubscriptions: z.record(z.boolean()).optional()
 }).strict();
 
@@ -379,6 +501,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Notifications API
+  app.get("/api/notifications", requireAuth, (req, res, next) => listNotificationsHandler(storage, req, res, next));
+
+  app.patch("/api/notifications/:id", requireAuth, (req, res, next) => markNotificationReadHandler(storage, req, res, next));
+
+  app.post("/api/notifications/mark-all-read", requireAuth, (req, res, next) => markAllNotificationsReadHandler(storage, req, res, next));
+
   // Candidate comments
   app.get("/api/candidates/:id/comments", requireAuth, async (req: any, res, next) => {
     try {
@@ -394,6 +523,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { body, visibility, parentId } = req.body || {};
       if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
       const created = await storage.createComment({ entityType: 'candidate', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
+
+      try {
+        const candidateId = req.params.id;
+        const snippet = buildCommentSnippet(body);
+        const actorName = buildActorLabel(req.user!);
+        const mentionKeys = extractMentionKeys(body);
+        const [context, mentionedUsers] = await Promise.all([
+          gatherCandidateNotificationContext(candidateId),
+          mentionKeys.length > 0 ? resolveMentionedUsers(mentionKeys) : Promise.resolve([])
+        ]);
+
+        const watcherIds = new Set(context.watcherIds);
+        const mentionRecipientIds = new Set<string>();
+        for (const user of mentionedUsers) {
+          mentionRecipientIds.add(user.id);
+          watcherIds.delete(user.id);
+        }
+
+        const basePayload = {
+          actor: { id: req.user.id, name: actorName },
+          comment: {
+            id: created.id,
+            preview: snippet,
+            visibility
+          },
+          candidate: context.candidate ? {
+            id: context.candidate.id,
+            name: `${context.candidate.firstName} ${context.candidate.lastName}`
+          } : { id: candidateId },
+          source: 'candidate'
+        } as const;
+
+        const watcherList = Array.from(watcherIds);
+        if (watcherList.length > 0) {
+          await createNotifications({
+            type: "comment.created",
+            actorId: req.user.id,
+            recipients: watcherList,
+            entity: { type: "comment", id: created.id },
+            payload: { ...basePayload, reason: 'comment' },
+            visibility
+          });
+        }
+
+        if (mentionRecipientIds.size > 0) {
+          await createNotifications({
+            type: "mention",
+            actorId: req.user.id,
+            recipients: Array.from(mentionRecipientIds),
+            entity: { type: "comment", id: created.id },
+            payload: {
+              ...basePayload,
+              reason: 'mention',
+              mentions: mentionedUsers.map((user) => ({ id: user.id, mentionKey: user.mentionKey }))
+            },
+            visibility
+          });
+        }
+      } catch (notifyError) {
+        console.error('Failed to dispatch candidate comment notifications:', notifyError);
+      }
+
       res.status(201).json(created);
     } catch (error: any) { res.status(400).json({ message: error.message || 'Unable to create comment' }); }
   });
@@ -441,7 +632,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertCandidateSchema.parse(req.body);
       const candidateData = {
         ...validatedData,
-        status: "active" as const
+        status: "active" as const,
+        primaryOwnerId: user.id
       };
       
       const candidate = await storage.createCandidate(candidateData);
@@ -680,6 +872,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { body, visibility, parentId } = req.body || {};
       if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
       const created = await storage.createComment({ entityType: 'task', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
+
+      try {
+        const task = await storage.getCandidateTask(req.params.id);
+        if (task) {
+          const snippet = buildCommentSnippet(body);
+          const actorName = buildActorLabel(req.user!);
+          const mentionKeys = extractMentionKeys(body);
+          const mentionedUsers = mentionKeys.length > 0 ? await resolveMentionedUsers(mentionKeys) : [];
+          const mentionRecipientIds = new Set(mentionedUsers.map((user) => user.id));
+
+          const watcherIds = new Set<string>();
+          if (task.assigneeId) {
+            watcherIds.add(task.assigneeId);
+          }
+
+          for (const id of mentionRecipientIds) {
+            watcherIds.delete(id);
+          }
+
+          const candidate = await storage.getCandidate(task.candidateId);
+          const basePayload = {
+            actor: { id: req.user.id, name: actorName },
+            comment: {
+              id: created.id,
+              preview: snippet,
+              visibility
+            },
+            candidate: candidate ? {
+              id: candidate.id,
+              name: `${candidate.firstName} ${candidate.lastName}`
+            } : { id: task.candidateId },
+            task: {
+              id: task.id,
+              title: task.title
+            },
+            source: 'task'
+          } as const;
+
+          const watcherList = Array.from(watcherIds);
+          if (watcherList.length > 0) {
+            await createNotifications({
+              type: "comment.created",
+              actorId: req.user.id,
+              recipients: watcherList,
+              entity: { type: "comment", id: created.id },
+              payload: { ...basePayload, reason: 'comment' },
+              visibility
+            });
+          }
+
+          if (mentionRecipientIds.size > 0) {
+            await createNotifications({
+              type: "mention",
+              actorId: req.user.id,
+              recipients: Array.from(mentionRecipientIds),
+              entity: { type: "comment", id: created.id },
+              payload: {
+                ...basePayload,
+                reason: 'mention',
+                mentions: mentionedUsers.map((user) => ({ id: user.id, mentionKey: user.mentionKey }))
+              },
+              visibility
+            });
+          }
+        }
+      } catch (notifyError) {
+        console.error('Failed to dispatch task comment notifications:', notifyError);
+      }
+
       res.status(201).json(created);
     } catch (error: any) { res.status(400).json({ message: error.message || 'Unable to create comment' }); }
   });
@@ -705,6 +966,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const task = await storage.createCandidateTask(validatedData);
+
+      try {
+        await notifyTaskAssignees(task, req.user!, 'assignment');
+      } catch (notifyError) {
+        console.error('Failed to dispatch task assignment notification:', notifyError);
+      }
+
       res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -765,6 +1033,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Task not found" });
       }
 
+      const assignmentChanged = Boolean(task.assigneeId && task.assigneeId !== existingTask.assigneeId);
+      const statusChanged = req.body.status && req.body.status !== existingTask.status;
+
+      if (assignmentChanged) {
+        try {
+          await notifyTaskAssignees(task, req.user!, 'assignment', { previousAssigneeId: existingTask.assigneeId });
+        } catch (notifyError) {
+          console.error('Failed to notify assignment change:', notifyError);
+        }
+      }
+
+      if (statusChanged) {
+        try {
+          await notifyTaskAssignees(task, req.user!, 'status_change', {
+            previousStatus: existingTask.status,
+            newStatus: task.status
+          });
+        } catch (notifyError) {
+          console.error('Failed to notify task status change:', notifyError);
+        }
+      }
+
       // Audit log on cancellation
       try {
         if (req.body.status === 'canceled') {
@@ -801,6 +1091,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let updatedCandidate = null;
       if (advancement?.advanced) {
         updatedCandidate = await storage.getCandidate(existingTask.candidateId);
+        try {
+          await notifyCandidateStageChange({
+            candidateId: existingTask.candidateId,
+            actor: req.user!,
+            fromStageId: advancement.fromStageId,
+            toStageId: advancement.toStageId,
+            toStageName: advancement.toStageName
+          });
+        } catch (notifyError) {
+          console.error('Failed to notify stage change:', notifyError);
+        }
       }
 
       // Return comprehensive response with task, candidate state, and advancement info

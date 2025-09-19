@@ -9,7 +9,9 @@ import {
   date,
   pgEnum,
   uniqueIndex,
-  jsonb
+  jsonb,
+  primaryKey,
+  index
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -91,6 +93,7 @@ export const candidates = pgTable("candidates", {
   facultyRankId: uuid("faculty_rank_id"),
   startDate: date("start_date").notNull(),
   status: candidateStatusEnum("status").default("active").notNull(),
+  primaryOwnerId: uuid("primary_owner_id").references(() => users.id),
   currentStageId: uuid("current_stage_id").references(() => hiringStages.id),
   templateAppliedFromId: uuid("template_applied_from_id"),
   templateAppliedAt: timestamp("template_applied_at"),
@@ -162,6 +165,10 @@ export const candidatesRelations = relations(candidates, ({ one, many }) => ({
     fields: [candidates.managerId],
     references: [users.id]
   }),
+  primaryOwner: one(users, {
+    fields: [candidates.primaryOwnerId],
+    references: [users.id]
+  }),
   facultyRank: one(facultyRanks, {
     fields: [candidates.facultyRankId],
     references: [facultyRanks.id]
@@ -204,6 +211,28 @@ export const candidateTemplateStagesRelations = relations(candidateTemplateStage
   })
 }));
 
+export const candidateFollowers = pgTable("candidate_followers", {
+  candidateId: uuid("candidate_id").notNull().references(() => candidates.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.candidateId, t.userId], name: "candidate_followers_pkey" }),
+  userIdx: index("candidate_followers_user_idx").on(t.userId)
+}));
+
+export const candidateFollowersRelations = relations(candidateFollowers, ({ one }) => ({
+  candidate: one(candidates, {
+    fields: [candidateFollowers.candidateId],
+    references: [candidates.id],
+    relationName: "candidateFollowers"
+  }),
+  user: one(users, {
+    fields: [candidateFollowers.userId],
+    references: [users.id],
+    relationName: "userCandidateFollows"
+  })
+}));
+
 // Zod schemas
 export const insertCandidateSchema = createInsertSchema(candidates);
 export const insertDepartmentSchema = createInsertSchema(departments);
@@ -214,6 +243,8 @@ export const insertHiringStageSchema = createInsertSchema(hiringStages);
 export type Candidate = typeof candidates.$inferSelect;
 export type NewCandidate = typeof candidates.$inferInsert;
 export type InsertCandidate = typeof candidates.$inferInsert; // Legacy compatibility
+export type CandidateFollower = typeof candidateFollowers.$inferSelect;
+export type InsertCandidateFollower = typeof candidateFollowers.$inferInsert;
 export type Department = typeof departments.$inferSelect;
 export type NewDepartment = typeof departments.$inferInsert;
 export type InsertDepartment = typeof departments.$inferInsert; // Legacy compatibility

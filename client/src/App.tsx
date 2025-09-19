@@ -25,6 +25,7 @@ import TemplateDetailPage from "./app/(dashboard)/templates/[id]/page";
 import TaskDefinitionsPage from "./app/(dashboard)/tasks/page";
 import AnalyticsPage from "./app/(dashboard)/analytics/page";
 import SettingsPage from "./app/(dashboard)/settings/page";
+import NotificationsPage from "./app/(dashboard)/notifications/page";
 
 function Header({ onMenuClick }: { onMenuClick: () => void }) {
   return (
@@ -140,6 +141,12 @@ function Router() {
       <ProtectedRoute path="/settings" component={() => (
         <ProtectedLayout>
           <SettingsPage />
+        </ProtectedLayout>
+      )} />
+
+      <ProtectedRoute path="/notifications" component={() => (
+        <ProtectedLayout>
+          <NotificationsPage />
         </ProtectedLayout>
       )} />
       
