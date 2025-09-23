@@ -52,8 +52,6 @@ test-results/
 # Runtime files / databases
 *.sqlite
 *.db
-database_export.sql
-database_export*.sql
 database_backup*.sql
 
 # Large/generated assets (optional)
