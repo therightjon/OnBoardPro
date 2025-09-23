@@ -43,6 +43,10 @@ export default function NotificationsPage() {
       types: currentFilter.types
     }),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: 20_000,
   });
 
   const markReadMutation = useMutation({

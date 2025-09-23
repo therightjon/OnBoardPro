@@ -1514,17 +1514,17 @@ export class DatabaseStorage implements IStorage {
   async getNotifications(params: { userId: string; limit?: number; cursor?: string; unreadOnly?: boolean; types?: string[] }): Promise<{ items: Notification[]; nextCursor?: string; unreadCount: number }> {
     const { userId, limit = 20, cursor, unreadOnly = false, types } = params;
     const cursorObj = this.decodeCursor(cursor);
-    let query: any = db
-      .select()
-      .from(notifications)
-      .where(eq(notifications.userId, userId));
 
-    if (unreadOnly) {
-      query = query.where(eq(notifications.isRead, false));
+    let whereClause = eq(notifications.userId, userId);
+
+    const unreadCondition = unreadOnly ? eq(notifications.isRead, false) : undefined;
+    if (unreadCondition) {
+      whereClause = and(whereClause, unreadCondition)!;
     }
 
-    if (types && types.length > 0) {
-      query = query.where(inArray(notifications.type, types));
+    const typesCondition = types && types.length > 0 ? inArray(notifications.type, types) : undefined;
+    if (typesCondition) {
+      whereClause = and(whereClause, typesCondition)!;
     }
 
     if (cursorObj) {
@@ -1535,10 +1535,13 @@ export class DatabaseStorage implements IStorage {
           lt(notifications.id, cursorObj.id)
         )
       );
-      query = query.where(cursorCondition as any);
+      whereClause = and(whereClause, cursorCondition)!;
     }
 
-    const rows = await query
+    const rows = await db
+      .select()
+      .from(notifications)
+      .where(whereClause)
       .orderBy(desc(notifications.createdAt), desc(notifications.id))
       .limit(limit + 1);
 
