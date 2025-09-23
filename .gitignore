@@ -53,6 +53,7 @@ test-results/
 *.sqlite
 *.db
 database_export.sql
+database_export*.sql
 
 # Large/generated assets (optional)
 attached_assets/
