@@ -104,6 +104,19 @@ const PostgresSessionStore = connectPg(session);
 
 type UserPreferencesUpdateInput = Partial<Omit<UserPreferences, "userId" | "updatedAt">>;
 
+export interface TemplateExpansionTask {
+  id: string;
+  candidateId: string;
+  assigneeId: string | null;
+  title: string;
+  status: string;
+}
+
+export interface TemplateExpansionResult {
+  createdCount: number;
+  createdTasks: TemplateExpansionTask[];
+}
+
 export interface IStorage {
   // Basic user operations
   getUser(id: string): Promise<User | undefined>;
@@ -223,7 +236,7 @@ export interface IStorage {
   sessionStore: session.Store;
   
   // Template expansion
-  expandTemplate(templateId: string, candidateId: string, currentUserId: string): Promise<number>;
+  expandTemplate(templateId: string, candidateId: string, currentUserId: string): Promise<TemplateExpansionResult>;
   
   // Template estimation
   estimateTemplate(templateId: string, startDate?: string, businessDays?: boolean): Promise<any>;
@@ -1613,7 +1626,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(taskPriorities).orderBy(asc(taskPriorities.name));
   }
 
-  async expandTemplate(templateId: string, candidateId: string, currentUserId: string): Promise<number> {
+  async expandTemplate(templateId: string, candidateId: string, currentUserId: string): Promise<TemplateExpansionResult> {
     // Get the candidate
     const candidate = await this.getCandidate(candidateId);
     if (!candidate) {
@@ -1656,7 +1669,7 @@ export class DatabaseStorage implements IStorage {
 
     // Calculate due dates and create candidate tasks
     const startDate = new Date(candidate.startDate);
-    const tasksToCreate = [];
+    const tasksToCreate: InsertCandidateTask[] = [];
 
     for (let i = 0; i < templateTasksList.length; i++) {
       const templateTask = templateTasksList[i];
@@ -1725,8 +1738,18 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Create all tasks first
+    let createdTasks: TemplateExpansionTask[] = [];
     if (tasksToCreate.length > 0) {
-      await db.insert(candidateTasks).values(tasksToCreate);
+      createdTasks = await db
+        .insert(candidateTasks)
+        .values(tasksToCreate)
+        .returning({
+          id: candidateTasks.id,
+          candidateId: candidateTasks.candidateId,
+          assigneeId: candidateTasks.assigneeId,
+          title: candidateTasks.title,
+          status: candidateTasks.status,
+        });
     }
 
     // Snapshot the template's stage sequence using SQL for efficiency
@@ -1783,7 +1806,7 @@ export class DatabaseStorage implements IStorage {
         });
     }
 
-    return tasksToCreate.length;
+    return { createdCount: tasksToCreate.length, createdTasks };
   }
 
   async estimateTemplate(templateId: string, startDate?: string, businessDays: boolean = false): Promise<any> {

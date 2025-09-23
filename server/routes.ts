@@ -757,9 +757,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "template_id is required" });
       }
 
-      const taskCount = await storage.expandTemplate(template_id, req.params.id, req.user!.id);
-      console.log('Template applied successfully:', { taskCount });
-      res.json({ message: "Template applied successfully", tasksCreated: taskCount });
+      const expansion = await storage.expandTemplate(template_id, req.params.id, req.user!.id);
+
+      try {
+        await Promise.all(
+          expansion.createdTasks.map((task) => notifyTaskAssignees(task, req.user!, 'assignment'))
+        );
+      } catch (notifyError) {
+        console.error('Failed to dispatch template task assignment notifications:', notifyError);
+      }
+
+      console.log('Template applied successfully:', { taskCount: expansion.createdCount });
+      res.json({ message: "Template applied successfully", tasksCreated: expansion.createdCount });
     } catch (error: any) {
       console.error('Template application failed:', error);
       if (error.message) {
