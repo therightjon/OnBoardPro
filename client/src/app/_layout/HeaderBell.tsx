@@ -7,9 +7,9 @@ import { fetchNotifications, markNotificationRead, markAllNotificationsRead } fr
 import type { NotificationRecord } from "@/features/notifications/types";
 import { NotificationItem } from "@/features/notifications/components/NotificationItem";
 import { mapNotificationToDisplay } from "@/features/notifications/utils";
+import { useUnreadNotifications, UNREAD_COUNT_QUERY_KEY } from "@/features/notifications/hooks/useUnreadNotifications";
 import { useLocation, Link } from "wouter";
 
-const UNREAD_COUNT_KEY = ["notifications", "unread-count"] as const;
 const DROPDOWN_KEY = ["notifications", "dropdown"] as const;
 
 export function HeaderBell() {
@@ -17,11 +17,7 @@ export function HeaderBell() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
-  const unreadQuery = useQuery({
-    queryKey: UNREAD_COUNT_KEY,
-    queryFn: () => fetchNotifications({ limit: 1, unreadOnly: true }),
-    refetchInterval: 20_000,
-  });
+  const unread = useUnreadNotifications();
 
   const dropdownQuery = useQuery({
     queryKey: DROPDOWN_KEY,
@@ -35,7 +31,7 @@ export function HeaderBell() {
       await markNotificationRead(id, isRead);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_KEY });
+      void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
       void queryClient.invalidateQueries({ queryKey: DROPDOWN_KEY });
       void queryClient.invalidateQueries({ queryKey: ["notifications", "list"] });
     }
@@ -44,13 +40,13 @@ export function HeaderBell() {
   const markAllMutation = useMutation({
     mutationFn: markAllNotificationsRead,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_KEY });
+      void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
       void queryClient.invalidateQueries({ queryKey: DROPDOWN_KEY });
       void queryClient.invalidateQueries({ queryKey: ["notifications", "list"] });
     }
   });
 
-  const unreadCount = unreadQuery.data?.unreadCount ?? 0;
+  const unreadCount = unread.count;
   const notifications = dropdownQuery.data?.items ?? [];
   const isLoading = dropdownQuery.isLoading || dropdownQuery.isFetching;
 
@@ -67,16 +63,14 @@ export function HeaderBell() {
     markAllMutation.mutate();
   };
 
-  const badge = unreadCount > 99 ? "99+" : unreadCount.toString();
-
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
+          {unread.showBadge && (
             <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
-              {badge}
+              {unread.badgeText}
             </span>
           )}
         </Button>

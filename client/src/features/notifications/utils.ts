@@ -154,3 +154,25 @@ export function mapNotificationToDisplay(notification: NotificationRecord): Noti
     }
   }
 }
+
+export interface FormattedUnreadCount {
+  count: number;
+  badgeText: string;
+  showBadge: boolean;
+  announcement: string;
+}
+
+export function formatUnreadCount(value: number | null | undefined): FormattedUnreadCount {
+  const numeric = typeof value === "number" && Number.isFinite(value) ? Math.floor(value) : 0;
+  const count = numeric > 0 ? numeric : 0;
+  const constrained = count > 99 ? "99+" : String(count);
+  const showBadge = count > 0;
+  const announcement = `${count} unread notification${count === 1 ? "" : "s"}`;
+
+  return {
+    count,
+    badgeText: constrained,
+    showBadge,
+    announcement,
+  };
+}

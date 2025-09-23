@@ -1,7 +1,9 @@
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/shared/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
 import { 
   ChartLine, 
   Bus, 
@@ -14,13 +16,21 @@ import {
   Users,
   LogOut
 } from "lucide-react";
+import { useUnreadNotifications } from "@/features/notifications/hooks/useUnreadNotifications";
 
 interface SidebarProps {
   className?: string;
   onNavigate?: () => void;
 }
 
-const allNavigation = [
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  roles: string[];
+}
+
+const allNavigation: NavigationItem[] = [
   { name: "Dashboard", href: "/", icon: ChartLine, roles: ["system_admin", "hr_staff", "department_admin", "division_leader", "manager", "candidate"] },
   { name: "Candidates", href: "/candidates", icon: Bus, roles: ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"] },
   { name: "Task Library", href: "/tasks", icon: BookOpen, roles: ["system_admin", "hr_staff"] },
@@ -30,6 +40,8 @@ const allNavigation = [
   { name: "Analytics", href: "/analytics", icon: ChartBar, roles: ["system_admin", "hr_staff", "department_admin"] },
   { name: "Settings", href: "/settings", icon: Settings, roles: ["system_admin", "hr_staff", "department_admin", "division_leader", "manager", "candidate"] },
 ];
+
+const RESET_UNREAD_ON_NAVIGATE = false;
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
   const [location] = useLocation();
@@ -70,8 +82,22 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         {navigation.map((item) => {
           const isActive = location === item.href || 
             (item.href !== "/" && item.href !== "/tasks" && location.startsWith(item.href));
+          const testId = `nav-link-${item.name.toLowerCase().replace(/\s+/g, '-')}`;
+
+          if (item.href === "/notifications") {
+            return (
+              <SidebarNotificationsLink
+                key={item.name}
+                item={item}
+                isActive={isActive}
+                onNavigate={onNavigate}
+                testId={testId}
+              />
+            );
+          }
+
           const Icon = item.icon;
-          
+
           return (
             <Link 
               key={item.name} 
@@ -83,7 +109,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   : "hover:bg-secondary hover:text-secondary-foreground"
               )}
               onClick={onNavigate}
-              data-testid={`nav-link-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
+              data-testid={testId}
             >
               <Icon className="w-5 h-5" />
               <span>{item.name}</span>
@@ -120,5 +146,68 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         </Button>
       </div>
     </div>
+  );
+}
+
+interface SidebarNotificationsLinkProps {
+  item: NavigationItem;
+  isActive: boolean;
+  onNavigate?: () => void;
+  testId: string;
+}
+
+function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: SidebarNotificationsLinkProps) {
+  const { badgeText, showBadge, ariaLabel, rawCount } = useUnreadNotifications({ resetOnNavigate: RESET_UNREAD_ON_NAVIGATE });
+  const [shouldPulse, setShouldPulse] = useState(false);
+  const previousCountRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (rawCount === undefined) return;
+    const previous = previousCountRef.current ?? 0;
+    if (previous === 0 && rawCount > 0) {
+      setShouldPulse(true);
+    }
+    previousCountRef.current = rawCount;
+  }, [rawCount]);
+
+  useEffect(() => {
+    if (!shouldPulse) return;
+    const timeout = window.setTimeout(() => setShouldPulse(false), 1500);
+    return () => window.clearTimeout(timeout);
+  }, [shouldPulse]);
+
+  const Icon = item.icon;
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      data-testid={testId}
+      className={cn(
+        "relative flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors w-full",
+        isActive
+          ? "bg-primary text-primary-foreground"
+          : "hover:bg-secondary hover:text-secondary-foreground",
+        !isActive && showBadge ? "bg-destructive/10 text-sidebar-foreground" : "",
+        shouldPulse ? "sidebar-unread-pulse" : ""
+      )}
+    >
+      <Icon className="w-5 h-5" />
+      <span className="flex-1 truncate">{item.name}</span>
+      <span
+        aria-hidden
+        className={cn(
+          "ml-auto inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded-full bg-destructive px-1 text-xs font-semibold text-destructive-foreground transition-opacity",
+          showBadge ? "opacity-100" : "opacity-0"
+        )}
+      >
+        {badgeText}
+      </span>
+      {ariaLabel ? (
+        <span className="sr-only" aria-live="polite" role="status">
+          {ariaLabel}
+        </span>
+      ) : null}
+    </Link>
   );
 }

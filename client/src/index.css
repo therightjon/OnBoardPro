@@ -220,3 +220,19 @@
     }
   }
 }
+
+@keyframes sidebar-unread-pulse {
+  0% {
+    box-shadow: 0 0 0 0 hsl(var(--destructive) / 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 10px hsl(var(--destructive) / 0.05);
+  }
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--destructive) / 0);
+  }
+}
+
+.sidebar-unread-pulse {
+  animation: sidebar-unread-pulse 1.5s ease-out 1;
+}
