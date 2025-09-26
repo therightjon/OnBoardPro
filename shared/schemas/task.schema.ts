@@ -40,6 +40,11 @@ export const dueRuleTypeEnum = pgEnum("due_rule_type", [
   "fixed_date"
 ]);
 
+export const taskAssigneeKindEnum = pgEnum("task_assignee_kind", [
+  "user",
+  "role"
+]);
+
 // Task support tables
 export const taskCategories = pgTable("task_categories", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -74,7 +79,10 @@ export const candidateTasks = pgTable("candidate_tasks", {
   title: text("title").notNull(),
   description: text("description"),
   stageId: uuid("stage_id").notNull().references(() => hiringStages.id),
-  assigneeId: uuid("assignee_id").references(() => users.id),
+  assigneeKind: taskAssigneeKindEnum("assignee_kind").notNull().default("user"),
+  assigneeUserId: uuid("assignee_user_id").references(() => users.id),
+  assigneeRole: text("assignee_role"),
+  assigneeResolvedAt: timestamp("assignee_resolved_at"),
   priority: priorityEnum("priority").notNull(),
   categoryId: uuid("category_id").notNull().references(() => taskCategories.id),
   dueAt: timestamp("due_at"),
@@ -87,6 +95,7 @@ export const candidateTasks = pgTable("candidate_tasks", {
   stageOrderIndex: integer("stage_order_index"),
   updatedBy: uuid("updated_by").references(() => users.id),
   deletedAt: timestamp("deleted_at"),
+  dueSoonNotifiedAt: timestamp("due_soon_notified_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -114,7 +123,7 @@ export const candidateTasksRelations = relations(candidateTasks, ({ one }) => ({
     references: [hiringStages.id]
   }),
   assignee: one(users, {
-    fields: [candidateTasks.assigneeId],
+    fields: [candidateTasks.assigneeUserId],
     references: [users.id]
   }),
   category: one(taskCategories, {
@@ -129,7 +138,14 @@ export const taskCategoriesRelations = relations(taskCategories, ({ many }) => (
 
 // Zod schemas
 export const insertTaskDefinitionSchema = createInsertSchema(taskDefinitions);
-export const insertCandidateTaskSchema = createInsertSchema(candidateTasks);
+export const insertCandidateTaskSchema = createInsertSchema(candidateTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+  assigneeResolvedAt: true,
+  dueSoonNotifiedAt: true
+});
 
 // Types
 export type TaskDefinition = typeof taskDefinitions.$inferSelect;

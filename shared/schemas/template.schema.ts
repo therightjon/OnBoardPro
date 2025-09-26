@@ -13,7 +13,7 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { users } from "./auth.schema";
 import { candidateTypes, hiringStages } from "./candidate.schema";
-import { taskDefinitions, taskCategories, taskPriorities, dueRuleTypeEnum } from "./task.schema";
+import { taskDefinitions, taskCategories, taskPriorities, dueRuleTypeEnum, taskAssigneeKindEnum } from "./task.schema";
 
 // Template tables
 export const templates = pgTable("templates", {
@@ -48,7 +48,9 @@ export const templateTasks = pgTable("template_tasks", {
   dueRuleType: dueRuleTypeEnum("due_rule_type").notNull(),
   dueRuleValue: integer("due_rule_value"),
   fixedDate: date("fixed_date"),
-  defaultAssigneeId: uuid("default_assignee_id"),
+  defaultAssigneeKind: taskAssigneeKindEnum("default_assignee_kind").notNull().default("user"),
+  defaultAssigneeUserId: uuid("default_assignee_user_id"),
+  defaultAssigneeRole: text("default_assignee_role"),
   defaultPriorityId: uuid("default_priority_id"),
   defaultCategoryId: uuid("default_category_id"),
   isRequired: boolean("is_required").notNull().default(true),
@@ -98,7 +100,7 @@ export const templateTasksRelations = relations(templateTasks, ({ one }) => ({
     references: [hiringStages.id]
   }),
   defaultAssignee: one(users, {
-    fields: [templateTasks.defaultAssigneeId],
+    fields: [templateTasks.defaultAssigneeUserId],
     references: [users.id]
   }),
   defaultCategory: one(taskCategories, {

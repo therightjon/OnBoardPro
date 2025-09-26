@@ -94,6 +94,7 @@ export const candidates = pgTable("candidates", {
   startDate: date("start_date").notNull(),
   status: candidateStatusEnum("status").default("active").notNull(),
   primaryOwnerId: uuid("primary_owner_id").references(() => users.id),
+  linkedUserId: uuid("linked_user_id").references(() => users.id),
   currentStageId: uuid("current_stage_id").references(() => hiringStages.id),
   templateAppliedFromId: uuid("template_applied_from_id"),
   templateAppliedAt: timestamp("template_applied_at"),
@@ -167,6 +168,10 @@ export const candidatesRelations = relations(candidates, ({ one, many }) => ({
   }),
   primaryOwner: one(users, {
     fields: [candidates.primaryOwnerId],
+    references: [users.id]
+  }),
+  linkedUser: one(users, {
+    fields: [candidates.linkedUserId],
     references: [users.id]
   }),
   facultyRank: one(facultyRanks, {

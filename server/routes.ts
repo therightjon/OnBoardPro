@@ -24,6 +24,8 @@ import { advanceStageIfComplete, recomputeCandidateStageState } from "./features
 import { db } from "./db/connection";
 import { sql } from "drizzle-orm";
 import { createNotifications, extractMentionKeys, resolveMentionedUsers } from "./features/notifications/services";
+import { emitDeadlinesIfNeeded } from "./features/notifications/deadline-helpers";
+import { emitOwnerChanged } from "./features/notifications/owner-change";
 import {
   listNotificationsHandler,
   markNotificationReadHandler,
@@ -110,15 +112,15 @@ async function gatherCandidateAssigneeIds(candidateId: string): Promise<string[]
   const tasks = await storage.getCandidateTasks({ candidateId });
   const ids = new Set<string>();
   for (const task of tasks) {
-    if (task.assigneeId && task.status !== 'done' && task.status !== 'canceled') {
-      ids.add(task.assigneeId);
+    if (task.assigneeKind === 'user' && task.assigneeUserId && task.status !== 'done' && task.status !== 'canceled') {
+      ids.add(task.assigneeUserId);
     }
   }
   return Array.from(ids);
 }
 
 async function notifyTaskAssignees(task: any, actor: Express.User, reason: 'assignment' | 'status_change', extraPayload?: Record<string, unknown>) {
-  if (!task?.assigneeId) {
+  if (task?.assigneeKind !== 'user' || !task?.assigneeUserId) {
     return;
   }
 
@@ -139,14 +141,30 @@ async function notifyTaskAssignees(task: any, actor: Express.User, reason: 'assi
     ...extraPayload
   } as const;
 
-  await createNotifications({
-    type: "task.assigned",
-    actorId: actor.id,
-    recipients: [task.assigneeId],
-    entity: { type: "task", id: task.id },
-    payload,
-    visibility: "internal"
-  });
+  // Determine recipient visibility: candidates receive external notifications
+  // while staff/internal users receive internal notifications.
+  try {
+    const recipient = await storage.getUser(task.assigneeUserId);
+    const visibility = recipient?.role === 'candidate' ? 'external' : 'internal';
+    await createNotifications({
+      type: "task.assigned",
+      actorId: actor.id,
+      recipients: [task.assigneeUserId],
+      entity: { type: "task", id: task.id },
+      payload,
+      visibility
+    });
+  } catch {
+    // If user lookup fails, default to internal to avoid leaking externally
+    await createNotifications({
+      type: "task.assigned",
+      actorId: actor.id,
+      recipients: [task.assigneeUserId],
+      entity: { type: "task", id: task.id },
+      payload,
+      visibility: "internal"
+    });
+  }
 }
 
 async function notifyCandidateStageChange(params: { candidateId: string; actor: Express.User; fromStageId?: string | null; toStageId: string; toStageName?: string | null }) {
@@ -648,10 +666,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/candidates/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
+      const previousCandidate = await storage.getCandidate(req.params.id);
       // Define allowed editable fields
-      const allowedFields = ['salutation', 'firstName', 'lastName', 'email', 'departmentId', 'divisionId', 'managerId', 'facultyRankId', 'status'];
+      const allowedFields = ['salutation', 'firstName', 'lastName', 'email', 'departmentId', 'divisionId', 'managerId', 'facultyRankId', 'status', 'primaryOwnerId', 'linkedUserId'];
       const immutableFields = ['templateAppliedFromId', 'candidateTypeId', 'startDate'];
-      
+
       // Check for attempts to change immutable fields
       for (const field of immutableFields) {
         if (req.body[field] !== undefined) {
@@ -688,9 +707,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!candidate) {
         return res.status(404).json({ message: "Candidate not found" });
       }
-      
+
       // Return the full candidate with joined data
       const fullCandidate = await storage.getCandidate(req.params.id);
+
+      if (previousCandidate && fullCandidate && previousCandidate.primaryOwnerId !== fullCandidate.primaryOwnerId) {
+        await emitOwnerChanged({
+          candidate: fullCandidate,
+          previousOwnerId: previousCandidate.primaryOwnerId,
+          newOwnerId: fullCandidate.primaryOwnerId,
+          actorId: req.user!.id,
+        });
+      }
+
+      if (previousCandidate && fullCandidate && previousCandidate.linkedUserId !== fullCandidate.linkedUserId && fullCandidate.linkedUserId) {
+        const resolvedTasks = await storage.resolveCandidateSelfAssignments(fullCandidate.id, fullCandidate.linkedUserId);
+        if (resolvedTasks.length > 0) {
+          for (const task of resolvedTasks) {
+            await notifyTaskAssignees(task, req.user!, 'assignment');
+            await emitDeadlinesIfNeeded(task.id, { actorId: req.user!.id });
+          }
+        }
+      }
+
       res.json(fullCandidate);
     } catch (error) {
       next(error);
@@ -783,6 +822,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { candidateId, assigneeId } = req.query;
       
+      // If the caller is a candidate, restrict to their assigned tasks only
+      if (req.user?.role === 'candidate') {
+        const tasks = await storage.getCandidateTasks({ assigneeId: req.user.id });
+        return res.json(tasks);
+      }
+
       // Require either candidateId or assigneeId to prevent fetching all tasks globally
       if (!candidateId && !assigneeId) {
         return res.status(400).json({ message: "candidateId or assigneeId parameter is required" });
@@ -892,8 +937,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const mentionRecipientIds = new Set(mentionedUsers.map((user) => user.id));
 
           const watcherIds = new Set<string>();
-          if (task.assigneeId) {
-            watcherIds.add(task.assigneeId);
+          if (task.assigneeKind === 'user' && task.assigneeUserId) {
+            watcherIds.add(task.assigneeUserId);
           }
 
           for (const id of mentionRecipientIds) {
@@ -961,13 +1006,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "candidate_id is required" });
       }
 
-      const validatedData = insertCandidateTaskSchema.parse(req.body);
+      const body = { ...req.body };
+      if (body.assigneeId && !body.assigneeUserId) {
+        body.assigneeUserId = body.assigneeId;
+      }
+      if (!body.assigneeKind) {
+        body.assigneeKind = 'user';
+      }
+
+      const validatedData = insertCandidateTaskSchema.parse(body);
+
+      if (!validatedData.assigneeKind) {
+        validatedData.assigneeKind = 'user';
+      }
+      if (validatedData.assigneeKind === 'role') {
+        validatedData.assigneeRole = validatedData.assigneeRole ?? 'candidate.self';
+        if (validatedData.assigneeRole !== 'candidate.self') {
+          return res.status(400).json({ message: 'assigneeRole must be candidate.self when assigneeKind is role' });
+        }
+      } else {
+        validatedData.assigneeRole = null;
+      }
       
       // If save_as_definition flag is set, create a task definition first
-      if (req.body.save_as_definition && req.body.title && !req.body.taskDefId) {
+      if (body.save_as_definition && body.title && !body.taskDefId) {
         const taskDef = await storage.createTaskDefinition({
-          name: req.body.title,
-          description: req.body.description || null,
+          name: body.title,
+          description: body.description || null,
           archived: false,
           createdBy: req.user!.id
         });
@@ -978,6 +1043,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       try {
         await notifyTaskAssignees(task, req.user!, 'assignment');
+        await emitDeadlinesIfNeeded(task.id, { actorId: req.user!.id });
       } catch (notifyError) {
         console.error('Failed to dispatch task assignment notification:', notifyError);
       }
@@ -993,6 +1059,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/tasks/:id", requireAuth, async (req, res, next) => {
     try {
+      const body = { ...req.body };
+      if (body.assigneeId && !body.assigneeUserId) {
+        body.assigneeUserId = body.assigneeId;
+      }
+
       // Get task first to check permissions
       const existingTask = await storage.getCandidateTask(req.params.id);
       if (!existingTask) {
@@ -1007,24 +1078,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check RBAC - allow if user has permission to edit tasks or is assigned to the task
       const allowedRoles = ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"];
-      const canEdit = allowedRoles.includes(req.user!.role) || existingTask.assigneeId === req.user!.id;
+      const canEdit = allowedRoles.includes(req.user!.role) || existingTask.assigneeUserId === req.user!.id;
       
       if (!canEdit) {
         return res.status(403).json({ message: "Insufficient permissions to update this task" });
       }
 
       // Handle status transitions and attributes
-      let updateData = { ...req.body };
-      if (req.body.status === 'done' && !existingTask.completedAt) {
+      let updateData = { ...body };
+      if (body.status === 'done' && !existingTask.completedAt) {
         updateData.completedAt = new Date();
-      } else if (req.body.status !== 'done' && existingTask.completedAt) {
+      } else if (body.status !== 'done' && existingTask.completedAt) {
         updateData.completedAt = null;
       }
 
       // Treat canceled similar to done (non-blocking). Capture cancel_reason and who updated it.
-      if (req.body.status === 'canceled') {
+      if (body.status === 'canceled') {
         // Accept both snake_case and camelCase from clients
-        const incomingReason = (req.body.cancel_reason ?? req.body.cancelReason ?? '').toString();
+        const incomingReason = (body.cancel_reason ?? body.cancelReason ?? '').toString();
         const reason = incomingReason.trim();
         if (!reason) {
           return res.status(400).json({ message: 'cancel_reason is required when canceling a task' });
@@ -1037,17 +1108,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.updatedBy = req.user!.id;
       }
 
+      if (Object.prototype.hasOwnProperty.call(updateData, 'assigneeUserId')) {
+        updateData.assigneeKind = updateData.assigneeUserId ? 'user' : 'user';
+        updateData.assigneeRole = null;
+        updateData.assigneeResolvedAt = updateData.assigneeUserId ? new Date() : null;
+      }
+
       const task = await storage.updateCandidateTask(req.params.id, updateData);
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
       }
 
-      const assignmentChanged = Boolean(task.assigneeId && task.assigneeId !== existingTask.assigneeId);
-      const statusChanged = req.body.status && req.body.status !== existingTask.status;
+      const assignmentChanged = Boolean(task.assigneeKind === 'user' && task.assigneeUserId && task.assigneeUserId !== existingTask.assigneeUserId);
+      const statusChanged = body.status && body.status !== existingTask.status;
+      const dueChanged = Object.prototype.hasOwnProperty.call(updateData, 'dueAt');
+      const completionChanged = Object.prototype.hasOwnProperty.call(updateData, 'completedAt');
 
       if (assignmentChanged) {
         try {
-          await notifyTaskAssignees(task, req.user!, 'assignment', { previousAssigneeId: existingTask.assigneeId });
+          await notifyTaskAssignees(task, req.user!, 'assignment', { previousAssigneeId: existingTask.assigneeUserId });
         } catch (notifyError) {
           console.error('Failed to notify assignment change:', notifyError);
         }
@@ -1066,7 +1145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Audit log on cancellation
       try {
-        if (req.body.status === 'canceled') {
+        if (body.status === 'canceled') {
           await db.execute(sql`INSERT INTO audit_log (actor_id, candidate_id, task_id, event_type, details)
             VALUES (${req.user!.id}::uuid, ${existingTask.candidateId}::uuid, ${existingTask.id}::uuid, 'task_canceled', ${JSON.stringify({ reason: updateData.cancelReason })}::jsonb)`);
         }
@@ -1084,7 +1163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if stage should advance forward after task status change
       let advancement = null;
-      if (req.body.status) {
+      if (body.status) {
         advancement = await advanceStageIfComplete({
           candidateId: existingTask.candidateId,
           invokerUserId: req.user!.id
@@ -1133,6 +1212,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           regressed: !!recompute.regressed
         } : null
       });
+
+      if (dueChanged || completionChanged || statusChanged) {
+        await emitDeadlinesIfNeeded(task.id, { actorId: req.user!.id });
+      }
     } catch (error) {
       next(error);
     }
@@ -1472,6 +1555,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fixedDate = null;
       }
       
+      const defaultAssigneeKind = (req.body.defaultAssigneeKind as 'user' | 'role' | undefined) ?? 'user';
+      const defaultAssigneeUserId = req.body.defaultAssigneeUserId ?? req.body.defaultAssigneeId ?? null;
+      const defaultAssigneeRole = req.body.defaultAssigneeRole ?? null;
+
+      if (!['user', 'role'].includes(defaultAssigneeKind)) {
+        return res.status(400).json({ message: 'Invalid defaultAssigneeKind' });
+      }
+
+      if (defaultAssigneeKind === 'role' && defaultAssigneeRole !== 'candidate.self') {
+        return res.status(400).json({ message: 'defaultAssigneeRole must be candidate.self when kind is role' });
+      }
+
       const templateTask = await storage.createTemplateTask({
         templateId: req.params.id,
         taskDefId: req.body.taskDefId,
@@ -1479,7 +1574,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dueRuleType: req.body.dueRuleType,
         dueRuleValue,
         fixedDate,
-        defaultAssigneeId: req.body.defaultAssigneeId || null,
+        defaultAssigneeKind,
+        defaultAssigneeUserId: defaultAssigneeKind === 'user' ? defaultAssigneeUserId : null,
+        defaultAssigneeRole: defaultAssigneeKind === 'role' ? defaultAssigneeRole : null,
         defaultPriorityId: req.body.defaultPriorityId || null,
         defaultCategoryId: req.body.defaultCategoryId || null,
         isRequired: req.body.isRequired === true
@@ -1493,14 +1590,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/template-tasks/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       // Clean the data to prevent database errors with empty strings
+      const body = req.body ?? {};
+      const defaultAssigneeKindPatch = (body.defaultAssigneeKind as 'user' | 'role' | undefined) ?? 'user';
+      const defaultAssigneeUserIdPatch = body.defaultAssigneeUserId ?? body.defaultAssigneeId ?? null;
+      const defaultAssigneeRolePatch = body.defaultAssigneeRole ?? null;
+
+      if (!['user', 'role'].includes(defaultAssigneeKindPatch)) {
+        return res.status(400).json({ message: 'Invalid defaultAssigneeKind' });
+      }
+
+      if (defaultAssigneeKindPatch === 'role' && defaultAssigneeRolePatch !== 'candidate.self') {
+        return res.status(400).json({ message: 'defaultAssigneeRole must be candidate.self when kind is role' });
+      }
+
       let cleanedData = {
-        ...req.body,
-        dueRuleValue: req.body.dueRuleValue === "" ? null : req.body.dueRuleValue,
-        fixedDate: req.body.fixedDate === "" ? null : req.body.fixedDate,
-        defaultAssigneeId: req.body.defaultAssigneeId === "" ? null : req.body.defaultAssigneeId,
-        defaultPriorityId: req.body.defaultPriorityId === "" ? null : req.body.defaultPriorityId,
-        defaultCategoryId: req.body.defaultCategoryId === "" ? null : req.body.defaultCategoryId,
-        isRequired: req.body.isRequired === true,
+        ...body,
+        dueRuleValue: body.dueRuleValue === "" ? null : body.dueRuleValue,
+        fixedDate: body.fixedDate === "" ? null : body.fixedDate,
+        defaultAssigneeKind: defaultAssigneeKindPatch,
+        defaultAssigneeUserId: defaultAssigneeKindPatch === 'user' ? (defaultAssigneeUserIdPatch === "" ? null : defaultAssigneeUserIdPatch) : null,
+        defaultAssigneeRole: defaultAssigneeKindPatch === 'role' ? defaultAssigneeRolePatch : null,
+        defaultPriorityId: body.defaultPriorityId === "" ? null : body.defaultPriorityId,
+        defaultCategoryId: body.defaultCategoryId === "" ? null : body.defaultCategoryId,
+        isRequired: body.isRequired === true,
       };
       
       // Enforce database constraint rules for due_rule_type combinations
@@ -1672,6 +1784,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create all template tasks for this stage
       const createdTasks = [];
+      const defaultAssigneeKind = (req.body.defaultAssigneeKind as 'user' | 'role' | undefined) ?? 'user';
+      const defaultAssigneeUserId = req.body.defaultAssigneeUserId ?? assigneeId ?? null;
+      const defaultAssigneeRole = req.body.defaultAssigneeRole ?? null;
+
+      if (!['user', 'role'].includes(defaultAssigneeKind)) {
+        return res.status(400).json({ message: 'Invalid defaultAssigneeKind' });
+      }
+
+      if (defaultAssigneeKind === 'role' && defaultAssigneeRole !== 'candidate.self') {
+        return res.status(400).json({ message: 'defaultAssigneeRole must be candidate.self when kind is role' });
+      }
       for (const taskDefId of taskDefIds) {
         // Clean and validate due rule data like the existing endpoint
         let cleanDueRuleValue = dueRuleValue || null;
@@ -1694,7 +1817,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dueRuleType: dueRuleType || 'on_start_date',
           dueRuleValue: cleanDueRuleValue,
           fixedDate,
-          defaultAssigneeId: assigneeId || null,
+          defaultAssigneeKind,
+          defaultAssigneeUserId: defaultAssigneeKind === 'user' ? defaultAssigneeUserId : null,
+          defaultAssigneeRole: defaultAssigneeKind === 'role' ? defaultAssigneeRole : null,
           defaultPriorityId: priorityId || null,
           defaultCategoryId: categoryId || null
         });

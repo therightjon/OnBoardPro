@@ -60,6 +60,28 @@ test("filterRecipientsForNotification applies visibility, preference, and self r
   assert.equal(reasons.get("candidate-internal"), "candidate_visibility");
 });
 
+test("candidate recipients allowed only for external visibility", () => {
+  const candidateRecipient: RecipientWithPreferences = makeRecipient({ userId: "cand", role: "candidate" });
+
+  // Internal visibility: should be skipped
+  let result = filterRecipientsForNotification([candidateRecipient], {
+    actorId: undefined,
+    visibility: "internal",
+    type: "task.assigned",
+  });
+  assert.equal(result.eligible.length, 0);
+  assert.equal(result.skipped[0]?.reason, "candidate_visibility");
+
+  // External visibility: should be eligible
+  result = filterRecipientsForNotification([candidateRecipient], {
+    actorId: undefined,
+    visibility: "external",
+    type: "task.assigned",
+  });
+  assert.equal(result.eligible.length, 1);
+  assert.equal(result.eligible[0].userId, "cand");
+});
+
 test("computeNotificationCoalescing increments existing payload counts and prepares inserts", () => {
   const now = new Date("2024-01-01T00:00:00Z");
   const { updates, inserts } = computeNotificationCoalescing({

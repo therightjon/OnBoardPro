@@ -107,7 +107,9 @@ type UserPreferencesUpdateInput = Partial<Omit<UserPreferences, "userId" | "upda
 export interface TemplateExpansionTask {
   id: string;
   candidateId: string;
-  assigneeId: string | null;
+  assigneeUserId: string | null;
+  assigneeKind: 'user' | 'role';
+  assigneeRole: string | null;
   title: string;
   status: string;
 }
@@ -162,6 +164,7 @@ export interface IStorage {
   updateCandidateTask(id: string, data: Partial<CandidateTask>): Promise<CandidateTask | undefined>;
   deleteCandidateTask(id: string): Promise<void>;
   archiveCandidateTask(id: string): Promise<void>;
+  resolveCandidateSelfAssignments(candidateId: string, userId: string): Promise<TemplateExpansionTask[]>;
   getCandidateStageHistory(candidateId: string): Promise<any[]>;
   getDashboardTasks(): Promise<any[]>;
   
@@ -516,10 +519,10 @@ export class DatabaseStorage implements IStorage {
       if (reassignOpenTasksTo) {
         const result = await tx
           .update(candidateTasks)
-          .set({ assigneeId: reassignOpenTasksTo, updatedAt: new Date() })
+          .set({ assigneeKind: 'user', assigneeUserId: reassignOpenTasksTo, assigneeRole: null, assigneeResolvedAt: new Date(), updatedAt: new Date() })
           .where(
             and(
-              eq(candidateTasks.assigneeId, userId),
+              eq(candidateTasks.assigneeUserId, userId),
               ne(candidateTasks.status, 'done'),
               ne(candidateTasks.status, 'canceled'),
               eq(candidateTasks.archived, false)
@@ -556,7 +559,7 @@ export class DatabaseStorage implements IStorage {
         COUNT(*) as total,
         SUM(CASE WHEN required = true THEN 1 ELSE 0 END) as required
       FROM candidate_tasks 
-      WHERE assignee_id = ${userId}
+      WHERE assignee_user_id = ${userId}
         AND status NOT IN ('done', 'canceled')
         AND archived = false
     `);
@@ -631,6 +634,7 @@ export class DatabaseStorage implements IStorage {
         startDate: candidates.startDate,
         status: candidates.status,
         primaryOwnerId: candidates.primaryOwnerId,
+        linkedUserId: candidates.linkedUserId,
         currentStageId: candidates.currentStageId,
         templateAppliedFromId: candidates.templateAppliedFromId,
         templateAppliedAt: candidates.templateAppliedAt,
@@ -814,7 +818,7 @@ export class DatabaseStorage implements IStorage {
     const whereConditions = [eq(candidateTasks.archived, false)];
     
     if (filters?.assigneeId) {
-      whereConditions.push(eq(candidateTasks.assigneeId, filters.assigneeId));
+      whereConditions.push(eq(candidateTasks.assigneeUserId, filters.assigneeId));
     }
     
     if (filters?.candidateId) {
@@ -854,7 +858,10 @@ export class DatabaseStorage implements IStorage {
         stage_id: candidateTasks.stageId,
         stage_name: hiringStages.name,
         stage_order_index: candidateTemplateStages.orderIndex,
-        assignee_id: candidateTasks.assigneeId,
+        assignee_id: candidateTasks.assigneeUserId,
+        assignee_kind: candidateTasks.assigneeKind,
+        assignee_role: candidateTasks.assigneeRole,
+        assignee_resolved_at: candidateTasks.assigneeResolvedAt,
         assignee_firstName: users.firstName,
         assignee_lastName: users.lastName,
         priority: candidateTasks.priority,
@@ -865,6 +872,7 @@ export class DatabaseStorage implements IStorage {
         status: candidateTasks.status,
         required: candidateTasks.required,
         cancel_reason: candidateTasks.cancelReason,
+        due_soon_notified_at: candidateTasks.dueSoonNotifiedAt,
         updated_at: candidateTasks.updatedAt,
         // Add candidate fields to prevent "Unknown Candidate"
         candidate_id: candidates.id,
@@ -879,7 +887,7 @@ export class DatabaseStorage implements IStorage {
         eq(candidateTemplateStages.stageId, candidateTasks.stageId)
       ))
       .leftJoin(hiringStages, eq(hiringStages.id, candidateTasks.stageId))
-      .leftJoin(users, eq(users.id, candidateTasks.assigneeId))
+      .leftJoin(users, eq(users.id, candidateTasks.assigneeUserId))
       .leftJoin(taskPriorities, eq(taskPriorities.name, candidateTasks.priority))
       .leftJoin(taskCategories, eq(taskCategories.id, candidateTasks.categoryId))
       .where(and(...whereConditions))
@@ -888,11 +896,16 @@ export class DatabaseStorage implements IStorage {
     // Transform the flat structure to match frontend expectations
     return rawTasks.map(task => ({
       ...task,
-      assignee: task.assignee_firstName || task.assignee_lastName ? { 
+      assignee: task.assignee_firstName || task.assignee_lastName ? {
         id: task.assignee_id,
         firstName: task.assignee_firstName,
-        lastName: task.assignee_lastName 
+        lastName: task.assignee_lastName
       } : null,
+      assigneeUserId: task.assignee_id,
+      assigneeKind: task.assignee_kind,
+      assigneeRole: task.assignee_role,
+      assigneeResolvedAt: task.assignee_resolved_at,
+      dueSoonNotifiedAt: task.due_soon_notified_at,
       candidate: {
         id: task.candidate_id,
         firstName: task.candidate_first_name,
@@ -910,7 +923,10 @@ export class DatabaseStorage implements IStorage {
         candidateId: candidateTasks.candidateId,
         title: candidateTasks.title,
         description: candidateTasks.description,
-        assignee_id: candidateTasks.assigneeId,
+        assignee_id: candidateTasks.assigneeUserId,
+        assignee_kind: candidateTasks.assigneeKind,
+        assignee_role: candidateTasks.assigneeRole,
+        assignee_resolved_at: candidateTasks.assigneeResolvedAt,
         assignee_firstName: users.firstName,
         assignee_lastName: users.lastName,
         priority: candidateTasks.priority,
@@ -918,12 +934,13 @@ export class DatabaseStorage implements IStorage {
         status: candidateTasks.status,
         required: candidateTasks.required,
         cancel_reason: candidateTasks.cancelReason,
+        due_soon_notified_at: candidateTasks.dueSoonNotifiedAt,
         updated_at: candidateTasks.updatedAt,
         candidate_status: candidates.status
       })
       .from(candidateTasks)
       .innerJoin(candidates, eq(candidateTasks.candidateId, candidates.id))
-      .leftJoin(users, eq(users.id, candidateTasks.assigneeId))
+      .leftJoin(users, eq(users.id, candidateTasks.assigneeUserId))
       .where(and(
         eq(candidateTasks.archived, false),
         inArray(candidates.status, ['active', 'on_hold'])
@@ -932,11 +949,16 @@ export class DatabaseStorage implements IStorage {
 
     return rawTasks.map(task => ({
       ...task,
-      assignee: task.assignee_firstName || task.assignee_lastName ? { 
+      assignee: task.assignee_firstName || task.assignee_lastName ? {
         id: task.assignee_id,
         firstName: task.assignee_firstName,
-        lastName: task.assignee_lastName 
-      } : null
+        lastName: task.assignee_lastName
+      } : null,
+      assigneeUserId: task.assignee_id,
+      assigneeKind: task.assignee_kind,
+      assigneeRole: task.assignee_role,
+      assigneeResolvedAt: task.assignee_resolved_at,
+      dueSoonNotifiedAt: task.due_soon_notified_at,
     }));
   }
 
@@ -977,6 +999,36 @@ export class DatabaseStorage implements IStorage {
       .update(candidateTasks)
       .set({ archived: true, updatedAt: new Date() })
       .where(eq(candidateTasks.id, id));
+  }
+
+  async resolveCandidateSelfAssignments(candidateId: string, userId: string): Promise<TemplateExpansionTask[]> {
+    const now = new Date();
+    const rows = await db
+      .update(candidateTasks)
+      .set({
+        assigneeKind: 'user',
+        assigneeUserId: userId,
+        assigneeRole: null,
+        assigneeResolvedAt: now,
+        updatedAt: now,
+      })
+      .where(and(
+        eq(candidateTasks.candidateId, candidateId),
+        eq(candidateTasks.assigneeKind, 'role'),
+        eq(candidateTasks.assigneeRole, 'candidate.self'),
+        eq(candidateTasks.archived, false)
+      ))
+      .returning({
+        id: candidateTasks.id,
+        candidateId: candidateTasks.candidateId,
+        assigneeUserId: candidateTasks.assigneeUserId,
+        assigneeKind: candidateTasks.assigneeKind,
+        assigneeRole: candidateTasks.assigneeRole,
+        title: candidateTasks.title,
+        status: candidateTasks.status,
+      });
+
+    return rows;
   }
 
   async getCandidateStageHistory(candidateId: string): Promise<any[]> {
@@ -1068,7 +1120,9 @@ export class DatabaseStorage implements IStorage {
           dueRuleType: task.dueRuleType,
           dueRuleValue: task.dueRuleValue,
           fixedDate: task.fixedDate,
-          defaultAssigneeId: task.defaultAssigneeId,
+          defaultAssigneeKind: task.defaultAssigneeKind ?? 'user',
+          defaultAssigneeUserId: task.defaultAssigneeUserId,
+          defaultAssigneeRole: task.defaultAssigneeRole,
           defaultPriorityId: task.defaultPriorityId,
           defaultCategoryId: task.defaultCategoryId,
           archived: false
@@ -1721,19 +1775,46 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
+      let defaultAssigneeKind = templateTask.defaultAssigneeKind ?? 'user';
+      let defaultAssigneeUserId = defaultAssigneeKind === 'user'
+        ? templateTask.defaultAssigneeUserId ?? null
+        : null;
+      let defaultAssigneeRole = defaultAssigneeKind === 'role'
+        ? templateTask.defaultAssigneeRole ?? null
+        : null;
+
+      // Special role resolution: candidate.self resolves to linked user at apply time
+      // If the template assigns to candidate.self and the candidate already has a linked user,
+      // resolve immediately to that user and mark as resolved.
+      let resolvedAt: Date | null = null;
+      if (defaultAssigneeKind === 'role' && defaultAssigneeRole === 'candidate.self') {
+        if (candidate.linkedUserId) {
+          defaultAssigneeUserId = candidate.linkedUserId;
+          defaultAssigneeRole = null;
+          defaultAssigneeKind = 'user';
+          resolvedAt = new Date();
+        }
+      } else if (defaultAssigneeKind === 'user' && defaultAssigneeUserId) {
+        resolvedAt = new Date();
+      }
+
       tasksToCreate.push({
         candidateId,
         taskDefId: templateTask.taskDefId,
         title: taskDef.name,
         description: taskDef.description,
         stageId: templateTask.stageId,
-        assigneeId: templateTask.defaultAssigneeId,
+        assigneeKind: defaultAssigneeKind,
+        assigneeUserId: defaultAssigneeUserId,
+        assigneeRole: defaultAssigneeRole,
+        assigneeResolvedAt: resolvedAt,
         priority: priority as "low" | "medium" | "high" | "critical",
         categoryId: templateTask.defaultCategoryId || (await this.getTaskCategories())[0]?.id,
         dueAt,
         status: "todo" as const,
         required: (templateTask as any).isRequired ?? true,
-        archived: false
+        archived: false,
+        dueSoonNotifiedAt: null
       });
     }
 
@@ -1746,7 +1827,9 @@ export class DatabaseStorage implements IStorage {
         .returning({
           id: candidateTasks.id,
           candidateId: candidateTasks.candidateId,
-          assigneeId: candidateTasks.assigneeId,
+          assigneeUserId: candidateTasks.assigneeUserId,
+          assigneeKind: candidateTasks.assigneeKind,
+          assigneeRole: candidateTasks.assigneeRole,
           title: candidateTasks.title,
           status: candidateTasks.status,
         });

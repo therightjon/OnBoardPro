@@ -58,3 +58,6 @@ database_backup*.sql
 attached_assets/
 uploads/
 tmp/
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md

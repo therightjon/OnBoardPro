@@ -4,7 +4,14 @@ import { notifications, users, userPreferences, type InsertNotification } from "
 import { mergeUserPreferences } from "@shared/preferences";
 
 type NotificationVisibility = "internal" | "external";
-export type NotificationEventType = "comment.created" | "task.assigned" | "stage.changed" | "mention";
+export type NotificationEventType =
+  | "comment.created"
+  | "task.assigned"
+  | "stage.changed"
+  | "mention"
+  | "task.overdue"
+  | "task.due_soon"
+  | "candidate.owner_changed";
 export type NotificationEntityType = "candidate" | "task" | "comment";
 
 export interface NotificationEntityRef {

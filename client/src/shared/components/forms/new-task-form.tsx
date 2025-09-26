@@ -102,6 +102,11 @@ export function NewTaskForm({ candidateId, onSuccess }: NewTaskFormProps) {
       dueAt: selectedDate || null,
       save_as_definition: saveAsDefinition && !data.taskDefId
     };
+    taskData.assigneeKind = 'user';
+    taskData.assigneeRole = null;
+    if (!taskData.assigneeUserId) {
+      taskData.assigneeUserId = null;
+    }
     createTaskMutation.mutate(taskData);
   };
 
@@ -343,17 +348,21 @@ export function NewTaskForm({ candidateId, onSuccess }: NewTaskFormProps) {
           {/* Assignee */}
           <FormField
             control={form.control}
-            name="assigneeId"
+            name="assigneeUserId"
             render={({ field }: { field: any }) => (
               <FormItem>
                 <FormLabel>Assignee (Optional)</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || ""}>
+                <Select
+                  onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                  value={field.value ?? "none"}
+                >
                   <FormControl>
                     <SelectTrigger data-testid="select-assignee">
                       <SelectValue placeholder="Select assignee (optional)" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
+                    <SelectItem value="none">No assignee</SelectItem>
                     {users.length === 0 ? (
                       <SelectItem disabled value="__no_users__">No assignees available.</SelectItem>
                     ) : (

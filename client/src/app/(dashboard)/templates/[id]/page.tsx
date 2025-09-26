@@ -42,7 +42,9 @@ const templateTaskSchema = z.object({
   dueRuleType: z.enum(["days_before_start", "on_start_date", "days_after_start", "days_before_stage", "days_after_stage", "fixed_date"]),
   dueRuleValue: z.number().optional(),
   fixedDate: z.string().optional(),
-  defaultAssigneeId: z.string().optional(),
+  defaultAssigneeUserId: z.string().optional(),
+  defaultAssigneeKind: z.enum(["user", "role"]).optional(),
+  defaultAssigneeRole: z.string().optional(),
   defaultPriorityId: z.string().optional(),
   defaultCategoryId: z.string().optional(),
   isRequired: z.boolean().optional(),
@@ -125,7 +127,9 @@ export default function TemplateDetailPage() {
       dueRuleType: "days_after_start",
       dueRuleValue: 0,
       fixedDate: "",
-      defaultAssigneeId: "none",
+      defaultAssigneeUserId: "none",
+      defaultAssigneeKind: 'user' as const,
+      defaultAssigneeRole: undefined,
       defaultPriorityId: "none",
       defaultCategoryId: "none",
       isRequired: false,
@@ -140,7 +144,9 @@ export default function TemplateDetailPage() {
       dueRuleType: "days_after_start",
       dueRuleValue: 0,
       fixedDate: "",
-      defaultAssigneeId: "none",
+      defaultAssigneeUserId: "none",
+      defaultAssigneeKind: 'user' as const,
+      defaultAssigneeRole: undefined,
       defaultPriorityId: "none",
       defaultCategoryId: "none",
       isRequired: false,
@@ -290,7 +296,9 @@ export default function TemplateDetailPage() {
       dueRuleValue?: number | string | null;
       priorityId?: string | null;
       categoryId?: string | null;
-      assigneeId?: string | null;
+      defaultAssigneeKind?: 'user' | 'role';
+      defaultAssigneeUserId?: string | null;
+      defaultAssigneeRole?: string | null;
     }) => {
       const res = await apiRequest("POST", `/api/templates/${templateId}/stages/create-with-task`, data);
       return res.json();
@@ -377,7 +385,9 @@ export default function TemplateDetailPage() {
       dueRuleType: task.dueRuleType,
       dueRuleValue: task.dueRuleValue || 0,
       fixedDate: task.fixedDate || "",
-      defaultAssigneeId: task.defaultAssigneeId || "none",
+      defaultAssigneeUserId: task.defaultAssigneeUserId || "none",
+      defaultAssigneeKind: (task.defaultAssigneeKind ?? 'user') as 'user' | 'role',
+      defaultAssigneeRole: task.defaultAssigneeRole ?? undefined,
       defaultPriorityId: task.defaultPriorityId || "none",
       defaultCategoryId: task.defaultCategoryId || "none",
       isRequired: !!(task as any).isRequired,
@@ -389,7 +399,9 @@ export default function TemplateDetailPage() {
     // Convert "none" values back to null for the API
     const processedData = {
       ...data,
-      defaultAssigneeId: data.defaultAssigneeId === "none" ? undefined : data.defaultAssigneeId,
+      defaultAssigneeKind: 'user' as const,
+      defaultAssigneeUserId: data.defaultAssigneeUserId === "none" ? undefined : data.defaultAssigneeUserId,
+      defaultAssigneeRole: undefined,
       defaultPriorityId: data.defaultPriorityId === "none" ? undefined : data.defaultPriorityId,
       defaultCategoryId: data.defaultCategoryId === "none" ? undefined : data.defaultCategoryId,
       isRequired: !!data.isRequired,
@@ -413,7 +425,9 @@ export default function TemplateDetailPage() {
     const processedData = {
       ...data,
       id: selectedTask.id,
-      defaultAssigneeId: data.defaultAssigneeId === "none" ? undefined : data.defaultAssigneeId,
+      defaultAssigneeKind: 'user' as const,
+      defaultAssigneeUserId: data.defaultAssigneeUserId === "none" ? undefined : data.defaultAssigneeUserId,
+      defaultAssigneeRole: undefined,
       defaultPriorityId: data.defaultPriorityId === "none" ? undefined : data.defaultPriorityId,
       defaultCategoryId: data.defaultCategoryId === "none" ? undefined : data.defaultCategoryId,
       fixedDate: data.fixedDate === "" ? undefined : data.fixedDate,
@@ -816,7 +830,7 @@ export default function TemplateDetailPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
                       control={form.control}
-                      name="defaultAssigneeId"
+                      name="defaultAssigneeUserId"
                       render={({ field }: { field: any }) => (
                         <FormItem>
                           <FormControl>
@@ -1064,7 +1078,7 @@ export default function TemplateDetailPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
                       control={editForm.control}
-                      name="defaultAssigneeId"
+                      name="defaultAssigneeUserId"
                       render={({ field }: { field: any }) => (
                         <FormItem>
                           <FormControl>
@@ -1205,7 +1219,7 @@ export default function TemplateDetailPage() {
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <User className="w-4 h-4 text-muted-foreground" />
-                        <span>{getUserName(task.defaultAssigneeId)}</span>
+                        <span>{getUserName(task.defaultAssigneeUserId)}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -1454,7 +1468,7 @@ function AddStageForm({
   const [dueRuleValue, setDueRuleValue] = useState<number | string>("");
   const [priorityId, setPriorityId] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
+  const [assigneeUserId, setAssigneeUserId] = useState("");
 
   const availableStages = hiringStages.filter(stage => 
     !templateStages.some(ts => ts.stageId === stage.id)
@@ -1508,7 +1522,9 @@ function AddStageForm({
         dueRuleValue: dueRuleType === 'on_start_date' ? null : dueRuleValue,
         priorityId: priorityId || null,
         categoryId: categoryId || null,
-        assigneeId: assigneeId || null
+        defaultAssigneeKind: 'user' as const,
+        defaultAssigneeUserId: assigneeUserId || undefined,
+        defaultAssigneeRole: null
       },
       { 
         onSuccess: () => {
@@ -1519,7 +1535,7 @@ function AddStageForm({
           setDueRuleValue("");
           setPriorityId("");
           setCategoryId("");
-          setAssigneeId("");
+          setAssigneeUserId("");
         }
       }
     );

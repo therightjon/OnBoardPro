@@ -1,2 +1,7 @@
-export { notifications } from "../schema";
-export type { Notification, InsertNotification } from "../schema";
+export { notifications, notificationKeys } from "../schema";
+export type {
+  Notification,
+  InsertNotification,
+  NotificationKey,
+  InsertNotificationKey
+} from "../schema";

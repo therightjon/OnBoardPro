@@ -68,6 +68,11 @@ export const priorityEnum = pgEnum("priority", [
   "critical"
 ]);
 
+export const taskAssigneeKindEnum = pgEnum("task_assignee_kind", [
+  "user",
+  "role"
+]);
+
 export const dueRuleTypeEnum = pgEnum("due_rule_type", [
   "days_before_start",
   "on_start_date",
@@ -212,6 +217,7 @@ export const candidates = pgTable("candidates", {
   startDate: date("start_date").notNull(),
   status: candidateStatusEnum("status").default("active").notNull(),
   primaryOwnerId: uuid("primary_owner_id").references(() => users.id),
+  linkedUserId: uuid("linked_user_id").references(() => users.id),
   currentStageId: uuid("current_stage_id").references(() => hiringStages.id),
   templateAppliedFromId: uuid("template_applied_from_id"),
   templateAppliedAt: timestamp("template_applied_at"),
@@ -280,7 +286,9 @@ export const templateTasks = pgTable("template_tasks", {
   dueRuleType: dueRuleTypeEnum("due_rule_type").notNull(),
   dueRuleValue: integer("due_rule_value"),
   fixedDate: date("fixed_date"),
-  defaultAssigneeId: uuid("default_assignee_id"),
+  defaultAssigneeKind: taskAssigneeKindEnum("default_assignee_kind").notNull().default("user"),
+  defaultAssigneeUserId: uuid("default_assignee_user_id"),
+  defaultAssigneeRole: text("default_assignee_role"),
   defaultPriorityId: uuid("default_priority_id"),
   defaultCategoryId: uuid("default_category_id"),
   archived: boolean("archived").default(false).notNull(),
@@ -296,7 +304,10 @@ export const candidateTasks = pgTable("candidate_tasks", {
   title: text("title").notNull(),
   description: text("description"),
   stageId: uuid("stage_id").notNull().references(() => hiringStages.id),
-  assigneeId: uuid("assignee_id").references(() => users.id),
+  assigneeKind: taskAssigneeKindEnum("assignee_kind").notNull().default("user"),
+  assigneeUserId: uuid("assignee_user_id").references(() => users.id),
+  assigneeRole: text("assignee_role"),
+  assigneeResolvedAt: timestamp("assignee_resolved_at"),
   priority: priorityEnum("priority").notNull(),
   categoryId: uuid("category_id").notNull().references(() => taskCategories.id),
   dueAt: timestamp("due_at"),
@@ -307,6 +318,7 @@ export const candidateTasks = pgTable("candidate_tasks", {
   archived: boolean("archived").default(false).notNull(),
   stageOrderIndex: integer("stage_order_index"),
   deletedAt: timestamp("deleted_at"),
+  dueSoonNotifiedAt: timestamp("due_soon_notified_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -369,6 +381,15 @@ export const notifications = pgTable("notifications", {
   deliveredChannels: text("delivered_channels").array().notNull().default(sql`'{}'::text[]`)
 }, (t) => ({
   userReadCreatedIdx: index("notifications_user_read_created_idx").on(t.userId, t.isRead, t.createdAt)
+}));
+
+export const notificationKeys = pgTable("notification_keys", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+}, (t) => ({
+  keyUserUnique: uniqueIndex("notification_keys_key_user_idx").on(t.key, t.userId)
 }));
 
 // Relations
@@ -446,6 +467,10 @@ export const candidatesRelations = relations(candidates, ({ one, many }) => ({
     references: [users.id],
     relationName: "candidateOwner"
   }),
+  linkedUser: one(users, {
+    fields: [candidates.linkedUserId],
+    references: [users.id]
+  }),
   template: one(templates, {
     fields: [candidates.templateAppliedFromId],
     references: [templates.id]
@@ -470,7 +495,7 @@ export const candidateTasksRelations = relations(candidateTasks, ({ one }) => ({
     references: [hiringStages.id]
   }),
   assignee: one(users, {
-    fields: [candidateTasks.assigneeId],
+    fields: [candidateTasks.assigneeUserId],
     references: [users.id]
   }),
   category: one(taskCategories, {
@@ -545,7 +570,7 @@ export const templateTasksRelations = relations(templateTasks, ({ one }) => ({
     references: [hiringStages.id]
   }),
   defaultAssignee: one(users, {
-    fields: [templateTasks.defaultAssigneeId],
+    fields: [templateTasks.defaultAssigneeUserId],
     references: [users.id]
   }),
   defaultPriority: one(taskPriorities, {
@@ -612,14 +637,17 @@ export const insertCandidateSchema = createInsertSchema(candidates).omit({
   updatedAt: true,
   templateAppliedFromId: true,
   templateAppliedAt: true,
-  templateLocked: true
+  templateLocked: true,
+  linkedUserId: true
 });
 
 export const insertCandidateTaskSchema = createInsertSchema(candidateTasks).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-  deletedAt: true
+  deletedAt: true,
+  assigneeResolvedAt: true,
+  dueSoonNotifiedAt: true
 });
 
 export const insertTemplateSchema = createInsertSchema(templates).omit({
@@ -708,6 +736,8 @@ export type HiringStage = typeof hiringStages.$inferSelect;
 export type InsertHiringStage = z.infer<typeof insertHiringStageSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+export type NotificationKey = typeof notificationKeys.$inferSelect;
+export type InsertNotificationKey = typeof notificationKeys.$inferInsert;
 export type TaskCategory = typeof taskCategories.$inferSelect;
 export type TaskPriority = typeof taskPriorities.$inferSelect;
 export type CandidateType = typeof candidateTypes.$inferSelect;
