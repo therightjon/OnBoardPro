@@ -1,4 +1,10 @@
-export type NotificationType = "comment.created" | "task.assigned" | "stage.changed" | "mention";
+export type NotificationType =
+  | "comment.created"
+  | "task.assigned"
+  | "stage.changed"
+  | "mention"
+  | "task.due_soon"
+  | "task.overdue";
 export type NotificationEntityType = "candidate" | "task" | "comment";
 
 export interface NotificationRecord {

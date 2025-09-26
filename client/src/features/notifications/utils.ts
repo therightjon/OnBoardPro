@@ -1,6 +1,7 @@
-import type { NotificationRecord } from "./types";
+import { format } from "date-fns";
 import type { LucideIcon } from "lucide-react";
 import { Bell, MessageCircle, AtSign, ClipboardList, Flag } from "lucide-react";
+import type { NotificationRecord } from "./types";
 
 export interface NotificationDisplayData {
   title: string;
@@ -36,7 +37,12 @@ function getCandidateName(payload: Record<string, unknown> | null | undefined): 
   return undefined;
 }
 
-function getTaskInfo(payload: Record<string, unknown> | null | undefined): { id?: string; title?: string; status?: string } {
+function getTaskInfo(payload: Record<string, unknown> | null | undefined): {
+  id?: string;
+  title?: string;
+  status?: string;
+  dueAt?: string;
+} {
   if (!payload || typeof payload !== "object") return {};
   const task = (payload as any).task;
   if (task && typeof task === "object") {
@@ -44,6 +50,7 @@ function getTaskInfo(payload: Record<string, unknown> | null | undefined): { id?
       id: typeof task.id === "string" ? task.id : undefined,
       title: typeof task.title === "string" ? task.title : undefined,
       status: typeof task.status === "string" ? task.status : undefined,
+      dueAt: typeof task.dueAt === "string" ? task.dueAt : undefined,
     };
   }
   return {};
@@ -74,6 +81,15 @@ function getReason(payload: Record<string, unknown> | null | undefined): string 
     return reason;
   }
   return undefined;
+}
+
+function formatTaskDueDate(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+  return format(parsed, "MMM d, yyyy");
 }
 
 export function mapNotificationToDisplay(notification: NotificationRecord): NotificationDisplayData {
@@ -142,6 +158,27 @@ export function mapNotificationToDisplay(notification: NotificationRecord): Noti
         body: actorName ? `by ${actorName}` : undefined,
         link,
         icon: Flag,
+      };
+    }
+    case "task.due_soon":
+    case "task.overdue": {
+      const link = task.id ? getCandidateLink(payload) ?? `/tasks/mine` : `/tasks/mine`;
+      const baseTitle = task.title ? `Task "${task.title}"` : "Task update";
+      const statusText = notification.type === "task.due_soon" ? "due soon" : "overdue";
+      const dueDate = formatTaskDueDate(task.dueAt);
+      const bodyParts: string[] = [];
+      if (candidateName) {
+        bodyParts.push(`Candidate ${candidateName}`);
+      }
+      if (dueDate) {
+        bodyParts.push(`Due ${dueDate}`);
+      }
+      const body = bodyParts.length > 0 ? bodyParts.join(" - ") : undefined;
+      return {
+        title: `${baseTitle} ${statusText}`,
+        body,
+        link,
+        icon: ClipboardList,
       };
     }
     default: {
