@@ -37,11 +37,8 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
+export function getQueryFn<T>({ on401: unauthorizedBehavior }: { on401: UnauthorizedBehavior }): QueryFunction<T> {
+  return async ({ queryKey }) => {
     // Build URL from all leading string segments of the queryKey.
     // This allows patterns like ["/api/templates", id, "template-tasks"]
     // to correctly request "/api/templates/:id/template-tasks" while still
@@ -69,12 +66,14 @@ export const getQueryFn: <T>(options: {
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+      return null as unknown as T;
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    const data = await parseJsonSafe(res, `Request to ${url} `);
+    return data as T;
   };
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -94,17 +93,22 @@ export const queryClient = new QueryClient({
 // Safely parse JSON responses. If the response is HTML or otherwise not JSON,
 // throw a clear, concise error to help developers diagnose server route issues
 // (e.g., server not restarted so the route isn't registered and HTML is returned).
-export async function parseJsonSafe<T = any>(res: Response): Promise<T> {
+export async function parseJsonSafe<T = any>(res: Response, context?: string): Promise<T> {
   const contentType = res.headers.get("content-type") || "";
   const text = await res.text();
   if (!contentType.toLowerCase().includes("application/json")) {
+    if (res.status === 204 || text.length === 0) {
+      return undefined as unknown as T;
+    }
     const snippet = text.slice(0, 120);
-    throw new Error(`Unexpected non-JSON response (${res.status}): ${snippet}`);
+    const ctx = context ? `${context} ` : "";
+    throw new Error(`${ctx}expected JSON but received (${res.status}) ${snippet || "[empty response]"}. The backend may not be returning an API response.`);
   }
   try {
     return JSON.parse(text) as T;
   } catch (e) {
     const snippet = text.slice(0, 120);
-    throw new Error(`Invalid JSON (${res.status}): ${snippet}`);
+    const ctx = context ? `${context} ` : "";
+    throw new Error(`${ctx}invalid JSON (${res.status}): ${snippet}`);
   }
 }

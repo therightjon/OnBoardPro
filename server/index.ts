@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { startDeadlineScanner } from "./jobs/scan-deadlines";
+import { startNotificationEmailJobs } from "./jobs/notification-email";
 import "./config/database.config"; // initialize DB side-effects
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -43,6 +44,9 @@ app.use((req, res, next) => {
 
   if (process.env.DISABLE_DEADLINE_SCANNER !== '1') {
     startDeadlineScanner();
+  }
+  if (process.env.DISABLE_EMAIL_JOBS !== '1') {
+    startNotificationEmailJobs();
   }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -1,7 +1,8 @@
 import { and, eq, gte, inArray } from "drizzle-orm";
 import { db } from "../../../db/connection";
 import { notifications, users, userPreferences, type InsertNotification } from "@shared/schemas";
-import { mergeUserPreferences } from "@shared/preferences";
+import { mergeUserPreferences, type DigestFrequency } from "@shared/preferences";
+import { enqueueNotificationEmails } from "../../email/outbox.service";
 
 type NotificationVisibility = "internal" | "external";
 export type NotificationEventType =
@@ -278,6 +279,8 @@ export async function createNotifications(args: CreateNotificationsArgs): Promis
     timestamp: now,
   });
 
+  let insertedRows: Array<{ id: string; userId: string; createdAt: Date }> = [];
+
   await db.transaction(async (trx) => {
     if (updates.length > 0) {
       for (const update of updates) {
@@ -294,9 +297,33 @@ export async function createNotifications(args: CreateNotificationsArgs): Promis
     }
 
     if (inserts.length > 0) {
-      await trx.insert(notifications).values(inserts);
+      const inserted = await trx
+        .insert(notifications)
+        .values(inserts)
+        .returning({
+          id: notifications.id,
+          userId: notifications.userId,
+          createdAt: notifications.createdAt,
+        });
+      insertedRows = inserted;
     }
   });
+
+  if (insertedRows.length > 0) {
+    const preferenceMap = new Map(eligible.map((recipient) => [recipient.userId, recipient.preferences]));
+    const candidates = insertedRows.map((row) => {
+      const prefs = preferenceMap.get(row.userId);
+      return {
+        notificationId: row.id,
+        userId: row.userId,
+        createdAt: row.createdAt,
+        notifyEmail: prefs?.notifyEmail ?? false,
+        digestFrequency: (prefs?.digestFrequency ?? "immediate") as DigestFrequency,
+      };
+    });
+
+    await enqueueNotificationEmails(candidates);
+  }
 
   return {
     created: inserts.length,

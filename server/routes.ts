@@ -26,6 +26,7 @@ import { sql } from "drizzle-orm";
 import { createNotifications, extractMentionKeys, resolveMentionedUsers } from "./features/notifications/services";
 import { emitDeadlinesIfNeeded } from "./features/notifications/deadline-helpers";
 import { emitOwnerChanged } from "./features/notifications/owner-change";
+import { getSmtpSettings, updateSmtpSettings, sendTestEmail } from "./features/email/smtp-settings.service";
 import {
   listNotificationsHandler,
   markNotificationReadHandler,
@@ -1239,6 +1240,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       next(error);
     }
+  });
+
+  app.get("/api/settings/email", requireAuth, requireRole(["system_admin"]), async (_req, res, next) => {
+    try {
+      const settings = await getSmtpSettings();
+      res.json(settings);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/settings/email", requireAuth, requireRole(["system_admin"]), async (req: any, res) => {
+    try {
+      const result = await updateSmtpSettings(req.body ?? {}, req.user!.id);
+      res.json(result.settings);
+    } catch (error: any) {
+      res.status(400).json({ message: error?.message ?? "Failed to update SMTP settings" });
+    }
+  });
+
+  app.post("/api/settings/email/test", requireAuth, requireRole(["system_admin"]), async (req: any, res) => {
+    const email = req.user?.email;
+    if (!email) {
+      return res.status(400).json({ ok: false, message: "Current user email is not set" });
+    }
+    const name = `${req.user?.firstName ?? ""} ${req.user?.lastName ?? ""}`.trim() || email;
+    const result = await sendTestEmail(email, name);
+    if (result.ok) {
+      return res.json({ ok: true });
+    }
+    return res.status(502).json(result);
   });
 
   app.delete("/api/tasks/:id", requireAuth, async (req, res, next) => {
