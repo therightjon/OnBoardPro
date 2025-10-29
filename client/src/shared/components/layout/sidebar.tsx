@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/shared/components/ui/button";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
@@ -16,7 +18,11 @@ import {
   Users,
   LogOut
 } from "lucide-react";
-import { useUnreadNotifications } from "@/features/notifications/hooks/useUnreadNotifications";
+import { useUnreadNotifications, UNREAD_COUNT_QUERY_KEY } from "@/features/notifications/hooks/useUnreadNotifications";
+import { fetchNotifications, markNotificationRead } from "@/features/notifications/api";
+import { NotificationItem } from "@/features/notifications/components/NotificationItem";
+import { mapNotificationToDisplay } from "@/features/notifications/utils";
+import type { NotificationRecord } from "@/features/notifications/types";
 
 interface SidebarProps {
   className?: string;
@@ -42,6 +48,7 @@ const allNavigation: NavigationItem[] = [
 ];
 
 const RESET_UNREAD_ON_NAVIGATE = false;
+const SIDEBAR_POPOVER_KEY = ["notifications", "sidebar-popover"] as const;
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
   const [location] = useLocation();
@@ -159,7 +166,43 @@ interface SidebarNotificationsLinkProps {
 function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: SidebarNotificationsLinkProps) {
   const { badgeText, showBadge, ariaLabel, rawCount } = useUnreadNotifications({ resetOnNavigate: RESET_UNREAD_ON_NAVIGATE });
   const [shouldPulse, setShouldPulse] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [, navigate] = useLocation();
   const previousCountRef = useRef<number | undefined>(undefined);
+  const queryClient = useQueryClient();
+
+  const popoverQuery = useQuery({
+    queryKey: SIDEBAR_POPOVER_KEY,
+    queryFn: () => fetchNotifications({ limit: 5 }),
+    enabled: open,
+    staleTime: 0,
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: async ({ id, isRead }: { id: string; isRead: boolean }) => {
+      await markNotificationRead(id, isRead);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: SIDEBAR_POPOVER_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["notifications", "list"] });
+    }
+  });
+
+  const markVisibleMutation = useMutation({
+    mutationFn: async (visibleNotifications: NotificationRecord[]) => {
+      const unreadVisible = visibleNotifications.filter((notification) => !notification.isRead);
+      if (unreadVisible.length === 0) return;
+      await Promise.all(
+        unreadVisible.map((notification) => markNotificationRead(notification.id, true))
+      );
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: SIDEBAR_POPOVER_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["notifications", "list"] });
+    }
+  });
 
   useEffect(() => {
     if (rawCount === undefined) return;
@@ -176,38 +219,113 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
     return () => window.clearTimeout(timeout);
   }, [shouldPulse]);
 
+  useEffect(() => {
+    if (open) {
+      setShouldPulse(false);
+    }
+  }, [open]);
+
+  const notifications = popoverQuery.data?.items ?? [];
+  const isLoading = popoverQuery.isLoading || popoverQuery.isFetching;
+  const hasUnreadVisible = notifications.some((notification) => !notification.isRead);
   const Icon = item.icon;
 
+  const handleSelect = (notification: NotificationRecord) => {
+    const display = mapNotificationToDisplay(notification);
+    markReadMutation.mutate({ id: notification.id, isRead: true });
+    setOpen(false);
+    onNavigate?.();
+    if (display.link) {
+      navigate(display.link);
+    }
+  };
+
+  const handleViewAll = () => {
+    setOpen(false);
+    onNavigate?.();
+    navigate("/notifications");
+  };
+
+  const handleMarkAllRead = () => {
+    if (!hasUnreadVisible) return;
+    markVisibleMutation.mutate(notifications);
+  };
+
   return (
-    <Link
-      href={item.href}
-      onClick={onNavigate}
-      data-testid={testId}
-      className={cn(
-        "relative flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors w-full",
-        isActive
-          ? "bg-primary text-primary-foreground"
-          : "hover:bg-secondary hover:text-secondary-foreground",
-        !isActive && showBadge ? "bg-destructive/10 text-sidebar-foreground" : "",
-        shouldPulse ? "sidebar-unread-pulse" : ""
-      )}
-    >
-      <Icon className="w-5 h-5" />
-      <span className="flex-1 truncate">{item.name}</span>
-      <span
-        aria-hidden
-        className={cn(
-          "ml-auto inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded-full bg-destructive px-1 text-xs font-semibold text-destructive-foreground transition-opacity",
-          showBadge ? "opacity-100" : "opacity-0"
-        )}
-      >
-        {badgeText}
-      </span>
-      {ariaLabel ? (
-        <span className="sr-only" aria-live="polite" role="status">
-          {ariaLabel}
-        </span>
-      ) : null}
-    </Link>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          data-testid={testId}
+          className={cn(
+            "relative flex w-full items-center space-x-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors",
+            isActive
+              ? "bg-primary text-primary-foreground"
+              : "hover:bg-secondary hover:text-secondary-foreground",
+            !isActive && showBadge ? "bg-destructive/10 text-sidebar-foreground" : "",
+            shouldPulse ? "sidebar-unread-pulse" : ""
+          )}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+        >
+          <Icon className="w-5 h-5" />
+          <span className="flex-1 truncate">{item.name}</span>
+          <span
+            aria-hidden
+            className={cn(
+              "ml-auto inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded-full bg-destructive px-1 text-xs font-semibold text-destructive-foreground transition-opacity",
+              showBadge ? "opacity-100" : "opacity-0"
+            )}
+          >
+            {badgeText}
+          </span>
+          {ariaLabel ? (
+            <span className="sr-only" aria-live="polite" role="status">
+              {ariaLabel}
+            </span>
+          ) : null}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="right" align="start" sideOffset={12} className="w-80 p-0 shadow-lg">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <p className="text-sm font-semibold">Notifications</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={markVisibleMutation.isPending || !hasUnreadVisible}
+            onClick={handleMarkAllRead}
+          >
+            {markVisibleMutation.isPending ? "Marking..." : "Mark all read"}
+          </Button>
+        </div>
+        <div className={notifications.length === 0 && !isLoading ? "py-6" : "py-3"}>
+          {isLoading ? (
+            <div className="px-4 text-sm text-muted-foreground">Loading notifications…</div>
+          ) : notifications.length === 0 ? (
+            <div className="px-4 text-sm text-muted-foreground">You're all caught up.</div>
+          ) : (
+            <div className="space-y-2 px-3">
+              {notifications.map((notification) => (
+                <NotificationItem
+                  key={notification.id}
+                  notification={notification}
+                  onSelect={handleSelect}
+                  compact
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="border-t border-border px-4 py-3">
+          <button
+            type="button"
+            onClick={handleViewAll}
+            className="w-full text-sm font-medium text-primary hover:underline"
+          >
+            View all notifications
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

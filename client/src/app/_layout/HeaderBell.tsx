@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { Bell } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Button } from "@/shared/components/ui/button";
-import { fetchNotifications, markNotificationRead, markAllNotificationsRead } from "@/features/notifications/api";
+import { fetchNotifications, markNotificationRead } from "@/features/notifications/api";
 import type { NotificationRecord } from "@/features/notifications/types";
 import { NotificationItem } from "@/features/notifications/components/NotificationItem";
 import { mapNotificationToDisplay } from "@/features/notifications/utils";
 import { useUnreadNotifications, UNREAD_COUNT_QUERY_KEY } from "@/features/notifications/hooks/useUnreadNotifications";
 import { useLocation, Link } from "wouter";
 
-const DROPDOWN_KEY = ["notifications", "dropdown"] as const;
+const POPOVER_KEY = ["notifications", "popover"] as const;
 
 export function HeaderBell() {
   const [open, setOpen] = useState(false);
@@ -19,9 +19,9 @@ export function HeaderBell() {
 
   const unread = useUnreadNotifications();
 
-  const dropdownQuery = useQuery({
-    queryKey: DROPDOWN_KEY,
-    queryFn: () => fetchNotifications({ limit: 10 }),
+  const popoverQuery = useQuery({
+    queryKey: POPOVER_KEY,
+    queryFn: () => fetchNotifications({ limit: 5 }),
     enabled: open,
     staleTime: 0,
   });
@@ -32,23 +32,29 @@ export function HeaderBell() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: DROPDOWN_KEY });
+      void queryClient.invalidateQueries({ queryKey: POPOVER_KEY });
       void queryClient.invalidateQueries({ queryKey: ["notifications", "list"] });
     }
   });
 
-  const markAllMutation = useMutation({
-    mutationFn: markAllNotificationsRead,
+  const markVisibleMutation = useMutation({
+    mutationFn: async (visibleNotifications: NotificationRecord[]) => {
+      const unreadVisible = visibleNotifications.filter((notification) => !notification.isRead);
+      if (unreadVisible.length === 0) return;
+      await Promise.all(
+        unreadVisible.map((notification) => markNotificationRead(notification.id, true))
+      );
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: DROPDOWN_KEY });
+      void queryClient.invalidateQueries({ queryKey: POPOVER_KEY });
       void queryClient.invalidateQueries({ queryKey: ["notifications", "list"] });
     }
   });
 
-  const unreadCount = unread.count;
-  const notifications = dropdownQuery.data?.items ?? [];
-  const isLoading = dropdownQuery.isLoading || dropdownQuery.isFetching;
+  const notifications = popoverQuery.data?.items ?? [];
+  const isLoading = popoverQuery.isLoading || popoverQuery.isFetching;
+  const hasUnreadVisible = notifications.some((notification) => !notification.isRead);
 
   const handleSelect = (notification: NotificationRecord) => {
     const display = mapNotificationToDisplay(notification);
@@ -60,12 +66,13 @@ export function HeaderBell() {
   };
 
   const handleMarkAllRead = () => {
-    markAllMutation.mutate();
+    if (!hasUnreadVisible) return;
+    markVisibleMutation.mutate(notifications);
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
           <Bell className="h-5 w-5" />
           {unread.showBadge && (
@@ -74,26 +81,26 @@ export function HeaderBell() {
             </span>
           )}
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0 shadow-lg">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <p className="text-sm font-semibold">Notifications</p>
           <Button
             variant="ghost"
             size="sm"
-            disabled={markAllMutation.isPending || unreadCount === 0}
+            disabled={markVisibleMutation.isPending || !hasUnreadVisible}
             onClick={handleMarkAllRead}
           >
-            {markAllMutation.isPending ? "Marking..." : "Mark all read"}
+            {markVisibleMutation.isPending ? "Marking..." : "Mark all read"}
           </Button>
         </div>
-        <div className={notifications.length === 0 && !isLoading ? "py-6" : "py-2"}>
+        <div className={notifications.length === 0 && !isLoading ? "py-6" : "py-3"}>
           {isLoading ? (
             <div className="px-4 text-sm text-muted-foreground">Loading notifications…</div>
           ) : notifications.length === 0 ? (
             <div className="px-4 text-sm text-muted-foreground">You're all caught up.</div>
           ) : (
-            <div className="space-y-1 px-2">
+            <div className="space-y-2 px-3">
               {notifications.map((notification) => (
                 <NotificationItem
                   key={notification.id}
@@ -105,12 +112,12 @@ export function HeaderBell() {
             </div>
           )}
         </div>
-        <div className="border-t border-border px-3 py-2 text-center text-sm">
-          <Link href="/notifications" onClick={() => setOpen(false)} className="text-primary hover:underline">
+        <div className="border-t border-border px-4 py-3 text-center text-sm">
+          <Link href="/notifications" onClick={() => setOpen(false)} className="font-medium text-primary hover:underline">
             View all notifications
           </Link>
         </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverContent>
+    </Popover>
   );
 }

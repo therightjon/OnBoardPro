@@ -40,10 +40,6 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-h-screen flex-col max-w-full overflow-x-hidden">
           <Header onMenuClick={() => setIsMobileMenuOpen(true)} />
-          <div className="hidden md:flex justify-end border-b border-border px-6 py-4">
-            <HeaderBell />
-          </div>
-
           <main id="main" className="flex-1 max-w-full overflow-x-hidden">
             {children}
           </main>
