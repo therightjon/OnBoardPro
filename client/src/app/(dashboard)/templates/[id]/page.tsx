@@ -39,7 +39,17 @@ import type {
 const templateTaskSchema = z.object({
   taskDefId: z.string().min(1, "Task definition is required"),
   stageId: z.string().min(1, "Stage is required"),
-  dueRuleType: z.enum(["days_before_start", "on_start_date", "days_after_start", "days_before_stage", "days_after_stage", "fixed_date"]),
+  dueRuleType: z.enum([
+    "on_loo_date",
+    "days_before_loo",
+    "days_after_loo",
+    "days_before_start",
+    "on_start_date",
+    "days_after_start",
+    "days_before_stage",
+    "days_after_stage",
+    "fixed_date"
+  ]),
   dueRuleValue: z.number().optional(),
   fixedDate: z.string().optional(),
   defaultAssigneeUserId: z.string().optional(),
@@ -657,6 +667,7 @@ export default function TemplateDetailPage() {
                   orderIndex: ts.orderIndex
                 };
               })}
+              hiringStages={hiringStages}
             />
           )}
         </CardContent>
@@ -734,8 +745,8 @@ export default function TemplateDetailPage() {
                               const stages = templateStages
                                 .map(ts => hiringStages.find(s => s.id === ts.stageId))
                                 .filter((s): s is HiringStage => !!s)
-                                .filter(s => s.name.toLowerCase().includes(ql))
-                                .map(s => ({ id: s.id, name: s.name }))
+                                .filter(s => s.name.toLowerCase().includes(ql) || (s.phase ?? '').toLowerCase().includes(ql))
+                                .map(s => ({ id: s.id, name: `${s.name} (${(s.phase ?? 'pre_hire').replace('_', ' ')})` }))
                               return stages
                             }}
                             placeholder="Search stages..."
@@ -756,13 +767,22 @@ export default function TemplateDetailPage() {
                         <FormLabel>Due Rule Type</FormLabel>
                         <Select onValueChange={(value) => {
                           field.onChange(value);
-                          // Auto-null inappropriate fields based on due rule type
-                          if (value === "on_start_date") {
+                          const zeroValueRules = ["on_start_date", "on_loo_date"];
+                          const relativeValueRules = [
+                            "days_before_start",
+                            "days_after_start",
+                            "days_before_loo",
+                            "days_after_loo",
+                            "days_before_stage",
+                            "days_after_stage"
+                          ];
+
+                          if (zeroValueRules.includes(value)) {
                             form.setValue("dueRuleValue", undefined);
                             form.setValue("fixedDate", undefined);
                           } else if (value === "fixed_date") {
                             form.setValue("dueRuleValue", undefined);
-                          } else if (["days_before_start", "days_after_start", "days_before_stage", "days_after_stage"].includes(value)) {
+                          } else if (relativeValueRules.includes(value)) {
                             form.setValue("fixedDate", undefined);
                           }
                         }} value={field.value}>
@@ -772,8 +792,11 @@ export default function TemplateDetailPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="days_before_start">Days Before Start Date</SelectItem>
+                            <SelectItem value="on_loo_date">On LOO Date</SelectItem>
+                            <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
+                            <SelectItem value="days_after_loo">Days After LOO</SelectItem>
                             <SelectItem value="on_start_date">On Start Date</SelectItem>
+                            <SelectItem value="days_before_start">Days Before Start Date</SelectItem>
                             <SelectItem value="days_after_start">Days After Start Date</SelectItem>
                             <SelectItem value="days_before_stage">Days Before Stage</SelectItem>
                             <SelectItem value="days_after_stage">Days After Stage</SelectItem>
@@ -785,7 +808,14 @@ export default function TemplateDetailPage() {
                     )}
                   />
 
-                  {form.watch("dueRuleType") && ["days_before_start", "days_after_start", "days_before_stage", "days_after_stage"].includes(form.watch("dueRuleType")) && (
+                  {form.watch("dueRuleType") && [
+                    "days_before_loo",
+                    "days_after_loo",
+                    "days_before_start",
+                    "days_after_start",
+                    "days_before_stage",
+                    "days_after_stage"
+                  ].includes(form.watch("dueRuleType")) && (
                     <FormField
                       control={form.control}
                       name="dueRuleValue"
@@ -983,8 +1013,8 @@ export default function TemplateDetailPage() {
                             fetchItems={async (q: string) => {
                               const ql = q.trim().toLowerCase()
                               return hiringStages
-                                .filter(s => s.name.toLowerCase().includes(ql))
-                                .map(s => ({ id: s.id, name: s.name }))
+                                .filter(s => s.name.toLowerCase().includes(ql) || (s.phase ?? '').toLowerCase().includes(ql))
+                                .map(s => ({ id: s.id, name: `${s.name} (${(s.phase ?? 'pre_hire').replace('_', ' ')})` }))
                             }}
                             placeholder="Search stages..."
                             emptyText="No stages available."
@@ -1004,13 +1034,22 @@ export default function TemplateDetailPage() {
                         <FormLabel>Due Rule Type</FormLabel>
                         <Select onValueChange={(value) => {
                           field.onChange(value);
-                          // Auto-null inappropriate fields based on due rule type
-                          if (value === "on_start_date") {
+                          const zeroValueRules = ["on_start_date", "on_loo_date"];
+                          const relativeValueRules = [
+                            "days_before_start",
+                            "days_after_start",
+                            "days_before_loo",
+                            "days_after_loo",
+                            "days_before_stage",
+                            "days_after_stage"
+                          ];
+
+                          if (zeroValueRules.includes(value)) {
                             editForm.setValue("dueRuleValue", undefined);
                             editForm.setValue("fixedDate", undefined);
                           } else if (value === "fixed_date") {
                             editForm.setValue("dueRuleValue", undefined);
-                          } else if (["days_before_start", "days_after_start", "days_before_stage", "days_after_stage"].includes(value)) {
+                          } else if (relativeValueRules.includes(value)) {
                             editForm.setValue("fixedDate", undefined);
                           }
                         }} value={field.value}>
@@ -1020,8 +1059,11 @@ export default function TemplateDetailPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="days_before_start">Days Before Start Date</SelectItem>
+                            <SelectItem value="on_loo_date">On LOO Date</SelectItem>
+                            <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
+                            <SelectItem value="days_after_loo">Days After LOO</SelectItem>
                             <SelectItem value="on_start_date">On Start Date</SelectItem>
+                            <SelectItem value="days_before_start">Days Before Start Date</SelectItem>
                             <SelectItem value="days_after_start">Days After Start Date</SelectItem>
                             <SelectItem value="days_before_stage">Days Before Stage</SelectItem>
                             <SelectItem value="days_after_stage">Days After Stage</SelectItem>
@@ -1033,7 +1075,14 @@ export default function TemplateDetailPage() {
                     )}
                   />
 
-                  {editForm.watch("dueRuleType") && ["days_before_start", "days_after_start", "days_before_stage", "days_after_stage"].includes(editForm.watch("dueRuleType")) && (
+                  {editForm.watch("dueRuleType") && [
+                    "days_before_loo",
+                    "days_after_loo",
+                    "days_before_start",
+                    "days_after_start",
+                    "days_before_stage",
+                    "days_after_stage"
+                  ].includes(editForm.watch("dueRuleType")) && (
                     <FormField
                       control={editForm.control}
                       name="dueRuleValue"
@@ -1294,22 +1343,52 @@ function PipelineEstimateSection({
   templateTasks: TemplateTask[];
   getTaskDefinitionName: (taskDefId: string) => string;
 }) {
-  const [startDate, setStartDate] = useState(() => {
+  const [anticipatedStartDate, setAnticipatedStartDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
   });
+  const [looDate, setLooDate] = useState<string>("");
+
+  const formatPhaseLabel = (phase?: string | null) => {
+    if (phase === 'onboarding') return 'Onboarding';
+    return 'Pre-hire';
+  };
+
+  const formatNonEstimableReason = (item: any) => {
+    switch (item.reason) {
+      case 'missing_anchor':
+        if (item.missingAnchor === 'loo') {
+          return 'Waiting for LOO date';
+        }
+        if (item.missingAnchor === 'start') {
+          return 'Waiting for anticipated start date';
+        }
+        return 'Waiting for anchor date';
+      case 'stage_relative':
+        return 'Stage-relative rule';
+      case 'no_due_date':
+        return 'No due date available';
+      default:
+        return item.reason;
+    }
+  };
 
   const { data: estimate, isLoading, error } = useQuery({
-    queryKey: ['/api/templates', templateId, 'estimate', { startDate, businessDays: true }, templateTasks, getTaskDefinitionName],
+    queryKey: ['/api/templates', templateId, 'estimate', { anticipatedStartDate, looDate, businessDays: true }, templateTasks, getTaskDefinitionName],
     queryFn: async () => {
       const params = new URLSearchParams({
-        startDate,
         businessDays: 'true'
       });
+      if (anticipatedStartDate) {
+        params.set('anticipatedStartDate', anticipatedStartDate);
+      }
+      if (looDate) {
+        params.set('looDate', looDate);
+      }
       const response = await apiRequest('GET', `/api/templates/${templateId}/estimate?${params}`);
       return response.json();
     },
-    enabled: !!templateId && !!startDate
+    enabled: !!templateId
   });
 
   const formatDate = (dateStr: string) => {
@@ -1333,13 +1412,25 @@ function PipelineEstimateSection({
         <div className="flex flex-col sm:flex-row gap-4 pb-4 border-b">
           <div className="flex-1">
             <label className="text-sm font-medium text-muted-foreground mb-1 block">
-              Start Date
+              LOO Accepted (override)
             </label>
             <Input
               type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              data-testid="input-estimate-start-date"
+              value={looDate}
+              onChange={(e) => setLooDate(e.target.value)}
+              data-testid="input-estimate-loo-date"
+              className="w-full sm:w-auto"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="text-sm font-medium text-muted-foreground mb-1 block">
+              Anticipated Start (override)
+            </label>
+            <Input
+              type="date"
+              value={anticipatedStartDate}
+              onChange={(e) => setAnticipatedStartDate(e.target.value)}
+              data-testid="input-estimate-anticipated-start"
               className="w-full sm:w-auto"
             />
           </div>
@@ -1360,6 +1451,24 @@ function PipelineEstimateSection({
 
         {estimate && (
           <div className="space-y-4">
+            {/* Anchor summary */}
+            {estimate.anchors && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded border bg-muted/40">
+                  <div className="text-xs text-muted-foreground">LOO anchor</div>
+                  <div className="text-sm font-medium text-foreground">
+                    {estimate.anchors.loo ? formatDate(estimate.anchors.loo) : 'Not provided'}
+                  </div>
+                </div>
+                <div className="p-3 rounded border bg-muted/40">
+                  <div className="text-xs text-muted-foreground">Anticipated start</div>
+                  <div className="text-sm font-medium text-foreground">
+                    {estimate.anchors.anticipatedStart ? formatDate(estimate.anchors.anticipatedStart) : 'Not provided'}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Summary Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="text-center p-3 bg-muted/50 rounded-lg">
@@ -1400,6 +1509,30 @@ function PipelineEstimateSection({
               </div>
             )}
 
+            {/* Phase summaries */}
+            {estimate.perPhase && estimate.perPhase.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Phase checkpoints</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {estimate.perPhase.map((phase: any) => (
+                    <div key={phase.phase} className="p-3 bg-muted/40 rounded-lg border border-muted/60">
+                      <div className="text-sm text-muted-foreground">
+                        {formatPhaseLabel(phase.phase)}
+                      </div>
+                      <div className="text-xl font-semibold text-foreground">
+                        {phase.taskCount} task{phase.taskCount === 1 ? '' : 's'}
+                      </div>
+                      {phase.lastDueDate && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Last due {formatDate(phase.lastDueDate)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Non-Estimable Tasks */}
             {estimate.nonEstimable && estimate.nonEstimable.length > 0 && (
               <div>
@@ -1410,11 +1543,18 @@ function PipelineEstimateSection({
                   {estimate.nonEstimable.map((item: any, index: number) => {
                     // item.taskId is a template task ID, need to find the task definition ID
                     const templateTask = templateTasks.find(tt => tt.id === item.taskId);
-                    const taskName = templateTask ? getTaskDefinitionName(templateTask.taskDefId) : `Task ${item.taskId.slice(0, 8)}...`;
+                    const fallbackName = item.taskId ? `Task ${String(item.taskId).slice(0, 8)}...` : `Task ${index + 1}`;
+                    const taskName = templateTask ? getTaskDefinitionName(templateTask.taskDefId) : fallbackName;
+                    const reasonText = formatNonEstimableReason(item);
                     return (
-                      <div key={index} className="flex justify-between">
-                        <span>{taskName}</span>
-                        <span className="italic">{item.reason}</span>
+                      <div key={item.taskId ?? index} className="flex justify-between">
+                        <span>
+                          {taskName}
+                          {item.stageName ? (
+                            <span className="ml-2 text-xs text-muted-foreground">({item.stageName})</span>
+                          ) : null}
+                        </span>
+                        <span className="italic text-right">{reasonText}</span>
                       </div>
                     );
                   })}
@@ -1465,7 +1605,7 @@ function AddStageForm({
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [taskSearch, setTaskSearch] = useState("");
   const [dueRuleType, setDueRuleType] = useState("on_start_date");
-  const [dueRuleValue, setDueRuleValue] = useState<number | string>("");
+  const [dueRuleValue, setDueRuleValue] = useState<number | string | null>(null);
   const [priorityId, setPriorityId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [assigneeUserId, setAssigneeUserId] = useState("");
@@ -1514,12 +1654,29 @@ function AddStageForm({
       });
     }
     
+    const resolvedDueRuleValue = (() => {
+      if (dueRuleType === 'fixed_date') {
+        return dueRuleValue;
+      }
+      if (dueRuleType === 'on_start_date' || dueRuleType === 'on_loo_date') {
+        return null;
+      }
+      if (typeof dueRuleValue === 'number') {
+        return dueRuleValue;
+      }
+      if (typeof dueRuleValue === 'string' && dueRuleValue.trim() !== '') {
+        const parsed = parseInt(dueRuleValue, 10);
+        return Number.isNaN(parsed) ? 0 : parsed;
+      }
+      return 0;
+    })();
+
     createStageWithTaskMutation.mutate(
       { 
         stageId: selectedStageId, 
         taskDefIds: uniqueTaskIds,
         dueRuleType,
-        dueRuleValue: dueRuleType === 'on_start_date' ? null : dueRuleValue,
+        dueRuleValue: resolvedDueRuleValue,
         priorityId: priorityId || null,
         categoryId: categoryId || null,
         defaultAssigneeKind: 'user' as const,
@@ -1532,7 +1689,7 @@ function AddStageForm({
           setSelectedStageId("");
           setSelectedTaskIds([]);
           setDueRuleType("on_start_date");
-          setDueRuleValue("");
+          setDueRuleValue(null);
           setPriorityId("");
           setCategoryId("");
           setAssigneeUserId("");
@@ -1618,11 +1775,26 @@ function AddStageForm({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium mb-1">Due Rule Type</label>
-              <Select value={dueRuleType} onValueChange={setDueRuleType}>
+              <Select
+                value={dueRuleType}
+                onValueChange={(value) => {
+                  setDueRuleType(value);
+                  if (value === 'fixed_date') {
+                    setDueRuleValue('');
+                  } else if (value === 'on_start_date' || value === 'on_loo_date') {
+                    setDueRuleValue(null);
+                  } else {
+                    setDueRuleValue(0);
+                  }
+                }}
+              >
                 <SelectTrigger className="h-8">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="on_loo_date">On LOO Date</SelectItem>
+                  <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
+                  <SelectItem value="days_after_loo">Days After LOO</SelectItem>
                   <SelectItem value="on_start_date">On Start Date</SelectItem>
                   <SelectItem value="days_after_start">Days After Start</SelectItem>
                   <SelectItem value="days_before_start">Days Before Start</SelectItem>
@@ -1630,7 +1802,7 @@ function AddStageForm({
                 </SelectContent>
               </Select>
             </div>
-            {dueRuleType !== 'on_start_date' && (
+            {!['on_start_date', 'on_loo_date'].includes(dueRuleType) && (
               <div>
                 <label className="block text-xs font-medium mb-1">
                   {dueRuleType === 'fixed_date' ? 'Date' : 'Days'}
@@ -1645,8 +1817,8 @@ function AddStageForm({
                 ) : (
                   <input
                     type="number"
-                    value={dueRuleValue as number}
-                    onChange={(e) => setDueRuleValue(parseInt(e.target.value))}
+                    value={(dueRuleValue as number) ?? 0}
+                    onChange={(e) => setDueRuleValue(parseInt(e.target.value) || 0)}
                     placeholder="0"
                     className="w-full h-8 px-2 border rounded text-sm"
                   />

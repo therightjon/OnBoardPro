@@ -26,10 +26,19 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { useToast } from "@/shared/hooks/use-toast";
 
+const daysSince = (iso?: string | null) => {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const diff = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+  return diff >= 0 ? diff : null;
+};
+
 export default function CandidateDetailPage() {
   const params = useParams();
   const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : '';
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { user } = useAuth();
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -72,6 +81,25 @@ export default function CandidateDetailPage() {
     }
   });
 
+  const recomputeDueDatesMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', `/api/candidates/${id}/recompute-due-dates`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to refresh due dates');
+      }
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/candidates", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/candidates", id, "tasks"] });
+      toast({ title: "Due dates refreshed", description: "Pending anchor tasks were re-evaluated." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Unable to refresh", description: error?.message || "Please try again." });
+    }
+  });
+
   const stageHistory = (stageHistoryData as any)?.history || [];
   const { data: commentStats } = useCommentStats(id);
 
@@ -98,6 +126,10 @@ export default function CandidateDetailPage() {
     })),
     [candidateTasks, orderMap]
   );
+
+  const pendingAnchorTasks = useMemo(() => (
+    tasksWithOrder.filter((task: any) => task.pendingAnchor)
+  ), [tasksWithOrder]);
 
   // Group by stage_id using snapshotted order
   const tasksByStage = useMemo(() => {
@@ -201,6 +233,17 @@ export default function CandidateDetailPage() {
       </div>
     );
   }
+
+  const candidatePhase = (candidate as any)?.currentStage?.phase ?? "pre_hire";
+  const candidatePhaseLabel = candidatePhase === "onboarding" ? "Onboarding" : "Pre-hire";
+  const pendingAnchorCount = pendingAnchorTasks.length;
+  const hasPendingAnchor = pendingAnchorCount > 0;
+  const looAnchor = (candidate as any)?.offerLetterAcceptedAt ?? (candidate as any)?.offerLetterIssuedAt ?? null;
+  const anchorSourceLabel = looAnchor
+    ? (candidate as any)?.offerLetterAcceptedAt ? "LOO Accepted" : "LOO Issued"
+    : (candidate as any)?.anticipatedStartDate ? "Anticipated Start" : "Anchor not set";
+  const anchorDate = looAnchor ?? (candidate as any)?.anticipatedStartDate ?? null;
+  const daysSinceLoo = daysSince(looAnchor);
 
   const EditableStatusBadge = ({ candidate, user, tasks, onStatusChange }: { 
     candidate: any; 
@@ -546,9 +589,48 @@ export default function CandidateDetailPage() {
                 <div className="flex items-start space-x-3">
                   <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                   <div className="min-w-0">
-                    <dt className="text-xs xs:text-sm font-medium">Start Date</dt>
+                    <dt className="text-xs xs:text-sm font-medium">Anticipated Start</dt>
                     <dd className="text-xs xs:text-sm text-muted-foreground" data-testid="text-candidate-start-date">
-                      {(candidate as any).startDate ? new Date((candidate as any).startDate).toLocaleDateString() : "Not set"}
+                      {(candidate as any).anticipatedStartDate ? new Date((candidate as any).anticipatedStartDate).toLocaleDateString() : "Not set"}
+                    </dd>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                  <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <dt className="text-xs xs:text-sm font-medium">LOO Issued</dt>
+                    <dd className="text-xs xs:text-sm text-muted-foreground">
+                      {(candidate as any).offerLetterIssuedAt ? new Date((candidate as any).offerLetterIssuedAt).toLocaleDateString() : "Not set"}
+                    </dd>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                  <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <dt className="text-xs xs:text-sm font-medium">LOO Accepted</dt>
+                    <dd className="text-xs xs:text-sm text-muted-foreground">
+                      {(candidate as any).offerLetterAcceptedAt ? new Date((candidate as any).offerLetterAcceptedAt).toLocaleDateString() : "Not set"}
+                    </dd>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                  <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <dt className="text-xs xs:text-sm font-medium">Anchor in Use</dt>
+                    <dd className="text-xs xs:text-sm text-muted-foreground">
+                      {anchorDate ? (
+                        <span>
+                          {anchorSourceLabel}
+                          {": "}
+                          {new Date(anchorDate).toLocaleDateString()}
+                          {daysSinceLoo !== null && anchorSourceLabel.startsWith('LOO') ? ` · ${daysSinceLoo}d ago` : ''}
+                        </span>
+                      ) : (
+                        "Not set"
+                      )}
                     </dd>
                   </div>
                 </div>
@@ -627,6 +709,9 @@ export default function CandidateDetailPage() {
                       {(candidate as any).currentStage?.name || "Not set"}
                     </div>
                   )}
+                  <div className="text-[11px] text-muted-foreground mt-1 capitalize">
+                    Phase: {candidatePhaseLabel}
+                  </div>
               </div>
             </div>
 
@@ -692,6 +777,21 @@ export default function CandidateDetailPage() {
             </TabsList>
 
             <TabsContent value="tasks" className="space-y-3 xs:space-y-4">
+              {hasPendingAnchor && (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <div>
+                    {pendingAnchorCount === 1 ? '1 task is waiting for anchor dates.' : `${pendingAnchorCount} tasks are waiting for anchor dates.`}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={recomputeDueDatesMutation.isPending}
+                    onClick={() => recomputeDueDatesMutation.mutate()}
+                  >
+                    {recomputeDueDatesMutation.isPending ? 'Refreshing…' : 'Recompute due dates'}
+                  </Button>
+                </div>
+              )}
               <Card>
                 <CardHeader className="p-3 xs:p-4 sm:p-6">
                   <CardTitle className="text-base xs:text-lg sm:text-xl">Tasks by Stage</CardTitle>
@@ -733,6 +833,11 @@ export default function CandidateDetailPage() {
                                     {task.status === 'canceled' && (
                                       <Badge variant="secondary" title={task.cancel_reason || ''}>CANCELED</Badge>
                                     )}
+                                    {task.pendingAnchor && (
+                                      <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-300 bg-amber-50" title="Waiting for required anchor date">
+                                        Pending anchor
+                                      </Badge>
+                                    )}
                                   </h4>
                                   <div className="flex items-center gap-4">
                                     {/* comments button injected here */}
@@ -766,7 +871,11 @@ export default function CandidateDetailPage() {
                                       )}
                                     </div>
                                     <span className="xs:ml-auto">
-                                      {task.dueAt ? `Due: ${new Date(task.dueAt).toLocaleDateString()}` : "No due date"}
+                                      {task.pendingAnchor
+                                        ? 'Awaiting anchor date'
+                                        : task.dueAt
+                                          ? `Due: ${new Date(task.dueAt).toLocaleDateString()}`
+                                          : "No due date"}
                                     </span>
                                   </div>
                                 </div>

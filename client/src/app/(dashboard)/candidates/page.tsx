@@ -30,7 +30,9 @@ type CandidateWithStage = Candidate & {
     id: string;
     name: string;
     orderIndex: number;
+    phase?: string | null;
   };
+  pendingAnchorCount?: number;
 };
 
 export default function CandidatesPage() {
@@ -39,6 +41,7 @@ export default function CandidatesPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [stageFilter, setStageFilter] = useState<string>("all");
+  const [phaseFilter, setPhaseFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("createdAt");
   const [sortOrder, setSortOrder] = useState<string>("desc");
   const [showArchived, setShowArchived] = useState(false);
@@ -70,14 +73,27 @@ export default function CandidatesPage() {
     },
   });
 
-  const { data: hiringStages = [] } = useQuery<HiringStage[]>({
-    queryKey: ["/api/hiring-stages", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/hiring-stages");
-      return res.json();
-    },
-  });
+const { data: hiringStages = [] } = useQuery<HiringStage[]>({
+  queryKey: ["/api/hiring-stages", user?.id],
+  enabled: !!user,
+  queryFn: async () => {
+    const res = await apiRequest("GET", "/api/hiring-stages");
+    return res.json();
+  },
+});
+
+const phaseLabel = (phase?: string | null) => {
+  if (!phase) return "Pre-hire";
+  return phase === "onboarding" ? "Onboarding" : "Pre-hire";
+};
+
+const daysSince = (isoDate?: string | null) => {
+  if (!isoDate) return null;
+  const anchor = new Date(isoDate);
+  if (Number.isNaN(anchor.getTime())) return null;
+  const diff = Math.floor((Date.now() - anchor.getTime()) / (1000 * 60 * 60 * 24));
+  return diff >= 0 ? diff : null;
+};
 
   const filteredAndSortedCandidates = candidates
     .filter((candidate: any) => {
@@ -89,8 +105,10 @@ export default function CandidatesPage() {
       const matchesStage = stageFilter === "all" || 
                           (stageFilter === "not_started" && !candidate.currentStage?.id) ||
                           candidate.currentStage?.id === stageFilter;
+      const candidatePhase = candidate.currentStage?.phase ?? "pre_hire";
+      const matchesPhase = phaseFilter === "all" || candidatePhase === phaseFilter;
       
-      return matchesSearch && matchesStatus && matchesType && matchesStage;
+      return matchesSearch && matchesStatus && matchesType && matchesStage && matchesPhase;
     })
     .sort((a, b) => {
       let aValue: any, bValue: any;
@@ -112,9 +130,15 @@ export default function CandidatesPage() {
           aValue = a.currentStage?.name || "Not Started";
           bValue = b.currentStage?.name || "Not Started";
           break;
-        case "startDate":
-          aValue = a.startDate ? new Date(a.startDate) : new Date(0);
-          bValue = b.startDate ? new Date(b.startDate) : new Date(0);
+        case "looAge":
+          const aLoo = a.offerLetterAcceptedAt || a.offerLetterIssuedAt;
+          const bLoo = b.offerLetterAcceptedAt || b.offerLetterIssuedAt;
+          aValue = aLoo ? new Date(aLoo) : new Date(0);
+          bValue = bLoo ? new Date(bLoo) : new Date(0);
+          break;
+        case "anticipatedStartDate":
+          aValue = a.anticipatedStartDate ? new Date(a.anticipatedStartDate) : new Date(0);
+          bValue = b.anticipatedStartDate ? new Date(b.anticipatedStartDate) : new Date(0);
           break;
         case "createdAt":
         default:
@@ -290,6 +314,17 @@ export default function CandidatesPage() {
                 </SelectContent>
               </Select>
 
+              <Select value={phaseFilter} onValueChange={setPhaseFilter}>
+                <SelectTrigger className="w-full xs:w-auto sm:w-[160px] min-h-[44px]" data-testid="select-phase-filter">
+                  <SelectValue placeholder="Phase" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Phases</SelectItem>
+                  <SelectItem value="pre_hire">Pre-hire</SelectItem>
+                  <SelectItem value="onboarding">Onboarding</SelectItem>
+                </SelectContent>
+              </Select>
+
               {/* Archive Toggle (match My Tasks style) */}
               <div className="flex items-center space-x-2 min-h-[44px] xs:col-span-2 sm:col-span-1">
                 <Switch 
@@ -355,14 +390,24 @@ export default function CandidatesPage() {
                     Stage {getSortIcon("stage")}
                   </Button>
                 </TableHead>
+                <TableHead className="hidden xl:table-cell">
+                  <Button
+                    variant="ghost"
+                    className="h-auto p-0 font-semibold bg-transparent hover:bg-transparent hover:text-amber-700 focus-visible"
+                    onClick={() => handleSort("looAge")}
+                    data-testid="header-sort-loo-age"
+                  >
+                    Days Since LOO {getSortIcon("looAge")}
+                  </Button>
+                </TableHead>
                 <TableHead className="hidden lg:table-cell">
                   <Button
                     variant="ghost"
                     className="h-auto p-0 font-semibold bg-transparent hover:bg-transparent hover:text-amber-700 focus-visible"
-                    onClick={() => handleSort("startDate")}
-                    data-testid="header-sort-start-date"
+                    onClick={() => handleSort("anticipatedStartDate")}
+                    data-testid="header-sort-anticipated-start-date"
                   >
-                    Start Date {getSortIcon("startDate")}
+                    Anticipated Start {getSortIcon("anticipatedStartDate")}
                   </Button>
                 </TableHead>
                 <TableHead className="hidden xl:table-cell">
@@ -381,75 +426,93 @@ export default function CandidatesPage() {
             <TableBody>
               {filteredAndSortedCandidates.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     No candidates found matching your criteria
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAndSortedCandidates.map((candidate: any) => (
-                  <TableRow key={candidate.id} className={`hover:bg-muted/50 ${candidate.archived ? 'opacity-60' : ''}`} data-testid={`row-candidate-${candidate.id}`}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center space-x-2">
-                        <Link href={`/candidates/${candidate.id}`} className="text-primary hover:underline">
-                          {candidate.firstName} {candidate.lastName}
+                filteredAndSortedCandidates.map((candidate: any) => {
+                  const phase = candidate.currentStage?.phase ?? "pre_hire";
+                  const phaseText = phaseLabel(phase);
+                  const pendingAnchorCount = Number(candidate.pendingAnchorCount ?? 0);
+                  const looAnchor = candidate.offerLetterAcceptedAt || candidate.offerLetterIssuedAt || null;
+                  const looDays = daysSince(looAnchor);
+                  return (
+                    <TableRow key={candidate.id} className={`hover:bg-muted/50 ${candidate.archived ? 'opacity-60' : ''}`} data-testid={`row-candidate-${candidate.id}`}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center space-x-2">
+                          <Link href={`/candidates/${candidate.id}`} className="text-primary hover:underline">
+                            {candidate.firstName} {candidate.lastName}
+                          </Link>
+                          {candidate.archived && (
+                            <Badge variant="destructive" className="text-xs" data-testid={`badge-archived-${candidate.id}`}>
+                              ARCHIVED
+                            </Badge>
+                          )}
+                          {pendingAnchorCount > 0 && (
+                              <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50" title="Tasks waiting for required dates">
+                                {pendingAnchorCount} pending
+                              </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Link href={`/candidates/${candidate.id}`} className="text-primary hover:underline break-words">
+                          {candidate.email}
                         </Link>
-                        {candidate.archived && (
-                          <Badge variant="destructive" className="text-xs" data-testid={`badge-archived-${candidate.id}`}>
-                            ARCHIVED
+                      </TableCell>
+                      <TableCell>
+                        {candidateTypes.find((type) => type.id === candidate.candidateTypeId)?.name || "Unknown"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(candidate.status)}>
+                          {candidate.status.replace('_', ' ').toUpperCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell data-testid={`cell-stage-${candidate.id}`}>
+                        <div className="flex flex-col">
+                          <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 whitespace-nowrap">
+                            {candidate.currentStage?.name || "Not Started"}
                           </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/candidates/${candidate.id}`} className="text-primary hover:underline break-words">
-                        {candidate.email}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {candidateTypes.find((type) => type.id === candidate.candidateTypeId)?.name || "Unknown"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(candidate.status)}>
-                        {candidate.status.replace('_', ' ').toUpperCase()}
-                      </Badge>
-                    </TableCell>
-                    <TableCell data-testid={`cell-stage-${candidate.id}`}>
-                      <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 whitespace-nowrap">
-                        {candidate.currentStage?.name || "Not Started"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      {candidate.startDate ? new Date(candidate.startDate).toLocaleDateString() : "-"}
-                    </TableCell>
-                    <TableCell className="hidden xl:table-cell">
-                      {new Date(candidate.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Link href={`/candidates/${candidate.id}`}>
-                          <Button variant="ghost" size="sm" className="focus-visible" data-testid={`button-view-candidate-${candidate.id}`}>
-                            View
-                          </Button>
-                        </Link>
-                        {user && ["system_admin", "hr_staff"].includes(user.role) && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setArchiveDialogCandidate(candidate)}
-                            className={`focus-visible ${candidate.archived ? "text-green-600 hover:text-green-700" : "text-destructive hover:text-destructive"}`}
-                            data-testid={`button-${candidate.archived ? 'restore' : 'archive'}-candidate-${candidate.id}`}
-                          >
-                            {candidate.archived ? (
-                              <RotateCcw className="w-4 h-4" />
-                            ) : (
-                              <Archive className="w-4 h-4" />
-                            )}
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          <span className="text-xs text-muted-foreground capitalize mt-1">{phaseText}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden xl:table-cell">
+                        {looDays !== null ? `${looDays}d` : "–"}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {candidate.anticipatedStartDate ? new Date(candidate.anticipatedStartDate).toLocaleDateString() : "-"}
+                      </TableCell>
+                      <TableCell className="hidden xl:table-cell">
+                        {new Date(candidate.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Link href={`/candidates/${candidate.id}`}>
+                            <Button variant="ghost" size="sm" className="focus-visible" data-testid={`button-view-candidate-${candidate.id}`}>
+                              View
+                            </Button>
+                          </Link>
+                          {user && ["system_admin", "hr_staff"].includes(user.role) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setArchiveDialogCandidate(candidate)}
+                              className={`focus-visible ${candidate.archived ? "text-green-600 hover:text-green-700" : "text-destructive hover:text-destructive"}`}
+                              data-testid={`button-${candidate.archived ? 'restore' : 'archive'}-candidate-${candidate.id}`}
+                            >
+                              {candidate.archived ? (
+                                <RotateCcw className="w-4 h-4" />
+                              ) : (
+                                <Archive className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -482,6 +545,11 @@ export default function CandidatesPage() {
                             ARCHIVED
                           </Badge>
                         )}
+                        {Number(candidate.pendingAnchorCount ?? 0) > 0 && (
+                          <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50">
+                            {Number(candidate.pendingAnchorCount ?? 0)} pending
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs truncate mb-2">
                         <Link href={`/candidates/${candidate.id}`} className="text-primary hover:underline break-words">
@@ -509,12 +577,25 @@ export default function CandidatesPage() {
                             <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs whitespace-nowrap">
                               {candidate.currentStage?.name || "Not Started"}
                             </Badge>
+                            <span className="block text-[10px] text-muted-foreground mt-1 capitalize">
+                              {phaseLabel(candidate.currentStage?.phase ?? "pre_hire")}
+                            </span>
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-muted-foreground">Start Date</dt>
+                          <dt className="text-muted-foreground">Days since LOO</dt>
                           <dd className="font-medium text-foreground">
-                            {candidate.startDate ? new Date(candidate.startDate).toLocaleDateString() : "-"}
+                            {(() => {
+                              const looAnchor = candidate.offerLetterAcceptedAt || candidate.offerLetterIssuedAt || null;
+                              const value = daysSince(looAnchor);
+                              return value !== null ? `${value}d` : "–";
+                            })()}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted-foreground">Anticipated Start</dt>
+                          <dd className="font-medium text-foreground">
+                            {candidate.anticipatedStartDate ? new Date(candidate.anticipatedStartDate).toLocaleDateString() : "-"}
                           </dd>
                         </div>
                         <div>

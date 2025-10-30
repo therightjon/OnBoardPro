@@ -74,6 +74,9 @@ export const taskAssigneeKindEnum = pgEnum("task_assignee_kind", [
 ]);
 
 export const dueRuleTypeEnum = pgEnum("due_rule_type", [
+  "on_loo_date",
+  "days_before_loo",
+  "days_after_loo",
   "days_before_start",
   "on_start_date",
   "days_after_start", 
@@ -207,12 +210,18 @@ export const taskPriorities = pgTable("task_priorities", {
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 
+export const stagePhaseEnum = pgEnum("stage_phase", [
+  "pre_hire",
+  "onboarding"
+]);
+
 export const hiringStages = pgTable("hiring_stages", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
   description: text("description"),
   orderIndex: integer("order_index").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  phase: stagePhaseEnum("phase").notNull().default("pre_hire"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -228,7 +237,9 @@ export const candidates = pgTable("candidates", {
   divisionId: uuid("division_id"),
   managerId: uuid("manager_id"),
   facultyRankId: uuid("faculty_rank_id"),
-  startDate: date("start_date").notNull(),
+  offerLetterIssuedAt: timestamp("offer_letter_issued_at"),
+  offerLetterAcceptedAt: timestamp("offer_letter_accepted_at"),
+  anticipatedStartDate: timestamp("anticipated_start_date"),
   status: candidateStatusEnum("status").default("active").notNull(),
   primaryOwnerId: uuid("primary_owner_id").references(() => users.id),
   linkedUserId: uuid("linked_user_id").references(() => users.id),
@@ -325,6 +336,10 @@ export const candidateTasks = pgTable("candidate_tasks", {
   priority: priorityEnum("priority").notNull(),
   categoryId: uuid("category_id").notNull().references(() => taskCategories.id),
   dueAt: timestamp("due_at"),
+  dueRuleType: dueRuleTypeEnum("due_rule_type"),
+  dueRuleValue: integer("due_rule_value"),
+  fixedDate: date("fixed_date"),
+  pendingAnchor: boolean("pending_anchor").notNull().default(false),
   status: taskStatusEnum("status").default("todo").notNull(),
   completedAt: timestamp("completed_at"),
   notes: text("notes"),

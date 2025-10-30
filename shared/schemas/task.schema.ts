@@ -32,6 +32,9 @@ export const priorityEnum = pgEnum("priority", [
 ]);
 
 export const dueRuleTypeEnum = pgEnum("due_rule_type", [
+  "on_loo_date",
+  "days_before_loo",
+  "days_after_loo",
   "days_before_start",
   "on_start_date",
   "days_after_start", 
@@ -86,6 +89,10 @@ export const candidateTasks = pgTable("candidate_tasks", {
   priority: priorityEnum("priority").notNull(),
   categoryId: uuid("category_id").notNull().references(() => taskCategories.id),
   dueAt: timestamp("due_at"),
+  dueRuleType: dueRuleTypeEnum("due_rule_type"),
+  dueRuleValue: integer("due_rule_value"),
+  fixedDate: date("fixed_date"),
+  pendingAnchor: boolean("pending_anchor").notNull().default(false),
   status: taskStatusEnum("status").default("todo").notNull(),
   completedAt: timestamp("completed_at"),
   cancelReason: text("cancel_reason"),

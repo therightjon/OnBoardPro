@@ -669,8 +669,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const previousCandidate = await storage.getCandidate(req.params.id);
       // Define allowed editable fields
-      const allowedFields = ['salutation', 'firstName', 'lastName', 'email', 'departmentId', 'divisionId', 'managerId', 'facultyRankId', 'status', 'primaryOwnerId', 'linkedUserId'];
-      const immutableFields = ['templateAppliedFromId', 'candidateTypeId', 'startDate'];
+      const allowedFields = [
+        'salutation',
+        'firstName',
+        'lastName',
+        'email',
+        'departmentId',
+        'divisionId',
+        'managerId',
+        'facultyRankId',
+        'status',
+        'primaryOwnerId',
+        'linkedUserId',
+        'offerLetterIssuedAt',
+        'offerLetterAcceptedAt',
+        'anticipatedStartDate'
+      ];
+      const immutableFields = ['templateAppliedFromId', 'candidateTypeId'];
 
       // Check for attempts to change immutable fields
       for (const field of immutableFields) {
@@ -712,6 +727,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Return the full candidate with joined data
       const fullCandidate = await storage.getCandidate(req.params.id);
 
+      if (previousCandidate && fullCandidate) {
+        const anchorFields = ['offerLetterIssuedAt', 'offerLetterAcceptedAt', 'anticipatedStartDate'] as const;
+        const anchorChanged = anchorFields.some((field) => {
+          const beforeValue = (previousCandidate as any)[field];
+          const afterValue = (fullCandidate as any)[field];
+          const before = beforeValue ? new Date(beforeValue as any).getTime() : null;
+          const after = afterValue ? new Date(afterValue as any).getTime() : null;
+          return before !== after;
+        });
+
+        if (anchorChanged) {
+          await storage.recomputeCandidateDueDates(fullCandidate.id);
+        }
+      }
+
       if (previousCandidate && fullCandidate && previousCandidate.primaryOwnerId !== fullCandidate.primaryOwnerId) {
         await emitOwnerChanged({
           candidate: fullCandidate,
@@ -732,6 +762,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(fullCandidate);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/candidates/:id/recompute-due-dates", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+    try {
+      const candidateId = req.params.id;
+      const result = await storage.recomputeCandidateDueDates(candidateId);
+      const candidate = await storage.getCandidate(candidateId);
+      res.json({ updated: result.updated, candidate });
     } catch (error) {
       next(error);
     }
@@ -1423,12 +1464,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Template estimation endpoint
   app.get("/api/templates/:id/estimate", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
-      const { startDate, businessDays } = req.query;
-      const estimate = await storage.estimateTemplate(
-        req.params.id,
-        startDate as string,
-        businessDays === 'true'
-      );
+      const { looDate, anticipatedStartDate, businessDays } = req.query;
+      const estimate = await storage.estimateTemplate(req.params.id, {
+        looDate: looDate as string | undefined,
+        anticipatedStartDate: anticipatedStartDate as string | undefined,
+        businessDays: businessDays === 'true',
+      });
       res.json(estimate);
     } catch (error) {
       next(error);
@@ -1571,18 +1612,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Add a stage to this template before adding tasks." });
       }
       
+      const relativeStartRules = ['days_before_start', 'days_after_start'];
+      const relativeLooRules = ['days_before_loo', 'days_after_loo'];
+      const relativeStageRules = ['days_before_stage', 'days_after_stage'];
+      const zeroValueRules = ['on_start_date', 'on_loo_date'];
+
       // Enforce database constraint rules for due_rule_type combinations
-      let dueRuleValue = req.body.dueRuleValue || null;
-      let fixedDate = req.body.fixedDate || null;
+      let dueRuleValue = req.body.dueRuleValue ?? null;
+      let fixedDate = req.body.fixedDate ?? null;
       
-      if (req.body.dueRuleType === 'on_start_date') {
-        // on_start_date requires both due_rule_value and fixed_date to be null
+      if (zeroValueRules.includes(req.body.dueRuleType)) {
+        // on_start_date/on_loo_date require both due_rule_value and fixed_date to be null
         dueRuleValue = null;
         fixedDate = null;
       } else if (req.body.dueRuleType === 'fixed_date') {
         // fixed_date requires due_rule_value to be null
         dueRuleValue = null;
-      } else if (['days_before_start', 'days_after_start', 'days_before_stage', 'days_after_stage'].includes(req.body.dueRuleType)) {
+      } else if ([...relativeStartRules, ...relativeLooRules, ...relativeStageRules].includes(req.body.dueRuleType)) {
         // relative types require fixed_date to be null
         fixedDate = null;
       }
@@ -1648,15 +1694,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Enforce database constraint rules for due_rule_type combinations
-      if (cleanedData.dueRuleType === 'on_start_date') {
-        // on_start_date requires both due_rule_value and fixed_date to be null
+      const relativeStartRules = ['days_before_start', 'days_after_start'];
+      const relativeLooRules = ['days_before_loo', 'days_after_loo'];
+      const relativeStageRules = ['days_before_stage', 'days_after_stage'];
+      const zeroValueRules = ['on_start_date', 'on_loo_date'];
+
+      if (zeroValueRules.includes(cleanedData.dueRuleType)) {
         cleanedData.dueRuleValue = null;
         cleanedData.fixedDate = null;
       } else if (cleanedData.dueRuleType === 'fixed_date') {
-        // fixed_date requires due_rule_value to be null
         cleanedData.dueRuleValue = null;
-      } else if (['days_before_start', 'days_after_start', 'days_before_stage', 'days_after_stage'].includes(cleanedData.dueRuleType)) {
-        // relative types require fixed_date to be null
+      } else if ([...relativeStartRules, ...relativeLooRules, ...relativeStageRules].includes(cleanedData.dueRuleType)) {
         cleanedData.fixedDate = null;
       }
       
@@ -1827,18 +1875,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (defaultAssigneeKind === 'role' && defaultAssigneeRole !== 'candidate.self') {
         return res.status(400).json({ message: 'defaultAssigneeRole must be candidate.self when kind is role' });
       }
+      const relativeStartRules = ['days_before_start', 'days_after_start'];
+      const relativeLooRules = ['days_before_loo', 'days_after_loo'];
+      const relativeStageRules = ['days_before_stage', 'days_after_stage'];
+      const zeroValueRules = ['on_start_date', 'on_loo_date'];
+
       for (const taskDefId of taskDefIds) {
         // Clean and validate due rule data like the existing endpoint
         let cleanDueRuleValue = dueRuleValue || null;
         let fixedDate = null;
         
-        if (dueRuleType === 'on_start_date') {
+        if (zeroValueRules.includes(dueRuleType)) {
           cleanDueRuleValue = null;
           fixedDate = null;
         } else if (dueRuleType === 'fixed_date') {
           cleanDueRuleValue = null;
           fixedDate = dueRuleValue; // For fixed_date, dueRuleValue contains the date
-        } else if (['days_before_start', 'days_after_start', 'days_before_stage', 'days_after_stage'].includes(dueRuleType)) {
+        } else if ([...relativeStartRules, ...relativeLooRules, ...relativeStageRules].includes(dueRuleType)) {
           fixedDate = null;
         }
         

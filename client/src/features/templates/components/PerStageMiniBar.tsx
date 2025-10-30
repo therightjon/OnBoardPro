@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
 
-type Stage = { stageId: string; stageName: string; latestOffsetDays: number; latestDate?: string };
+type Stage = { stageId: string; stageName: string; latestOffsetDays: number; latestDate?: string; phase?: string | null };
 
 export function PerStageMiniBar({ stages }: { stages: Stage[] }) {
   if (!stages?.length) {
@@ -20,7 +20,10 @@ export function PerStageMiniBar({ stages }: { stages: Stage[] }) {
           return (
             <div key={s.stageId} role="listitem" className="flex items-center gap-3">
               <div className="w-40 shrink-0 text-sm text-foreground truncate" title={s.stageName}>
-                {s.stageName}
+                <div>{s.stageName}</div>
+                {s.phase && (
+                  <div className="text-[10px] text-muted-foreground capitalize">{s.phase.replace('_', ' ')}</div>
+                )}
               </div>
               <div className="relative h-2 w-full rounded bg-muted">
                 <div

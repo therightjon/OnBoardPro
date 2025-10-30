@@ -162,7 +162,7 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
         <DialogHeader>
           <DialogTitle>Edit Candidate</DialogTitle>
           <DialogDescription>
-            Update the candidate's contact and organizational information. Template, candidate type, and start date cannot be modified.
+            Update the candidate's contact and organizational information. Template, candidate type, and anticipated start date cannot be modified.
           </DialogDescription>
         </DialogHeader>
 
@@ -395,9 +395,9 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                   <p className="text-muted-foreground">{candidate?.candidateType?.name || "Not set"}</p>
                 </div>
                 <div>
-                  <span className="font-medium">Start Date:</span>
+                  <span className="font-medium">Anticipated Start:</span>
                   <p className="text-muted-foreground">
-                    {candidate?.startDate ? new Date(candidate.startDate).toLocaleDateString() : "Not set"}
+                    {candidate?.anticipatedStartDate ? new Date(candidate.anticipatedStartDate).toLocaleDateString() : "Not set"}
                   </p>
                 </div>
                 <div>

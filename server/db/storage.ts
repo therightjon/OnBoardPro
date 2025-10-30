@@ -82,6 +82,81 @@ function sanitizeMentionKey(value?: string | null): string | null {
   return cleaned || null;
 }
 
+type AnchorKey = 'loo' | 'start';
+type AnchorDates = Record<AnchorKey, Date | null>;
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+function addDays(base: Date, amount: number): Date {
+  const next = new Date(base);
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
+function ensureDate(input?: Date | string | null): Date | null {
+  if (!input) return null;
+  const date = input instanceof Date ? new Date(input.getTime()) : new Date(input);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function resolveLooAnchor(candidate: Candidate): Date | null {
+  return ensureDate(candidate.offerLetterAcceptedAt) ?? ensureDate(candidate.offerLetterIssuedAt);
+}
+
+function resolveStartAnchor(candidate: Candidate): Date | null {
+  return ensureDate(candidate.anticipatedStartDate);
+}
+
+type DueComputationResult = {
+  dueAt: Date | null;
+  pendingAnchor: boolean;
+  anchorType?: AnchorKey;
+  missingAnchor?: AnchorKey;
+};
+
+function computeDueFromRule(
+  ruleType: string | null | undefined,
+  ruleValue: number | null | undefined,
+  fixedDate: Date | string | null | undefined,
+  anchors: AnchorDates
+): DueComputationResult {
+  const applyAnchor = (anchorKey: AnchorKey, offsetDays: number): DueComputationResult => {
+    const anchor = anchors[anchorKey];
+    if (!anchor) {
+      return { dueAt: null, pendingAnchor: true, missingAnchor: anchorKey };
+    }
+    return { dueAt: addDays(anchor, offsetDays), pendingAnchor: false, anchorType: anchorKey };
+  };
+
+  switch (ruleType) {
+    case "on_loo_date":
+      return applyAnchor("loo", 0);
+    case "days_before_loo":
+      return applyAnchor("loo", -1 * (ruleValue ?? 0));
+    case "days_after_loo":
+      return applyAnchor("loo", ruleValue ?? 0);
+    case "on_start_date":
+      return applyAnchor("start", 0);
+    case "days_before_start":
+      return applyAnchor("start", -1 * (ruleValue ?? 0));
+    case "days_after_start":
+      return applyAnchor("start", ruleValue ?? 0);
+    case "fixed_date": {
+      const date = ensureDate(fixedDate);
+      if (!date) {
+        return { dueAt: null, pendingAnchor: true };
+      }
+      return { dueAt: date, pendingAnchor: false };
+    }
+    case "days_before_stage":
+    case "days_after_stage":
+      // Stage-relative rules will be determined dynamically later.
+      return { dueAt: null, pendingAnchor: false };
+    default:
+      return { dueAt: null, pendingAnchor: false };
+  }
+}
+
 // LDAP settings stored under system_settings key 'auth.ldap'
 export type LdapSettings = {
   url?: string;
@@ -112,6 +187,8 @@ export interface TemplateExpansionTask {
   assigneeRole: string | null;
   title: string;
   status: string;
+  dueAt: Date | null;
+  pendingAnchor: boolean;
 }
 
 export interface TemplateExpansionResult {
@@ -240,9 +317,10 @@ export interface IStorage {
   
   // Template expansion
   expandTemplate(templateId: string, candidateId: string, currentUserId: string): Promise<TemplateExpansionResult>;
+  recomputeCandidateDueDates(candidateId: string): Promise<{ updated: number }>;
   
   // Template estimation
-  estimateTemplate(templateId: string, startDate?: string, businessDays?: boolean): Promise<any>;
+  estimateTemplate(templateId: string, options?: { looDate?: string | null; anticipatedStartDate?: string | null; businessDays?: boolean }): Promise<any>;
 
   // Comments
   getCandidateComments(params: { candidateId: string; visibility?: 'all'|'internal'|'external'; role: string; cursor?: string; limit?: number }): Promise<{ items: any[]; nextCursor?: string; totalVisibleCount: number }>;
@@ -586,7 +664,9 @@ export class DatabaseStorage implements IStorage {
         firstName: candidates.firstName,
         lastName: candidates.lastName,
         email: candidates.email,
-        startDate: candidates.startDate,
+        offerLetterIssuedAt: candidates.offerLetterIssuedAt,
+        offerLetterAcceptedAt: candidates.offerLetterAcceptedAt,
+        anticipatedStartDate: candidates.anticipatedStartDate,
         status: candidates.status,
         candidateTypeId: candidates.candidateTypeId,
         departmentId: candidates.departmentId,
@@ -604,9 +684,17 @@ export class DatabaseStorage implements IStorage {
         archivedBy: candidates.archivedBy,
         createdAt: candidates.createdAt,
         updatedAt: candidates.updatedAt,
+        pendingAnchorCount: sql<number>`(
+          SELECT count(*)::int
+          FROM candidate_tasks ct
+          WHERE ct.candidate_id = ${candidates.id}
+            AND ct.pending_anchor = true
+            AND ct.archived = false
+        )`,
         currentStage: {
           id: hiringStages.id,
           name: hiringStages.name,
+          phase: hiringStages.phase,
           // DISPLAY ONLY: global orderIndex for UI sorting, not business logic
           orderIndex: hiringStages.orderIndex
         }
@@ -631,7 +719,9 @@ export class DatabaseStorage implements IStorage {
         divisionId: candidates.divisionId,
         managerId: candidates.managerId,
         facultyRankId: candidates.facultyRankId,
-        startDate: candidates.startDate,
+        offerLetterIssuedAt: candidates.offerLetterIssuedAt,
+        offerLetterAcceptedAt: candidates.offerLetterAcceptedAt,
+        anticipatedStartDate: candidates.anticipatedStartDate,
         status: candidates.status,
         primaryOwnerId: candidates.primaryOwnerId,
         linkedUserId: candidates.linkedUserId,
@@ -646,6 +736,13 @@ export class DatabaseStorage implements IStorage {
         blockerSummary: candidates.blockerSummary,
         createdAt: candidates.createdAt,
         updatedAt: candidates.updatedAt,
+        pendingAnchorCount: sql<number>`(
+          SELECT count(*)::int
+          FROM candidate_tasks ct
+          WHERE ct.candidate_id = ${candidates.id}
+            AND ct.pending_anchor = true
+            AND ct.archived = false
+        )`,
         candidateType: {
           id: candidateTypes.id,
           name: candidateTypes.name
@@ -679,6 +776,7 @@ export class DatabaseStorage implements IStorage {
         currentStage: {
           id: hiringStages.id,
           name: hiringStages.name,
+          phase: hiringStages.phase,
           // DISPLAY ONLY: global orderIndex for UI sorting, not business logic
           orderIndex: hiringStages.orderIndex
         }
@@ -869,6 +967,10 @@ export class DatabaseStorage implements IStorage {
         category_id: candidateTasks.categoryId,
         category_name: taskCategories.name,
         dueAt: candidateTasks.dueAt,
+        due_rule_type: candidateTasks.dueRuleType,
+        due_rule_value: candidateTasks.dueRuleValue,
+        fixed_date: candidateTasks.fixedDate,
+        pending_anchor: candidateTasks.pendingAnchor,
         status: candidateTasks.status,
         required: candidateTasks.required,
         cancel_reason: candidateTasks.cancelReason,
@@ -896,6 +998,10 @@ export class DatabaseStorage implements IStorage {
     // Transform the flat structure to match frontend expectations
     return rawTasks.map(task => ({
       ...task,
+      dueRuleType: task.due_rule_type,
+      dueRuleValue: task.due_rule_value,
+      fixedDate: task.fixed_date,
+      pendingAnchor: task.pending_anchor,
       assignee: task.assignee_firstName || task.assignee_lastName ? {
         id: task.assignee_id,
         firstName: task.assignee_firstName,
@@ -1026,6 +1132,8 @@ export class DatabaseStorage implements IStorage {
         assigneeRole: candidateTasks.assigneeRole,
         title: candidateTasks.title,
         status: candidateTasks.status,
+        dueAt: candidateTasks.dueAt,
+        pendingAnchor: candidateTasks.pendingAnchor,
       });
 
     return rows;
@@ -1687,10 +1795,6 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Candidate not found");
     }
 
-    // Check guards
-    if (!candidate.startDate) {
-      throw new Error("Candidate must have a start date to apply template");
-    }
     if (candidate.templateLocked) {
       throw new Error("Candidate already has a template applied");
     }
@@ -1721,9 +1825,19 @@ export class DatabaseStorage implements IStorage {
       templateTasksList.map(tt => this.getTaskDefinition(tt.taskDefId))
     );
 
+    const anchors: AnchorDates = {
+      loo: resolveLooAnchor(candidate),
+      start: resolveStartAnchor(candidate),
+    };
+
     // Calculate due dates and create candidate tasks
-    const startDate = new Date(candidate.startDate);
     const tasksToCreate: InsertCandidateTask[] = [];
+    const taskCategoriesList = await this.getTaskCategories();
+    const fallbackCategoryId = taskCategoriesList[0]?.id ?? null;
+
+    if (!fallbackCategoryId && templateTasksList.some(task => !task.defaultCategoryId)) {
+      throw new Error("No default task category configured");
+    }
 
     for (let i = 0; i < templateTasksList.length; i++) {
       const templateTask = templateTasksList[i];
@@ -1731,37 +1845,12 @@ export class DatabaseStorage implements IStorage {
       
       if (!taskDef) continue;
 
-      // Calculate due date based on rule type
-      let dueAt: Date | null = null;
-      
-      switch (templateTask.dueRuleType) {
-        case "on_start_date":
-          dueAt = startDate;
-          break;
-        case "days_before_start":
-          if (templateTask.dueRuleValue) {
-            dueAt = new Date(startDate);
-            dueAt.setDate(dueAt.getDate() - templateTask.dueRuleValue);
-          }
-          break;
-        case "days_after_start":
-          if (templateTask.dueRuleValue) {
-            dueAt = new Date(startDate);
-            dueAt.setDate(dueAt.getDate() + templateTask.dueRuleValue);
-          }
-          break;
-        case "fixed_date":
-          if (templateTask.fixedDate) {
-            dueAt = new Date(templateTask.fixedDate);
-          }
-          break;
-        // TODO: Implement stage-based due dates when stage tracking is added
-        case "days_before_stage":
-        case "days_after_stage":
-          // For now, default to start date
-          dueAt = startDate;
-          break;
-      }
+      const dueComputation = computeDueFromRule(
+        templateTask.dueRuleType,
+        templateTask.dueRuleValue,
+        templateTask.fixedDate,
+        anchors
+      );
 
       // Get default priority name
       let priority = "medium";
@@ -1809,8 +1898,12 @@ export class DatabaseStorage implements IStorage {
         assigneeRole: defaultAssigneeRole,
         assigneeResolvedAt: resolvedAt,
         priority: priority as "low" | "medium" | "high" | "critical",
-        categoryId: templateTask.defaultCategoryId || (await this.getTaskCategories())[0]?.id,
-        dueAt,
+        categoryId: templateTask.defaultCategoryId || fallbackCategoryId,
+        dueAt: dueComputation.dueAt,
+        dueRuleType: templateTask.dueRuleType,
+        dueRuleValue: templateTask.dueRuleValue ?? null,
+        fixedDate: templateTask.fixedDate ?? null,
+        pendingAnchor: dueComputation.pendingAnchor,
         status: "todo" as const,
         required: (templateTask as any).isRequired ?? true,
         archived: false,
@@ -1832,6 +1925,8 @@ export class DatabaseStorage implements IStorage {
           assigneeRole: candidateTasks.assigneeRole,
           title: candidateTasks.title,
           status: candidateTasks.status,
+          dueAt: candidateTasks.dueAt,
+          pendingAnchor: candidateTasks.pendingAnchor,
         });
     }
 
@@ -1892,13 +1987,79 @@ export class DatabaseStorage implements IStorage {
     return { createdCount: tasksToCreate.length, createdTasks };
   }
 
-  async estimateTemplate(templateId: string, startDate?: string, businessDays: boolean = false): Promise<any> {
-    // Get active template tasks with stage information
+  async recomputeCandidateDueDates(candidateId: string): Promise<{ updated: number }> {
+    const candidate = await this.getCandidate(candidateId);
+    if (!candidate) {
+      throw new Error("Candidate not found");
+    }
+
+    const anchors: AnchorDates = {
+      loo: resolveLooAnchor(candidate),
+      start: resolveStartAnchor(candidate),
+    };
+
+    const tasks = await db
+      .select({
+        id: candidateTasks.id,
+        dueRuleType: candidateTasks.dueRuleType,
+        dueRuleValue: candidateTasks.dueRuleValue,
+        fixedDate: candidateTasks.fixedDate,
+        pendingAnchor: candidateTasks.pendingAnchor,
+        dueAt: candidateTasks.dueAt,
+        archived: candidateTasks.archived,
+      })
+      .from(candidateTasks)
+      .where(eq(candidateTasks.candidateId, candidateId));
+
+    const updates = [] as Array<{ id: string; dueAt: Date | null; pendingAnchor: boolean }>;
+    for (const task of tasks) {
+      if (task.archived) continue;
+      const dueComputation = computeDueFromRule(task.dueRuleType, task.dueRuleValue, task.fixedDate, anchors);
+      const currentDueAt = task.dueAt ? new Date(task.dueAt) : null;
+      const newDueAt = dueComputation.dueAt;
+      const dueChanged = currentDueAt && newDueAt
+        ? currentDueAt.getTime() !== newDueAt.getTime()
+        : currentDueAt !== newDueAt;
+      if (dueChanged || task.pendingAnchor !== dueComputation.pendingAnchor) {
+        updates.push({
+          id: task.id,
+          dueAt: newDueAt,
+          pendingAnchor: dueComputation.pendingAnchor,
+        });
+      }
+    }
+
+    if (!updates.length) {
+      return { updated: 0 };
+    }
+
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      for (const update of updates) {
+        await tx
+          .update(candidateTasks)
+          .set({ dueAt: update.dueAt, pendingAnchor: update.pendingAnchor, updatedAt: now })
+          .where(eq(candidateTasks.id, update.id));
+      }
+    });
+
+    return { updated: updates.length };
+  }
+
+  async estimateTemplate(templateId: string, options: { looDate?: string | null; anticipatedStartDate?: string | null; businessDays?: boolean } = {}): Promise<any> {
+    const { looDate, anticipatedStartDate, businessDays: includeBusinessDays = false } = options;
+
+    const anchors: AnchorDates = {
+      loo: ensureDate(looDate ?? null),
+      start: ensureDate(anticipatedStartDate ?? null),
+    };
+
     const tasksQuery = await db
       .select({
         id: templateTasks.id,
         stageId: templateTasks.stageId,
         stageName: hiringStages.name,
+        stagePhase: hiringStages.phase,
         dueRuleType: templateTasks.dueRuleType,
         dueRuleValue: templateTasks.dueRuleValue,
         fixedDate: templateTasks.fixedDate
@@ -1910,95 +2071,145 @@ export class DatabaseStorage implements IStorage {
         eq(templateTasks.archived, false)
       ));
 
-    const start = startDate ? new Date(startDate) : null;
-    const taskOffsets: any[] = [];
-    const nonEstimable: any[] = [];
-    const stageMap = new Map<string, { stageId: string; stageName: string; latestOffsetDays: number }>();
+    const baselineCandidates = [anchors.loo, anchors.start].filter((date): date is Date => !!date);
+    const baselineDate = baselineCandidates.length
+      ? new Date(Math.min(...baselineCandidates.map(date => date.getTime())))
+      : null;
 
-    // Calculate offsets for each task
+    const nonEstimable: Array<{ taskId: string; rule: string | null; reason: string; missingAnchor?: AnchorKey; stageId: string; stageName: string; phase: string | null }>
+      = [];
+    const perPhaseMap = new Map<string, { phase: string; taskCount: number; lastDueDate: Date | null }>();
+    const perStageMap = new Map<string, { stageId: string; stageName: string; phase: string | null; taskCount: number; latestOffsetDays: number; lastDueDate: Date | null }>();
+
+    let maxCalendarOffset = 0;
+    let maxDueDate: Date | null = null;
+
     for (const task of tasksQuery) {
-      let effectiveOffset: number | null = null;
+      const dueComputation = computeDueFromRule(task.dueRuleType, task.dueRuleValue, task.fixedDate, anchors);
 
-      switch (task.dueRuleType) {
-        case "on_start_date":
-          effectiveOffset = 0;
-          break;
-        case "days_after_start":
-          effectiveOffset = task.dueRuleValue || 0;
-          break;
-        case "days_before_start":
-          // Negative offsets don't extend duration, but we track them as 0
-          effectiveOffset = 0;
-          break;
-        case "fixed_date":
-          if (start && task.fixedDate) {
-            const fixedDateObj = new Date(task.fixedDate);
-            const daysDiff = Math.ceil((fixedDateObj.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-            effectiveOffset = Math.max(daysDiff, 0);
-          } else {
-            nonEstimable.push({
-              taskId: task.id,
-              rule: task.dueRuleType,
-              reason: start ? "invalid fixed date" : "no start date provided"
-            });
-          }
-          break;
-        case "days_before_stage":
-        case "days_after_stage":
-          nonEstimable.push({
-            taskId: task.id,
-            rule: task.dueRuleType,
-            reason: "stage-relative rule"
-          });
-          break;
-      }
-
-      if (effectiveOffset !== null) {
-        taskOffsets.push({
+      if (task.dueRuleType === "days_before_stage" || task.dueRuleType === "days_after_stage") {
+        nonEstimable.push({
           taskId: task.id,
+          rule: task.dueRuleType,
+          reason: "stage_relative",
           stageId: task.stageId,
           stageName: task.stageName,
-          offset: effectiveOffset
+          phase: task.stagePhase ?? null
         });
+        continue;
+      }
 
-        // Track latest offset per stage
-        const stageKey = task.stageId;
-        if (!stageMap.has(stageKey) || stageMap.get(stageKey)!.latestOffsetDays < effectiveOffset) {
-          stageMap.set(stageKey, {
-            stageId: task.stageId,
-            stageName: task.stageName,
-            latestOffsetDays: effectiveOffset
-          });
+      if (dueComputation.pendingAnchor) {
+        nonEstimable.push({
+          taskId: task.id,
+          rule: task.dueRuleType ?? null,
+          reason: "missing_anchor",
+          missingAnchor: dueComputation.missingAnchor,
+          stageId: task.stageId,
+          stageName: task.stageName,
+          phase: task.stagePhase ?? null
+        });
+        continue;
+      }
+
+      if (!dueComputation.dueAt) {
+        nonEstimable.push({
+          taskId: task.id,
+          rule: task.dueRuleType ?? null,
+          reason: "no_due_date",
+          stageId: task.stageId,
+          stageName: task.stageName,
+          phase: task.stagePhase ?? null
+        });
+        continue;
+      }
+
+      const phaseKey = task.stagePhase ?? "pre_hire";
+      const phaseSummary = perPhaseMap.get(phaseKey) ?? { phase: phaseKey, taskCount: 0, lastDueDate: null };
+      phaseSummary.taskCount += 1;
+      if (!phaseSummary.lastDueDate || phaseSummary.lastDueDate < dueComputation.dueAt) {
+        phaseSummary.lastDueDate = dueComputation.dueAt;
+      }
+      perPhaseMap.set(phaseKey, phaseSummary);
+
+      const stageSummary = perStageMap.get(task.stageId) ?? {
+        stageId: task.stageId,
+        stageName: task.stageName,
+        phase: task.stagePhase ?? null,
+        taskCount: 0,
+        latestOffsetDays: 0,
+        lastDueDate: null
+      };
+      stageSummary.taskCount += 1;
+      if (!stageSummary.lastDueDate || stageSummary.lastDueDate < dueComputation.dueAt) {
+        stageSummary.lastDueDate = dueComputation.dueAt;
+      }
+
+      if (baselineDate) {
+        const offset = Math.max(0, Math.ceil((dueComputation.dueAt.getTime() - baselineDate.getTime()) / MS_PER_DAY));
+        if (offset > stageSummary.latestOffsetDays) {
+          stageSummary.latestOffsetDays = offset;
         }
+        if (offset > maxCalendarOffset) {
+          maxCalendarOffset = offset;
+        }
+      }
+
+      perStageMap.set(task.stageId, stageSummary);
+
+      if (!maxDueDate || maxDueDate < dueComputation.dueAt) {
+        maxDueDate = dueComputation.dueAt;
       }
     }
 
-    // Calculate total duration
-    const totalCalendarDays = Math.max(0, ...taskOffsets.map(t => t.offset), 0);
-    const perStage = Array.from(stageMap.values()).sort((a, b) => a.latestOffsetDays - b.latestOffsetDays);
+    const perPhase = Array.from(perPhaseMap.values())
+      .sort((a, b) => a.phase.localeCompare(b.phase))
+      .map(summary => ({
+        phase: summary.phase,
+        taskCount: summary.taskCount,
+        lastDueDate: summary.lastDueDate ? summary.lastDueDate.toISOString() : null,
+      }));
 
-    // Calculate dates and business days if start date provided
-    let lastDueDate: string | null = null;
+    const perStage = Array.from(perStageMap.values())
+      .sort((a, b) => a.latestOffsetDays - b.latestOffsetDays)
+      .map(stage => ({
+        stageId: stage.stageId,
+        stageName: stage.stageName,
+        phase: stage.phase,
+        taskCount: stage.taskCount,
+        latestOffsetDays: stage.latestOffsetDays,
+        lastDueDate: stage.lastDueDate ? stage.lastDueDate.toISOString() : null,
+      }));
+
+    const formattedNonEstimable = nonEstimable.map(item => ({
+      taskId: item.taskId,
+      rule: item.rule,
+      reason: item.reason,
+      missingAnchor: item.missingAnchor ?? null,
+      stageId: item.stageId,
+      stageName: item.stageName,
+      phase: item.phase,
+    }));
+
     let totalBusinessDays: number | null = null;
-
-    if (start && taskOffsets.length > 0) {
-      const endDate = new Date(start);
-      endDate.setDate(endDate.getDate() + totalCalendarDays);
-      lastDueDate = endDate.toISOString().split('T')[0];
-
-      if (businessDays) {
-        totalBusinessDays = countBusinessDays(start, endDate);
-      }
+    if (includeBusinessDays && baselineDate && maxDueDate) {
+      totalBusinessDays = countBusinessDays(baselineDate, maxDueDate);
     }
 
     return {
       templateId,
       taskCount: tasksQuery.length,
-      lastDueDate,
-      totalCalendarDays,
+      anchors: {
+        loo: anchors.loo ? anchors.loo.toISOString() : null,
+        anticipatedStart: anchors.start ? anchors.start.toISOString() : null,
+      },
+      baselineDate: baselineDate ? baselineDate.toISOString() : null,
+      lastDueDate: maxDueDate ? maxDueDate.toISOString() : null,
+      totalCalendarDays: maxCalendarOffset,
       totalBusinessDays,
-      nonEstimable,
-      perStage
+      nonEstimable: formattedNonEstimable,
+      perPhase,
+      perStage,
     };
   }
 
@@ -2212,7 +2423,7 @@ export class DatabaseStorage implements IStorage {
         templateAppliedFromId: candidates.templateAppliedFromId,
         templateAppliedAt: candidates.templateAppliedAt,
         templateLocked: candidates.templateLocked,
-        startDate: candidates.startDate,
+        anticipatedStartDate: candidates.anticipatedStartDate,
         currentStageId: candidates.currentStageId
       })
       .from(candidates)
@@ -2235,12 +2446,12 @@ export class DatabaseStorage implements IStorage {
     }
 
     const candidateData = candidate[0];
-    const startDate = candidateData.templateAppliedAt || candidateData.startDate;
+    const startDate = candidateData.templateAppliedAt || candidateData.anticipatedStartDate;
     
     if (!startDate) {
       return {
         candidateId,
-        error: "No start date available for calculation",
+        error: "No anticipated start date available for calculation",
         taskCount: 0,
         totalCalendarDays: 0,
         totalBusinessDays: null,

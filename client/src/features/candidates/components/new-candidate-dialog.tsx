@@ -35,10 +35,10 @@ const newCandidateSchema = z.object({
   divisionId: z.string().optional(),
   managerId: z.string().optional(),
   facultyRankId: z.string().optional(),
-  startDate: z.date({
-    required_error: "Start date is required",
+  anticipatedStartDate: z.date({
+    required_error: "Anticipated start date is required",
   }).refine((date) => date >= new Date(new Date().setHours(0, 0, 0, 0)), {
-    message: "Start date must be today or in the future",
+    message: "Anticipated start date must be today or in the future",
   }),
   templateId: z.string().min(1, "Template is required"),
 });
@@ -74,7 +74,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
       divisionId: user?.divisionId || "",
       managerId: "",
       facultyRankId: "",
-      startDate: undefined,
+      anticipatedStartDate: undefined,
       templateId: "",
     },
   });
@@ -82,7 +82,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
   const selectedDepartmentId = form.watch("departmentId");
   const selectedCandidateTypeId = form.watch("candidateTypeId");
   const selectedTemplateId = form.watch("templateId");
-  const selectedStartDate = form.watch("startDate");
+  const selectedAnticipatedStart = form.watch("anticipatedStartDate");
 
   // Fetch reference data
   const { data: candidateTypes = [] } = useQuery<CandidateType[]>({
@@ -126,11 +126,11 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
 
   // Calculate preview due dates (memoized to prevent infinite re-renders)
   const previewDueDates = useMemo(() => {
-    if (!selectedTemplateId || !selectedStartDate || templateTasks.length === 0) {
+    if (!selectedTemplateId || !selectedAnticipatedStart || templateTasks.length === 0) {
       return [];
     }
 
-    const startDate = new Date(selectedStartDate);
+    const startDate = new Date(selectedAnticipatedStart);
     const calculatedDates: DueDate[] = [];
 
     templateTasks.forEach((tt) => {
@@ -140,6 +140,12 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
       let dueDate: Date | null = null;
 
       switch (tt.dueRuleType) {
+        case "on_loo_date":
+        case "days_before_loo":
+        case "days_after_loo":
+          // LOO-anchored tasks require letter dates; omit preview until provided later
+          dueDate = null;
+          break;
         case "on_start_date":
           dueDate = new Date(startDate);
           break;
@@ -160,9 +166,12 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
             dueDate = new Date(tt.fixedDate);
           }
           break;
+        case "days_before_stage":
+        case "days_after_stage":
+          dueDate = null;
+          break;
         default:
-          // For stage-based rules, default to start date for now
-          dueDate = new Date(startDate);
+          dueDate = null;
           break;
       }
 
@@ -179,7 +188,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
     });
 
     return calculatedDates;
-  }, [selectedTemplateId, selectedStartDate, templateTasks, taskDefinitions]);
+  }, [selectedTemplateId, selectedAnticipatedStart, templateTasks, taskDefinitions]);
 
   // Helper functions to handle dependent field resets
   const handleDepartmentChange = (value: string) => {
@@ -208,7 +217,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
         divisionId: data.divisionId === "none" ? null : data.divisionId || null,
         managerId: data.managerId === "none" ? null : data.managerId || null,
         facultyRankId: data.facultyRankId || null,
-        startDate: format(data.startDate, "yyyy-MM-dd"),
+        anticipatedStartDate: format(data.anticipatedStartDate, "yyyy-MM-dd"),
       };
 
       const candidateRes = await apiRequest("POST", "/api/candidates", candidateData);
@@ -478,13 +487,13 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
               <div className="flex flex-col gap-4">
                 <FormField
                   control={form.control}
-                  name="startDate"
+                  name="anticipatedStartDate"
                   render={({ field }: { field: any }) => {
                     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
                     
                     return (
                       <FormItem>
-                        <FormLabel>Start Date *</FormLabel>
+                        <FormLabel>Anticipated Start Date *</FormLabel>
                         <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                           <PopoverTrigger asChild>
                             <FormControl>
@@ -494,7 +503,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                                   "w-full pl-3 text-left font-normal",
                                   !field.value && "text-muted-foreground"
                                 )}
-                                data-testid="button-start-date"
+                                data-testid="button-anticipated-start-date"
                               >
                                 {field.value ? (
                                   format(field.value, "PPP")
