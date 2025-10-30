@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -18,6 +18,10 @@ import { format } from "date-fns";
 import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
 import { useCommentStats } from "@/features/comments/api";
 import { TaskCommentsButton } from "@/features/comments/components/task-comments-button";
+import { Input } from "@/shared/components/ui/input";
+
+const EMPLOYMENT_FIELD_KEYS = ["offerLetterIssuedAt", "offerLetterAcceptedAt", "anticipatedStartDate"] as const;
+type EmploymentField = typeof EMPLOYMENT_FIELD_KEYS[number];
 import { TaskCommentsModal } from "@/features/comments/components/task-comments-modal";
 import { CommentsTab } from "@/features/comments/components/comments-tab";
 import { EditCandidateDialog } from "@/features/candidates/components/edit-candidate-dialog";
@@ -100,6 +104,62 @@ export default function CandidateDetailPage() {
     }
   });
 
+  const [employmentForm, setEmploymentForm] = useState<Record<EmploymentField, string>>({
+    offerLetterIssuedAt: '',
+    offerLetterAcceptedAt: '',
+    anticipatedStartDate: ''
+  });
+
+  const employmentSnapshot = useMemo(() => ({
+    offerLetterIssuedAt: candidate?.offerLetterIssuedAt ? String(candidate.offerLetterIssuedAt).slice(0, 10) : '',
+    offerLetterAcceptedAt: candidate?.offerLetterAcceptedAt ? String(candidate.offerLetterAcceptedAt).slice(0, 10) : '',
+    anticipatedStartDate: candidate?.anticipatedStartDate ? String(candidate.anticipatedStartDate).slice(0, 10) : '',
+  }), [candidate]);
+
+  useEffect(() => {
+    setEmploymentForm(employmentSnapshot);
+  }, [employmentSnapshot]);
+
+  const employmentDirty = useMemo(() => (
+    EMPLOYMENT_FIELD_KEYS.some((key) => employmentForm[key] !== employmentSnapshot[key])
+  ), [employmentForm, employmentSnapshot]);
+
+  const updateEmploymentMutation = useMutation({
+    mutationFn: async (payload: Record<EmploymentField, string | null>) => {
+      const res = await apiRequest('PATCH', `/api/candidates/${id}`, payload);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to update employment details');
+      }
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: 'Employment updated', description: 'Anchor dates saved.' });
+      queryClient.invalidateQueries({ queryKey: ["/api/candidates", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Update failed',
+        description: error?.message || 'Unable to update employment details',
+        variant: 'destructive'
+      });
+    }
+  });
+
+  const handleEmploymentSave = () => {
+    if (!id || id === 'undefined') return;
+    const payload = EMPLOYMENT_FIELD_KEYS.reduce<Record<EmploymentField, string | null>>((acc, key) => {
+      acc[key] = employmentForm[key] ? employmentForm[key] : null;
+      return acc;
+    }, {} as Record<EmploymentField, string | null>);
+    updateEmploymentMutation.mutate(payload);
+  };
+
+  const handleEmploymentReset = () => {
+    setEmploymentForm(employmentSnapshot);
+  };
+
   const stageHistory = (stageHistoryData as any)?.history || [];
   const { data: commentStats } = useCommentStats(id);
 
@@ -122,7 +182,8 @@ export default function CandidateDetailPage() {
       assigneeName: t.assignee_name,
       priorityName: t.priority_name,
       categoryName: t.category_name,
-      updatedAt: t.updated_at
+      updatedAt: t.updated_at,
+      phaseSnapshot: t.phase_snapshot
     })),
     [candidateTasks, orderMap]
   );
@@ -580,6 +641,27 @@ export default function CandidateDetailPage() {
                   </div>
                 </div>
               </dl>
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleEmploymentSave}
+                  disabled={!employmentDirty || updateEmploymentMutation.isPending}
+                  data-testid="button-save-employment"
+                >
+                  {updateEmploymentMutation.isPending ? 'Saving…' : 'Save'}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleEmploymentReset}
+                  disabled={!employmentDirty || updateEmploymentMutation.isPending}
+                  data-testid="button-reset-employment"
+                >
+                  Reset
+                </Button>
+              </div>
             </div>
 
             {/* Employment Section */}
@@ -591,7 +673,25 @@ export default function CandidateDetailPage() {
                   <div className="min-w-0">
                     <dt className="text-xs xs:text-sm font-medium">Anticipated Start</dt>
                     <dd className="text-xs xs:text-sm text-muted-foreground" data-testid="text-candidate-start-date">
-                      {(candidate as any).anticipatedStartDate ? new Date((candidate as any).anticipatedStartDate).toLocaleDateString() : "Not set"}
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="date"
+                          value={employmentForm.anticipatedStartDate}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmploymentForm(prev => ({ ...prev, anticipatedStartDate: e.target.value }))}
+                          className="h-9 w-full sm:w-48"
+                          data-testid="input-anticipated-start"
+                        />
+                        {employmentForm.anticipatedStartDate && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEmploymentForm(prev => ({ ...prev, anticipatedStartDate: '' }))}
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
                     </dd>
                   </div>
                 </div>
@@ -601,7 +701,25 @@ export default function CandidateDetailPage() {
                   <div className="min-w-0">
                     <dt className="text-xs xs:text-sm font-medium">LOO Issued</dt>
                     <dd className="text-xs xs:text-sm text-muted-foreground">
-                      {(candidate as any).offerLetterIssuedAt ? new Date((candidate as any).offerLetterIssuedAt).toLocaleDateString() : "Not set"}
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="date"
+                          value={employmentForm.offerLetterIssuedAt}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmploymentForm(prev => ({ ...prev, offerLetterIssuedAt: e.target.value }))}
+                          className="h-9 w-full sm:w-48"
+                          data-testid="input-loo-issued"
+                        />
+                        {employmentForm.offerLetterIssuedAt && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEmploymentForm(prev => ({ ...prev, offerLetterIssuedAt: '' }))}
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
                     </dd>
                   </div>
                 </div>
@@ -611,7 +729,25 @@ export default function CandidateDetailPage() {
                   <div className="min-w-0">
                     <dt className="text-xs xs:text-sm font-medium">LOO Accepted</dt>
                     <dd className="text-xs xs:text-sm text-muted-foreground">
-                      {(candidate as any).offerLetterAcceptedAt ? new Date((candidate as any).offerLetterAcceptedAt).toLocaleDateString() : "Not set"}
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="date"
+                          value={employmentForm.offerLetterAcceptedAt}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmploymentForm(prev => ({ ...prev, offerLetterAcceptedAt: e.target.value }))}
+                          className="h-9 w-full sm:w-48"
+                          data-testid="input-loo-accepted"
+                        />
+                        {employmentForm.offerLetterAcceptedAt && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEmploymentForm(prev => ({ ...prev, offerLetterAcceptedAt: '' }))}
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
                     </dd>
                   </div>
                 </div>

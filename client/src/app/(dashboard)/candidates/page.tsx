@@ -33,6 +33,8 @@ type CandidateWithStage = Candidate & {
     phase?: string | null;
   };
   pendingAnchorCount?: number;
+  openPrehireTasks?: number;
+  openOnboardingTasks?: number;
 };
 
 export default function CandidatesPage() {
@@ -105,8 +107,12 @@ const daysSince = (isoDate?: string | null) => {
       const matchesStage = stageFilter === "all" || 
                           (stageFilter === "not_started" && !candidate.currentStage?.id) ||
                           candidate.currentStage?.id === stageFilter;
-      const candidatePhase = candidate.currentStage?.phase ?? "pre_hire";
-      const matchesPhase = phaseFilter === "all" || candidatePhase === phaseFilter;
+      const openPrehireTasks = candidate.openPrehireTasks ?? 0;
+      const openOnboardingTasks = candidate.openOnboardingTasks ?? 0;
+      const matchesPhase =
+        phaseFilter === "all" ||
+        (phaseFilter === "pre_hire" && openPrehireTasks > 0) ||
+        (phaseFilter === "onboarding" && openOnboardingTasks > 0);
       
       return matchesSearch && matchesStatus && matchesType && matchesStage && matchesPhase;
     })
@@ -316,12 +322,12 @@ const daysSince = (isoDate?: string | null) => {
 
               <Select value={phaseFilter} onValueChange={setPhaseFilter}>
                 <SelectTrigger className="w-full xs:w-auto sm:w-[160px] min-h-[44px]" data-testid="select-phase-filter">
-                  <SelectValue placeholder="Phase" />
+                  <SelectValue placeholder="Phase (open tasks)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Phases</SelectItem>
-                  <SelectItem value="pre_hire">Pre-hire</SelectItem>
-                  <SelectItem value="onboarding">Onboarding</SelectItem>
+                  <SelectItem value="pre_hire">Pre-hire Tasks</SelectItem>
+                  <SelectItem value="onboarding">Onboarding Tasks</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -435,6 +441,8 @@ const daysSince = (isoDate?: string | null) => {
                   const phase = candidate.currentStage?.phase ?? "pre_hire";
                   const phaseText = phaseLabel(phase);
                   const pendingAnchorCount = Number(candidate.pendingAnchorCount ?? 0);
+                  const openPrehire = Number(candidate.openPrehireTasks ?? 0);
+                  const openOnboarding = Number(candidate.openOnboardingTasks ?? 0);
                   const looAnchor = candidate.offerLetterAcceptedAt || candidate.offerLetterIssuedAt || null;
                   const looDays = daysSince(looAnchor);
                   return (
@@ -475,6 +483,9 @@ const daysSince = (isoDate?: string | null) => {
                             {candidate.currentStage?.name || "Not Started"}
                           </Badge>
                           <span className="text-xs text-muted-foreground capitalize mt-1">{phaseText}</span>
+                          <span className="text-xs text-muted-foreground mt-1">
+                            {openPrehire} pre-hire • {openOnboarding} onboarding
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="hidden xl:table-cell">
@@ -529,7 +540,11 @@ const daysSince = (isoDate?: string | null) => {
           </Card>
         ) : (
           <ul className="grid gap-3" role="list">
-            {filteredAndSortedCandidates.map((candidate: any) => (
+            {filteredAndSortedCandidates.map((candidate: any) => {
+              const pendingCount = Number(candidate.pendingAnchorCount ?? 0);
+              const openPrehire = Number(candidate.openPrehireTasks ?? 0);
+              const openOnboarding = Number(candidate.openOnboardingTasks ?? 0);
+              return (
               <li key={candidate.id}>
                 <Card className={`p-4 hover:shadow-md transition-shadow ${candidate.archived ? 'opacity-60' : ''}`} data-testid={`card-candidate-${candidate.id}`}>
                   <div className="flex items-start justify-between gap-3">
@@ -545,9 +560,9 @@ const daysSince = (isoDate?: string | null) => {
                             ARCHIVED
                           </Badge>
                         )}
-                        {Number(candidate.pendingAnchorCount ?? 0) > 0 && (
+                        {pendingCount > 0 && (
                           <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50">
-                            {Number(candidate.pendingAnchorCount ?? 0)} pending
+                            {pendingCount} pending
                           </Badge>
                         )}
                       </div>
@@ -579,6 +594,9 @@ const daysSince = (isoDate?: string | null) => {
                             </Badge>
                             <span className="block text-[10px] text-muted-foreground mt-1 capitalize">
                               {phaseLabel(candidate.currentStage?.phase ?? "pre_hire")}
+                            </span>
+                            <span className="block text-[10px] text-muted-foreground mt-1">
+                              {openPrehire} pre-hire • {openOnboarding} onboarding
                             </span>
                           </dd>
                         </div>
@@ -634,7 +652,7 @@ const daysSince = (isoDate?: string | null) => {
                   </div>
                 </Card>
               </li>
-            ))}
+            )})}
           </ul>
         )}
       </div>

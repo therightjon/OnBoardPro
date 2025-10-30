@@ -2,6 +2,7 @@
 export * from "./auth.schema";
 export * from "./candidate.schema";
 export * from "./task.schema";
+export * from "./task.enums";
 export * from "./template.schema";
 export * from "./system.schema";
 export * from "./comments.schema";

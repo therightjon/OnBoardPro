@@ -8,8 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Checkbox } from "@/shared/components/ui/checkbox";
+import { ToggleGroup, ToggleGroupItem } from "@/shared/components/ui/toggle-group";
 import { Input } from "@/shared/components/ui/input";
 import { Plus, Archive, ArrowLeft, Calendar, User, Edit } from "lucide-react";
 import { Link } from "wouter";
@@ -482,9 +483,19 @@ export default function TemplateDetailPage() {
     }
   };
 
+  const formatPhaseLabel = (phase?: string | null) => {
+    if (phase === "onboarding") return "Onboarding";
+    return "Pre-hire";
+  };
+
   const getStageName = (stageId: string) => {
     const stage = hiringStages.find(s => s.id === stageId);
     return stage?.name || "Unknown Stage";
+  };
+
+  const getStagePhaseLabel = (stageId: string) => {
+    const templateStage = templateStages.find(ts => ts.stageId === stageId);
+    return templateStage ? formatPhaseLabel(templateStage.phase) : "Unknown Phase";
   };
 
   const getPriorityName = (priorityId: string | null) => {
@@ -506,21 +517,35 @@ export default function TemplateDetailPage() {
   };
 
   const formatDueRule = (task: TemplateTask) => {
+    const value = typeof task.dueRuleValue === "number"
+      ? task.dueRuleValue
+      : task.dueRuleValue
+        ? Number(task.dueRuleValue)
+        : 0;
+
     switch (task.dueRuleType) {
+      case "on_loo_date":
+        return "On offer letter date";
+      case "days_before_loo":
+        return `${value} days before offer letter`;
+      case "days_after_loo":
+        return `${value} days after offer letter`;
       case "days_before_start":
-        return `${task.dueRuleValue || 0} days before start`;
+        return `${value} days before start`;
       case "on_start_date":
         return "On start date";
       case "days_after_start":
-        return `${task.dueRuleValue || 0} days after start`;
+        return `${value} days after start`;
       case "days_before_stage":
-        return `${task.dueRuleValue || 0} days before stage`;
+        return `${value} days before stage`;
       case "days_after_stage":
-        return `${task.dueRuleValue || 0} days after stage`;
+        return `${value} days after stage`;
       case "fixed_date":
         return task.fixedDate ? `Fixed date: ${new Date(task.fixedDate).toLocaleDateString()}` : "Fixed date";
       default:
-        return "Unknown rule";
+        return task.dueRuleType
+          ? task.dueRuleType.replace(/_/g, " ")
+          : "Unknown rule";
     }
   };
 
@@ -664,10 +689,10 @@ export default function TemplateDetailPage() {
                   templateStageId: ts.id,
                   stageId: ts.stageId,
                   stageName: stage?.name || 'Unknown Stage',
-                  orderIndex: ts.orderIndex
+                  orderIndex: ts.orderIndex,
+                  phase: ts.phase ?? 'pre_hire'
                 };
               })}
-              hiringStages={hiringStages}
             />
           )}
         </CardContent>
@@ -741,13 +766,18 @@ export default function TemplateDetailPage() {
                             value={field.value || ""}
                             onChange={(id) => field.onChange(id || "")}
                             fetchItems={async (q: string) => {
-                              const ql = q.trim().toLowerCase()
-                              const stages = templateStages
-                                .map(ts => hiringStages.find(s => s.id === ts.stageId))
-                                .filter((s): s is HiringStage => !!s)
-                                .filter(s => s.name.toLowerCase().includes(ql) || (s.phase ?? '').toLowerCase().includes(ql))
-                                .map(s => ({ id: s.id, name: `${s.name} (${(s.phase ?? 'pre_hire').replace('_', ' ')})` }))
-                              return stages
+                              const ql = q.trim().toLowerCase();
+                              return templateStages
+                                .map(ts => {
+                                  const stage = hiringStages.find(s => s.id === ts.stageId);
+                                  const stageName = stage?.name ?? 'Unknown Stage';
+                                  const phaseLabel = (ts.phase ?? 'pre_hire').replace('_', ' ');
+                                  return {
+                                    id: ts.stageId,
+                                    name: `${stageName} (${phaseLabel})`
+                                  };
+                                })
+                                .filter(option => option.name.toLowerCase().includes(ql));
                             }}
                             placeholder="Search stages..."
                             emptyText="No stages available."
@@ -792,17 +822,35 @@ export default function TemplateDetailPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="on_loo_date">On LOO Date</SelectItem>
-                            <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
-                            <SelectItem value="days_after_loo">Days After LOO</SelectItem>
-                            <SelectItem value="on_start_date">On Start Date</SelectItem>
-                            <SelectItem value="days_before_start">Days Before Start Date</SelectItem>
-                            <SelectItem value="days_after_start">Days After Start Date</SelectItem>
-                            <SelectItem value="days_before_stage">Days Before Stage</SelectItem>
-                            <SelectItem value="days_after_stage">Days After Stage</SelectItem>
-                            <SelectItem value="fixed_date">Fixed Date</SelectItem>
+                            <SelectGroup>
+                              <SelectLabel>Offer letter (LOO)</SelectLabel>
+                              <SelectItem value="on_loo_date">On LOO Date</SelectItem>
+                              <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
+                              <SelectItem value="days_after_loo">Days After LOO</SelectItem>
+                            </SelectGroup>
+                            <SelectSeparator />
+                            <SelectGroup>
+                              <SelectLabel>Start date</SelectLabel>
+                              <SelectItem value="on_start_date">On Start Date</SelectItem>
+                              <SelectItem value="days_before_start">Days Before Start</SelectItem>
+                              <SelectItem value="days_after_start">Days After Start</SelectItem>
+                            </SelectGroup>
+                            <SelectSeparator />
+                            <SelectGroup>
+                              <SelectLabel>Stage relative</SelectLabel>
+                              <SelectItem value="days_before_stage">Days Before Stage</SelectItem>
+                              <SelectItem value="days_after_stage">Days After Stage</SelectItem>
+                            </SelectGroup>
+                            <SelectSeparator />
+                            <SelectGroup>
+                              <SelectLabel>Fixed</SelectLabel>
+                              <SelectItem value="fixed_date">Fixed Date</SelectItem>
+                            </SelectGroup>
                           </SelectContent>
                         </Select>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          LOO anchors most pre-hire tasks; Start anchors day-one and beyond.
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1011,10 +1059,15 @@ export default function TemplateDetailPage() {
                             value={field.value || ""}
                             onChange={(id) => field.onChange(id || "")}
                             fetchItems={async (q: string) => {
-                              const ql = q.trim().toLowerCase()
-                              return hiringStages
-                                .filter(s => s.name.toLowerCase().includes(ql) || (s.phase ?? '').toLowerCase().includes(ql))
-                                .map(s => ({ id: s.id, name: `${s.name} (${(s.phase ?? 'pre_hire').replace('_', ' ')})` }))
+                              const ql = q.trim().toLowerCase();
+                              return templateStages
+                                .map(ts => {
+                                  const stage = hiringStages.find(s => s.id === ts.stageId);
+                                  const stageName = stage?.name ?? 'Unknown Stage';
+                                  const phaseLabel = (ts.phase ?? 'pre_hire').replace('_', ' ');
+                                  return { id: ts.stageId, name: `${stageName} (${phaseLabel})` };
+                                })
+                                .filter(option => option.name.toLowerCase().includes(ql));
                             }}
                             placeholder="Search stages..."
                             emptyText="No stages available."
@@ -1059,17 +1112,35 @@ export default function TemplateDetailPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="on_loo_date">On LOO Date</SelectItem>
-                            <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
-                            <SelectItem value="days_after_loo">Days After LOO</SelectItem>
-                            <SelectItem value="on_start_date">On Start Date</SelectItem>
-                            <SelectItem value="days_before_start">Days Before Start Date</SelectItem>
-                            <SelectItem value="days_after_start">Days After Start Date</SelectItem>
-                            <SelectItem value="days_before_stage">Days Before Stage</SelectItem>
-                            <SelectItem value="days_after_stage">Days After Stage</SelectItem>
-                            <SelectItem value="fixed_date">Fixed Date</SelectItem>
+                            <SelectGroup>
+                              <SelectLabel>Offer letter (LOO)</SelectLabel>
+                              <SelectItem value="on_loo_date">On LOO Date</SelectItem>
+                              <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
+                              <SelectItem value="days_after_loo">Days After LOO</SelectItem>
+                            </SelectGroup>
+                            <SelectSeparator />
+                            <SelectGroup>
+                              <SelectLabel>Start date</SelectLabel>
+                              <SelectItem value="on_start_date">On Start Date</SelectItem>
+                              <SelectItem value="days_before_start">Days Before Start</SelectItem>
+                              <SelectItem value="days_after_start">Days After Start</SelectItem>
+                            </SelectGroup>
+                            <SelectSeparator />
+                            <SelectGroup>
+                              <SelectLabel>Stage relative</SelectLabel>
+                              <SelectItem value="days_before_stage">Days Before Stage</SelectItem>
+                              <SelectItem value="days_after_stage">Days After Stage</SelectItem>
+                            </SelectGroup>
+                            <SelectSeparator />
+                            <SelectGroup>
+                              <SelectLabel>Fixed</SelectLabel>
+                              <SelectItem value="fixed_date">Fixed Date</SelectItem>
+                            </SelectGroup>
                           </SelectContent>
                         </Select>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          LOO anchors most pre-hire tasks; Start anchors day-one and beyond.
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1234,6 +1305,7 @@ export default function TemplateDetailPage() {
               <TableRow>
                 <TableHead>Task</TableHead>
                 <TableHead>Stage</TableHead>
+                <TableHead>Phase</TableHead>
                 <TableHead>Due Rule</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Default Assignee</TableHead>
@@ -1243,7 +1315,7 @@ export default function TemplateDetailPage() {
             <TableBody>
               {templateTasks.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No tasks configured for this template. Add tasks from the library.
                   </TableCell>
                 </TableRow>
@@ -1254,6 +1326,7 @@ export default function TemplateDetailPage() {
                       {getTaskDefinitionName(task.taskDefId)}
                     </TableCell>
                     <TableCell>{getStageName(task.stageId)}</TableCell>
+                    <TableCell>{getStagePhaseLabel(task.stageId)}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -1343,7 +1416,7 @@ function PipelineEstimateSection({
   templateTasks: TemplateTask[];
   getTaskDefinitionName: (taskDefId: string) => string;
 }) {
-  const [anticipatedStartDate, setAnticipatedStartDate] = useState(() => {
+  const [startDate, setStartDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
   });
@@ -1374,13 +1447,13 @@ function PipelineEstimateSection({
   };
 
   const { data: estimate, isLoading, error } = useQuery({
-    queryKey: ['/api/templates', templateId, 'estimate', { anticipatedStartDate, looDate, businessDays: true }, templateTasks, getTaskDefinitionName],
+    queryKey: ['/api/templates', templateId, 'estimate', { startDate, looDate, businessDays: true }, templateTasks, getTaskDefinitionName],
     queryFn: async () => {
       const params = new URLSearchParams({
         businessDays: 'true'
       });
-      if (anticipatedStartDate) {
-        params.set('anticipatedStartDate', anticipatedStartDate);
+      if (startDate) {
+        params.set('startDate', startDate);
       }
       if (looDate) {
         params.set('looDate', looDate);
@@ -1390,6 +1463,9 @@ function PipelineEstimateSection({
     },
     enabled: !!templateId
   });
+
+  const missingAnchorTasks = estimate?.nonEstimable?.filter((item: any) => item.reason === 'missing_anchor') ?? [];
+  const otherNonEstimableTasks = estimate?.nonEstimable?.filter((item: any) => item.reason !== 'missing_anchor') ?? [];
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -1426,14 +1502,14 @@ function PipelineEstimateSection({
             <label className="text-sm font-medium text-muted-foreground mb-1 block">
               Anticipated Start (override)
             </label>
-            <Input
-              type="date"
-              value={anticipatedStartDate}
-              onChange={(e) => setAnticipatedStartDate(e.target.value)}
-              data-testid="input-estimate-anticipated-start"
-              className="w-full sm:w-auto"
-            />
-          </div>
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            data-testid="input-estimate-anticipated-start"
+            className="w-full sm:w-auto"
+          />
+        </div>
         </div>
 
         {/* Results */}
@@ -1463,7 +1539,7 @@ function PipelineEstimateSection({
                 <div className="p-3 rounded border bg-muted/40">
                   <div className="text-xs text-muted-foreground">Anticipated start</div>
                   <div className="text-sm font-medium text-foreground">
-                    {estimate.anchors.anticipatedStart ? formatDate(estimate.anchors.anticipatedStart) : 'Not provided'}
+                    {estimate.anchors.start ? formatDate(estimate.anchors.start) : 'Not provided'}
                   </div>
                 </div>
               </div>
@@ -1533,14 +1609,41 @@ function PipelineEstimateSection({
               </div>
             )}
 
+            {missingAnchorTasks.length > 0 && (
+              <div className="border border-amber-200 bg-amber-50/70 rounded-lg p-3">
+                <h4 className="font-medium text-amber-700 dark:text-amber-400 mb-2">
+                  Tasks waiting on anchors
+                </h4>
+                <div className="text-sm text-amber-900 dark:text-amber-100 space-y-1">
+                  {missingAnchorTasks.map((item: any, index: number) => {
+                    const templateTask = templateTasks.find(tt => tt.id === item.taskId);
+                    const fallbackName = item.taskId ? `Task ${String(item.taskId).slice(0, 8)}...` : `Task ${index + 1}`;
+                    const taskName = templateTask ? getTaskDefinitionName(templateTask.taskDefId) : fallbackName;
+                    const anchorLabel = item.missingAnchor === 'loo' ? 'LOO anchor' : item.missingAnchor === 'start' ? 'Start anchor' : 'Anchor';
+                    return (
+                      <div key={item.taskId ?? index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                        <span>
+                          {taskName}
+                          {item.stageName ? (
+                            <span className="ml-2 text-xs text-muted-foreground">({item.stageName})</span>
+                          ) : null}
+                        </span>
+                        <span className="text-xs font-medium uppercase tracking-wide text-amber-600 dark:text-amber-300">{anchorLabel}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Non-Estimable Tasks */}
-            {estimate.nonEstimable && estimate.nonEstimable.length > 0 && (
+            {otherNonEstimableTasks.length > 0 && (
               <div>
                 <h4 className="font-medium mb-2 text-amber-700 dark:text-amber-400">
                   Tasks Not Included in Estimate
                 </h4>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  {estimate.nonEstimable.map((item: any, index: number) => {
+                  {otherNonEstimableTasks.map((item: any, index: number) => {
                     // item.taskId is a template task ID, need to find the task definition ID
                     const templateTask = templateTasks.find(tt => tt.id === item.taskId);
                     const fallbackName = item.taskId ? `Task ${String(item.taskId).slice(0, 8)}...` : `Task ${index + 1}`;
@@ -1609,6 +1712,7 @@ function AddStageForm({
   const [priorityId, setPriorityId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [assigneeUserId, setAssigneeUserId] = useState("");
+  const [phase, setPhase] = useState<'pre_hire' | 'onboarding'>('pre_hire');
 
   const availableStages = hiringStages.filter(stage => 
     !templateStages.some(ts => ts.stageId === stage.id)
@@ -1681,7 +1785,8 @@ function AddStageForm({
         categoryId: categoryId || null,
         defaultAssigneeKind: 'user' as const,
         defaultAssigneeUserId: assigneeUserId || undefined,
-        defaultAssigneeRole: null
+        defaultAssigneeRole: null,
+        phase
       },
       { 
         onSuccess: () => {
@@ -1693,6 +1798,7 @@ function AddStageForm({
           setPriorityId("");
           setCategoryId("");
           setAssigneeUserId("");
+          setPhase('pre_hire');
         }
       }
     );
@@ -1718,6 +1824,31 @@ function AddStageForm({
           emptyText="No stages available."
           data-testid="select-add-stage"
         />
+      </div>
+
+      {/* Phase Selection */}
+      <div className="space-y-2">
+        <div>
+          <label className="block text-sm font-medium text-muted-foreground">Phase</label>
+          <p className="text-xs text-muted-foreground">Use pre-hire for tasks that depend on the offer letter, onboarding for day-one and later.</p>
+        </div>
+        <ToggleGroup
+          type="single"
+          value={phase}
+          onValueChange={(value) => {
+            if (value === "pre_hire" || value === "onboarding") {
+              setPhase(value);
+            }
+          }}
+          className="flex gap-2"
+        >
+          <ToggleGroupItem value="pre_hire" aria-label="Pre-hire phase" className="flex-1">
+            Pre-hire
+          </ToggleGroupItem>
+          <ToggleGroupItem value="onboarding" aria-label="Onboarding phase" className="flex-1">
+            Onboarding
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       {/* Task Selection - Only show if stage is selected */}
@@ -1792,15 +1923,35 @@ function AddStageForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="on_loo_date">On LOO Date</SelectItem>
-                  <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
-                  <SelectItem value="days_after_loo">Days After LOO</SelectItem>
-                  <SelectItem value="on_start_date">On Start Date</SelectItem>
-                  <SelectItem value="days_after_start">Days After Start</SelectItem>
-                  <SelectItem value="days_before_start">Days Before Start</SelectItem>
-                  <SelectItem value="fixed_date">Fixed Date</SelectItem>
+                  <SelectGroup>
+                    <SelectLabel>Offer letter (LOO)</SelectLabel>
+                    <SelectItem value="on_loo_date">On LOO Date</SelectItem>
+                    <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
+                    <SelectItem value="days_after_loo">Days After LOO</SelectItem>
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectLabel>Start date</SelectLabel>
+                    <SelectItem value="on_start_date">On Start Date</SelectItem>
+                    <SelectItem value="days_before_start">Days Before Start</SelectItem>
+                    <SelectItem value="days_after_start">Days After Start</SelectItem>
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectLabel>Stage relative</SelectLabel>
+                    <SelectItem value="days_before_stage">Days Before Stage</SelectItem>
+                    <SelectItem value="days_after_stage">Days After Stage</SelectItem>
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectLabel>Fixed</SelectLabel>
+                    <SelectItem value="fixed_date">Fixed Date</SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
+              <p className="mt-2 text-xs text-muted-foreground">
+                LOO anchors most pre-hire tasks; Start anchors day-one and beyond.
+              </p>
             </div>
             {!['on_start_date', 'on_loo_date'].includes(dueRuleType) && (
               <div>

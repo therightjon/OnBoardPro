@@ -320,7 +320,7 @@ export interface IStorage {
   recomputeCandidateDueDates(candidateId: string): Promise<{ updated: number }>;
   
   // Template estimation
-  estimateTemplate(templateId: string, options?: { looDate?: string | null; anticipatedStartDate?: string | null; businessDays?: boolean }): Promise<any>;
+  estimateTemplate(templateId: string, options?: { looDate?: string | null; startDate?: string | null; candidateId?: string | null; businessDays?: boolean }): Promise<any>;
 
   // Comments
   getCandidateComments(params: { candidateId: string; visibility?: 'all'|'internal'|'external'; role: string; cursor?: string; limit?: number }): Promise<{ items: any[]; nextCursor?: string; totalVisibleCount: number }>;
@@ -651,12 +651,14 @@ export class DatabaseStorage implements IStorage {
 
   async getCandidates(filters?: any): Promise<any[]> {
     const whereConditions = [];
-    
+
     // By default, exclude archived candidates unless explicitly requested
     if (!filters?.includeArchived) {
       whereConditions.push(eq(candidates.archived, false));
     }
-    
+
+    const currentTemplateStage = alias(templateStages, "current_template_stage");
+
     return await db
       .select({
         id: candidates.id,
@@ -691,22 +693,44 @@ export class DatabaseStorage implements IStorage {
             AND ct.pending_anchor = true
             AND ct.archived = false
         )`,
+        openPrehireTasks: sql<number>`(
+          SELECT count(*)::int
+          FROM candidate_tasks ct
+          WHERE ct.candidate_id = ${candidates.id}
+            AND ct.archived = false
+            AND ct.status NOT IN ('done', 'canceled')
+            AND (ct.phase_snapshot IS NULL OR ct.phase_snapshot = 'pre_hire')
+        )`,
+        openOnboardingTasks: sql<number>`(
+          SELECT count(*)::int
+          FROM candidate_tasks ct
+          WHERE ct.candidate_id = ${candidates.id}
+            AND ct.archived = false
+            AND ct.status NOT IN ('done', 'canceled')
+            AND ct.phase_snapshot = 'onboarding'
+        )`,
         currentStage: {
           id: hiringStages.id,
           name: hiringStages.name,
-          phase: hiringStages.phase,
+          phase: currentTemplateStage.phase,
           // DISPLAY ONLY: global orderIndex for UI sorting, not business logic
           orderIndex: hiringStages.orderIndex
         }
       })
       .from(candidates)
       .leftJoin(hiringStages, eq(candidates.currentStageId, hiringStages.id))
+      .leftJoin(currentTemplateStage, and(
+        eq(currentTemplateStage.templateId, candidates.templateAppliedFromId),
+        eq(currentTemplateStage.stageId, candidates.currentStageId),
+        eq(currentTemplateStage.isActive, true)
+      ))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(candidates.createdAt));
   }
 
   async getCandidate(id: string): Promise<any> {
     const primaryOwner = alias(users, "primary_owner");
+    const currentTemplateStage = alias(templateStages, "current_template_stage");
     const [candidate] = await db
       .select({
         id: candidates.id,
@@ -776,7 +800,7 @@ export class DatabaseStorage implements IStorage {
         currentStage: {
           id: hiringStages.id,
           name: hiringStages.name,
-          phase: hiringStages.phase,
+          phase: currentTemplateStage.phase,
           // DISPLAY ONLY: global orderIndex for UI sorting, not business logic
           orderIndex: hiringStages.orderIndex
         }
@@ -789,6 +813,11 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(primaryOwner, eq(candidates.primaryOwnerId, primaryOwner.id))
       .leftJoin(facultyRanks, eq(candidates.facultyRankId, facultyRanks.id))
       .leftJoin(hiringStages, eq(candidates.currentStageId, hiringStages.id))
+      .leftJoin(currentTemplateStage, and(
+        eq(currentTemplateStage.templateId, candidates.templateAppliedFromId),
+        eq(currentTemplateStage.stageId, candidates.currentStageId),
+        eq(currentTemplateStage.isActive, true)
+      ))
       .where(eq(candidates.id, id));
     return candidate || undefined;
   }
@@ -954,6 +983,7 @@ export class DatabaseStorage implements IStorage {
         description: candidateTasks.description,
         notes: candidateTasks.notes,
         stage_id: candidateTasks.stageId,
+        template_stage_id: candidateTasks.templateStageId,
         stage_name: hiringStages.name,
         stage_order_index: candidateTemplateStages.orderIndex,
         assignee_id: candidateTasks.assigneeUserId,
@@ -971,6 +1001,7 @@ export class DatabaseStorage implements IStorage {
         due_rule_value: candidateTasks.dueRuleValue,
         fixed_date: candidateTasks.fixedDate,
         pending_anchor: candidateTasks.pendingAnchor,
+        phase_snapshot: candidateTasks.phaseSnapshot,
         status: candidateTasks.status,
         required: candidateTasks.required,
         cancel_reason: candidateTasks.cancelReason,
@@ -1002,6 +1033,8 @@ export class DatabaseStorage implements IStorage {
       dueRuleValue: task.due_rule_value,
       fixedDate: task.fixed_date,
       pendingAnchor: task.pending_anchor,
+      templateStageId: task.template_stage_id,
+      phaseSnapshot: task.phase_snapshot,
       assignee: task.assignee_firstName || task.assignee_lastName ? {
         id: task.assignee_id,
         firstName: task.assignee_firstName,
@@ -1198,19 +1231,30 @@ export class DatabaseStorage implements IStorage {
           eq(templateStages.isActive, true)
         ))
         .orderBy(asc(templateStages.orderIndex));
-      
-      // Copy stages to new template (keeping original stage IDs)
+
+      const stageIdMap = new Map<string, string>();
       if (sourceStages.length > 0) {
         const stagesToClone = sourceStages.map(stage => ({
           templateId: template.id,
           stageId: stage.stageId,
           orderIndex: stage.orderIndex,
-          isActive: true
+          isActive: true,
+          phase: stage.phase ?? 'pre_hire'
         }));
-        
-        await db.insert(templateStages).values(stagesToClone);
+
+        const clonedStages = await db
+          .insert(templateStages)
+          .values(stagesToClone)
+          .returning({ id: templateStages.id });
+
+        clonedStages.forEach((clonedStage, index) => {
+          const sourceStage = sourceStages[index];
+          if (sourceStage?.id && clonedStage?.id) {
+            stageIdMap.set(sourceStage.id, clonedStage.id);
+          }
+        });
       }
-      
+
       // Then copy template tasks (now stage IDs will be valid)
       const sourceTasks = await db
         .select()
@@ -1219,23 +1263,30 @@ export class DatabaseStorage implements IStorage {
           eq(templateTasks.templateId, cloneFromTemplateId),
           eq(templateTasks.archived, false)
         ));
-      
+
       if (sourceTasks.length > 0) {
-        const tasksToClone = sourceTasks.map(task => ({
-          templateId: template.id,
-          taskDefId: task.taskDefId,
-          stageId: task.stageId,
-          dueRuleType: task.dueRuleType,
-          dueRuleValue: task.dueRuleValue,
-          fixedDate: task.fixedDate,
-          defaultAssigneeKind: task.defaultAssigneeKind ?? 'user',
-          defaultAssigneeUserId: task.defaultAssigneeUserId,
-          defaultAssigneeRole: task.defaultAssigneeRole,
-          defaultPriorityId: task.defaultPriorityId,
-          defaultCategoryId: task.defaultCategoryId,
-          archived: false
-        }));
-        
+        const tasksToClone = sourceTasks.map(task => {
+          const mappedTemplateStageId = stageIdMap.get(task.templateStageId ?? "");
+          if (!mappedTemplateStageId) {
+            throw new Error("Failed to map template stage while cloning template tasks");
+          }
+          return {
+            templateId: template.id,
+            taskDefId: task.taskDefId,
+            stageId: task.stageId,
+            templateStageId: mappedTemplateStageId,
+            dueRuleType: task.dueRuleType,
+            dueRuleValue: task.dueRuleValue,
+            fixedDate: task.fixedDate,
+            defaultAssigneeKind: task.defaultAssigneeKind ?? 'user',
+            defaultAssigneeUserId: task.defaultAssigneeUserId,
+            defaultAssigneeRole: task.defaultAssigneeRole,
+            defaultPriorityId: task.defaultPriorityId,
+            defaultCategoryId: task.defaultCategoryId,
+            archived: false
+          };
+        });
+
         await db.insert(templateTasks).values(tasksToClone);
       }
     }
@@ -1483,17 +1534,56 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTemplateTask(insertTask: InsertTemplateTask): Promise<TemplateTask> {
+    let templateStageId = insertTask.templateStageId;
+    if (!templateStageId) {
+      const [stage] = await db
+        .select({ id: templateStages.id })
+        .from(templateStages)
+        .where(and(
+          eq(templateStages.templateId, insertTask.templateId),
+          eq(templateStages.stageId, insertTask.stageId),
+          eq(templateStages.isActive, true)
+        ));
+      if (!stage) {
+        throw new Error("Template stage not found for task creation");
+      }
+      templateStageId = stage.id;
+    }
+
     const [task] = await db
       .insert(templateTasks)
-      .values(insertTask)
+      .values({ ...insertTask, templateStageId })
       .returning();
     return task;
   }
 
   async updateTemplateTask(id: string, data: Partial<TemplateTask>): Promise<TemplateTask | undefined> {
+    let updateData: Partial<TemplateTask> = { ...data };
+
+    if (data.stageId && !data.templateStageId) {
+      const existing = await this.getTemplateTask(id);
+      const templateId = existing?.templateId ?? data.templateId;
+      if (!templateId) {
+        throw new Error("Template context required to update task stage");
+      }
+
+      const [stage] = await db
+        .select({ id: templateStages.id })
+        .from(templateStages)
+        .where(and(
+          eq(templateStages.templateId, templateId),
+          eq(templateStages.stageId, data.stageId),
+          eq(templateStages.isActive, true)
+        ));
+      if (!stage) {
+        throw new Error("Template stage not found for task stage update");
+      }
+      updateData = { ...updateData, templateStageId: stage.id };
+    }
+
     const [task] = await db
       .update(templateTasks)
-      .set({ ...data, updatedAt: new Date() })
+      .set({ ...updateData, updatedAt: new Date() })
       .where(eq(templateTasks.id, id))
       .returning();
     return task || undefined;
@@ -1527,12 +1617,13 @@ export class DatabaseStorage implements IStorage {
   async createTemplateStage(insertStage: InsertTemplateStage): Promise<TemplateStage> {
     // (a) Upsert the stage using the exact SQL from requirements
     await db.execute(sql`
-      INSERT INTO template_stages (template_id, stage_id, order_index, is_active, created_at, updated_at)
-      VALUES (${insertStage.templateId}, ${insertStage.stageId}, COALESCE(${insertStage.orderIndex || 0}, 0), TRUE, now(), now())
+      INSERT INTO template_stages (template_id, stage_id, order_index, is_active, phase, created_at, updated_at)
+      VALUES (${insertStage.templateId}, ${insertStage.stageId}, COALESCE(${insertStage.orderIndex || 0}, 0), TRUE, ${insertStage.phase ?? 'pre_hire'}, now(), now())
       ON CONFLICT (template_id, stage_id)
       DO UPDATE SET
         is_active   = TRUE,
         order_index = COALESCE(EXCLUDED.order_index, template_stages.order_index),
+        phase       = EXCLUDED.phase,
         updated_at  = now()
     `);
 
@@ -1814,6 +1905,12 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Template is not active");
     }
 
+    const templateStagesList = await this.getTemplateStages(templateId);
+    const templateStageMap = new Map<string, TemplateStage>();
+    for (const stage of templateStagesList) {
+      templateStageMap.set(stage.id, stage);
+    }
+
     // Get template tasks
     const templateTasksList = await this.getTemplateTasks(templateId);
     if (templateTasksList.length === 0) {
@@ -1842,6 +1939,10 @@ export class DatabaseStorage implements IStorage {
     for (let i = 0; i < templateTasksList.length; i++) {
       const templateTask = templateTasksList[i];
       const taskDef = taskDefs[i];
+      const templateStage = templateStageMap.get(templateTask.templateStageId ?? "");
+      if (!templateStage) {
+        throw new Error(`Template stage missing for task ${templateTask.id}`);
+      }
       
       if (!taskDef) continue;
 
@@ -1893,6 +1994,8 @@ export class DatabaseStorage implements IStorage {
         title: taskDef.name,
         description: taskDef.description,
         stageId: templateTask.stageId,
+        templateStageId: templateTask.templateStageId,
+        phaseSnapshot: templateStage.phase ?? null,
         assigneeKind: defaultAssigneeKind,
         assigneeUserId: defaultAssigneeUserId,
         assigneeRole: defaultAssigneeRole,
@@ -1956,7 +2059,6 @@ export class DatabaseStorage implements IStorage {
     `);
 
     // Get template stages to set initial stage
-    const templateStagesList = await this.getTemplateStages(templateId);
     const initialStage = templateStagesList.length > 0 ? templateStagesList[0] : null;
 
     // Update candidate to mark template as applied and set initial stage
@@ -2046,26 +2148,33 @@ export class DatabaseStorage implements IStorage {
     return { updated: updates.length };
   }
 
-  async estimateTemplate(templateId: string, options: { looDate?: string | null; anticipatedStartDate?: string | null; businessDays?: boolean } = {}): Promise<any> {
-    const { looDate, anticipatedStartDate, businessDays: includeBusinessDays = false } = options;
+  async estimateTemplate(templateId: string, options: { looDate?: string | null; startDate?: string | null; candidateId?: string | null; businessDays?: boolean } = {}): Promise<any> {
+    const { looDate, startDate, candidateId, businessDays: includeBusinessDays = false } = options;
+
+    let candidate: Candidate | undefined;
+    if ((!looDate || !startDate) && candidateId) {
+      candidate = await this.getCandidate(candidateId) ?? undefined;
+    }
 
     const anchors: AnchorDates = {
-      loo: ensureDate(looDate ?? null),
-      start: ensureDate(anticipatedStartDate ?? null),
+      loo: ensureDate(looDate ?? candidate?.offerLetterAcceptedAt ?? candidate?.offerLetterIssuedAt ?? null),
+      start: ensureDate(startDate ?? candidate?.anticipatedStartDate ?? null),
     };
 
     const tasksQuery = await db
       .select({
         id: templateTasks.id,
         stageId: templateTasks.stageId,
+        templateStageId: templateTasks.templateStageId,
         stageName: hiringStages.name,
-        stagePhase: hiringStages.phase,
+        stagePhase: templateStages.phase,
         dueRuleType: templateTasks.dueRuleType,
         dueRuleValue: templateTasks.dueRuleValue,
         fixedDate: templateTasks.fixedDate
       })
       .from(templateTasks)
-      .innerJoin(hiringStages, eq(templateTasks.stageId, hiringStages.id))
+      .innerJoin(templateStages, eq(templateStages.id, templateTasks.templateStageId))
+      .innerJoin(hiringStages, eq(templateStages.stageId, hiringStages.id))
       .where(and(
         eq(templateTasks.templateId, templateId),
         eq(templateTasks.archived, false)
@@ -2085,6 +2194,7 @@ export class DatabaseStorage implements IStorage {
     let maxDueDate: Date | null = null;
 
     for (const task of tasksQuery) {
+      const phaseKey = task.stagePhase ?? "pre_hire";
       const dueComputation = computeDueFromRule(task.dueRuleType, task.dueRuleValue, task.fixedDate, anchors);
 
       if (task.dueRuleType === "days_before_stage" || task.dueRuleType === "days_after_stage") {
@@ -2094,7 +2204,7 @@ export class DatabaseStorage implements IStorage {
           reason: "stage_relative",
           stageId: task.stageId,
           stageName: task.stageName,
-          phase: task.stagePhase ?? null
+          phase: phaseKey
         });
         continue;
       }
@@ -2107,7 +2217,7 @@ export class DatabaseStorage implements IStorage {
           missingAnchor: dueComputation.missingAnchor,
           stageId: task.stageId,
           stageName: task.stageName,
-          phase: task.stagePhase ?? null
+          phase: phaseKey
         });
         continue;
       }
@@ -2119,12 +2229,11 @@ export class DatabaseStorage implements IStorage {
           reason: "no_due_date",
           stageId: task.stageId,
           stageName: task.stageName,
-          phase: task.stagePhase ?? null
+          phase: phaseKey
         });
         continue;
       }
 
-      const phaseKey = task.stagePhase ?? "pre_hire";
       const phaseSummary = perPhaseMap.get(phaseKey) ?? { phase: phaseKey, taskCount: 0, lastDueDate: null };
       phaseSummary.taskCount += 1;
       if (!phaseSummary.lastDueDate || phaseSummary.lastDueDate < dueComputation.dueAt) {
@@ -2135,7 +2244,7 @@ export class DatabaseStorage implements IStorage {
       const stageSummary = perStageMap.get(task.stageId) ?? {
         stageId: task.stageId,
         stageName: task.stageName,
-        phase: task.stagePhase ?? null,
+        phase: phaseKey,
         taskCount: 0,
         latestOffsetDays: 0,
         lastDueDate: null
@@ -2201,7 +2310,7 @@ export class DatabaseStorage implements IStorage {
       taskCount: tasksQuery.length,
       anchors: {
         loo: anchors.loo ? anchors.loo.toISOString() : null,
-        anticipatedStart: anchors.start ? anchors.start.toISOString() : null,
+        start: anchors.start ? anchors.start.toISOString() : null,
       },
       baselineDate: baselineDate ? baselineDate.toISOString() : null,
       lastDueDate: maxDueDate ? maxDueDate.toISOString() : null,

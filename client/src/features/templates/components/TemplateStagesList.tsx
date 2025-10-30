@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -25,21 +25,21 @@ interface TemplateStage {
   stageId: string;
   stageName: string;
   orderIndex: number;
+  phase?: string | null;
 }
 
 interface TemplateStagesListProps {
   templateId: string;
   stages: TemplateStage[];
-  hiringStages: Array<{ id: string; name: string; phase?: string | null }>;
 }
 
-function SortableRow({ id, name, phase, index, isPending, templateStageId, onRemove }: { 
+function SortableRow({ id, stageId, name, phase, index, isPending, onRemove }: { 
   id: string; 
+  stageId: string;
   name: string; 
   phase?: string | null;
   index: number;
   isPending: boolean;
-  templateStageId: string;
   onRemove: (templateStageId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -57,7 +57,7 @@ function SortableRow({ id, name, phase, index, isPending, templateStageId, onRem
       className={`flex items-center gap-3 rounded-lg border p-3 bg-card ${
         isPending ? 'opacity-50 pointer-events-none' : ''
       }`}
-      data-testid={`sortable-stage-${id}`}
+      data-testid={`sortable-stage-${stageId}`}
     >
       <button 
         aria-label="Drag stage to reorder"
@@ -65,7 +65,7 @@ function SortableRow({ id, name, phase, index, isPending, templateStageId, onRem
         {...listeners} 
         className="cursor-grab px-1 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
         disabled={isPending}
-        data-testid={`drag-handle-${id}`}
+        data-testid={`drag-handle-${stageId}`}
       >
         ⋮⋮
       </button>
@@ -81,9 +81,9 @@ function SortableRow({ id, name, phase, index, isPending, templateStageId, onRem
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => onRemove(templateStageId)}
+        onClick={() => onRemove(id)}
         disabled={isPending}
-        data-testid={`button-remove-stage-${templateStageId}`}
+        data-testid={`button-remove-stage-${id}`}
       >
         <Archive className="w-4 h-4" />
       </Button>
@@ -91,7 +91,7 @@ function SortableRow({ id, name, phase, index, isPending, templateStageId, onRem
   );
 }
 
-export function TemplateStagesList({ templateId, stages, hiringStages }: TemplateStagesListProps) {
+export function TemplateStagesList({ templateId, stages }: TemplateStagesListProps) {
   const queryClient = useQueryClient();
   const sensors = useSensors(
     useSensor(PointerSensor, { 
@@ -106,14 +106,6 @@ export function TemplateStagesList({ templateId, stages, hiringStages }: Templat
     const sortedStages = [...stages].sort((a, b) => a.orderIndex - b.orderIndex);
     setItems(sortedStages);
   }, [stages]);
-
-  const stagePhaseMap = useMemo(() => {
-    const map = new Map<string, string | null | undefined>();
-    hiringStages.forEach(stage => {
-      map.set(stage.id, stage.phase ?? null);
-    });
-    return map;
-  }, [hiringStages]);
 
   const reorderMutation = useMutation({
     mutationFn: async (orderedIds: string[]) => {
@@ -159,8 +151,8 @@ export function TemplateStagesList({ templateId, stages, hiringStages }: Templat
       return;
     }
 
-    const oldIndex = items.findIndex(item => item.stageId === active.id);
-    const newIndex = items.findIndex(item => item.stageId === over.id);
+    const oldIndex = items.findIndex(item => item.templateStageId === active.id);
+    const newIndex = items.findIndex(item => item.templateStageId === over.id);
     
     if (oldIndex === -1 || newIndex === -1) {
       return;
@@ -185,7 +177,7 @@ export function TemplateStagesList({ templateId, stages, hiringStages }: Templat
       <div className="flex flex-col gap-2">
         {items.map((stage, index) => (
           <div 
-            key={stage.stageId} 
+            key={stage.templateStageId} 
             className="flex items-center gap-3 rounded-lg border p-3 bg-card"
             data-testid={`static-stage-${stage.stageId}`}
           >
@@ -194,9 +186,9 @@ export function TemplateStagesList({ templateId, stages, hiringStages }: Templat
             </Badge>
             <div className="flex flex-col flex-1" data-testid={`stage-name-${stage.stageId}`}>
               <span className="font-medium">{stage.stageName}</span>
-              {stagePhaseMap.get(stage.stageId) && (
+              {stage.phase && (
                 <span className="text-xs text-muted-foreground capitalize">
-                  {(stagePhaseMap.get(stage.stageId) ?? '').replace('_', ' ')}
+                  {stage.phase.replace('_', ' ')}
                 </span>
               )}
             </div>
@@ -218,30 +210,32 @@ export function TemplateStagesList({ templateId, stages, hiringStages }: Templat
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <SortableContext 
-        items={items.map(item => item.stageId)} 
+        items={items.map(item => item.templateStageId)} 
         strategy={verticalListSortingStrategy}
       >
         <div className="flex flex-col gap-4" data-testid="template-stages-list">
           {['pre_hire', 'onboarding'].map((phaseKey) => {
-            const phaseStages = items.filter(stage => (stagePhaseMap.get(stage.stageId) ?? 'pre_hire') === phaseKey);
+            const phaseStages = items.filter(stage => (stage.phase ?? 'pre_hire') === phaseKey);
             if (!phaseStages.length) return null;
             const readable = phaseKey.replace('_', ' ');
             return (
               <div key={phaseKey} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold capitalize text-muted-foreground">{readable}</h4>
-                  <span className="text-xs text-muted-foreground">{phaseStages.length} stage{phaseStages.length === 1 ? '' : 's'}</span>
+                  <Badge variant="outline" className="text-xs">
+                    {phaseStages.length} stage{phaseStages.length === 1 ? '' : 's'}
+                  </Badge>
                 </div>
                 <div className="flex flex-col gap-2">
                   {phaseStages.map((stage) => (
                     <SortableRow
-                      key={stage.stageId}
-                      id={stage.stageId}
+                      key={stage.templateStageId}
+                      id={stage.templateStageId}
+                      stageId={stage.stageId}
                       name={stage.stageName}
-                      phase={stagePhaseMap.get(stage.stageId) ?? null}
-                      index={items.findIndex(item => item.stageId === stage.stageId) + 1}
+                      phase={stage.phase ?? null}
+                      index={items.findIndex(item => item.templateStageId === stage.templateStageId) + 1}
                       isPending={reorderMutation.isPending || removeMutation.isPending}
-                      templateStageId={stage.templateStageId}
                       onRemove={handleRemoveStage}
                     />
                   ))}

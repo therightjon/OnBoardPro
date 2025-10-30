@@ -221,7 +221,6 @@ export const hiringStages = pgTable("hiring_stages", {
   description: text("description"),
   orderIndex: integer("order_index").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
-  phase: stagePhaseEnum("phase").notNull().default("pre_hire"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -299,6 +298,7 @@ export const templateStages = pgTable("template_stages", {
   stageId: uuid("stage_id").notNull().references(() => hiringStages.id),
   orderIndex: integer("order_index").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  phase: stagePhaseEnum("phase").notNull().default("pre_hire"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -308,6 +308,7 @@ export const templateTasks = pgTable("template_tasks", {
   templateId: uuid("template_id").notNull(),
   taskDefId: uuid("task_def_id").notNull(),
   stageId: uuid("stage_id").notNull(),
+  templateStageId: uuid("template_stage_id").notNull().references(() => templateStages.id, { onDelete: "cascade" }),
   dueRuleType: dueRuleTypeEnum("due_rule_type").notNull(),
   dueRuleValue: integer("due_rule_value"),
   fixedDate: date("fixed_date"),
@@ -329,6 +330,8 @@ export const candidateTasks = pgTable("candidate_tasks", {
   title: text("title").notNull(),
   description: text("description"),
   stageId: uuid("stage_id").notNull().references(() => hiringStages.id),
+  templateStageId: uuid("template_stage_id").references(() => templateStages.id, { onDelete: "set null" }),
+  phaseSnapshot: stagePhaseEnum("phase_snapshot"),
   assigneeKind: taskAssigneeKindEnum("assignee_kind").notNull().default("user"),
   assigneeUserId: uuid("assignee_user_id").references(() => users.id),
   assigneeRole: text("assignee_role"),
@@ -570,6 +573,10 @@ export const candidateTasksRelations = relations(candidateTasks, ({ one }) => ({
     fields: [candidateTasks.stageId],
     references: [hiringStages.id]
   }),
+  templateStage: one(templateStages, {
+    fields: [candidateTasks.templateStageId],
+    references: [templateStages.id]
+  }),
   assignee: one(users, {
     fields: [candidateTasks.assigneeUserId],
     references: [users.id]
@@ -656,6 +663,10 @@ export const templateTasksRelations = relations(templateTasks, ({ one }) => ({
   stage: one(hiringStages, {
     fields: [templateTasks.stageId],
     references: [hiringStages.id]
+  }),
+  templateStage: one(templateStages, {
+    fields: [templateTasks.templateStageId],
+    references: [templateStages.id]
   }),
   defaultAssignee: one(users, {
     fields: [templateTasks.defaultAssigneeUserId],

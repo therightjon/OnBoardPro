@@ -12,8 +12,8 @@ import {
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { users } from "./auth.schema";
-import { candidateTypes, hiringStages } from "./candidate.schema";
-import { taskDefinitions, taskCategories, taskPriorities, dueRuleTypeEnum, taskAssigneeKindEnum } from "./task.schema";
+import { candidateTypes, hiringStages, stagePhaseEnum } from "./candidate.schema";
+import { dueRuleTypeEnum, taskAssigneeKindEnum } from "./task.enums";
 
 // Template tables
 export const templates = pgTable("templates", {
@@ -36,6 +36,7 @@ export const templateStages = pgTable("template_stages", {
   stageId: uuid("stage_id").notNull().references(() => hiringStages.id),
   orderIndex: integer("order_index").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  phase: stagePhaseEnum("phase").notNull().default("pre_hire"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -45,6 +46,7 @@ export const templateTasks = pgTable("template_tasks", {
   templateId: uuid("template_id").notNull(),
   taskDefId: uuid("task_def_id").notNull(),
   stageId: uuid("stage_id").notNull(),
+  templateStageId: uuid("template_stage_id").notNull().references(() => templateStages.id, { onDelete: "cascade" }),
   dueRuleType: dueRuleTypeEnum("due_rule_type").notNull(),
   dueRuleValue: integer("due_rule_value"),
   fixedDate: date("fixed_date"),
@@ -91,25 +93,17 @@ export const templateTasksRelations = relations(templateTasks, ({ one }) => ({
     fields: [templateTasks.templateId],
     references: [templates.id]
   }),
-  taskDefinition: one(taskDefinitions, {
-    fields: [templateTasks.taskDefId],
-    references: [taskDefinitions.id]
-  }),
   stage: one(hiringStages, {
     fields: [templateTasks.stageId],
     references: [hiringStages.id]
   }),
+  templateStage: one(templateStages, {
+    fields: [templateTasks.templateStageId],
+    references: [templateStages.id]
+  }),
   defaultAssignee: one(users, {
     fields: [templateTasks.defaultAssigneeUserId],
     references: [users.id]
-  }),
-  defaultCategory: one(taskCategories, {
-    fields: [templateTasks.defaultCategoryId],
-    references: [taskCategories.id]
-  }),
-  defaultPriority: one(taskPriorities, {
-    fields: [templateTasks.defaultPriorityId],
-    references: [taskPriorities.id]
   }),
   createdBy: one(users, {
     fields: [templateTasks.createdBy],

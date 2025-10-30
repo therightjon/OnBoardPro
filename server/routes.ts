@@ -1464,10 +1464,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Template estimation endpoint
   app.get("/api/templates/:id/estimate", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
-      const { looDate, anticipatedStartDate, businessDays } = req.query;
+      const { looDate, startDate, candidateId, businessDays } = req.query;
       const estimate = await storage.estimateTemplate(req.params.id, {
         looDate: looDate as string | undefined,
-        anticipatedStartDate: anticipatedStartDate as string | undefined,
+        startDate: startDate as string | undefined,
+        candidateId: candidateId as string | undefined,
         businessDays: businessDays === 'true',
       });
       res.json(estimate);
@@ -1606,9 +1607,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if stage exists for this template
       const templateStages = await storage.getTemplateStages(req.params.id);
-      const stageExists = templateStages.some(ts => ts.stageId === req.body.stageId && ts.isActive);
+      const templateStage = templateStages.find(ts => ts.stageId === req.body.stageId && ts.isActive);
       
-      if (!stageExists) {
+      if (!templateStage) {
         return res.status(400).json({ message: "Add a stage to this template before adding tasks." });
       }
       
@@ -1649,6 +1650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         templateId: req.params.id,
         taskDefId: req.body.taskDefId,
         stageId: req.body.stageId,
+        templateStageId: templateStage.id,
         dueRuleType: req.body.dueRuleType,
         dueRuleValue,
         fixedDate,
@@ -1776,11 +1778,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "stage_id is required" });
       }
       
+      const phaseInput = req.body.phase;
+      const phase = phaseInput === 'onboarding' ? 'onboarding'
+        : phaseInput === 'pre_hire' ? 'pre_hire'
+        : 'pre_hire';
+
       const templateStage = await storage.createTemplateStage({
         templateId: req.params.id,
         stageId: req.body.stageId,
         orderIndex: req.body.orderIndex || 0,
-        isActive: true
+        isActive: true,
+        phase
       });
       res.status(201).json(templateStage);
     } catch (error) {
@@ -1833,7 +1841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/templates/:id/stages/create-with-task", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const templateId = req.params.id;
-      const { stageId, taskDefIds, priorityId, categoryId, assigneeId, dueRuleType, dueRuleValue } = req.body;
+      const { stageId, taskDefIds, priorityId, categoryId, assigneeId, dueRuleType, dueRuleValue, phase } = req.body;
       
       // Validate required fields
       if (!stageId) {
@@ -1855,11 +1863,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const maxOrderIndex = Math.max(0, ...templateStages.map(ts => ts.orderIndex || 0));
       
       // Create the template stage (will upsert if exists)
+      const stagePhase = phase === 'onboarding' ? 'onboarding'
+        : phase === 'pre_hire' ? 'pre_hire'
+        : 'pre_hire';
+
       const templateStage = await storage.createTemplateStage({
         templateId,
         stageId,
         orderIndex: maxOrderIndex + 1,
-        isActive: true
+        isActive: true,
+        phase: stagePhase
       });
       
       // Create all template tasks for this stage
@@ -1899,6 +1912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           templateId,
           taskDefId,
           stageId,
+          templateStageId: templateStage.id,
           dueRuleType: dueRuleType || 'on_start_date',
           dueRuleValue: cleanDueRuleValue,
           fixedDate,

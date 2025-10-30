@@ -79,7 +79,6 @@ export const hiringStages = pgTable("hiring_stages", {
   description: text("description"),
   orderIndex: integer("order_index").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
-  phase: stagePhaseEnum("phase").notNull().default("pre_hire"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });

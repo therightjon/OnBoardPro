@@ -7,46 +7,14 @@ import {
   boolean,
   integer,
   date,
-  pgEnum,
   uniqueIndex
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { users } from "./auth.schema";
-import { candidates, hiringStages } from "./candidate.schema";
-
-// Task-related enums
-export const taskStatusEnum = pgEnum("task_status", [
-  "todo", 
-  "in_progress", 
-  "blocked", 
-  "done", 
-  "canceled"
-]);
-
-export const priorityEnum = pgEnum("priority", [
-  "low", 
-  "medium", 
-  "high", 
-  "critical"
-]);
-
-export const dueRuleTypeEnum = pgEnum("due_rule_type", [
-  "on_loo_date",
-  "days_before_loo",
-  "days_after_loo",
-  "days_before_start",
-  "on_start_date",
-  "days_after_start", 
-  "days_before_stage",
-  "days_after_stage",
-  "fixed_date"
-]);
-
-export const taskAssigneeKindEnum = pgEnum("task_assignee_kind", [
-  "user",
-  "role"
-]);
+import { candidates, hiringStages, stagePhaseEnum } from "./candidate.schema";
+import { templateStages } from "./template.schema";
+import { taskStatusEnum, priorityEnum, dueRuleTypeEnum, taskAssigneeKindEnum } from "./task.enums";
 
 // Task support tables
 export const taskCategories = pgTable("task_categories", {
@@ -82,6 +50,8 @@ export const candidateTasks = pgTable("candidate_tasks", {
   title: text("title").notNull(),
   description: text("description"),
   stageId: uuid("stage_id").notNull().references(() => hiringStages.id),
+  templateStageId: uuid("template_stage_id").references(() => templateStages.id, { onDelete: "set null" }),
+  phaseSnapshot: stagePhaseEnum("phase_snapshot"),
   assigneeKind: taskAssigneeKindEnum("assignee_kind").notNull().default("user"),
   assigneeUserId: uuid("assignee_user_id").references(() => users.id),
   assigneeRole: text("assignee_role"),
@@ -120,6 +90,10 @@ export const candidateTasksRelations = relations(candidateTasks, ({ one }) => ({
   candidate: one(candidates, {
     fields: [candidateTasks.candidateId],
     references: [candidates.id]
+  }),
+  templateStage: one(templateStages, {
+    fields: [candidateTasks.templateStageId],
+    references: [templateStages.id]
   }),
   taskDefinition: one(taskDefinitions, {
     fields: [candidateTasks.taskDefId],
