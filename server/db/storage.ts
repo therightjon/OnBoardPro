@@ -87,16 +87,18 @@ type AnchorDates = Record<AnchorKey, Date | null>;
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
+const normalizeToUtcDate = (date: Date): Date =>
+  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+
 function addDays(base: Date, amount: number): Date {
-  const next = new Date(base);
-  next.setDate(next.getDate() + amount);
-  return next;
+  return new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate() + amount));
 }
 
 function ensureDate(input?: Date | string | null): Date | null {
   if (!input) return null;
   const date = input instanceof Date ? new Date(input.getTime()) : new Date(input);
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (Number.isNaN(date.getTime())) return null;
+  return normalizeToUtcDate(date);
 }
 
 function resolveLooAnchor(candidate: Candidate): Date | null {
@@ -1110,17 +1112,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCandidateTask(insertTask: InsertCandidateTask): Promise<CandidateTask> {
+    const payload: InsertCandidateTask = {
+      ...insertTask,
+      dueAt: insertTask.dueAt ? ensureDate(insertTask.dueAt) : null,
+    };
+
     const [task] = await db
       .insert(candidateTasks)
-      .values(insertTask)
+      .values(payload)
       .returning();
     return task;
   }
 
   async updateCandidateTask(id: string, data: Partial<CandidateTask>): Promise<CandidateTask | undefined> {
+    const update: Partial<CandidateTask> = { ...data };
+    if (Object.prototype.hasOwnProperty.call(update, 'dueAt')) {
+      update.dueAt = update.dueAt ? ensureDate(update.dueAt) : null;
+    }
+
     const [task] = await db
       .update(candidateTasks)
-      .set({ ...data, updatedAt: new Date() })
+      .set({ ...update, updatedAt: new Date() })
       .where(and(eq(candidateTasks.id, id), eq(candidateTasks.archived, false)))
       .returning();
     return task || undefined;

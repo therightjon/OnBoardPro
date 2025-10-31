@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -18,10 +18,6 @@ import { format } from "date-fns";
 import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
 import { useCommentStats } from "@/features/comments/api";
 import { TaskCommentsButton } from "@/features/comments/components/task-comments-button";
-import { Input } from "@/shared/components/ui/input";
-
-const EMPLOYMENT_FIELD_KEYS = ["offerLetterIssuedAt", "offerLetterAcceptedAt", "anticipatedStartDate"] as const;
-type EmploymentField = typeof EMPLOYMENT_FIELD_KEYS[number];
 import { TaskCommentsModal } from "@/features/comments/components/task-comments-modal";
 import { CommentsTab } from "@/features/comments/components/comments-tab";
 import { EditCandidateDialog } from "@/features/candidates/components/edit-candidate-dialog";
@@ -30,12 +26,38 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { useToast } from "@/shared/hooks/use-toast";
 
+const dateOnlyIsoRegex = /^\d{4}-\d{2}-\d{2}$/;
+const normalizeIso = (iso: string) => (dateOnlyIsoRegex.test(iso) ? `${iso}T00:00:00.000Z` : iso);
+const readableDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+const getUtcMidnightMs = (iso: string) => {
+  const normalized = normalizeIso(iso);
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return null;
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+};
+
 const daysSince = (iso?: string | null) => {
   if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  const diff = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+  const target = getUtcMidnightMs(iso);
+  if (target === null) return null;
+  const now = new Date();
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const diff = Math.floor((today - target) / (1000 * 60 * 60 * 24));
   return diff >= 0 ? diff : null;
+};
+
+const formatUtcDate = (iso?: string | null) => {
+  if (!iso) return "Not set";
+  const normalized = normalizeIso(iso);
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return "Not set";
+  return readableDateFormatter.format(date);
 };
 
 export default function CandidateDetailPage() {
@@ -103,62 +125,6 @@ export default function CandidateDetailPage() {
       toast({ title: "Unable to refresh", description: error?.message || "Please try again." });
     }
   });
-
-  const [employmentForm, setEmploymentForm] = useState<Record<EmploymentField, string>>({
-    offerLetterIssuedAt: '',
-    offerLetterAcceptedAt: '',
-    anticipatedStartDate: ''
-  });
-
-  const employmentSnapshot = useMemo(() => ({
-    offerLetterIssuedAt: candidate?.offerLetterIssuedAt ? String(candidate.offerLetterIssuedAt).slice(0, 10) : '',
-    offerLetterAcceptedAt: candidate?.offerLetterAcceptedAt ? String(candidate.offerLetterAcceptedAt).slice(0, 10) : '',
-    anticipatedStartDate: candidate?.anticipatedStartDate ? String(candidate.anticipatedStartDate).slice(0, 10) : '',
-  }), [candidate]);
-
-  useEffect(() => {
-    setEmploymentForm(employmentSnapshot);
-  }, [employmentSnapshot]);
-
-  const employmentDirty = useMemo(() => (
-    EMPLOYMENT_FIELD_KEYS.some((key) => employmentForm[key] !== employmentSnapshot[key])
-  ), [employmentForm, employmentSnapshot]);
-
-  const updateEmploymentMutation = useMutation({
-    mutationFn: async (payload: Record<EmploymentField, string | null>) => {
-      const res = await apiRequest('PATCH', `/api/candidates/${id}`, payload);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || 'Failed to update employment details');
-      }
-      return data;
-    },
-    onSuccess: () => {
-      toast({ title: 'Employment updated', description: 'Anchor dates saved.' });
-      queryClient.invalidateQueries({ queryKey: ["/api/candidates", id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Update failed',
-        description: error?.message || 'Unable to update employment details',
-        variant: 'destructive'
-      });
-    }
-  });
-
-  const handleEmploymentSave = () => {
-    if (!id || id === 'undefined') return;
-    const payload = EMPLOYMENT_FIELD_KEYS.reduce<Record<EmploymentField, string | null>>((acc, key) => {
-      acc[key] = employmentForm[key] ? employmentForm[key] : null;
-      return acc;
-    }, {} as Record<EmploymentField, string | null>);
-    updateEmploymentMutation.mutate(payload);
-  };
-
-  const handleEmploymentReset = () => {
-    setEmploymentForm(employmentSnapshot);
-  };
 
   const stageHistory = (stageHistoryData as any)?.history || [];
   const { data: commentStats } = useCommentStats(id);
@@ -305,6 +271,27 @@ export default function CandidateDetailPage() {
     : (candidate as any)?.anticipatedStartDate ? "Anticipated Start" : "Anchor not set";
   const anchorDate = looAnchor ?? (candidate as any)?.anticipatedStartDate ?? null;
   const daysSinceLoo = daysSince(looAnchor);
+  const anchorDateLabel = formatUtcDate(anchorDate);
+  const employmentDates = [
+    {
+      key: "anticipatedStartDate",
+      label: "Anticipated Start",
+      value: formatUtcDate((candidate as any)?.anticipatedStartDate),
+      testId: "text-candidate-start-date",
+    },
+    {
+      key: "offerLetterIssuedAt",
+      label: "LOO Issued",
+      value: formatUtcDate((candidate as any)?.offerLetterIssuedAt),
+      testId: "text-loo-issued",
+    },
+    {
+      key: "offerLetterAcceptedAt",
+      label: "LOO Accepted",
+      value: formatUtcDate((candidate as any)?.offerLetterAcceptedAt),
+      testId: "text-loo-accepted",
+    },
+  ];
 
   const EditableStatusBadge = ({ candidate, user, tasks, onStatusChange }: { 
     candidate: any; 
@@ -641,27 +628,6 @@ export default function CandidateDetailPage() {
                   </div>
                 </div>
               </dl>
-              <div className="flex flex-wrap items-center gap-2 pt-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleEmploymentSave}
-                  disabled={!employmentDirty || updateEmploymentMutation.isPending}
-                  data-testid="button-save-employment"
-                >
-                  {updateEmploymentMutation.isPending ? 'Saving…' : 'Save'}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleEmploymentReset}
-                  disabled={!employmentDirty || updateEmploymentMutation.isPending}
-                  data-testid="button-reset-employment"
-                >
-                  Reset
-                </Button>
-              </div>
             </div>
 
             {/* Employment Section */}
@@ -670,83 +636,16 @@ export default function CandidateDetailPage() {
               <dl className="space-y-2 xs:space-y-3">
                 <div className="flex items-start space-x-3">
                   <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <div className="min-w-0">
-                    <dt className="text-xs xs:text-sm font-medium">Anticipated Start</dt>
-                    <dd className="text-xs xs:text-sm text-muted-foreground" data-testid="text-candidate-start-date">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="date"
-                          value={employmentForm.anticipatedStartDate}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmploymentForm(prev => ({ ...prev, anticipatedStartDate: e.target.value }))}
-                          className="h-9 w-full sm:w-48"
-                          data-testid="input-anticipated-start"
-                        />
-                        {employmentForm.anticipatedStartDate && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEmploymentForm(prev => ({ ...prev, anticipatedStartDate: '' }))}
-                          >
-                            Clear
-                          </Button>
-                        )}
-                      </div>
-                    </dd>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3">
-                  <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <div className="min-w-0">
-                    <dt className="text-xs xs:text-sm font-medium">LOO Issued</dt>
+                  <div className="min-w-0 w-full">
+                    <dt className="text-xs xs:text-sm font-medium">Employment Dates</dt>
                     <dd className="text-xs xs:text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="date"
-                          value={employmentForm.offerLetterIssuedAt}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmploymentForm(prev => ({ ...prev, offerLetterIssuedAt: e.target.value }))}
-                          className="h-9 w-full sm:w-48"
-                          data-testid="input-loo-issued"
-                        />
-                        {employmentForm.offerLetterIssuedAt && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEmploymentForm(prev => ({ ...prev, offerLetterIssuedAt: '' }))}
-                          >
-                            Clear
-                          </Button>
-                        )}
-                      </div>
-                    </dd>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3">
-                  <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <div className="min-w-0">
-                    <dt className="text-xs xs:text-sm font-medium">LOO Accepted</dt>
-                    <dd className="text-xs xs:text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="date"
-                          value={employmentForm.offerLetterAcceptedAt}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmploymentForm(prev => ({ ...prev, offerLetterAcceptedAt: e.target.value }))}
-                          className="h-9 w-full sm:w-48"
-                          data-testid="input-loo-accepted"
-                        />
-                        {employmentForm.offerLetterAcceptedAt && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEmploymentForm(prev => ({ ...prev, offerLetterAcceptedAt: '' }))}
-                          >
-                            Clear
-                          </Button>
-                        )}
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4" data-testid="employment-date-list">
+                        {employmentDates.map(({ key, label, value, testId }) => (
+                          <div key={key} className="min-w-[150px]">
+                            <div className="text-xs xs:text-sm font-medium text-foreground">{label}</div>
+                            <div className="text-xs xs:text-sm text-muted-foreground" data-testid={testId}>{value}</div>
+                          </div>
+                        ))}
                       </div>
                     </dd>
                   </div>
@@ -761,7 +660,7 @@ export default function CandidateDetailPage() {
                         <span>
                           {anchorSourceLabel}
                           {": "}
-                          {new Date(anchorDate).toLocaleDateString()}
+                          {anchorDateLabel}
                           {daysSinceLoo !== null && anchorSourceLabel.startsWith('LOO') ? ` · ${daysSinceLoo}d ago` : ''}
                         </span>
                       ) : (
@@ -872,7 +771,7 @@ export default function CandidateDetailPage() {
                 </div>
                 <div>
                   <dt className="text-xs xs:text-sm font-medium text-muted-foreground">Applied</dt>
-                  <dd className="text-sm xs:text-base mt-1">{(candidate as any).templateAppliedAt ? new Date((candidate as any).templateAppliedAt).toLocaleDateString() : "N/A"}</dd>
+                    <dd className="text-sm xs:text-base mt-1">{(candidate as any).templateAppliedAt ? formatUtcDate((candidate as any).templateAppliedAt) : "N/A"}</dd>
                 </div>
                 <div>
                   <dt className="text-xs xs:text-sm font-medium text-muted-foreground">Status</dt>
@@ -1010,7 +909,7 @@ export default function CandidateDetailPage() {
                                       {task.pendingAnchor
                                         ? 'Awaiting anchor date'
                                         : task.dueAt
-                                          ? `Due: ${new Date(task.dueAt).toLocaleDateString()}`
+                                          ? `Due: ${formatUtcDate(task.dueAt)}`
                                           : "No due date"}
                                     </span>
                                   </div>
@@ -1090,7 +989,7 @@ export default function CandidateDetailPage() {
                           <li key={t.id}>
                           <span className="font-medium">{t.title}</span>
                           <span className="ml-2">({t.stageName})</span>
-                          {t.dueAt && <span className="ml-2">Due: {new Date(t.dueAt).toLocaleDateString()}</span>}
+                          {t.dueAt && <span className="ml-2">Due: {formatUtcDate(t.dueAt)}</span>}
                           </li>
                         ))}
                         </ul>
@@ -1177,13 +1076,7 @@ function CandidatePipelineEstimate({ candidateId, status }: { candidateId: strin
     enabled: !!candidateId
   });
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  const formatDate = (dateStr?: string | null) => formatUtcDate(dateStr);
 
   if (isLoading) {
     return (
