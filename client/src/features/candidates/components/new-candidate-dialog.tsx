@@ -35,12 +35,48 @@ const newCandidateSchema = z.object({
   divisionId: z.string().optional(),
   managerId: z.string().optional(),
   facultyRankId: z.string().optional(),
+  offerLetterIssuedAt: z.date({
+    required_error: "LOO issued date is required",
+  }),
+  offerLetterAcceptedAt: z.date().optional(),
   anticipatedStartDate: z.date({
     required_error: "Anticipated start date is required",
   }).refine((date) => date >= new Date(new Date().setHours(0, 0, 0, 0)), {
     message: "Anticipated start date must be today or in the future",
   }),
   templateId: z.string().min(1, "Template is required"),
+}).superRefine((data, ctx) => {
+  const today = new Date(new Date().setHours(0, 0, 0, 0));
+
+  if (data.offerLetterAcceptedAt && data.offerLetterAcceptedAt < data.offerLetterIssuedAt) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["offerLetterAcceptedAt"],
+      message: "LOO accepted date cannot be before the issued date",
+    });
+  }
+  if (data.offerLetterAcceptedAt && data.offerLetterAcceptedAt < today) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["offerLetterAcceptedAt"],
+      message: "LOO accepted date cannot be in the past",
+    });
+  }
+
+  if (data.anticipatedStartDate < data.offerLetterIssuedAt) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["anticipatedStartDate"],
+      message: "Anticipated start date cannot be before the LOO issued date",
+    });
+  }
+  if (data.offerLetterAcceptedAt && data.anticipatedStartDate < data.offerLetterAcceptedAt) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["anticipatedStartDate"],
+      message: "Anticipated start date cannot be before the LOO accepted date",
+    });
+  }
 });
 
 type NewCandidateForm = z.infer<typeof newCandidateSchema>;
@@ -74,6 +110,8 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
       divisionId: user?.divisionId || "",
       managerId: "",
       facultyRankId: "",
+      offerLetterIssuedAt: undefined,
+      offerLetterAcceptedAt: undefined,
       anticipatedStartDate: undefined,
       templateId: "",
     },
@@ -83,6 +121,8 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
   const selectedCandidateTypeId = form.watch("candidateTypeId");
   const selectedTemplateId = form.watch("templateId");
   const selectedAnticipatedStart = form.watch("anticipatedStartDate");
+  const selectedOfferLetterIssued = form.watch("offerLetterIssuedAt");
+  const selectedOfferLetterAccepted = form.watch("offerLetterAcceptedAt");
 
   // Fetch reference data
   const { data: candidateTypes = [] } = useQuery<CandidateType[]>({
@@ -131,6 +171,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
     }
 
     const startDate = new Date(selectedAnticipatedStart);
+    const looAnchor = selectedOfferLetterAccepted ?? selectedOfferLetterIssued ?? null;
     const calculatedDates: DueDate[] = [];
 
     templateTasks.forEach((tt) => {
@@ -141,10 +182,19 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
 
       switch (tt.dueRuleType) {
         case "on_loo_date":
+          dueDate = looAnchor ? new Date(looAnchor) : null;
+          break;
         case "days_before_loo":
+          if (looAnchor && tt.dueRuleValue) {
+            dueDate = new Date(looAnchor);
+            dueDate.setDate(dueDate.getDate() - tt.dueRuleValue);
+          }
+          break;
         case "days_after_loo":
-          // LOO-anchored tasks require letter dates; omit preview until provided later
-          dueDate = null;
+          if (looAnchor && tt.dueRuleValue) {
+            dueDate = new Date(looAnchor);
+            dueDate.setDate(dueDate.getDate() + tt.dueRuleValue);
+          }
           break;
         case "on_start_date":
           dueDate = new Date(startDate);
@@ -188,7 +238,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
     });
 
     return calculatedDates;
-  }, [selectedTemplateId, selectedAnticipatedStart, templateTasks, taskDefinitions]);
+  }, [selectedTemplateId, selectedAnticipatedStart, templateTasks, taskDefinitions, selectedOfferLetterIssued, selectedOfferLetterAccepted]);
 
   // Helper functions to handle dependent field resets
   const handleDepartmentChange = (value: string) => {
@@ -217,6 +267,8 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
         divisionId: data.divisionId === "none" ? null : data.divisionId || null,
         managerId: data.managerId === "none" ? null : data.managerId || null,
         facultyRankId: data.facultyRankId || null,
+        offerLetterIssuedAt: format(data.offerLetterIssuedAt, "yyyy-MM-dd"),
+        offerLetterAcceptedAt: data.offerLetterAcceptedAt ? format(data.offerLetterAcceptedAt, "yyyy-MM-dd") : null,
         anticipatedStartDate: format(data.anticipatedStartDate, "yyyy-MM-dd"),
       };
 
@@ -487,9 +539,141 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
               <div className="flex flex-col gap-4">
                 <FormField
                   control={form.control}
+                  name="offerLetterIssuedAt"
+                  render={({ field }: { field: any }) => {
+                    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+                    return (
+                      <FormItem>
+                        <FormLabel>LOO Issued Date *</FormLabel>
+                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                                data-testid="button-loo-issued-date"
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(date) => {
+                                field.onChange(date);
+                                setIsCalendarOpen(false);
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="offerLetterAcceptedAt"
+                  render={({ field }: { field: any }) => {
+                    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+                    const today = new Date(new Date().setHours(0, 0, 0, 0));
+                    const issuedDate = selectedOfferLetterIssued ? new Date(selectedOfferLetterIssued) : null;
+                    if (issuedDate) {
+                      issuedDate.setHours(0, 0, 0, 0);
+                    }
+
+                    return (
+                      <FormItem>
+                        <FormLabel>LOO Accepted Date (Optional)</FormLabel>
+                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                                data-testid="button-loo-accepted-date"
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(date) => {
+                                field.onChange(date);
+                                setIsCalendarOpen(false);
+                              }}
+                              disabled={(date) => {
+                                if (date < today) {
+                                  return true;
+                                }
+                                if (issuedDate && date < issuedDate) {
+                                  return true;
+                                }
+                                return false;
+                              }}
+                              initialFocus
+                            />
+                            {field.value && (
+                              <div className="flex justify-end p-3 pt-0">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    field.onChange(undefined);
+                                    setIsCalendarOpen(false);
+                                  }}
+                                >
+                                  Clear
+                                </Button>
+                              </div>
+                            )}
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
+
+                <FormField
+                  control={form.control}
                   name="anticipatedStartDate"
                   render={({ field }: { field: any }) => {
                     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+                    const today = new Date(new Date().setHours(0, 0, 0, 0));
+                    const issuedDate = selectedOfferLetterIssued ? new Date(selectedOfferLetterIssued) : null;
+                    const acceptedDate = selectedOfferLetterAccepted ? new Date(selectedOfferLetterAccepted) : null;
+                    if (issuedDate) {
+                      issuedDate.setHours(0, 0, 0, 0);
+                    }
+                    if (acceptedDate) {
+                      acceptedDate.setHours(0, 0, 0, 0);
+                    }
                     
                     return (
                       <FormItem>
@@ -522,9 +706,18 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                                 field.onChange(date);
                                 setIsCalendarOpen(false);
                               }}
-                              disabled={(date) =>
-                                date < new Date(new Date().setHours(0, 0, 0, 0))
-                              }
+                              disabled={(date) => {
+                                if (date < today) {
+                                  return true;
+                                }
+                                if (issuedDate && date < issuedDate) {
+                                  return true;
+                                }
+                                if (acceptedDate && date < acceptedDate) {
+                                  return true;
+                                }
+                                return false;
+                              }}
                               initialFocus
                             />
                           </PopoverContent>

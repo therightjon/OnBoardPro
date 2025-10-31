@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
 import { users } from "./auth.schema";
 
 // Candidate-related enums
@@ -245,7 +246,11 @@ export const candidateFollowersRelations = relations(candidateFollowers, ({ one 
 }));
 
 // Zod schemas
-export const insertCandidateSchema = createInsertSchema(candidates);
+export const insertCandidateSchema = createInsertSchema(candidates).extend({
+  offerLetterIssuedAt: z.coerce.date(),
+  offerLetterAcceptedAt: z.coerce.date().optional().nullable(),
+  anticipatedStartDate: z.coerce.date(),
+});
 export const insertDepartmentSchema = createInsertSchema(departments);
 export const insertDivisionSchema = createInsertSchema(divisions);
 export const insertHiringStageSchema = createInsertSchema(hiringStages);

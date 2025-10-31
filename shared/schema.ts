@@ -738,6 +738,10 @@ export const insertCandidateSchema = createInsertSchema(candidates).omit({
   templateAppliedAt: true,
   templateLocked: true,
   linkedUserId: true
+}).extend({
+  offerLetterIssuedAt: z.coerce.date(),
+  offerLetterAcceptedAt: z.union([z.coerce.date(), z.null()]).optional(),
+  anticipatedStartDate: z.coerce.date()
 });
 
 export const insertCandidateTaskSchema = createInsertSchema(candidateTasks).omit({
