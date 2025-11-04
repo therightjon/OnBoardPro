@@ -23,6 +23,9 @@ import {
   notifications,
   userPreferences,
   systemSettings,
+  userDepartmentScopes,
+  userDivisionScopes,
+  managerCandidateScopes,
   type User, 
   type InsertUser,
   type UserIdentity,
@@ -67,6 +70,7 @@ import { db } from "./connection";
 import { eq, and, isNull, sql, desc, asc, ilike, inArray, or, ne, lte, gt, lt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { decryptSecret, encryptSecret } from "../utils/secret";
+import type { Express } from "express";
 
 const MENTION_KEY_REPLACE = /[^a-z0-9]+/g;
 const MENTION_KEY_DOTS = /\.\.+/g;
@@ -198,7 +202,61 @@ export interface TemplateExpansionResult {
   createdTasks: TemplateExpansionTask[];
 }
 
+export interface AuthorizationContext {
+  userId: string | null;
+  roles: Set<string>;
+  departmentIds: Set<string>;
+  divisionIds: Set<string>;
+  managedCandidateIds: Set<string>;
+  privileged: boolean;
+  isCandidate: boolean;
+}
+
+export interface CandidateScopeFilters {
+  departmentIds?: Iterable<string>;
+  divisionIds?: Iterable<string>;
+  managerIds?: Iterable<string>;
+  candidateIds?: Iterable<string>;
+  linkedUserIds?: Iterable<string>;
+}
+
+function applyScopeFilters(whereConditions: any[], filters: CandidateScopeFilters, requireScope = false) {
+  const scopeConditions: any[] = [];
+  const departmentIds = filters.departmentIds ? Array.from(new Set(filters.departmentIds)) : [];
+  const divisionIds = filters.divisionIds ? Array.from(new Set(filters.divisionIds)) : [];
+  const managerIds = filters.managerIds ? Array.from(new Set(filters.managerIds)) : [];
+  const candidateIds = filters.candidateIds ? Array.from(new Set(filters.candidateIds)) : [];
+  const linkedUserIds = filters.linkedUserIds ? Array.from(new Set(filters.linkedUserIds)) : [];
+
+  if (departmentIds.length > 0) {
+    scopeConditions.push(inArray(candidates.departmentId, departmentIds));
+  }
+  if (divisionIds.length > 0) {
+    scopeConditions.push(inArray(candidates.divisionId, divisionIds));
+  }
+  if (managerIds.length > 0) {
+    scopeConditions.push(inArray(candidates.managerId, managerIds));
+  }
+  if (candidateIds.length > 0) {
+    scopeConditions.push(inArray(candidates.id, candidateIds));
+  }
+  if (linkedUserIds.length > 0) {
+    scopeConditions.push(inArray(candidates.linkedUserId, linkedUserIds));
+  }
+
+  if (scopeConditions.length > 0) {
+    if (scopeConditions.length === 1) {
+      whereConditions.push(scopeConditions[0]);
+    } else {
+      whereConditions.push(or(...scopeConditions));
+    }
+  } else if (requireScope) {
+    whereConditions.push(sql`false`);
+  }
+}
+
 export interface IStorage {
+  buildAuthorizationContext(user: Express.User | null | undefined): AuthorizationContext;
   // Basic user operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -210,6 +268,9 @@ export interface IStorage {
   getUserRoles(userId: string): Promise<UserRole[]>;
   setUserRoles(userId: string, roles: string[]): Promise<UserRole[]>;
   addUserRoles(userId: string, roles: string[]): Promise<UserRole[]>;
+  getUserDepartmentScopeIds(userId: string): Promise<string[]>;
+  getUserDivisionScopeIds(userId: string): Promise<string[]>;
+  getManagerCandidateScopeIds(managerId: string): Promise<string[]>;
 
   // Invitations
   createInvitation(params: { email: string; roles: string[]; invitedBy?: string | null; token: string; expiresAt: Date; departmentId?: string | null; divisionId?: string | null; firstName?: string | null; lastName?: string | null }): Promise<Invitation>;
@@ -232,12 +293,12 @@ export interface IStorage {
   
   // Candidates
   getCandidates(filters?: any): Promise<Candidate[]>;
-  getCandidate(id: string): Promise<Candidate | undefined>;
+  getCandidate(id: string, auth?: AuthorizationContext): Promise<Candidate | undefined>;
   createCandidate(candidate: InsertCandidate): Promise<Candidate>;
   updateCandidate(id: string, data: Partial<Candidate>): Promise<Candidate | undefined>;
   
   // Tasks
-  getCandidateTasks(filters?: any): Promise<CandidateTask[]>;
+  getCandidateTasks(filters?: any, auth?: AuthorizationContext): Promise<CandidateTask[]>;
   getCandidateTask(id: string): Promise<CandidateTask | undefined>;
   createCandidateTask(task: InsertCandidateTask): Promise<CandidateTask>;
   updateCandidateTask(id: string, data: Partial<CandidateTask>): Promise<CandidateTask | undefined>;
@@ -365,6 +426,96 @@ function countBusinessDays(startDate: Date, endDate: Date): number {
 }
 
 export class DatabaseStorage implements IStorage {
+  private buildCandidateVisibilityChecker(auth: AuthorizationContext) {
+    if (auth.privileged) {
+      return () => true;
+    }
+
+    return (candidate: { departmentId?: string | null; divisionId?: string | null; managerId?: string | null; id?: string; linkedUserId?: string | null; }): boolean => {
+      if (!candidate) return false;
+
+      if (candidate.departmentId && auth.departmentIds.has(candidate.departmentId)) {
+        return true;
+      }
+
+      if (candidate.divisionId && auth.divisionIds.has(candidate.divisionId)) {
+        return true;
+      }
+
+      if (candidate.id && auth.managedCandidateIds.has(candidate.id)) {
+        return true;
+      }
+
+      if (auth.roles.has("manager") && auth.userId && candidate.managerId === auth.userId) {
+        return true;
+      }
+
+      if (auth.isCandidate && auth.userId && candidate.linkedUserId === auth.userId) {
+        return true;
+      }
+
+      return false;
+    };
+  }
+
+  buildAuthorizationContext(user: Express.User | null | undefined): AuthorizationContext {
+    const roles = new Set<string>();
+    if (user?.role) {
+      roles.add(user.role);
+    }
+    if (Array.isArray((user as any)?.roles)) {
+      for (const role of (user as any).roles) {
+        if (typeof role === "string" && role) {
+          roles.add(role);
+        }
+      }
+    }
+
+    const departmentIds = new Set<string>();
+    if (typeof user?.departmentId === "string" && user.departmentId) {
+      departmentIds.add(user.departmentId);
+    }
+    if (Array.isArray((user as any)?.departmentScopes)) {
+      for (const dept of (user as any).departmentScopes) {
+        if (typeof dept === "string" && dept) {
+          departmentIds.add(dept);
+        }
+      }
+    }
+
+    const divisionIds = new Set<string>();
+    if (typeof user?.divisionId === "string" && user.divisionId) {
+      divisionIds.add(user.divisionId);
+    }
+    if (Array.isArray((user as any)?.divisionScopes)) {
+      for (const div of (user as any).divisionScopes) {
+        if (typeof div === "string" && div) {
+          divisionIds.add(div);
+        }
+      }
+    }
+
+    const managedCandidateIds = new Set<string>();
+    if (Array.isArray((user as any)?.managedCandidateIds)) {
+      for (const candidate of (user as any).managedCandidateIds) {
+        if (typeof candidate === "string" && candidate) {
+          managedCandidateIds.add(candidate);
+        }
+      }
+    }
+
+    const privileged = roles.has("system_admin") || roles.has("hr_staff");
+
+    return {
+      userId: user?.id ?? null,
+      roles,
+      departmentIds,
+      divisionIds,
+      managedCandidateIds,
+      privileged,
+      isCandidate: roles.has("candidate")
+    };
+  }
   public sessionStore: session.Store;
 
   constructor() {
@@ -543,6 +694,30 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userRoles.userId, userId));
   }
 
+  async getUserDepartmentScopeIds(userId: string): Promise<string[]> {
+    const rows = await db
+      .select({ departmentId: userDepartmentScopes.departmentId })
+      .from(userDepartmentScopes)
+      .where(eq(userDepartmentScopes.userId, userId));
+    return rows.map((row) => row.departmentId);
+  }
+
+  async getUserDivisionScopeIds(userId: string): Promise<string[]> {
+    const rows = await db
+      .select({ divisionId: userDivisionScopes.divisionId })
+      .from(userDivisionScopes)
+      .where(eq(userDivisionScopes.userId, userId));
+    return rows.map((row) => row.divisionId);
+  }
+
+  async getManagerCandidateScopeIds(managerId: string): Promise<string[]> {
+    const rows = await db
+      .select({ candidateId: managerCandidateScopes.candidateId })
+      .from(managerCandidateScopes)
+      .where(eq(managerCandidateScopes.managerId, managerId));
+    return rows.map((row) => row.candidateId);
+  }
+
   async setUserRoles(userId: string, roles: string[]): Promise<UserRole[]> {
     // Remove existing roles
     await db.delete(userRoles).where(eq(userRoles.userId, userId));
@@ -651,12 +826,54 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getCandidates(filters?: any): Promise<any[]> {
+  async getCandidates(filters?: any, auth?: AuthorizationContext): Promise<any[]> {
     const whereConditions = [];
+
+    const toArray = (value: any): string[] => {
+      if (!value) return [];
+      if (Array.isArray(value)) return value.filter((entry) => typeof entry === 'string' && entry.length > 0);
+      return typeof value === 'string' && value.length > 0 ? [value] : [];
+    };
 
     // By default, exclude archived candidates unless explicitly requested
     if (!filters?.includeArchived) {
       whereConditions.push(eq(candidates.archived, false));
+    }
+
+    const departmentIds = toArray(filters?.departmentIds ?? filters?.departmentId);
+    const divisionIds = toArray(filters?.divisionIds ?? filters?.divisionId);
+    const managerIds = toArray(filters?.managerIds ?? filters?.managerId);
+    const candidateIds = toArray(filters?.candidateIds ?? filters?.candidateId);
+    const linkedUserIds = toArray(filters?.linkedUserIds ?? filters?.linkedUserId);
+
+    applyScopeFilters(whereConditions, {
+      departmentIds,
+      divisionIds,
+      managerIds,
+      candidateIds,
+      linkedUserIds
+    }, filters?.requireScope === true);
+
+    if (auth && !auth.privileged) {
+      const authFilters: CandidateScopeFilters = {};
+      if (auth.departmentIds.size > 0) {
+        authFilters.departmentIds = auth.departmentIds;
+      }
+      if (auth.divisionIds.size > 0) {
+        authFilters.divisionIds = auth.divisionIds;
+      }
+      const managerScope = new Set<string>();
+      if (auth.managedCandidateIds.size > 0) {
+        authFilters.candidateIds = auth.managedCandidateIds;
+      }
+      if (auth.roles.has("manager") && auth.userId) {
+        managerScope.add(auth.userId);
+        authFilters.managerIds = managerScope;
+      }
+      if (auth.roles.has("candidate") && auth.userId) {
+        authFilters.linkedUserIds = [auth.userId];
+      }
+      applyScopeFilters(whereConditions, authFilters, true);
     }
 
     const currentTemplateStage = alias(templateStages, "current_template_stage");
@@ -730,7 +947,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(candidates.createdAt));
   }
 
-  async getCandidate(id: string): Promise<any> {
+  async getCandidate(id: string, auth?: AuthorizationContext): Promise<any> {
     const primaryOwner = alias(users, "primary_owner");
     const currentTemplateStage = alias(templateStages, "current_template_stage");
     const [candidate] = await db
@@ -821,7 +1038,14 @@ export class DatabaseStorage implements IStorage {
         eq(currentTemplateStage.isActive, true)
       ))
       .where(eq(candidates.id, id));
-    return candidate || undefined;
+    if (!candidate) return undefined;
+    if (auth && !auth.privileged) {
+      const accessible = this.buildCandidateVisibilityChecker(auth);
+      if (!accessible(candidate)) {
+        return undefined;
+      }
+    }
+    return candidate;
   }
 
   // System settings helpers
@@ -943,7 +1167,7 @@ export class DatabaseStorage implements IStorage {
     return candidate || undefined;
   }
 
-  async getCandidateTasks(filters?: any): Promise<any[]> {
+  async getCandidateTasks(filters?: any, auth?: AuthorizationContext): Promise<any[]> {
     const whereConditions = [eq(candidateTasks.archived, false)];
     
     if (filters?.assigneeId) {
@@ -1013,7 +1237,11 @@ export class DatabaseStorage implements IStorage {
         candidate_id: candidates.id,
         candidate_first_name: candidates.firstName,
         candidate_last_name: candidates.lastName,
-        candidate_status: candidates.status
+        candidate_status: candidates.status,
+        candidate_department_id: candidates.departmentId,
+        candidate_division_id: candidates.divisionId,
+        candidate_manager_id: candidates.managerId,
+        candidate_linked_user_id: candidates.linkedUserId
       })
       .from(candidateTasks)
       .innerJoin(candidates, eq(candidateTasks.candidateId, candidates.id)) // INNER JOIN to guarantee candidate data
@@ -1029,7 +1257,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(candidateTasks.dueAt), desc(candidateTasks.updatedAt));
 
     // Transform the flat structure to match frontend expectations
-    return rawTasks.map(task => ({
+    let tasks = rawTasks.map(task => ({
       ...task,
       dueRuleType: task.due_rule_type,
       dueRuleValue: task.due_rule_value,
@@ -1052,8 +1280,29 @@ export class DatabaseStorage implements IStorage {
         firstName: task.candidate_first_name,
         lastName: task.candidate_last_name,
         status: task.candidate_status
-      }
+      },
+      candidateDepartmentId: task.candidate_department_id,
+      candidateDivisionId: task.candidate_division_id,
+      candidateManagerId: task.candidate_manager_id,
+      candidateLinkedUserId: task.candidate_linked_user_id
     }));
+
+    if (auth && !auth.privileged) {
+      const canSeeCandidate = this.buildCandidateVisibilityChecker(auth);
+      tasks = tasks.filter((task) => canSeeCandidate({
+        id: task.candidate?.id,
+        departmentId: task.candidateDepartmentId,
+        divisionId: task.candidateDivisionId,
+        managerId: task.candidateManagerId,
+        linkedUserId: task.candidateLinkedUserId
+      }));
+
+      if (auth.isCandidate && auth.userId) {
+        tasks = tasks.filter((task) => task.assigneeUserId === auth.userId);
+      }
+    }
+
+    return tasks.map(({ candidateDepartmentId, candidateDivisionId, candidateManagerId, candidateLinkedUserId, ...rest }) => rest);
   }
 
   async getDashboardTasks(): Promise<any[]> {

@@ -41,8 +41,17 @@ function requireAuth(req: any, res: any, next: any) {
 }
 
 function requireRole(roles: string[]) {
-  return (req: any, res: any, next: any) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+  const normalizedRoles = roles.filter(isAppRole) as AppRole[];
+  return async (req: any, res: any, next: any) => {
+    if (!req.user) {
+      await logAuthorizationFailure({ req, resource: "general", action: `role:${normalizedRoles.join("|")}`, reason: "unauthenticated" });
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    if (normalizedRoles.length === 0) {
+      return res.status(403).json({ message: "Insufficient permissions" });
+    }
+    if (!hasAnyRole(req.user, normalizedRoles)) {
+      await logAuthorizationFailure({ req, resource: "general", action: `role:${normalizedRoles.join("|")}`, reason: "role_mismatch" });
       return res.status(403).json({ message: "Insufficient permissions" });
     }
     next();
@@ -78,6 +87,276 @@ const nullableTimeSchema = z.union([
 ]).transform((value) => (value === "" ? null : value));
 
 const COMMENT_SNIPPET_LIMIT = 240;
+
+type AppRole = (typeof appRoleEnum.enumValues)[number];
+
+const APP_ROLE_SET: Set<string> = new Set(appRoleEnum.enumValues);
+const STAFF_ROLES: Set<AppRole> = new Set(["system_admin", "hr_staff"] as AppRole[]);
+const PRIVILEGED_ROLES: Set<AppRole> = new Set([
+  "system_admin",
+  "hr_staff",
+  "department_admin",
+  "division_leader",
+  "manager"
+] as AppRole[]);
+
+function isAppRole(value: unknown): value is AppRole {
+  return typeof value === "string" && APP_ROLE_SET.has(value);
+}
+
+function collectUserRoles(user?: Express.User | null): Set<AppRole> {
+  const roles = new Set<AppRole>();
+  if (!user) return roles;
+  if (isAppRole(user.role)) {
+    roles.add(user.role);
+  }
+  const extraRoles = Array.isArray((user as any).roles) ? (user as any).roles : [];
+  for (const role of extraRoles) {
+    if (isAppRole(role)) {
+      roles.add(role);
+    }
+  }
+  return roles;
+}
+
+function collectDepartmentScopes(user?: Express.User | null): Set<string> {
+  const scopes = new Set<string>();
+  if (!user) return scopes;
+  const extra = Array.isArray((user as any).departmentScopes) ? (user as any).departmentScopes : [];
+  for (const value of extra) {
+    if (typeof value === "string" && value) {
+      scopes.add(value);
+    }
+  }
+  if (typeof user.departmentId === "string" && user.departmentId) {
+    scopes.add(user.departmentId);
+  }
+  return scopes;
+}
+
+function collectDivisionScopes(user?: Express.User | null): Set<string> {
+  const scopes = new Set<string>();
+  if (!user) return scopes;
+  const extra = Array.isArray((user as any).divisionScopes) ? (user as any).divisionScopes : [];
+  for (const value of extra) {
+    if (typeof value === "string" && value) {
+      scopes.add(value);
+    }
+  }
+  if (typeof user.divisionId === "string" && user.divisionId) {
+    scopes.add(user.divisionId);
+  }
+  return scopes;
+}
+
+function collectManagedCandidateScopes(user?: Express.User | null): Set<string> {
+  const scopes = new Set<string>();
+  if (!user) return scopes;
+  const extra = Array.isArray((user as any).managedCandidateIds) ? (user as any).managedCandidateIds : [];
+  for (const value of extra) {
+    if (typeof value === "string" && value) {
+      scopes.add(value);
+    }
+  }
+  return scopes;
+}
+
+function hasAnyRole(user: Express.User | undefined | null, required: readonly (string | AppRole)[]): boolean {
+  const normalized = required.filter(isAppRole) as AppRole[];
+  if (normalized.length === 0) {
+    return false;
+  }
+  const roleSet = collectUserRoles(user);
+  return normalized.some((role) => roleSet.has(role));
+}
+
+function hasPrivilegedRole(user: Express.User | undefined | null): boolean {
+  const roleSet = collectUserRoles(user);
+  for (const role of roleSet) {
+    if (PRIVILEGED_ROLES.has(role)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function logAuthorizationFailure(params: {
+  req: any;
+  resource: "candidate" | "task" | "general";
+  resourceId?: string | null;
+  action: string;
+  reason?: string;
+}): Promise<void> {
+  try {
+    const { req, resource, resourceId, action, reason } = params;
+    const actorId = req?.user?.id ?? null;
+    const candidateId = resource === "candidate" ? resourceId ?? null : null;
+    const taskId = resource === "task" ? resourceId ?? null : null;
+    const details = {
+      action,
+      resource,
+      reason: reason ?? "denied",
+      path: req?.originalUrl,
+      method: req?.method,
+      roles: Array.from(collectUserRoles(req?.user ?? undefined)),
+    };
+    await db.execute(sql`
+      INSERT INTO audit_log (actor_id, candidate_id, task_id, event_type, details)
+      VALUES (
+        ${actorId ?? null}::uuid,
+        ${candidateId ?? null}::uuid,
+        ${taskId ?? null}::uuid,
+        'authorization_denied',
+        ${JSON.stringify(details)}::jsonb
+      )
+    `);
+  } catch (error) {
+    console.error("Failed to log authorization failure", error);
+  }
+}
+
+function canAccessCandidate(user: Express.User | undefined | null, candidate: any): boolean {
+  if (!user || !candidate) return false;
+  const roles = collectUserRoles(user);
+  if (roles.has("system_admin") || roles.has("hr_staff")) return true;
+
+  const departmentScopes = collectDepartmentScopes(user);
+  const divisionScopes = collectDivisionScopes(user);
+  const managedCandidates = collectManagedCandidateScopes(user);
+
+  if (roles.has("department_admin") || roles.has("manager")) {
+    if (candidate.departmentId && departmentScopes.has(candidate.departmentId)) {
+      return true;
+    }
+  }
+
+  if (roles.has("division_leader")) {
+    if (candidate.divisionId && divisionScopes.has(candidate.divisionId)) {
+      return true;
+    }
+  }
+
+  if (roles.has("manager")) {
+    if (candidate.managerId && candidate.managerId === user.id) {
+      return true;
+    }
+    if (managedCandidates.has(candidate.id)) {
+      return true;
+    }
+  }
+
+  if (roles.has("candidate")) {
+    if (candidate.linkedUserId && candidate.linkedUserId === user.id) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function sanitizeCandidateForCandidateUser(candidate: any) {
+  if (!candidate) return candidate;
+  const {
+    id,
+    salutation,
+    firstName,
+    lastName,
+    email,
+    status,
+    anticipatedStartDate,
+    offerLetterIssuedAt,
+    offerLetterAcceptedAt,
+    department,
+    division,
+    candidateType,
+    currentStage,
+    createdAt,
+    updatedAt
+  } = candidate;
+  return {
+    id,
+    salutation,
+    firstName,
+    lastName,
+    email,
+    status,
+    anticipatedStartDate,
+    offerLetterIssuedAt,
+    offerLetterAcceptedAt,
+    department: department ? { id: department.id, name: department.name } : null,
+    division: division ? { id: division.id, name: division.name } : null,
+    candidateType,
+    currentStage,
+    createdAt,
+    updatedAt
+  };
+}
+
+function sanitizeTaskForCandidateUser(task: any) {
+  if (!task) return task;
+  return {
+    id: task.id,
+    candidateId: task.candidateId,
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    dueAt: task.dueAt,
+    pendingAnchor: task.pendingAnchor,
+    stageId: task.stage_id ?? task.stageId,
+    phaseSnapshot: task.phaseSnapshot ?? null,
+    dueRuleType: task.dueRuleType ?? task.due_rule_type ?? null,
+    dueRuleValue: task.dueRuleValue ?? task.due_rule_value ?? null,
+    fixedDate: task.fixedDate ?? task.fixed_date ?? null
+  };
+}
+
+async function fetchCandidateWithAccess(req: any, res: any, candidateId: string, action: string) {
+  const candidate = await storage.getCandidate(candidateId);
+  if (!candidate) {
+    res.status(404).json({ message: "Candidate not found" });
+    return null;
+  }
+  if (!canAccessCandidate(req.user, candidate)) {
+    await logAuthorizationFailure({ req, resource: "candidate", resourceId: candidateId, action, reason: "scope_mismatch" });
+    res.status(403).json({ message: "Insufficient permissions" });
+    return null;
+  }
+  return candidate;
+}
+
+async function fetchTaskWithAccess(req: any, res: any, taskId: string, action: string) {
+  const task = await storage.getCandidateTask(taskId);
+  if (!task) {
+    res.status(404).json({ message: "Task not found" });
+    return null;
+  }
+  const candidate = await storage.getCandidate(task.candidateId);
+  if (!candidate) {
+    res.status(404).json({ message: "Candidate not found" });
+    return null;
+  }
+  if (!canAccessCandidate(req.user, candidate)) {
+    await logAuthorizationFailure({ req, resource: "task", resourceId: task.id, action, reason: "scope_mismatch" });
+    res.status(403).json({ message: "Insufficient permissions" });
+    return null;
+  }
+  return { task, candidate };
+}
+
+async function filterTasksToAuthorizedCandidates(req: any, tasks: any[]) {
+  if (hasPrivilegedRole(req.user) || !Array.isArray(tasks) || tasks.length === 0) {
+    return tasks;
+  }
+  const candidateIds = Array.from(new Set(tasks.map((task) => task.candidateId).filter(Boolean)));
+  const allowedCandidates = new Set<string>();
+  await Promise.all(candidateIds.map(async (candidateId) => {
+    const candidate = await storage.getCandidate(candidateId);
+    if (candidate && canAccessCandidate(req.user, candidate)) {
+      allowedCandidates.add(candidateId);
+    }
+  }));
+  return tasks.filter((task) => allowedCandidates.has(task.candidateId));
+}
 
 function buildActorLabel(user: Express.User): string {
   const parts = [user.firstName, user.lastName].filter(Boolean);
@@ -441,6 +720,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!departmentId) {
         return res.status(400).json({ message: "departmentId is required" });
       }
+
+      if (!hasAnyRole(req.user, ["system_admin", "hr_staff"])) {
+        const departmentScopes = collectDepartmentScopes(req.user);
+        const divisionScopes = collectDivisionScopes(req.user);
+        const departmentScoped = typeof departmentId === "string" && departmentScopes.has(departmentId);
+        const divisionScoped = typeof divisionId === "string" ? divisionScopes.has(divisionId as string) : true;
+        if (hasAnyRole(req.user, ["department_admin", "manager"]) && !departmentScoped) {
+          await logAuthorizationFailure({ req, resource: "general", action: "users:managers", reason: "department_scope" });
+          return res.status(403).json({ message: "Insufficient permissions" });
+        }
+        if (hasAnyRole(req.user, ["division_leader"]) && !divisionScoped) {
+          await logAuthorizationFailure({ req, resource: "general", action: "users:managers", reason: "division_scope" });
+          return res.status(403).json({ message: "Insufficient permissions" });
+        }
+      }
       
       const managers = await storage.getManagersByDepartment(
         departmentId as string,
@@ -458,12 +752,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Candidates routes
   app.get("/api/candidates", requireAuth, async (req, res, next) => {
     try {
-      const { includeArchived } = req.query;
-      const filters = { 
-        includeArchived: includeArchived === 'true' 
-      };
+      const includeArchived = req.query.includeArchived === "true";
+      const roleSet = collectUserRoles(req.user);
+
+      const filters: Record<string, any> = { includeArchived };
+
+      if (!(roleSet.has("system_admin") || roleSet.has("hr_staff"))) {
+        const scoped: Record<string, Set<string>> = {};
+        const addScopeValues = (key: string, values: Iterable<string>) => {
+          for (const value of values) {
+            if (!value) continue;
+            if (!scoped[key]) scoped[key] = new Set<string>();
+            scoped[key]!.add(value);
+          }
+        };
+
+        const departmentScopes = collectDepartmentScopes(req.user);
+        const divisionScopes = collectDivisionScopes(req.user);
+        const managedCandidateScopes = collectManagedCandidateScopes(req.user);
+
+        if (roleSet.has("department_admin")) {
+          addScopeValues("departmentIds", departmentScopes);
+        }
+
+        if (roleSet.has("division_leader")) {
+          addScopeValues("divisionIds", divisionScopes);
+        }
+
+        if (roleSet.has("manager")) {
+          addScopeValues("candidateIds", managedCandidateScopes);
+          addScopeValues("managerIds", [req.user!.id]);
+          if (departmentScopes.size > 0) {
+            addScopeValues("departmentIds", departmentScopes);
+          }
+        }
+
+        if (roleSet.has("candidate")) {
+          addScopeValues("linkedUserIds", [req.user!.id]);
+        }
+
+        const scopedKeys = Object.keys(scoped);
+        if (scopedKeys.length === 0) {
+          await logAuthorizationFailure({ req, resource: "candidate", action: "candidate:list", reason: "no_scope" });
+          return res.status(403).json({ message: "Insufficient permissions" });
+        }
+
+        filters.requireScope = true;
+        for (const key of scopedKeys) {
+          filters[key] = Array.from(scoped[key]);
+        }
+      }
+
       const candidates = await storage.getCandidates(filters);
-      res.json(candidates);
+      const response = hasPrivilegedRole(req.user)
+        ? candidates
+        : candidates.map(sanitizeCandidateForCandidateUser);
+      res.json(response);
     } catch (error) {
       next(error);
     }
@@ -471,11 +815,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/candidates/:id", requireAuth, async (req, res, next) => {
     try {
-      const candidate = await storage.getCandidate(req.params.id);
-      if (!candidate) {
-        return res.status(404).json({ message: "Candidate not found" });
-      }
-      res.json(candidate);
+      const candidate = await fetchCandidateWithAccess(req, res, req.params.id, "candidate:read");
+      if (!candidate) return;
+      const response = hasPrivilegedRole(req.user) ? candidate : sanitizeCandidateForCandidateUser(candidate);
+      res.json(response);
     } catch (error) {
       next(error);
     }
@@ -484,7 +827,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/candidates/:id/tasks", requireAuth, async (req, res, next) => {
     try {
       const { id } = req.params;
-      const tasks = await storage.getCandidateTasks({ candidateId: id });
+      if (!(await fetchCandidateWithAccess(req, res, id, "candidate:tasks:list"))) return;
+
+      let tasks = await storage.getCandidateTasks({ candidateId: id });
+      if (!hasPrivilegedRole(req.user)) {
+        tasks = tasks.map(sanitizeTaskForCandidateUser);
+      }
       res.json(tasks);
     } catch (error) {
       next(error);
@@ -494,6 +842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/candidates/:id/stages", requireAuth, async (req, res, next) => {
     try {
       const { id } = req.params;
+      if (!(await fetchCandidateWithAccess(req, res, id, "candidate:stages:list"))) return;
       const stages = await storage.getCandidateTemplateStages(id);
       
       // Return empty array if no snapshots found instead of throwing
@@ -513,6 +862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/candidates/:id/stage-history", requireAuth, async (req, res, next) => {
     try {
       const { id } = req.params;
+      if (!(await fetchCandidateWithAccess(req, res, id, "candidate:stage-history:list"))) return;
       const history = await storage.getCandidateStageHistory(id);
       res.json({ history });
     } catch (error) {
@@ -530,6 +880,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Candidate comments
   app.get("/api/candidates/:id/comments", requireAuth, async (req: any, res, next) => {
     try {
+      if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:comments:list"))) return;
       const visibility = (req.query.visibility as string) || 'all';
       const cursor = req.query.cursor as string | undefined;
       const data = await storage.getCandidateComments({ candidateId: req.params.id, visibility: visibility as any, role: req.user.role, cursor });
@@ -539,6 +890,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/candidates/:id/comments", requireAuth, async (req: any, res, next) => {
     try {
+      if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:comments:create"))) return;
       const { body, visibility, parentId } = req.body || {};
       if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
       const created = await storage.createComment({ entityType: 'candidate', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
@@ -611,20 +963,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/candidates", requireAuth, requireRole(["system_admin", "hr_staff", "department_admin", "division_leader", "manager"]), async (req, res, next) => {
     try {
       const user = req.user!;
-      
-      // Role-based validation
-      if (user.role === "department_admin" && req.body.departmentId !== user.departmentId) {
-        return res.status(403).json({ message: "Department admin can only create candidates in their own department" });
-      }
-      
-      if (user.role === "division_leader") {
-        if (req.body.divisionId !== user.divisionId) {
-          return res.status(403).json({ message: "Division leader can only create candidates in their own division" });
+      const roles = collectUserRoles(user);
+      const departmentScopes = collectDepartmentScopes(user);
+      const divisionScopes = collectDivisionScopes(user);
+
+      if (roles.has("department_admin") || roles.has("manager")) {
+        if (!req.body.departmentId || !departmentScopes.has(req.body.departmentId)) {
+          return res.status(403).json({ message: "Insufficient department scope to create candidate" });
         }
       }
-      
-      if (user.role === "manager" && req.body.departmentId !== user.departmentId) {
-        return res.status(403).json({ message: "Manager can only create candidates in their own department" });
+
+      if (roles.has("division_leader")) {
+        if (!req.body.divisionId || !divisionScopes.has(req.body.divisionId)) {
+          return res.status(403).json({ message: "Insufficient division scope to create candidate" });
+        }
       }
 
       // Check for duplicate email in the same department
@@ -838,6 +1190,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "template_id is required" });
       }
 
+      if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:apply-template"))) return;
+
       const expansion = await storage.expandTemplate(template_id, req.params.id, req.user!.id);
 
       try {
@@ -864,9 +1218,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { candidateId, assigneeId } = req.query;
       
-      // If the caller is a candidate, restrict to their assigned tasks only
-      if (req.user?.role === 'candidate') {
-        const tasks = await storage.getCandidateTasks({ assigneeId: req.user.id });
+      const roleSet = collectUserRoles(req.user);
+
+      if (!hasPrivilegedRole(req.user) && roleSet.has("candidate")) {
+        let tasks = await storage.getCandidateTasks({ assigneeId: req.user!.id });
+        tasks = await filterTasksToAuthorizedCandidates(req, tasks);
+        tasks = tasks.map(sanitizeTaskForCandidateUser);
         return res.json(tasks);
       }
 
@@ -882,12 +1239,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (assigneeId && (assigneeId === 'undefined' || assigneeId === 'null')) {
         return res.status(400).json({ message: "Invalid assigneeId" });
       }
-      
+
       const filters: any = {};
-      if (candidateId) filters.candidateId = candidateId as string;
-      if (assigneeId) filters.assigneeId = assigneeId as string;
-      
-      const tasks = await storage.getCandidateTasks(filters);
+      if (candidateId) {
+        const candidate = await fetchCandidateWithAccess(req, res, candidateId as string, "tasks:list");
+        if (!candidate) return;
+        filters.candidateId = candidateId as string;
+      }
+      if (assigneeId) {
+        if (assigneeId !== req.user!.id && !hasAnyRole(req.user, ["system_admin", "hr_staff"])) {
+          await logAuthorizationFailure({ req, resource: "general", action: "tasks:list:assignee", reason: "assignee_scope" });
+          return res.status(403).json({ message: "Insufficient permissions" });
+        }
+        filters.assigneeId = assigneeId as string;
+      }
+
+      let tasks = await storage.getCandidateTasks(filters);
+      tasks = await filterTasksToAuthorizedCandidates(req, tasks);
+      if (!hasPrivilegedRole(req.user)) {
+        tasks = tasks.map(sanitizeTaskForCandidateUser);
+      }
       res.json(tasks);
     } catch (error) {
       next(error);
@@ -925,7 +1296,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         showCanceled,
         showCompleted
       });
-      res.json(tasks);
+      let filteredTasks = await filterTasksToAuthorizedCandidates(req, tasks);
+      if (!hasPrivilegedRole(req.user)) {
+        filteredTasks = filteredTasks.map(sanitizeTaskForCandidateUser);
+      }
+      res.json(filteredTasks);
     } catch (error) {
       next(error);
     }
@@ -934,6 +1309,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard tasks endpoint - returns all tasks from active/on_hold candidates for KPI calculations
   app.get("/api/tasks/dashboard", requireAuth, async (req, res, next) => {
     try {
+      if (!hasAnyRole(req.user, ["system_admin", "hr_staff"])) {
+        await logAuthorizationFailure({ req, resource: "general", action: "tasks:dashboard", reason: "role_mismatch" });
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
       const tasks = await storage.getDashboardTasks();
       res.json(tasks);
     } catch (error) {
@@ -943,11 +1322,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/tasks/:id", requireAuth, async (req, res, next) => {
     try {
-      const task = await storage.getCandidateTask(req.params.id);
-      if (!task) {
-        return res.status(404).json({ message: "Task not found" });
-      }
-      res.json(task);
+      const result = await fetchTaskWithAccess(req, res, req.params.id, "task:read");
+      if (!result) return;
+      const response = hasPrivilegedRole(req.user) ? result.task : sanitizeTaskForCandidateUser(result.task);
+      res.json(response);
     } catch (error) {
       next(error);
     }
@@ -956,6 +1334,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Task comments
   app.get("/api/tasks/:id/comments", requireAuth, async (req: any, res, next) => {
     try {
+      const access = await fetchTaskWithAccess(req, res, req.params.id, "task:comments:list");
+      if (!access) return;
       const visibility = (req.query.visibility as string) || 'all';
       const cursor = req.query.cursor as string | undefined;
       const data = await storage.getTaskComments({ taskId: req.params.id, visibility: visibility as any, role: req.user.role, cursor });
@@ -965,12 +1345,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/tasks/:id/comments", requireAuth, async (req: any, res, next) => {
     try {
+      const access = await fetchTaskWithAccess(req, res, req.params.id, "task:comments:create");
+      if (!access) return;
       const { body, visibility, parentId } = req.body || {};
       if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
       const created = await storage.createComment({ entityType: 'task', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
 
       try {
-        const task = await storage.getCandidateTask(req.params.id);
+        const task = access.task ?? await storage.getCandidateTask(req.params.id);
         if (task) {
           const snippet = buildCommentSnippet(body);
           const actorName = buildActorLabel(req.user!);
@@ -1048,6 +1430,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "candidate_id is required" });
       }
 
+      if (!hasPrivilegedRole(req.user)) {
+        await logAuthorizationFailure({ req, resource: "task", resourceId: req.body.candidateId, action: "task:create", reason: "role_mismatch" });
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      if (!(await fetchCandidateWithAccess(req, res, req.body.candidateId, "task:create"))) return;
+
       const body = { ...req.body };
       if (body.assigneeId && !body.assigneeUserId) {
         body.assigneeUserId = body.assigneeId;
@@ -1106,23 +1495,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         body.assigneeUserId = body.assigneeId;
       }
 
-      // Get task first to check permissions
-      const existingTask = await storage.getCandidateTask(req.params.id);
-      if (!existingTask) {
-        return res.status(404).json({ message: "Task not found" });
-      }
+      const access = await fetchTaskWithAccess(req, res, req.params.id, "task:update");
+      if (!access) return;
+      const existingTask = access.task;
+      const candidate = access.candidate;
 
-      // Get candidate to check RBAC
-      const candidate = await storage.getCandidate(existingTask.candidateId);
-      if (!candidate) {
-        return res.status(404).json({ message: "Candidate not found" });
-      }
-
-      // Check RBAC - allow if user has permission to edit tasks or is assigned to the task
-      const allowedRoles = ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"];
-      const canEdit = allowedRoles.includes(req.user!.role) || existingTask.assigneeUserId === req.user!.id;
-      
+      const canEdit = hasAnyRole(req.user, ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"]) || existingTask.assigneeUserId === req.user!.id;
       if (!canEdit) {
+        await logAuthorizationFailure({ req, resource: "task", resourceId: existingTask.id, action: "task:update", reason: "role_mismatch" });
         return res.status(403).json({ message: "Insufficient permissions to update this task" });
       }
 
@@ -1143,7 +1523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: 'cancel_reason is required when canceling a task' });
         }
         // RBAC: Only hr_staff or system_admin can cancel required tasks
-        if (existingTask.required && !(req.user!.role === 'hr_staff' || req.user!.role === 'system_admin')) {
+        if (existingTask.required && !hasAnyRole(req.user, ["hr_staff", "system_admin"])) {
           return res.status(403).json({ message: 'Only HR Staff or System Admin can cancel required tasks' });
         }
         updateData.cancelReason = reason;
@@ -1236,8 +1616,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Return comprehensive response with task, candidate state, and advancement info
       res.json({
-        task,
-        candidate: updatedCandidate ? {
+        task: hasPrivilegedRole(req.user) ? task : sanitizeTaskForCandidateUser(task),
+        candidate: hasPrivilegedRole(req.user) && updatedCandidate ? {
           id: updatedCandidate.id,
           current_stage_id: updatedCandidate.currentStageId,
           updated_at: updatedCandidate.updatedAt
@@ -1248,7 +1628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           toStageId: advancement.toStageId,
           toStageName: advancement.toStageName
         } : { advanced: false },
-        recompute: recompute ? {
+        recompute: hasPrivilegedRole(req.user) && recompute ? {
           isBlocked: !!recompute.isBlocked,
           autoRegress: !!recompute.autoRegress,
           regressed: !!recompute.regressed
@@ -1316,6 +1696,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/tasks/:id", requireAuth, async (req, res, next) => {
     try {
+      const access = await fetchTaskWithAccess(req, res, req.params.id, "task:delete");
+      if (!access) return;
+      const canDelete = hasAnyRole(req.user, ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"]) || access.task.assigneeUserId === req.user!.id;
+      if (!canDelete) {
+        await logAuthorizationFailure({ req, resource: "task", resourceId: access.task.id, action: "task:delete", reason: "role_mismatch" });
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
       // Soft delete by archiving
       await storage.archiveCandidateTask(req.params.id);
       res.sendStatus(204);
@@ -1354,6 +1741,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Comment stats
   app.get("/api/candidates/:id/comment-stats", requireAuth, async (req: any, res, next) => {
     try {
+      if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:comments:stats"))) return;
       const stats = await storage.getCommentStats({ candidateId: req.params.id, role: req.user.role });
       res.json(stats);
     } catch (error) { next(error); }
@@ -1481,6 +1869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/candidates/:id/estimate", requireAuth, async (req, res, next) => {
     try {
       const candidateId = req.params.id;
+      if (!(await fetchCandidateWithAccess(req, res, candidateId, "candidate:estimate"))) return;
       const { businessDays } = req.query;
       const estimate = await storage.estimateCandidate(
         candidateId,
@@ -1495,6 +1884,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Search API endpoints
   app.get("/api/search/departments", requireAuth, async (req, res, next) => {
     try {
+      if (!hasPrivilegedRole(req.user)) {
+        await logAuthorizationFailure({ req, resource: "general", action: "search:departments", reason: "role_mismatch" });
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
       const { q } = req.query;
       const query = typeof q === 'string' ? q : '';
       
@@ -1510,6 +1903,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/search/divisions", requireAuth, async (req, res, next) => {
     try {
+      if (!hasPrivilegedRole(req.user)) {
+        await logAuthorizationFailure({ req, resource: "general", action: "search:divisions", reason: "role_mismatch" });
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
       const { q, departmentId } = req.query;
       const query = typeof q === 'string' ? q : '';
       
@@ -1525,6 +1922,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/search/users", requireAuth, async (req, res, next) => {
     try {
+      if (!hasAnyRole(req.user, ["system_admin", "hr_staff", "department_admin", "division_leader"])) {
+        await logAuthorizationFailure({ req, resource: "general", action: "search:users", reason: "role_mismatch" });
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
       const q = (req.query.q ?? '').toString().trim();
       const role = (req.query.role ?? '').toString().trim();
       const departmentId = typeof req.query.departmentId === 'string' ? req.query.departmentId : undefined;
@@ -2256,7 +2657,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/assignable", requireAuth, async (req, res, next) => {
     try {
       const { role, departmentId, divisionId, search } = req.query;
-      
+      if (!hasAnyRole(req.user, ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"])) {
+        await logAuthorizationFailure({ req, resource: "general", action: "users:assignable", reason: "role_mismatch" });
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
       const filters: any = {
         status: 'active' // Only return active users for assignment
       };
@@ -2264,7 +2669,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (departmentId) filters.departmentId = departmentId as string;
       if (divisionId) filters.divisionId = divisionId as string;
       if (search) filters.search = search as string;
-      
+
+      if (!hasAnyRole(req.user, ["system_admin", "hr_staff"])) {
+        const departmentScopes = collectDepartmentScopes(req.user);
+        const divisionScopes = collectDivisionScopes(req.user);
+
+        if (hasAnyRole(req.user, ["department_admin", "manager"])) {
+          if (departmentId) {
+            if (!departmentScopes.has(departmentId as string)) {
+              await logAuthorizationFailure({ req, resource: "general", action: "users:assignable", reason: "department_scope" });
+              return res.status(403).json({ message: "Insufficient permissions" });
+            }
+          } else if (departmentScopes.size === 1) {
+            filters.departmentId = Array.from(departmentScopes)[0];
+          }
+        }
+
+        if (hasAnyRole(req.user, ["division_leader"])) {
+          if (divisionId) {
+            if (!divisionScopes.has(divisionId as string)) {
+              await logAuthorizationFailure({ req, resource: "general", action: "users:assignable", reason: "division_scope" });
+              return res.status(403).json({ message: "Insufficient permissions" });
+            }
+          } else if (divisionScopes.size === 1) {
+            filters.divisionId = Array.from(divisionScopes)[0];
+          }
+        }
+      }
+
       const users = await storage.getAllUsers(filters);
       res.json(users);
     } catch (error) {

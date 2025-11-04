@@ -10,10 +10,11 @@ import {
   pgEnum,
   uniqueIndex,
   check,
-  customType
+  customType,
+  index
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { departments, divisions } from "./candidate.schema";
+import { departments, divisions, candidates } from "./candidate.schema";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -92,6 +93,42 @@ export const userRoles = pgTable("user_roles", {
   uniqueUserRole: uniqueIndex("unique_user_role").on(t.userId, t.role)
 }));
 
+export const userDepartmentScopes = pgTable("user_department_scopes", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  departmentId: uuid("department_id").notNull().references(() => departments.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (t) => ({
+  uniqueScope: uniqueIndex("user_department_scopes_unique").on(t.userId, t.departmentId),
+  userIdx: index("user_department_scopes_user_idx").on(t.userId),
+  departmentIdx: index("user_department_scopes_department_idx").on(t.departmentId)
+}));
+
+export const userDivisionScopes = pgTable("user_division_scopes", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  divisionId: uuid("division_id").notNull().references(() => divisions.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (t) => ({
+  uniqueScope: uniqueIndex("user_division_scopes_unique").on(t.userId, t.divisionId),
+  userIdx: index("user_division_scopes_user_idx").on(t.userId),
+  divisionIdx: index("user_division_scopes_division_idx").on(t.divisionId)
+}));
+
+export const managerCandidateScopes = pgTable("manager_candidate_scopes", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  managerId: uuid("manager_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  candidateId: uuid("candidate_id").notNull().references(() => candidates.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+}, (t) => ({
+  uniqueScope: uniqueIndex("manager_candidate_scopes_unique").on(t.managerId, t.candidateId),
+  managerIdx: index("manager_candidate_scopes_manager_idx").on(t.managerId),
+  candidateIdx: index("manager_candidate_scopes_candidate_idx").on(t.candidateId)
+}));
+
 const citext = customType<{ data: string }>({
   dataType() {
     return "citext";
@@ -160,6 +197,39 @@ export const userRolesRelations = relations(userRoles, ({ one }) => ({
   })
 }));
 
+export const userDepartmentScopesRelations = relations(userDepartmentScopes, ({ one }) => ({
+  user: one(users, {
+    fields: [userDepartmentScopes.userId],
+    references: [users.id]
+  }),
+  department: one(departments, {
+    fields: [userDepartmentScopes.departmentId],
+    references: [departments.id]
+  })
+}));
+
+export const userDivisionScopesRelations = relations(userDivisionScopes, ({ one }) => ({
+  user: one(users, {
+    fields: [userDivisionScopes.userId],
+    references: [users.id]
+  }),
+  division: one(divisions, {
+    fields: [userDivisionScopes.divisionId],
+    references: [divisions.id]
+  })
+}));
+
+export const managerCandidateScopesRelations = relations(managerCandidateScopes, ({ one }) => ({
+  manager: one(users, {
+    fields: [managerCandidateScopes.managerId],
+    references: [users.id]
+  }),
+  candidate: one(candidates, {
+    fields: [managerCandidateScopes.candidateId],
+    references: [candidates.id]
+  })
+}));
+
 export const userIdentitiesRelations = relations(userIdentities, ({ one }) => ({
   user: one(users, {
     fields: [userIdentities.userId],
@@ -173,6 +243,9 @@ export const insertUserSchema = createInsertSchema(users).extend({
 });
 export const insertUserIdentitySchema = createInsertSchema(userIdentities);
 export const insertUserRoleSchema = createInsertSchema(userRoles);
+export const insertUserDepartmentScopeSchema = createInsertSchema(userDepartmentScopes);
+export const insertUserDivisionScopeSchema = createInsertSchema(userDivisionScopes);
+export const insertManagerCandidateScopeSchema = createInsertSchema(managerCandidateScopes);
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences);
 
 export type User = typeof users.$inferSelect;
@@ -184,6 +257,15 @@ export type InsertUserIdentity = typeof userIdentities.$inferInsert; // Legacy c
 export type UserRole = typeof userRoles.$inferSelect;
 export type NewUserRole = typeof userRoles.$inferInsert;
 export type InsertUserRole = typeof userRoles.$inferInsert; // Legacy compatibility
+export type UserDepartmentScope = typeof userDepartmentScopes.$inferSelect;
+export type NewUserDepartmentScope = typeof userDepartmentScopes.$inferInsert;
+export type InsertUserDepartmentScope = typeof userDepartmentScopes.$inferInsert;
+export type UserDivisionScope = typeof userDivisionScopes.$inferSelect;
+export type NewUserDivisionScope = typeof userDivisionScopes.$inferInsert;
+export type InsertUserDivisionScope = typeof userDivisionScopes.$inferInsert;
+export type ManagerCandidateScope = typeof managerCandidateScopes.$inferSelect;
+export type NewManagerCandidateScope = typeof managerCandidateScopes.$inferInsert;
+export type InsertManagerCandidateScope = typeof managerCandidateScopes.$inferInsert;
 export type Invitation = typeof invitations.$inferSelect;
 export type NewInvitation = typeof invitations.$inferInsert;
 export type InsertInvitation = typeof invitations.$inferInsert;

@@ -20,7 +20,12 @@ import {
 
 declare global {
   namespace Express {
-    interface User extends SelectUser {}
+    interface User extends SelectUser {
+      roles?: string[];
+      departmentScopes?: string[];
+      divisionScopes?: string[];
+      managedCandidateIds?: string[];
+    }
   }
 }
 
@@ -35,6 +40,36 @@ declare module "express-session" {
 const PostgresSessionStore = connectPg(session);
 
 const scryptAsync = promisify(scrypt);
+
+async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
+  const [roles, departmentScopes, divisionScopes, managedCandidateIds] = await Promise.all([
+    storage.getUserRoles(user.id),
+    storage.getUserDepartmentScopeIds(user.id),
+    storage.getUserDivisionScopeIds(user.id),
+    storage.getManagerCandidateScopeIds(user.id)
+  ]);
+
+  const mergedRoles = Array.from(new Set([user.role, ...roles.map((r) => r.role)]));
+  const departmentSet = new Set<string>(departmentScopes.filter(Boolean));
+  if (user.departmentId) {
+    departmentSet.add(user.departmentId);
+  }
+
+  const divisionSet = new Set<string>(divisionScopes.filter(Boolean));
+  if (user.divisionId) {
+    divisionSet.add(user.divisionId);
+  }
+
+  const managedSet = new Set<string>(managedCandidateIds.filter(Boolean));
+
+  return {
+    ...user,
+    roles: mergedRoles,
+    departmentScopes: Array.from(departmentSet),
+    divisionScopes: Array.from(divisionSet),
+    managedCandidateIds: Array.from(managedSet)
+  };
+}
 
 async function comparePasswords(supplied: string, stored: string) {
   try {
@@ -110,7 +145,8 @@ export async function setupAuth(app: Express) {
           if (!user || user.status !== 'active' || !user.passwordHash || !(await comparePasswords(password, user.passwordHash))) {
             return done(null, false);
           }
-          return done(null, user);
+          const enriched = await hydrateAuthUser(user);
+          return done(null, enriched);
         } catch (error) {
           return done(error);
         }
@@ -122,7 +158,11 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser(async (id: string, done) => {
     try {
       const user = await storage.getUser(id);
-      done(null, user);
+      if (!user) {
+        return done(null, false);
+      }
+      const enriched = await hydrateAuthUser(user);
+      done(null, enriched);
     } catch (error) {
       done(error);
     }
@@ -211,18 +251,23 @@ export async function setupAuth(app: Express) {
       }
 
       // Log the user in using passport
-      req.login(signInResult.user!, (err) => {
-        if (err) {
-          console.error('Login error:', err);
-          return res.status(500).json({ message: "Login failed" });
-        }
-        
-        res.json({
-          user: signInResult.user,
-          isNewUser: signInResult.isNewUser,
-          assignedRoles: signInResult.assignedRoles
+      hydrateAuthUser(signInResult.user!).then((sessionUser) => {
+        req.login(sessionUser, (err) => {
+          if (err) {
+            console.error('Login error:', err);
+            return res.status(500).json({ message: "Login failed" });
+          }
+          res.json({
+            user: sessionUser,
+            isNewUser: signInResult.isNewUser,
+            assignedRoles: signInResult.assignedRoles
+          });
         });
+      }).catch((error) => {
+        console.error('Authentication error:', error);
+        res.status(500).json({ message: "Internal server error" });
       });
+      return;
     } catch (error) {
       console.error('Authentication error:', error);
       res.status(500).json({ message: "Internal server error" });
