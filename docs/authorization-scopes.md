@@ -25,12 +25,9 @@ to read from the new relations.
 
 ## Next Steps
 
-1. Update session hydration to load scoped department/division IDs from the new tables.
-2. Refactor query builders so candidate/task queries join against these scopes rather
-   than relying on single columns.
-3. Provide administrative tooling to manage scope assignments (add/remove departments,
-   delegate divisions, etc.).
-
-Until the refactor is complete the legacy `users.department_id` and `users.division_id`
-columns remain authoritative, but any new assignments should also persist to the new
-tables to avoid drift.
+- Provide administrative tooling to manage scope assignments (add/remove departments,
+  delegate divisions, etc.).
+- Finish migrating administrative endpoints (templates, settings, comments) to the
+  shared authorization helpers and maintain consistent 403/404 handling.
+- Expand automated tests and documentation for multi-role scope enforcement, including
+  regression coverage for candidate/task visibility.

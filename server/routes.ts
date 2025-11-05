@@ -60,6 +60,89 @@ function requireRole(roles: string[]) {
 
 const INVITE_TOKEN_BYTES = 32;
 
+type RateLimiterOptions = {
+  windowMs: number;
+  max: number;
+  name: string;
+  keyGenerator?: (req: any) => string | null | undefined;
+};
+
+function createRateLimiter(options: RateLimiterOptions) {
+  const { windowMs, max, name, keyGenerator } = options;
+  const buckets = new Map<string, { count: number; reset: number }>();
+
+  const resolveKey = (req: any) => {
+    if (keyGenerator) return keyGenerator(req) ?? "";
+    const ip = req.ip || req.headers["x-forwarded-for"] || req.connection?.remoteAddress;
+    if (Array.isArray(ip)) return ip[0] ?? "";
+    return typeof ip === "string" ? ip : "";
+  };
+
+  return async function rateLimiter(req: any, res: any, next: any) {
+    const key = resolveKey(req);
+    if (!key) {
+      return next();
+    }
+
+    const now = Date.now();
+    const bucket = buckets.get(key);
+
+    if (!bucket || now >= bucket.reset) {
+      buckets.set(key, { count: 1, reset: now + windowMs });
+      res.setHeader("X-RateLimit-Limit", String(max));
+      res.setHeader("X-RateLimit-Remaining", String(max - 1));
+      res.setHeader("X-RateLimit-Reset", String(Math.floor((now + windowMs) / 1000)));
+      return next();
+    }
+
+    if (bucket.count >= max) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((bucket.reset - now) / 1000));
+      res.setHeader("Retry-After", String(retryAfterSeconds));
+      res.setHeader("X-RateLimit-Limit", String(max));
+      res.setHeader("X-RateLimit-Remaining", "0");
+      res.setHeader("X-RateLimit-Reset", String(Math.floor(bucket.reset / 1000)));
+      logAuthorizationFailure({
+        req,
+        resource: "general",
+        action: `rate_limit:${name}`,
+        reason: `exceeded_${max}`
+      }).catch(() => undefined);
+      return res.status(429).json({ message: "Too many requests, please slow down." });
+    }
+
+    bucket.count += 1;
+    res.setHeader("X-RateLimit-Limit", String(max));
+    res.setHeader("X-RateLimit-Remaining", String(Math.max(0, max - bucket.count)));
+    res.setHeader("X-RateLimit-Reset", String(Math.floor(bucket.reset / 1000)));
+    next();
+  };
+}
+
+const DEFAULT_RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000);
+const DEFAULT_RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX ?? 120);
+const SENSITIVE_RATE_LIMIT_WINDOW_MS = Number(process.env.SENSITIVE_RATE_LIMIT_WINDOW_MS ?? DEFAULT_RATE_LIMIT_WINDOW_MS);
+const SENSITIVE_RATE_LIMIT_MAX = Number(process.env.SENSITIVE_RATE_LIMIT_MAX ?? 60);
+const ADMIN_RATE_LIMIT_WINDOW_MS = Number(process.env.ADMIN_RATE_LIMIT_WINDOW_MS ?? DEFAULT_RATE_LIMIT_WINDOW_MS);
+const ADMIN_RATE_LIMIT_MAX = Number(process.env.ADMIN_RATE_LIMIT_MAX ?? 30);
+
+const defaultRateLimiter = createRateLimiter({
+  windowMs: DEFAULT_RATE_LIMIT_WINDOW_MS,
+  max: DEFAULT_RATE_LIMIT_MAX,
+  name: "default"
+});
+
+const sensitiveRateLimiter = createRateLimiter({
+  windowMs: SENSITIVE_RATE_LIMIT_WINDOW_MS,
+  max: SENSITIVE_RATE_LIMIT_MAX,
+  name: "sensitive"
+});
+
+const adminRateLimiter = createRateLimiter({
+  windowMs: ADMIN_RATE_LIMIT_WINDOW_MS,
+  max: ADMIN_RATE_LIMIT_MAX,
+  name: "admin"
+});
+
 export const PREFERENCE_KEYS = [
   "mytasksShowArchived",
   "mytasksShowCanceled",
@@ -140,7 +223,7 @@ function hasPrivilegedRole(user: Express.User | undefined | null): boolean {
 
 async function logAuthorizationFailure(params: {
   req: any;
-  resource: "candidate" | "task" | "general";
+  resource: "candidate" | "task" | "general" | "template" | "settings";
   resourceId?: string | null;
   action: string;
   reason?: string;
@@ -213,20 +296,23 @@ function sanitizeCandidateForCandidateUser(candidate: any) {
 
 function sanitizeTaskForCandidateUser(task: any) {
   if (!task) return task;
-  return {
-    id: task.id,
-    candidateId: task.candidateId,
-    title: task.title,
-    description: task.description,
-    status: task.status,
-    dueAt: task.dueAt,
-    pendingAnchor: task.pendingAnchor,
-    stageId: task.stage_id ?? task.stageId,
-    phaseSnapshot: task.phaseSnapshot ?? null,
-    dueRuleType: task.dueRuleType ?? task.due_rule_type ?? null,
-    dueRuleValue: task.dueRuleValue ?? task.due_rule_value ?? null,
-    fixedDate: task.fixedDate ?? task.fixed_date ?? null
-  };
+  const allowed = [
+    "id",
+    "candidateId",
+    "title",
+    "status",
+    "dueAt",
+    "pendingAnchor",
+    "phaseSnapshot",
+    "dueRuleType",
+    "dueRuleValue",
+    "fixedDate"
+  ];
+  return Object.fromEntries(
+    allowed
+      .map((key) => [key, key in task ? task[key] ?? task[key] : undefined] as const)
+      .filter(([, value]) => value !== undefined)
+  );
 }
 
 async function fetchCandidateWithAccess(req: any, res: any, candidateId: string, action: string) {
@@ -254,6 +340,25 @@ async function fetchTaskWithAccess(req: any, res: any, taskId: string, action: s
     return null;
   }
   return { task, candidate };
+}
+
+async function fetchTemplateWithAccess(req: any, res: any, templateId: string, action: string) {
+  const template = await storage.getTemplate(templateId);
+  if (!template) {
+    await logAuthorizationFailure({ req, resource: "template", resourceId: templateId, action, reason: "not_found" });
+    res.status(404).json({ message: "Template not found" });
+    return null;
+  }
+  return template;
+}
+
+function requirePrivileges(req: any, res: any, action: string, roles: string[]): boolean {
+  if (!hasAnyRole(req.user, roles)) {
+    logAuthorizationFailure({ req, resource: "general", action, reason: "role_mismatch" }).catch(() => {});
+    res.status(403).json({ message: "Insufficient permissions" });
+    return false;
+  }
+  return true;
 }
 
 function buildActorLabel(user: Express.User): string {
@@ -647,7 +752,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Candidates routes
-  app.get("/api/candidates", requireAuth, async (req, res, next) => {
+  app.get("/api/candidates", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
     try {
       const includeArchived = req.query.includeArchived === "true";
       const filters: Record<string, any> = { includeArchived };
@@ -668,7 +773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/candidates/:id", requireAuth, async (req, res, next) => {
+  app.get("/api/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
     try {
       const authContext = storage.buildAuthorizationContext(req.user);
       const candidate = await storage.getCandidate(req.params.id, authContext);
@@ -683,7 +788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/candidates/:id/tasks", requireAuth, async (req, res, next) => {
+  app.get("/api/candidates/:id/tasks", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
     try {
       const { id } = req.params;
       if (!(await fetchCandidateWithAccess(req, res, id, "candidate:tasks:list"))) return;
@@ -738,7 +843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/notifications/mark-all-read", requireAuth, (req, res, next) => markAllNotificationsReadHandler(storage, req, res, next));
 
   // Candidate comments
-  app.get("/api/candidates/:id/comments", requireAuth, async (req: any, res, next) => {
+  app.get("/api/candidates/:id/comments", sensitiveRateLimiter, requireAuth, async (req: any, res, next) => {
     try {
       if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:comments:list"))) return;
       const visibility = (req.query.visibility as string) || 'all';
@@ -748,7 +853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) { next(error); }
   });
 
-  app.post("/api/candidates/:id/comments", requireAuth, async (req: any, res, next) => {
+  app.post("/api/candidates/:id/comments", sensitiveRateLimiter, requireAuth, async (req: any, res, next) => {
     try {
       if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:comments:create"))) return;
       const { body, visibility, parentId } = req.body || {};
@@ -1071,7 +1176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tasks routes - restrict to specific candidate or assignee
-  app.get("/api/tasks", requireAuth, async (req, res, next) => {
+  app.get("/api/tasks", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
     try {
       const { candidateId, assigneeId } = req.query;
       const authContext = storage.buildAuthorizationContext(req.user);
@@ -1122,7 +1227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/tasks/mine", requireAuth, async (req, res, next) => {
+  app.get("/api/tasks/mine", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
     try {
       const userId = req.user!.id;
       
@@ -1177,7 +1282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/tasks/:id", requireAuth, async (req, res, next) => {
+  app.get("/api/tasks/:id", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
     try {
       const result = await fetchTaskWithAccess(req, res, req.params.id, "task:read");
       if (!result) return;
@@ -1189,7 +1294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Task comments
-  app.get("/api/tasks/:id/comments", requireAuth, async (req: any, res, next) => {
+  app.get("/api/tasks/:id/comments", sensitiveRateLimiter, requireAuth, async (req: any, res, next) => {
     try {
       const access = await fetchTaskWithAccess(req, res, req.params.id, "task:comments:list");
       if (!access) return;
@@ -1200,7 +1305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) { next(error); }
   });
 
-  app.post("/api/tasks/:id/comments", requireAuth, async (req: any, res, next) => {
+  app.post("/api/tasks/:id/comments", sensitiveRateLimiter, requireAuth, async (req: any, res, next) => {
     try {
       const access = await fetchTaskWithAccess(req, res, req.params.id, "task:comments:create");
       if (!access) return;
@@ -1501,7 +1606,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // System settings endpoints (hr_staff, system_admin)
-  app.get("/api/system-settings", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/system-settings", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const settings = await storage.getSystemSettings();
       res.json(settings);
@@ -1510,7 +1615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/system-settings", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/system-settings", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const { auto_regress_on_prior_open } = req.body ?? {};
       const updated = await storage.setSystemSettings({ auto_regress_on_prior_open });
@@ -1520,7 +1625,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/settings/email", requireAuth, requireRole(["system_admin"]), async (_req, res, next) => {
+  app.get("/api/settings/email", adminRateLimiter, requireAuth, requireRole(["system_admin"]), async (_req, res, next) => {
     try {
       const settings = await getSmtpSettings();
       res.json(settings);
@@ -1529,16 +1634,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/settings/email", requireAuth, requireRole(["system_admin"]), async (req: any, res) => {
+  app.patch("/api/settings/email", adminRateLimiter, requireAuth, requireRole(["system_admin"]), async (req: any, res) => {
     try {
       const result = await updateSmtpSettings(req.body ?? {}, req.user!.id);
       res.json(result.settings);
     } catch (error: any) {
+      await logAuthorizationFailure({ req, resource: "settings", action: "settings:email:update", reason: error?.message ?? "update_failed" });
       res.status(400).json({ message: error?.message ?? "Failed to update SMTP settings" });
     }
   });
 
-  app.post("/api/settings/email/test", requireAuth, requireRole(["system_admin"]), async (req: any, res) => {
+  app.post("/api/settings/email/test", adminRateLimiter, requireAuth, requireRole(["system_admin"]), async (req: any, res) => {
     const email = req.user?.email;
     if (!email) {
       return res.status(400).json({ ok: false, message: "Current user email is not set" });
@@ -1569,7 +1675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Templates routes
-  app.get("/api/templates", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/templates", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const templates = await storage.getTemplates();
       res.json(templates);
@@ -1596,7 +1702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Comment stats
-  app.get("/api/candidates/:id/comment-stats", requireAuth, async (req: any, res, next) => {
+  app.get("/api/candidates/:id/comment-stats", sensitiveRateLimiter, requireAuth, async (req: any, res, next) => {
     try {
       if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:comments:stats"))) return;
       const stats = await storage.getCommentStats({ candidateId: req.params.id, role: req.user.role });
@@ -1604,19 +1710,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) { next(error); }
   });
 
-  app.get("/api/templates/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/templates/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
-      const template = await storage.getTemplate(req.params.id);
-      if (!template) {
-        return res.status(404).json({ message: "Template not found" });
-      }
+      const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:read");
+      if (!template) return;
       res.json(template);
     } catch (error) {
       next(error);
     }
   });
 
-  app.post("/api/templates", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.post("/api/templates", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const { cloneFromTemplateId, ...templateData } = req.body;
       const validatedData = insertTemplateSchema.parse(templateData);
@@ -1630,10 +1734,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/templates/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/templates/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const template = await storage.updateTemplate(req.params.id, req.body);
       if (!template) {
+        await logAuthorizationFailure({ req, resource: "template", resourceId: req.params.id, action: "template:update", reason: "not_found" });
         return res.status(404).json({ message: "Template not found" });
       }
       res.json(template);
@@ -1648,8 +1753,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/templates/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.delete("/api/templates/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
+      const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:delete");
+      if (!template) return;
       await storage.archiveTemplate(req.params.id);
       res.sendStatus(204);
     } catch (error) {
@@ -1658,8 +1765,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template readiness endpoint
-  app.get("/api/templates/:id/readiness", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/templates/:id/readiness", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
+      const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:readiness");
+      if (!template) return;
       const readiness = await storage.getTemplateReadiness(req.params.id);
       res.json(readiness);
     } catch (error) {
@@ -1668,7 +1777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template status update endpoint
-  app.patch("/api/templates/:id/status", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/templates/:id/status", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const { status } = req.body;
       if (!status || !["draft", "active", "archived"].includes(status)) {
@@ -1691,6 +1800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const template = await storage.updateTemplate(req.params.id, updateData);
       if (!template) {
+        await logAuthorizationFailure({ req, resource: "template", resourceId: req.params.id, action: "template:status", reason: "not_found" });
         return res.status(404).json({ message: "Template not found" });
       }
       res.json(template);
@@ -1707,8 +1817,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template estimation endpoint
-  app.get("/api/templates/:id/estimate", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/templates/:id/estimate", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
+      const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:estimate");
+      if (!template) return;
       const { looDate, startDate, candidateId, businessDays } = req.query;
       const estimate = await storage.estimateTemplate(req.params.id, {
         looDate: looDate as string | undefined,
@@ -1841,12 +1953,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template Tasks routes
-  app.get("/api/templates/:id/template-tasks", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/templates/:id/template-tasks", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const templateId = req.params.id;
       if (!templateId || templateId === "undefined") {
         return res.status(400).json({ message: "Invalid template ID" });
       }
+      if (!(await fetchTemplateWithAccess(req, res, templateId, "template-tasks:list"))) return;
       const tasks = await storage.getTemplateTasks(templateId);
       res.json(tasks);
     } catch (error) {
@@ -1854,8 +1967,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/templates/:id/template-tasks", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.post("/api/templates/:id/template-tasks", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
+      if (!(await fetchTemplateWithAccess(req, res, req.params.id, "template-tasks:create"))) return;
+
       if (!req.body.taskDefId) {
         return res.status(400).json({ message: "task_def_id is required" });
       }
@@ -1925,7 +2040,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/template-tasks/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/template-tasks/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       // Clean the data to prevent database errors with empty strings
       const body = req.body ?? {};
@@ -1970,6 +2085,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const task = await storage.updateTemplateTask(req.params.id, cleanedData);
       if (!task) {
+        await logAuthorizationFailure({ req, resource: "template", resourceId: null, action: "template-tasks:update", reason: "not_found" });
         return res.status(404).json({ message: "Template task not found" });
       }
       res.json(task);
@@ -1978,11 +2094,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/template-tasks/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.delete("/api/template-tasks/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       // Get template task details before deletion to check if it was the last in its stage
       const taskToDelete = await storage.getTemplateTask(req.params.id);
       if (!taskToDelete) {
+        await logAuthorizationFailure({ req, resource: "template", resourceId: null, action: "template-tasks:delete", reason: "not_found" });
         return res.status(404).json({ message: "Template task not found" });
       }
       
@@ -2017,12 +2134,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template Stages routes
-  app.get("/api/templates/:id/template-stages", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/templates/:id/template-stages", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const templateId = req.params.id;
       if (!templateId || templateId === "undefined") {
         return res.status(400).json({ message: "Invalid template ID" });
       }
+      if (!(await fetchTemplateWithAccess(req, res, templateId, "template-stages:list"))) return;
       const stages = await storage.getTemplateStages(templateId);
       res.json(stages);
     } catch (error) {
@@ -2030,8 +2148,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/templates/:id/template-stages", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.post("/api/templates/:id/template-stages", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
+      if (!(await fetchTemplateWithAccess(req, res, req.params.id, "template-stages:create"))) return;
       if (!req.body.stageId) {
         return res.status(400).json({ message: "stage_id is required" });
       }
@@ -2054,10 +2173,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/template-stages/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/template-stages/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const stage = await storage.updateTemplateStage(req.params.id, req.body);
       if (!stage) {
+        await logAuthorizationFailure({ req, resource: "template", resourceId: null, action: "template-stages:update", reason: "not_found" });
         return res.status(404).json({ message: "Template stage not found" });
       }
       res.json(stage);
@@ -2066,8 +2186,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/template-stages/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.delete("/api/template-stages/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
+      const stage = await storage.getTemplateStage(req.params.id);
+      if (!stage) {
+        await logAuthorizationFailure({ req, resource: "template", resourceId: null, action: "template-stages:delete", reason: "not_found" });
+        return res.status(404).json({ message: "Template stage not found" });
+      }
       await storage.deleteTemplateStage(req.params.id);
       res.sendStatus(204);
     } catch (error) {
@@ -2076,7 +2201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template stages reordering endpoint
-  app.patch("/api/templates/:id/stages/reorder", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/templates/:id/stages/reorder", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const templateId = req.params.id;
       const { stageIdsInOrder } = req.body;
@@ -2085,6 +2210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "stageIdsInOrder must be an array" });
       }
       
+      if (!(await fetchTemplateWithAccess(req, res, templateId, "template-stages:reorder"))) return;
       await storage.reorderTemplateStages(templateId, stageIdsInOrder);
       res.json({ ok: true });
     } catch (error: any) {
@@ -2096,7 +2222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Atomic endpoint: create stage with tasks
-  app.post("/api/templates/:id/stages/create-with-task", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.post("/api/templates/:id/stages/create-with-task", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const templateId = req.params.id;
       const { stageId, taskDefIds, priorityId, categoryId, assigneeId, dueRuleType, dueRuleValue, phase } = req.body;
@@ -2744,7 +2870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Provider management endpoints
-  app.get("/api/auth/providers", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/auth/providers", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const dbProviders = await storage.getAllAuthProviders();
       const providerInfos = await Promise.all(dbProviders.map(async (dbProvider) => {
@@ -2766,7 +2892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/auth/providers/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/auth/providers/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const { id } = req.params;
       const { enabled } = req.body;
@@ -2829,7 +2955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // LDAP Settings API
-  app.get("/api/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/auth/ldap", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const cfg = await storage.getLdapSettings();
       const configured = await storage.getLdapConfigured();
@@ -2861,7 +2987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.put("/api/auth/ldap", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const patch = req.body || {};
       // Normalize boolean
@@ -2876,11 +3002,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json({ ok: true });
     } catch (error) {
+      await logAuthorizationFailure({ req, resource: "settings", action: "auth:ldap:update", reason: (error as Error)?.message ?? "update_failed" });
       next(error);
     }
   });
 
-  app.post("/api/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.post("/api/auth/ldap/test", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     const start = Date.now();
     try {
       const override = req.body || {};
@@ -2937,6 +3064,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await doTest();
       res.json({ ...result, durationMs: Date.now() - start });
     } catch (error) {
+      await logAuthorizationFailure({ req, resource: "settings", action: "auth:ldap:test", reason: (error as Error)?.message ?? "test_failed" });
       next(error);
     }
   });
