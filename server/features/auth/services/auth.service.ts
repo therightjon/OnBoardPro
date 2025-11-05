@@ -51,14 +51,7 @@ async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
 
   const mergedRoles = Array.from(new Set([user.role, ...roles.map((r) => r.role)]));
   const departmentSet = new Set<string>(departmentScopes.filter(Boolean));
-  if (user.departmentId) {
-    departmentSet.add(user.departmentId);
-  }
-
   const divisionSet = new Set<string>(divisionScopes.filter(Boolean));
-  if (user.divisionId) {
-    divisionSet.add(user.divisionId);
-  }
 
   const managedSet = new Set<string>(managedCandidateIds.filter(Boolean));
 

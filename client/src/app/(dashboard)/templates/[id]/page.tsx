@@ -543,8 +543,9 @@ export default function TemplateDetailPage() {
       case "fixed_date":
         return task.fixedDate ? `Fixed date: ${new Date(task.fixedDate).toLocaleDateString()}` : "Fixed date";
       default:
-        return task.dueRuleType
-          ? task.dueRuleType.replace(/_/g, " ")
+        const fallbackRule = task.dueRuleType as string | undefined;
+        return fallbackRule && fallbackRule.length > 0
+          ? fallbackRule.replace(/_/g, " ")
           : "Unknown rule";
     }
   };

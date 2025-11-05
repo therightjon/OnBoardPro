@@ -472,9 +472,6 @@ export class DatabaseStorage implements IStorage {
     }
 
     const departmentIds = new Set<string>();
-    if (typeof user?.departmentId === "string" && user.departmentId) {
-      departmentIds.add(user.departmentId);
-    }
     if (Array.isArray((user as any)?.departmentScopes)) {
       for (const dept of (user as any).departmentScopes) {
         if (typeof dept === "string" && dept) {
@@ -484,9 +481,6 @@ export class DatabaseStorage implements IStorage {
     }
 
     const divisionIds = new Set<string>();
-    if (typeof user?.divisionId === "string" && user.divisionId) {
-      divisionIds.add(user.divisionId);
-    }
     if (Array.isArray((user as any)?.divisionScopes)) {
       for (const div of (user as any).divisionScopes) {
         if (typeof div === "string" && div) {
