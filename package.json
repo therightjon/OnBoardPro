@@ -11,7 +11,8 @@
     "db:push": "drizzle-kit push",
     "db:import": "tsx scripts/importDatabaseExport.ts database_export.sql",
     "db:run-sql": "node scripts/runSqlFiles.mjs",
-    "user:set-password": "tsx scripts/setPassword.ts"
+    "user:set-password": "tsx scripts/setPassword.ts",
+    "test:auth": "cross-env NODE_ENV=test SKIP_AUTH_SETUP=1 tsx --test server/tests/**/*.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -101,6 +102,7 @@
     "@types/passport-local": "^1.0.38",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
+    "@types/supertest": "^2.0.16",
     "@types/ws": "^8.5.13",
     "@vitejs/plugin-react-swc": "^3.7.0",
     "autoprefixer": "^10.4.20",
@@ -108,6 +110,7 @@
     "drizzle-kit": "^0.31.5",
     "esbuild": "^0.25.11",
     "postcss": "^8.4.47",
+    "supertest": "^7.1.4",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",
     "typescript": "5.6.3",

@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { randomBytes } from "crypto";
 import { setupAuth } from "./features/auth/services/auth.service";
@@ -32,6 +32,12 @@ import {
   markNotificationReadHandler,
   markAllNotificationsReadHandler
 } from "./features/notifications/routes";
+import { reportAuthorizationFailure } from "./observability/authMetrics";
+
+export interface RegisterRoutesOptions {
+  skipAuthSetup?: boolean;
+  rateLimiters?: Partial<Record<"default" | "sensitive" | "admin", RequestHandler>>;
+}
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -229,6 +235,9 @@ async function logAuthorizationFailure(params: {
   reason?: string;
 }): Promise<void> {
   try {
+    if (process.env.NODE_ENV === "test" && process.env.ENABLE_AUTH_AUDIT_IN_TESTS !== "1") {
+      return;
+    }
     const { req, resource, resourceId, action, reason } = params;
     const actorId = req?.user?.id ?? null;
     const candidateId = resource === "candidate" ? resourceId ?? null : null;
@@ -241,6 +250,18 @@ async function logAuthorizationFailure(params: {
       method: req?.method,
       roles: Array.from(collectUserRoles(req?.user ?? undefined)),
     };
+    reportAuthorizationFailure({
+      resource,
+      action,
+      reason: reason ?? "denied",
+      actorId,
+      path: req?.originalUrl,
+      method: req?.method,
+      roles: details.roles,
+      candidateId,
+      taskId,
+      timestamp: new Date()
+    });
     await db.execute(sql`
       INSERT INTO audit_log (actor_id, candidate_id, task_id, event_type, details)
       VALUES (
@@ -558,8 +579,14 @@ async function sendInviteEmail(email: string, token: string, expiresAt: Date) {
   console.info(`[invite] Sent invitation`, { email, link, expiresAt: expiresAt.toISOString() });
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  await setupAuth(app);
+export async function registerRoutes(app: Express, options: RegisterRoutesOptions = {}): Promise<Server> {
+  if (!options.skipAuthSetup) {
+    await setupAuth(app);
+  }
+
+  const defaultLimiter = options.rateLimiters?.default ?? defaultRateLimiter;
+  const sensitiveLimiter = options.rateLimiters?.sensitive ?? sensitiveRateLimiter;
+  const adminLimiter = options.rateLimiters?.admin ?? adminRateLimiter;
 
   const inviteRequestSchema = z.object({
     email: z.string().email(),
@@ -752,7 +779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Candidates routes
-  app.get("/api/candidates", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
+  app.get("/api/candidates", sensitiveLimiter, requireAuth, async (req, res, next) => {
     try {
       const includeArchived = req.query.includeArchived === "true";
       const filters: Record<string, any> = { includeArchived };
@@ -773,7 +800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
+  app.get("/api/candidates/:id", sensitiveLimiter, requireAuth, async (req, res, next) => {
     try {
       const authContext = storage.buildAuthorizationContext(req.user);
       const candidate = await storage.getCandidate(req.params.id, authContext);
@@ -788,7 +815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/candidates/:id/tasks", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
+  app.get("/api/candidates/:id/tasks", sensitiveLimiter, requireAuth, async (req, res, next) => {
     try {
       const { id } = req.params;
       if (!(await fetchCandidateWithAccess(req, res, id, "candidate:tasks:list"))) return;
@@ -843,7 +870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/notifications/mark-all-read", requireAuth, (req, res, next) => markAllNotificationsReadHandler(storage, req, res, next));
 
   // Candidate comments
-  app.get("/api/candidates/:id/comments", sensitiveRateLimiter, requireAuth, async (req: any, res, next) => {
+  app.get("/api/candidates/:id/comments", sensitiveLimiter, requireAuth, async (req: any, res, next) => {
     try {
       if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:comments:list"))) return;
       const visibility = (req.query.visibility as string) || 'all';
@@ -853,7 +880,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) { next(error); }
   });
 
-  app.post("/api/candidates/:id/comments", sensitiveRateLimiter, requireAuth, async (req: any, res, next) => {
+  app.post("/api/candidates/:id/comments", sensitiveLimiter, requireAuth, async (req: any, res, next) => {
     try {
       if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:comments:create"))) return;
       const { body, visibility, parentId } = req.body || {};
@@ -1176,7 +1203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tasks routes - restrict to specific candidate or assignee
-  app.get("/api/tasks", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
+  app.get("/api/tasks", sensitiveLimiter, requireAuth, async (req, res, next) => {
     try {
       const { candidateId, assigneeId } = req.query;
       const authContext = storage.buildAuthorizationContext(req.user);
@@ -1227,7 +1254,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/tasks/mine", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
+  app.get("/api/tasks/mine", sensitiveLimiter, requireAuth, async (req, res, next) => {
     try {
       const userId = req.user!.id;
       
@@ -1282,7 +1309,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/tasks/:id", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
+  app.get("/api/tasks/:id", sensitiveLimiter, requireAuth, async (req, res, next) => {
     try {
       const result = await fetchTaskWithAccess(req, res, req.params.id, "task:read");
       if (!result) return;
@@ -1294,7 +1321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Task comments
-  app.get("/api/tasks/:id/comments", sensitiveRateLimiter, requireAuth, async (req: any, res, next) => {
+  app.get("/api/tasks/:id/comments", sensitiveLimiter, requireAuth, async (req: any, res, next) => {
     try {
       const access = await fetchTaskWithAccess(req, res, req.params.id, "task:comments:list");
       if (!access) return;
@@ -1305,7 +1332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) { next(error); }
   });
 
-  app.post("/api/tasks/:id/comments", sensitiveRateLimiter, requireAuth, async (req: any, res, next) => {
+  app.post("/api/tasks/:id/comments", sensitiveLimiter, requireAuth, async (req: any, res, next) => {
     try {
       const access = await fetchTaskWithAccess(req, res, req.params.id, "task:comments:create");
       if (!access) return;
@@ -1606,7 +1633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // System settings endpoints (hr_staff, system_admin)
-  app.get("/api/system-settings", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/system-settings", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const settings = await storage.getSystemSettings();
       res.json(settings);
@@ -1615,7 +1642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/system-settings", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/system-settings", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const { auto_regress_on_prior_open } = req.body ?? {};
       const updated = await storage.setSystemSettings({ auto_regress_on_prior_open });
@@ -1625,7 +1652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/settings/email", adminRateLimiter, requireAuth, requireRole(["system_admin"]), async (_req, res, next) => {
+  app.get("/api/settings/email", adminLimiter, requireAuth, requireRole(["system_admin"]), async (_req, res, next) => {
     try {
       const settings = await getSmtpSettings();
       res.json(settings);
@@ -1634,7 +1661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/settings/email", adminRateLimiter, requireAuth, requireRole(["system_admin"]), async (req: any, res) => {
+  app.patch("/api/settings/email", adminLimiter, requireAuth, requireRole(["system_admin"]), async (req: any, res) => {
     try {
       const result = await updateSmtpSettings(req.body ?? {}, req.user!.id);
       res.json(result.settings);
@@ -1644,7 +1671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/settings/email/test", adminRateLimiter, requireAuth, requireRole(["system_admin"]), async (req: any, res) => {
+  app.post("/api/settings/email/test", adminLimiter, requireAuth, requireRole(["system_admin"]), async (req: any, res) => {
     const email = req.user?.email;
     if (!email) {
       return res.status(400).json({ ok: false, message: "Current user email is not set" });
@@ -1675,7 +1702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Templates routes
-  app.get("/api/templates", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/templates", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const templates = await storage.getTemplates();
       res.json(templates);
@@ -1702,7 +1729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Comment stats
-  app.get("/api/candidates/:id/comment-stats", sensitiveRateLimiter, requireAuth, async (req: any, res, next) => {
+  app.get("/api/candidates/:id/comment-stats", sensitiveLimiter, requireAuth, async (req: any, res, next) => {
     try {
       if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:comments:stats"))) return;
       const stats = await storage.getCommentStats({ candidateId: req.params.id, role: req.user.role });
@@ -1710,7 +1737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) { next(error); }
   });
 
-  app.get("/api/templates/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/templates/:id", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:read");
       if (!template) return;
@@ -1720,7 +1747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/templates", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.post("/api/templates", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const { cloneFromTemplateId, ...templateData } = req.body;
       const validatedData = insertTemplateSchema.parse(templateData);
@@ -1734,7 +1761,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/templates/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/templates/:id", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const template = await storage.updateTemplate(req.params.id, req.body);
       if (!template) {
@@ -1753,7 +1780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/templates/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.delete("/api/templates/:id", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:delete");
       if (!template) return;
@@ -1765,7 +1792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template readiness endpoint
-  app.get("/api/templates/:id/readiness", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/templates/:id/readiness", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:readiness");
       if (!template) return;
@@ -1777,7 +1804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template status update endpoint
-  app.patch("/api/templates/:id/status", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/templates/:id/status", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const { status } = req.body;
       if (!status || !["draft", "active", "archived"].includes(status)) {
@@ -1817,7 +1844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template estimation endpoint
-  app.get("/api/templates/:id/estimate", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/templates/:id/estimate", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:estimate");
       if (!template) return;
@@ -1953,7 +1980,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template Tasks routes
-  app.get("/api/templates/:id/template-tasks", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/templates/:id/template-tasks", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const templateId = req.params.id;
       if (!templateId || templateId === "undefined") {
@@ -1967,7 +1994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/templates/:id/template-tasks", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.post("/api/templates/:id/template-tasks", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       if (!(await fetchTemplateWithAccess(req, res, req.params.id, "template-tasks:create"))) return;
 
@@ -2040,7 +2067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/template-tasks/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/template-tasks/:id", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       // Clean the data to prevent database errors with empty strings
       const body = req.body ?? {};
@@ -2094,7 +2121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/template-tasks/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.delete("/api/template-tasks/:id", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       // Get template task details before deletion to check if it was the last in its stage
       const taskToDelete = await storage.getTemplateTask(req.params.id);
@@ -2134,7 +2161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template Stages routes
-  app.get("/api/templates/:id/template-stages", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/templates/:id/template-stages", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const templateId = req.params.id;
       if (!templateId || templateId === "undefined") {
@@ -2148,7 +2175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/templates/:id/template-stages", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.post("/api/templates/:id/template-stages", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       if (!(await fetchTemplateWithAccess(req, res, req.params.id, "template-stages:create"))) return;
       if (!req.body.stageId) {
@@ -2173,7 +2200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/template-stages/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/template-stages/:id", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const stage = await storage.updateTemplateStage(req.params.id, req.body);
       if (!stage) {
@@ -2186,7 +2213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/template-stages/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.delete("/api/template-stages/:id", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const stage = await storage.getTemplateStage(req.params.id);
       if (!stage) {
@@ -2201,7 +2228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template stages reordering endpoint
-  app.patch("/api/templates/:id/stages/reorder", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/templates/:id/stages/reorder", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const templateId = req.params.id;
       const { stageIdsInOrder } = req.body;
@@ -2222,7 +2249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Atomic endpoint: create stage with tasks
-  app.post("/api/templates/:id/stages/create-with-task", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.post("/api/templates/:id/stages/create-with-task", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const templateId = req.params.id;
       const { stageId, taskDefIds, priorityId, categoryId, assigneeId, dueRuleType, dueRuleValue, phase } = req.body;
@@ -2870,7 +2897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Provider management endpoints
-  app.get("/api/auth/providers", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/auth/providers", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const dbProviders = await storage.getAllAuthProviders();
       const providerInfos = await Promise.all(dbProviders.map(async (dbProvider) => {
@@ -2892,7 +2919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/auth/providers/:id", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.patch("/api/auth/providers/:id", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const { id } = req.params;
       const { enabled } = req.body;
@@ -2955,7 +2982,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // LDAP Settings API
-  app.get("/api/auth/ldap", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.get("/api/auth/ldap", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const cfg = await storage.getLdapSettings();
       const configured = await storage.getLdapConfigured();
@@ -2987,7 +3014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/auth/ldap", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.put("/api/auth/ldap", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     try {
       const patch = req.body || {};
       // Normalize boolean
@@ -3007,7 +3034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/ldap/test", adminRateLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  app.post("/api/auth/ldap/test", adminLimiter, requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
     const start = Date.now();
     try {
       const override = req.body || {};

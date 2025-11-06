@@ -66,7 +66,8 @@ import {
   type InsertNotification,
   USER_PREFERENCES_DEFAULTS
 } from "@shared/schemas";
-import { db } from "./connection";
+import type { Pool } from "pg";
+import { db as defaultDb, pool as defaultPool } from "./connection";
 import { eq, and, isNull, sql, desc, asc, ilike, inArray, or, ne, lte, gt, lt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { decryptSecret, encryptSecret } from "../utils/secret";
@@ -179,7 +180,6 @@ export type LdapSettings = {
 };
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import { pool } from "./connection";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -256,6 +256,7 @@ function applyScopeFilters(whereConditions: any[], filters: CandidateScopeFilter
 }
 
 export interface IStorage {
+  sessionStore?: session.Store;
   buildAuthorizationContext(user: Express.User | null | undefined): AuthorizationContext;
   // Basic user operations
   getUser(id: string): Promise<User | undefined>;
@@ -425,7 +426,26 @@ function countBusinessDays(startDate: Date, endDate: Date): number {
   return count;
 }
 
+export interface DatabaseStorageOptions {
+  db?: typeof defaultDb;
+  pool?: Pool;
+  sessionStore?: session.Store;
+}
+
 export class DatabaseStorage implements IStorage {
+  private readonly db: typeof defaultDb;
+  private readonly pool: Pool;
+  public readonly sessionStore: session.Store;
+
+  constructor(options: DatabaseStorageOptions = {}) {
+    this.db = options.db ?? defaultDb;
+    this.pool = options.pool ?? defaultPool;
+    this.sessionStore = options.sessionStore ?? new PostgresSessionStore({
+      pool: this.pool,
+      createTableIfMissing: true
+    });
+  }
+
   private buildCandidateVisibilityChecker(auth: AuthorizationContext) {
     if (auth.privileged) {
       return () => true;
@@ -510,14 +530,6 @@ export class DatabaseStorage implements IStorage {
       isCandidate: roles.has("candidate")
     };
   }
-  public sessionStore: session.Store;
-
-  constructor() {
-    this.sessionStore = new PostgresSessionStore({ 
-      pool, 
-      createTableIfMissing: true 
-    });
-  }
 
   private decodeCursor(cursor?: string): { createdAt: Date; id: string } | undefined {
     if (!cursor) return undefined;
@@ -548,7 +560,7 @@ export class DatabaseStorage implements IStorage {
     let attempt = 1;
     while (true) {
       const candidate = attempt === 1 ? base : `${base}.${attempt}`;
-      const existing = await db
+      const existing = await this.db
         .select({ id: users.id })
         .from(users)
         .where(
@@ -570,18 +582,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+    const [user] = await this.db.select().from(users).where(eq(users.id, id));
     return user || undefined;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    const [user] = await this.db.select().from(users).where(eq(users.email, email));
     return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const mentionKey = await this.generateMentionKey(insertUser);
-    const [user] = await db
+    const [user] = await this.db
       .insert(users)
       .values({ ...insertUser, mentionKey })
       .returning();
@@ -607,7 +619,7 @@ export class DatabaseStorage implements IStorage {
       );
     }
 
-    const [user] = await db
+    const [user] = await this.db
       .update(users)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(users.id, id))
@@ -644,7 +656,7 @@ export class DatabaseStorage implements IStorage {
       );
     }
     
-    return await db
+    return await this.db
       .select({
         id: users.id,
         email: users.email,
@@ -682,14 +694,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserRoles(userId: string): Promise<UserRole[]> {
-    return await db
+    return await this.db
       .select()
       .from(userRoles)
       .where(eq(userRoles.userId, userId));
   }
 
   async getUserDepartmentScopeIds(userId: string): Promise<string[]> {
-    const rows = await db
+    const rows = await this.db
       .select({ departmentId: userDepartmentScopes.departmentId })
       .from(userDepartmentScopes)
       .where(eq(userDepartmentScopes.userId, userId));
@@ -697,7 +709,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserDivisionScopeIds(userId: string): Promise<string[]> {
-    const rows = await db
+    const rows = await this.db
       .select({ divisionId: userDivisionScopes.divisionId })
       .from(userDivisionScopes)
       .where(eq(userDivisionScopes.userId, userId));
@@ -705,7 +717,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getManagerCandidateScopeIds(managerId: string): Promise<string[]> {
-    const rows = await db
+    const rows = await this.db
       .select({ candidateId: managerCandidateScopes.candidateId })
       .from(managerCandidateScopes)
       .where(eq(managerCandidateScopes.managerId, managerId));
@@ -714,7 +726,7 @@ export class DatabaseStorage implements IStorage {
 
   async setUserRoles(userId: string, roles: string[]): Promise<UserRole[]> {
     // Remove existing roles
-    await db.delete(userRoles).where(eq(userRoles.userId, userId));
+    await this.db.delete(userRoles).where(eq(userRoles.userId, userId));
     
     // Add new roles
     if (roles.length > 0) {
@@ -723,7 +735,7 @@ export class DatabaseStorage implements IStorage {
         role: role as any
       }));
       
-      return await db
+      return await this.db
         .insert(userRoles)
         .values(newRoles)
         .returning();
@@ -744,7 +756,7 @@ export class DatabaseStorage implements IStorage {
       createdAt: new Date()
     }));
 
-    await db
+    await this.db
       .insert(userRoles)
       .values(roleValues)
       .onConflictDoNothing({
@@ -755,7 +767,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async disableUser(userId: string, reassignOpenTasksTo?: string): Promise<{ success: boolean; tasksReassigned?: number }> {
-    return await db.transaction(async (tx) => {
+    return await this.db.transaction(async (tx) => {
       // Disable the user
       await tx
         .update(users)
@@ -787,7 +799,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async enableUser(userId: string): Promise<User | undefined> {
-    const [user] = await db
+    const [user] = await this.db
       .update(users)
       .set({ status: 'active', updatedAt: new Date() })
       .where(eq(users.id, userId))
@@ -796,14 +808,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateLastLogin(userId: string): Promise<void> {
-    await db
+    await this.db
       .update(users)
       .set({ lastLoginAt: new Date() })
       .where(eq(users.id, userId));
   }
 
   async getUserOpenTaskCount(userId: string): Promise<{ total: number; required: number }> {
-    const result = await db.execute(sql`
+    const result = await this.db.execute(sql`
       SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN required = true THEN 1 ELSE 0 END) as required
@@ -872,7 +884,7 @@ export class DatabaseStorage implements IStorage {
 
     const currentTemplateStage = alias(templateStages, "current_template_stage");
 
-    return await db
+    return await this.db
       .select({
         id: candidates.id,
         salutation: candidates.salutation,
@@ -944,7 +956,7 @@ export class DatabaseStorage implements IStorage {
   async getCandidate(id: string, auth?: AuthorizationContext): Promise<any> {
     const primaryOwner = alias(users, "primary_owner");
     const currentTemplateStage = alias(templateStages, "current_template_stage");
-    const [candidate] = await db
+    const [candidate] = await this.db
       .select({
         id: candidates.id,
         salutation: candidates.salutation,
@@ -1044,7 +1056,7 @@ export class DatabaseStorage implements IStorage {
 
   // System settings helpers
   async getSystemSettings(): Promise<{ auto_regress_on_prior_open: boolean }> {
-    const rows = await db.select().from(systemSettings);
+    const rows = await this.db.select().from(systemSettings);
     const map = new Map(rows.map((r: any) => [r.key, r.value]));
     const autoRegress = Boolean(map.get('auto_regress_on_prior_open')?.enabled ?? false);
     return { auto_regress_on_prior_open: autoRegress };
@@ -1054,7 +1066,7 @@ export class DatabaseStorage implements IStorage {
     if (patch.auto_regress_on_prior_open !== undefined) {
       const now = new Date();
       const value = { enabled: !!patch.auto_regress_on_prior_open } as any;
-      await db
+      await this.db
         .insert(systemSettings)
         .values({ key: 'auto_regress_on_prior_open', value, updatedAt: now, createdAt: now } as any)
         .onConflictDoUpdate({
@@ -1067,7 +1079,7 @@ export class DatabaseStorage implements IStorage {
 
   // LDAP settings helpers (global/single-tenant)
   async getLdapSettings(): Promise<LdapSettings> {
-    const rows = await db.select().from(systemSettings);
+    const rows = await this.db.select().from(systemSettings);
     const map = new Map(rows.map((r: any) => [r.key, r.value]));
     const stored = (map.get('auth.ldap') ?? {}) as LdapSettings;
 
@@ -1124,7 +1136,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     const now = new Date();
-    await db
+    await this.db
       .insert(systemSettings)
       .values({ key: 'auth.ldap', value: toStore as any, updatedAt: now, createdAt: now } as any)
       .onConflictDoUpdate({ target: systemSettings.key, set: { value: toStore as any, updatedAt: now } });
@@ -1145,7 +1157,7 @@ export class DatabaseStorage implements IStorage {
       ...insertCandidate,
       primaryOwnerId: insertCandidate.primaryOwnerId ?? null
     };
-    const [candidate] = await db
+    const [candidate] = await this.db
       .insert(candidates)
       .values(payload)
       .returning();
@@ -1153,7 +1165,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCandidate(id: string, data: Partial<Candidate>): Promise<Candidate | undefined> {
-    const [candidate] = await db
+    const [candidate] = await this.db
       .update(candidates)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(candidates.id, id))
@@ -1195,7 +1207,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    const rawTasks = await db
+    const rawTasks = await this.db
       .select({
         id: candidateTasks.id,
         candidateId: candidateTasks.candidateId,
@@ -1301,7 +1313,7 @@ export class DatabaseStorage implements IStorage {
 
   async getDashboardTasks(): Promise<any[]> {
     // Get all tasks from candidates with active or on_hold status for KPI calculations
-    const rawTasks = await db
+    const rawTasks = await this.db
       .select({
         id: candidateTasks.id,
         candidateId: candidateTasks.candidateId,
@@ -1347,7 +1359,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCandidateTask(id: string): Promise<CandidateTask | undefined> {
-    const [task] = await db
+    const [task] = await this.db
       .select()
       .from(candidateTasks)
       .where(and(eq(candidateTasks.id, id), eq(candidateTasks.archived, false)));
@@ -1360,7 +1372,7 @@ export class DatabaseStorage implements IStorage {
       dueAt: insertTask.dueAt ? ensureDate(insertTask.dueAt) : null,
     };
 
-    const [task] = await db
+    const [task] = await this.db
       .insert(candidateTasks)
       .values(payload)
       .returning();
@@ -1373,7 +1385,7 @@ export class DatabaseStorage implements IStorage {
       update.dueAt = update.dueAt ? ensureDate(update.dueAt) : null;
     }
 
-    const [task] = await db
+    const [task] = await this.db
       .update(candidateTasks)
       .set({ ...update, updatedAt: new Date() })
       .where(and(eq(candidateTasks.id, id), eq(candidateTasks.archived, false)))
@@ -1382,14 +1394,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCandidateTask(id: string): Promise<void> {
-    await db
+    await this.db
       .update(candidateTasks)
       .set({ deletedAt: new Date() })
       .where(eq(candidateTasks.id, id));
   }
 
   async archiveCandidateTask(id: string): Promise<void> {
-    await db
+    await this.db
       .update(candidateTasks)
       .set({ archived: true, updatedAt: new Date() })
       .where(eq(candidateTasks.id, id));
@@ -1397,7 +1409,7 @@ export class DatabaseStorage implements IStorage {
 
   async resolveCandidateSelfAssignments(candidateId: string, userId: string): Promise<TemplateExpansionTask[]> {
     const now = new Date();
-    const rows = await db
+    const rows = await this.db
       .update(candidateTasks)
       .set({
         assigneeKind: 'user',
@@ -1429,7 +1441,7 @@ export class DatabaseStorage implements IStorage {
 
   async getCandidateStageHistory(candidateId: string): Promise<any[]> {
     const fromStages = alias(hiringStages, 'from_hs');
-    const rows = await db
+    const rows = await this.db
       .select({
         id: candidateStageHistory.id,
         changedAt: candidateStageHistory.changedAt,
@@ -1461,16 +1473,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTemplates(): Promise<Template[]> {
-    return await db.select().from(templates).where(eq(templates.archived, false));
+    return await this.db.select().from(templates).where(eq(templates.archived, false));
   }
 
   async getTemplate(id: string): Promise<Template | undefined> {
-    const [template] = await db.select().from(templates).where(eq(templates.id, id));
+    const [template] = await this.db.select().from(templates).where(eq(templates.id, id));
     return template || undefined;
   }
 
   async createTemplate(insertTemplate: InsertTemplate, cloneFromTemplateId?: string): Promise<Template> {
-    const [template] = await db
+    const [template] = await this.db
       .insert(templates)
       .values(insertTemplate)
       .returning();
@@ -1478,7 +1490,7 @@ export class DatabaseStorage implements IStorage {
     // If cloning from another template, copy its template stages and tasks
     if (cloneFromTemplateId) {
       // First, copy template stages
-      const sourceStages = await db
+      const sourceStages = await this.db
         .select()
         .from(templateStages)
         .where(and(
@@ -1497,7 +1509,7 @@ export class DatabaseStorage implements IStorage {
           phase: stage.phase ?? 'pre_hire'
         }));
 
-        const clonedStages = await db
+        const clonedStages = await this.db
           .insert(templateStages)
           .values(stagesToClone)
           .returning({ id: templateStages.id });
@@ -1511,7 +1523,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Then copy template tasks (now stage IDs will be valid)
-      const sourceTasks = await db
+      const sourceTasks = await this.db
         .select()
         .from(templateTasks)
         .where(and(
@@ -1542,7 +1554,7 @@ export class DatabaseStorage implements IStorage {
           };
         });
 
-        await db.insert(templateTasks).values(tasksToClone);
+        await this.db.insert(templateTasks).values(tasksToClone);
       }
     }
     
@@ -1550,7 +1562,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTemplate(id: string, data: Partial<Template>): Promise<Template | undefined> {
-    const [template] = await db
+    const [template] = await this.db
       .update(templates)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(templates.id, id))
@@ -1559,16 +1571,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTaskDefinitions(): Promise<TaskDefinition[]> {
-    return await db.select().from(taskDefinitions).orderBy(asc(taskDefinitions.name));
+    return await this.db.select().from(taskDefinitions).orderBy(asc(taskDefinitions.name));
   }
 
   async getTaskDefinition(id: string): Promise<TaskDefinition | undefined> {
-    const [taskDef] = await db.select().from(taskDefinitions).where(eq(taskDefinitions.id, id));
+    const [taskDef] = await this.db.select().from(taskDefinitions).where(eq(taskDefinitions.id, id));
     return taskDef || undefined;
   }
 
   async createTaskDefinition(insertTaskDef: InsertTaskDefinition): Promise<TaskDefinition> {
-    const [taskDef] = await db
+    const [taskDef] = await this.db
       .insert(taskDefinitions)
       .values(insertTaskDef)
       .returning();
@@ -1576,7 +1588,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTaskDefinition(id: string, data: Partial<TaskDefinition>): Promise<TaskDefinition | undefined> {
-    const [taskDef] = await db
+    const [taskDef] = await this.db
       .update(taskDefinitions)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(taskDefinitions.id, id))
@@ -1586,9 +1598,9 @@ export class DatabaseStorage implements IStorage {
 
   async getDepartments(includeArchived: boolean = false): Promise<Department[]> {
     if (includeArchived) {
-      return await db.select().from(departments);
+      return await this.db.select().from(departments);
     }
-    return await db.select().from(departments).where(eq(departments.archived, false));
+    return await this.db.select().from(departments).where(eq(departments.archived, false));
   }
 
   async getDivisions(departmentId?: string, includeArchived: boolean = false): Promise<Division[]> {
@@ -1603,10 +1615,10 @@ export class DatabaseStorage implements IStorage {
     }
     
     if (whereConditions.length > 0) {
-      return await db.select().from(divisions).where(and(...whereConditions));
+      return await this.db.select().from(divisions).where(and(...whereConditions));
     }
     
-    return await db.select().from(divisions);
+    return await this.db.select().from(divisions);
   }
 
   async getDivisionsByDepartment(
@@ -1624,7 +1636,7 @@ export class DatabaseStorage implements IStorage {
       whereConditions.push(ilike(divisions.name, `%${searchQuery}%`));
     }
 
-    return await db
+    return await this.db
       .select()
       .from(divisions)
       .where(and(...whereConditions))
@@ -1666,7 +1678,7 @@ export class DatabaseStorage implements IStorage {
       );
     }
     
-    return await db
+    return await this.db
       .select({
         id: users.id,
         name: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
@@ -1682,7 +1694,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDepartment(insertDept: InsertDepartment): Promise<Department> {
-    const [dept] = await db
+    const [dept] = await this.db
       .insert(departments)
       .values(insertDept)
       .returning();
@@ -1690,7 +1702,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDivision(insertDiv: InsertDivision): Promise<Division> {
-    const [div] = await db
+    const [div] = await this.db
       .insert(divisions)
       .values(insertDiv)
       .returning();
@@ -1698,7 +1710,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDepartment(id: string, data: Partial<Department>): Promise<Department | undefined> {
-    const [dept] = await db
+    const [dept] = await this.db
       .update(departments)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(departments.id, id))
@@ -1707,7 +1719,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDivision(id: string, data: Partial<Division>): Promise<Division | undefined> {
-    const [div] = await db
+    const [div] = await this.db
       .update(divisions)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(divisions.id, id))
@@ -1718,20 +1730,20 @@ export class DatabaseStorage implements IStorage {
   async getHiringStages(): Promise<HiringStage[]> {
     // DISPLAY ONLY: This ordering is for admin UI and selectors only, 
     // NOT for template or candidate business logic
-    return await db.select().from(hiringStages).orderBy(asc(hiringStages.orderIndex));
+    return await this.db.select().from(hiringStages).orderBy(asc(hiringStages.orderIndex));
   }
 
   async createHiringStage(insertStage: InsertHiringStage): Promise<HiringStage> {
     // If no orderIndex provided, set it to the next available value
     if (!insertStage.orderIndex) {
-      const maxOrderQuery = await db
+      const maxOrderQuery = await this.db
         .select({ maxOrder: sql<number>`max(${hiringStages.orderIndex})` })
         .from(hiringStages);
       const maxOrder = maxOrderQuery[0]?.maxOrder || 0;
       insertStage.orderIndex = maxOrder + 1;
     }
 
-    const [stage] = await db
+    const [stage] = await this.db
       .insert(hiringStages)
       .values(insertStage)
       .returning();
@@ -1739,7 +1751,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateHiringStage(id: string, data: Partial<HiringStage>): Promise<HiringStage | undefined> {
-    const [stage] = await db
+    const [stage] = await this.db
       .update(hiringStages)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(hiringStages.id, id))
@@ -1749,31 +1761,31 @@ export class DatabaseStorage implements IStorage {
 
   async deleteHiringStage(id: string): Promise<void> {
     // Soft delete by setting isActive to false
-    await db
+    await this.db
       .update(hiringStages)
       .set({ isActive: false, updatedAt: new Date() })
       .where(eq(hiringStages.id, id));
   }
 
   async getTaskCategories(): Promise<TaskCategory[]> {
-    return await db.select().from(taskCategories).orderBy(asc(taskCategories.name));
+    return await this.db.select().from(taskCategories).orderBy(asc(taskCategories.name));
   }
 
   async getCandidateTypes(): Promise<CandidateType[]> {
-    return await db.select().from(candidateTypes).orderBy(asc(candidateTypes.name));
+    return await this.db.select().from(candidateTypes).orderBy(asc(candidateTypes.name));
   }
 
   async getFacultyRanks(): Promise<FacultyRank[]> {
-    return await db.select().from(facultyRanks).orderBy(asc(facultyRanks.name));
+    return await this.db.select().from(facultyRanks).orderBy(asc(facultyRanks.name));
   }
 
   async getUsers(): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.active, true)).orderBy(asc(users.firstName), asc(users.lastName));
+    return await this.db.select().from(users).where(eq(users.active, true)).orderBy(asc(users.firstName), asc(users.lastName));
   }
 
   // Template Tasks methods
   async getTemplateTasks(templateId: string): Promise<TemplateTask[]> {
-    return await db
+    return await this.db
       .select()
       .from(templateTasks)
       .where(and(
@@ -1784,14 +1796,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTemplateTask(id: string): Promise<TemplateTask | undefined> {
-    const [task] = await db.select().from(templateTasks).where(eq(templateTasks.id, id));
+    const [task] = await this.db.select().from(templateTasks).where(eq(templateTasks.id, id));
     return task || undefined;
   }
 
   async createTemplateTask(insertTask: InsertTemplateTask): Promise<TemplateTask> {
     let templateStageId = insertTask.templateStageId;
     if (!templateStageId) {
-      const [stage] = await db
+      const [stage] = await this.db
         .select({ id: templateStages.id })
         .from(templateStages)
         .where(and(
@@ -1805,7 +1817,7 @@ export class DatabaseStorage implements IStorage {
       templateStageId = stage.id;
     }
 
-    const [task] = await db
+    const [task] = await this.db
       .insert(templateTasks)
       .values({ ...insertTask, templateStageId })
       .returning();
@@ -1822,7 +1834,7 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Template context required to update task stage");
       }
 
-      const [stage] = await db
+      const [stage] = await this.db
         .select({ id: templateStages.id })
         .from(templateStages)
         .where(and(
@@ -1836,7 +1848,7 @@ export class DatabaseStorage implements IStorage {
       updateData = { ...updateData, templateStageId: stage.id };
     }
 
-    const [task] = await db
+    const [task] = await this.db
       .update(templateTasks)
       .set({ ...updateData, updatedAt: new Date() })
       .where(eq(templateTasks.id, id))
@@ -1847,14 +1859,14 @@ export class DatabaseStorage implements IStorage {
   async archiveTemplateTask(id: string): Promise<void> {
     // For template tasks, we actually delete them rather than just archive
     // This allows the database trigger to auto-remove empty stages
-    await db
+    await this.db
       .delete(templateTasks)
       .where(eq(templateTasks.id, id));
   }
 
   // Template Stages methods
   async getTemplateStages(templateId: string): Promise<TemplateStage[]> {
-    return await db
+    return await this.db
       .select()
       .from(templateStages)
       .where(and(
@@ -1865,13 +1877,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTemplateStage(id: string): Promise<TemplateStage | undefined> {
-    const [stage] = await db.select().from(templateStages).where(eq(templateStages.id, id));
+    const [stage] = await this.db.select().from(templateStages).where(eq(templateStages.id, id));
     return stage || undefined;
   }
 
   async createTemplateStage(insertStage: InsertTemplateStage): Promise<TemplateStage> {
     // (a) Upsert the stage using the exact SQL from requirements
-    await db.execute(sql`
+    await this.db.execute(sql`
       INSERT INTO template_stages (template_id, stage_id, order_index, is_active, phase, created_at, updated_at)
       VALUES (${insertStage.templateId}, ${insertStage.stageId}, COALESCE(${insertStage.orderIndex || 0}, 0), TRUE, ${insertStage.phase ?? 'pre_hire'}, now(), now())
       ON CONFLICT (template_id, stage_id)
@@ -1883,7 +1895,7 @@ export class DatabaseStorage implements IStorage {
     `);
 
     // (b) If this template now has exactly 1 active stage, auto-activate template
-    const result = await db.execute(sql`
+    const result = await this.db.execute(sql`
       WITH s AS (
         SELECT COUNT(*) AS cnt
         FROM template_stages
@@ -1904,7 +1916,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Return the created/updated stage
-    const [stage] = await db
+    const [stage] = await this.db
       .select()
       .from(templateStages)
       .where(and(
@@ -1916,7 +1928,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTemplateStage(id: string, data: Partial<TemplateStage>): Promise<TemplateStage | undefined> {
-    const [stage] = await db
+    const [stage] = await this.db
       .update(templateStages)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(templateStages.id, id))
@@ -1925,14 +1937,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTemplateStage(id: string): Promise<void> {
-    await db
+    await this.db
       .update(templateStages)
       .set({ isActive: false, updatedAt: new Date() })
       .where(eq(templateStages.id, id));
   }
 
   async reorderTemplateStages(templateId: string, stageIdsInOrder: string[]): Promise<void> {
-    await db.transaction(async (trx) => {
+    await this.db.transaction(async (trx) => {
       // First, validate that all stages belong to this template and are active
       const existingStages = await trx
         .select({ stageId: templateStages.stageId })
@@ -1975,7 +1987,7 @@ export class DatabaseStorage implements IStorage {
   // Candidate Template Stages methods
   async getCandidateTemplateStages(candidateId: string): Promise<CandidateTemplateStage[]> {
     try {
-      return await db
+      return await this.db
         .select()
         .from(candidateTemplateStages)
         .where(eq(candidateTemplateStages.candidateId, candidateId))
@@ -1988,7 +2000,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCandidateTemplateStage(stage: InsertCandidateTemplateStage): Promise<CandidateTemplateStage> {
-    const [created] = await db
+    const [created] = await this.db
       .insert(candidateTemplateStages)
       .values(stage)
       .returning();
@@ -1998,7 +2010,7 @@ export class DatabaseStorage implements IStorage {
   async upsertCandidateTemplateStages(candidateId: string, stages: InsertCandidateTemplateStage[]): Promise<void> {
     // Use UPSERT to handle conflicts
     for (const stage of stages) {
-      await db
+      await this.db
         .insert(candidateTemplateStages)
         .values(stage)
         .onConflictDoUpdate({
@@ -2013,21 +2025,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCandidateFollowers(candidateId: string): Promise<CandidateFollower[]> {
-    return await db
+    return await this.db
       .select()
       .from(candidateFollowers)
       .where(eq(candidateFollowers.candidateId, candidateId));
   }
 
   async addCandidateFollower(candidateId: string, userId: string): Promise<void> {
-    await db
+    await this.db
       .insert(candidateFollowers)
       .values({ candidateId, userId })
       .onConflictDoNothing();
   }
 
   async removeCandidateFollower(candidateId: string, userId: string): Promise<void> {
-    await db
+    await this.db
       .delete(candidateFollowers)
       .where(and(eq(candidateFollowers.candidateId, candidateId), eq(candidateFollowers.userId, userId)));
   }
@@ -2059,7 +2071,7 @@ export class DatabaseStorage implements IStorage {
       whereClause = and(whereClause, cursorCondition)!;
     }
 
-    const rows = await db
+    const rows = await this.db
       .select()
       .from(notifications)
       .where(whereClause)
@@ -2071,7 +2083,7 @@ export class DatabaseStorage implements IStorage {
       ? this.encodeCursor({ createdAt: items[items.length - 1].createdAt as Date, id: items[items.length - 1].id })
       : undefined;
 
-    const unreadResult = await db
+    const unreadResult = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(notifications)
       .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
@@ -2082,7 +2094,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async setNotificationRead(userId: string, notificationId: string, isRead: boolean): Promise<boolean> {
-    const [updated] = await db
+    const [updated] = await this.db
       .update(notifications)
       .set({
         isRead,
@@ -2096,7 +2108,7 @@ export class DatabaseStorage implements IStorage {
 
   async markAllNotificationsRead(userId: string): Promise<number> {
     const now = new Date();
-    const result = await db
+    const result = await this.db
       .update(notifications)
       .set({ isRead: true, readAt: now })
       .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)))
@@ -2106,7 +2118,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async archiveTemplate(id: string): Promise<void> {
-    const result = await db
+    const result = await this.db
       .update(templates)
       .set({ archived: true, isActive: false, updatedAt: new Date() })
       .where(and(eq(templates.id, id), eq(templates.archived, false)))
@@ -2118,7 +2130,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTemplateReadiness(id: string): Promise<{ active_stage_count: number }> {
-    const [result] = await db
+    const [result] = await this.db
       .select({
         active_stage_count: sql<number>`COUNT(${templateStages.id}) FILTER (WHERE ${templateStages.isActive} = true)`
       })
@@ -2131,7 +2143,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTaskPriorities(): Promise<TaskPriority[]> {
-    return await db.select().from(taskPriorities).orderBy(asc(taskPriorities.name));
+    return await this.db.select().from(taskPriorities).orderBy(asc(taskPriorities.name));
   }
 
   async expandTemplate(templateId: string, candidateId: string, currentUserId: string): Promise<TemplateExpansionResult> {
@@ -2211,7 +2223,7 @@ export class DatabaseStorage implements IStorage {
       // Get default priority name
       let priority = "medium";
       if (templateTask.defaultPriorityId) {
-        const priorityRecord = await db
+        const priorityRecord = await this.db
           .select()
           .from(taskPriorities)
           .where(eq(taskPriorities.id, templateTask.defaultPriorityId));
@@ -2272,7 +2284,7 @@ export class DatabaseStorage implements IStorage {
     // Create all tasks first
     let createdTasks: TemplateExpansionTask[] = [];
     if (tasksToCreate.length > 0) {
-      createdTasks = await db
+      createdTasks = await this.db
         .insert(candidateTasks)
         .values(tasksToCreate)
         .returning({
@@ -2289,7 +2301,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Snapshot the template's stage sequence using SQL for efficiency
-    await db.execute(sql`
+    await this.db.execute(sql`
       WITH ts AS (
         SELECT ts.stage_id, hs.name AS stage_name, ts.order_index
         FROM template_stages ts
@@ -2306,7 +2318,7 @@ export class DatabaseStorage implements IStorage {
     `);
 
     // Update candidate_tasks with stage_order_index for fast sorting
-    await db.execute(sql`
+    await this.db.execute(sql`
       UPDATE candidate_tasks ct
       SET stage_order_index = s.order_index
       FROM candidate_template_stages s
@@ -2328,7 +2340,7 @@ export class DatabaseStorage implements IStorage {
 
     // Record initial stage history if we have an initial stage
     if (initialStage) {
-      await db
+      await this.db
         .insert(candidateStageHistory)
         .values({
           candidateId: candidateId,
@@ -2355,7 +2367,7 @@ export class DatabaseStorage implements IStorage {
       start: resolveStartAnchor(candidate),
     };
 
-    const tasks = await db
+    const tasks = await this.db
       .select({
         id: candidateTasks.id,
         dueRuleType: candidateTasks.dueRuleType,
@@ -2391,7 +2403,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     const now = new Date();
-    await db.transaction(async (tx) => {
+    await this.db.transaction(async (tx) => {
       for (const update of updates) {
         await tx
           .update(candidateTasks)
@@ -2416,7 +2428,7 @@ export class DatabaseStorage implements IStorage {
       start: ensureDate(startDate ?? candidate?.anticipatedStartDate ?? null),
     };
 
-    const tasksQuery = await db
+    const tasksQuery = await this.db
       .select({
         id: templateTasks.id,
         stageId: templateTasks.stageId,
@@ -2587,7 +2599,7 @@ export class DatabaseStorage implements IStorage {
     if (visibilityFilter !== 'all') whereParts.push(eq(comments.visibility, visibilityFilter as any));
     if (cursorObj) whereParts.push(lte(comments.createdAt, cursorObj.createdAt));
 
-    const rows = await db
+    const rows = await this.db
       .select({
         id: comments.id,
         entityType: comments.entityType,
@@ -2609,7 +2621,7 @@ export class DatabaseStorage implements IStorage {
     const items = rows.slice(0, limit);
     const next = rows.length > limit ? this.encodeCursor({ createdAt: items[items.length - 1].createdAt as any, id: items[items.length - 1].id }) : undefined;
 
-    const countRows = await db
+    const countRows = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(comments)
       .where(and(
@@ -2631,7 +2643,7 @@ export class DatabaseStorage implements IStorage {
     if (visibilityFilter !== 'all') whereParts.push(eq(comments.visibility, visibilityFilter as any));
     if (cursorObj) whereParts.push(lte(comments.createdAt, cursorObj.createdAt));
 
-    const rows = await db
+    const rows = await this.db
       .select({
         id: comments.id,
         entityType: comments.entityType,
@@ -2653,7 +2665,7 @@ export class DatabaseStorage implements IStorage {
     const items = rows.slice(0, limit);
     const next = rows.length > limit ? this.encodeCursor({ createdAt: items[items.length - 1].createdAt as any, id: items[items.length - 1].id }) : undefined;
 
-    const countRows = await db
+    const countRows = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(comments)
       .where(and(
@@ -2674,15 +2686,15 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Candidates can only create external comments');
     }
     if (parentId) {
-      const [parent] = await db.select().from(comments).where(eq(comments.id, parentId));
+      const [parent] = await this.db.select().from(comments).where(eq(comments.id, parentId));
       if (!parent) throw new Error('Parent comment not found');
       finalVisibility = parent.visibility as any;
     }
-    const [createdRow] = await db
+    const [createdRow] = await this.db
       .insert(comments)
       .values({ entityType: entityType as any, entityId, authorUserId, body, visibility: finalVisibility as any, parentId: parentId || null })
       .returning();
-    const [created] = await db
+    const [created] = await this.db
       .select({
         id: comments.id,
         entityType: comments.entityType,
@@ -2704,14 +2716,14 @@ export class DatabaseStorage implements IStorage {
   async editComment(params: { id: string; userId: string; userRole: string; body: string }): Promise<any> {
     const { id, userId, userRole, body } = params;
     const { comments } = await import("@shared/schemas");
-    const [existing] = await db.select().from(comments).where(eq(comments.id, id));
+    const [existing] = await this.db.select().from(comments).where(eq(comments.id, id));
     if (!existing || existing.isDeleted) throw new Error('Comment not found');
     const now = new Date();
     const createdAt = new Date(existing.createdAt as any);
     const diffMs = now.getTime() - createdAt.getTime();
     const canEdit = (existing.authorUserId === userId && diffMs <= 5 * 60 * 1000) || ['system_admin','hr_staff'].includes(userRole);
     if (!canEdit) throw new Error('Not permitted to edit comment');
-    const [updated] = await db
+    const [updated] = await this.db
       .update(comments)
       .set({ body, updatedAt: new Date() })
       .where(eq(comments.id, id))
@@ -2722,7 +2734,7 @@ export class DatabaseStorage implements IStorage {
   async deleteComment(params: { id: string; userId: string; userRole: string }): Promise<void> {
     const { id, userId, userRole } = params;
     const { comments } = await import("@shared/schemas");
-    const [existing] = await db.select().from(comments).where(eq(comments.id, id));
+    const [existing] = await this.db.select().from(comments).where(eq(comments.id, id));
     if (!existing || existing.isDeleted) throw new Error('Comment not found');
     const now = new Date();
     const createdAt = new Date(existing.createdAt as any);
@@ -2730,7 +2742,7 @@ export class DatabaseStorage implements IStorage {
     const canDelete = (existing.authorUserId === userId && diffMs <= 5 * 60 * 1000) || ['system_admin','hr_staff'].includes(userRole);
     if (!canDelete) throw new Error('Not permitted to delete comment');
     // Soft-delete the target comment and any direct replies
-    await db
+    await this.db
       .update(comments)
       .set({ isDeleted: true, updatedAt: new Date() })
       .where(or(eq(comments.id, id), eq(comments.parentId, id)));
@@ -2741,7 +2753,7 @@ export class DatabaseStorage implements IStorage {
     const { comments, candidateTasks } = await import("@shared/schemas");
     const visibleSet = role === 'candidate' ? ['external'] : ['internal','external'];
 
-    const profileCounts = await db
+    const profileCounts = await this.db
       .select({ visibility: comments.visibility, count: sql<number>`count(*)::int` })
       .from(comments)
       .where(and(eq(comments.entityType, 'candidate' as any), eq(comments.entityId, candidateId), eq(comments.isDeleted, false), inArray(comments.visibility, visibleSet as any)))
@@ -2753,14 +2765,14 @@ export class DatabaseStorage implements IStorage {
     }
     profile.totalVisible = profile.internalCount + profile.externalCount;
 
-    const taskIdsRows = await db
+    const taskIdsRows = await this.db
       .select({ id: candidateTasks.id })
       .from(candidateTasks)
       .where(eq(candidateTasks.candidateId, candidateId));
     const taskIds = taskIdsRows.map(r => r.id);
     const byTask: Record<string, { internalCount: number; externalCount: number; totalVisible: number }> = {};
     if (taskIds.length > 0) {
-      const taskCounts = await db
+      const taskCounts = await this.db
         .select({ entityId: comments.entityId, visibility: comments.visibility, count: sql<number>`count(*)::int` })
         .from(comments)
         .where(and(eq(comments.entityType, 'task' as any), inArray(comments.entityId, taskIds), eq(comments.isDeleted, false), inArray(comments.visibility, visibleSet as any)))
@@ -2781,7 +2793,7 @@ export class DatabaseStorage implements IStorage {
 
   async estimateCandidate(candidateId: string, businessDays: boolean = false): Promise<any> {
     // Get candidate information including template application date
-    const candidate = await db
+    const candidate = await this.db
       .select({
         id: candidates.id,
         templateAppliedFromId: candidates.templateAppliedFromId,
@@ -2828,7 +2840,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Get all tasks for this candidate with stage information and completion status
-    const tasksQuery = await db
+    const tasksQuery = await this.db
       .select({
         id: candidateTasks.id,
         stageId: candidateTasks.stageId,
@@ -2990,7 +3002,7 @@ export class DatabaseStorage implements IStorage {
 
     // Special validation for completed status
     if (newStatus === 'completed') {
-      const incompleteRequiredTasks = await db
+      const incompleteRequiredTasks = await this.db
         .select({
           id: candidateTasks.id,
           title: taskDefinitions.name,
@@ -3045,7 +3057,7 @@ export class DatabaseStorage implements IStorage {
         }
         if (currentStatus === 'canceled') {
           // Restore previously canceled tasks back to default status
-          const reopened = await db
+          const reopened = await this.db
             .update(candidateTasks)
             .set({ status: 'todo', updatedAt: new Date(), completedAt: null })
             .where(and(
@@ -3060,7 +3072,7 @@ export class DatabaseStorage implements IStorage {
         
       case 'canceled':
         // Always close open tasks when candidate is canceled
-        const canceledTasks = await db
+        const canceledTasks = await this.db
           .update(candidateTasks)
           .set({ 
             status: 'canceled', 
@@ -3078,7 +3090,7 @@ export class DatabaseStorage implements IStorage {
 
       case 'completed':
         // Cancel any remaining optional open tasks
-        const canceledOptionalTasks = await db
+        const canceledOptionalTasks = await this.db
           .update(candidateTasks)
           .set({ 
             status: 'canceled', 
@@ -3119,7 +3131,7 @@ export class DatabaseStorage implements IStorage {
 
   // Search methods with trigram similarity
   async searchDepartments(query: string): Promise<{ id: string; name: string; score?: number }[]> {
-    const results = await db.execute(sql`
+    const results = await this.db.execute(sql`
       WITH qry AS (
         SELECT nullif(trim(${query}), '') AS q
       )
@@ -3149,7 +3161,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchDivisions(query: string, departmentId?: string): Promise<{ id: string; name: string; score?: number }[]> {
-    const results = await db.execute(sql`
+    const results = await this.db.execute(sql`
       WITH qry AS (
         SELECT nullif(trim(${query}), '') AS q, ${departmentId || null}::uuid AS dept_id
       )
@@ -3180,7 +3192,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchUsers(query: string, role?: string, departmentId?: string, divisionId?: string): Promise<{ id: string; name: string; score?: number }[]> {
-    const results = await db.execute(sql`
+    const results = await this.db.execute(sql`
       WITH params AS (
         SELECT 
           NULLIF(${query}, '')::text AS q, 
@@ -3223,7 +3235,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
-    const [preferences] = await db
+    const [preferences] = await this.db
       .select()
       .from(userPreferences)
       .where(eq(userPreferences.userId, userId));
@@ -3259,7 +3271,7 @@ export class DatabaseStorage implements IStorage {
       eventSubscriptions: mergedEventSubscriptions,
     } satisfies typeof userPreferences.$inferInsert;
 
-    const [result] = await db
+    const [result] = await this.db
       .insert(userPreferences)
       .values({ ...resolved, updatedAt: now })
       .onConflictDoUpdate({
@@ -3277,7 +3289,7 @@ export class DatabaseStorage implements IStorage {
   // User identity methods for multi-provider authentication
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db
+    const [user] = await this.db
       .select()
       .from(users)
       .where(eq(users.username, username));
@@ -3285,7 +3297,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserIdentityByProvider(provider: string, externalId: string): Promise<UserIdentity | undefined> {
-    const [identity] = await db
+    const [identity] = await this.db
       .select()
       .from(userIdentities)
       .where(and(
@@ -3296,7 +3308,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUserIdentity(identityData: InsertUserIdentity): Promise<UserIdentity> {
-    const [identity] = await db
+    const [identity] = await this.db
       .insert(userIdentities)
       .values(identityData)
       .returning();
@@ -3304,7 +3316,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserIdentity(id: string, data: Partial<UserIdentity>): Promise<UserIdentity | undefined> {
-    const [identity] = await db
+    const [identity] = await this.db
       .update(userIdentities)
       .set(data)
       .where(eq(userIdentities.id, id))
@@ -3319,7 +3331,7 @@ export class DatabaseStorage implements IStorage {
     const now = new Date();
     const expiresAt = new Date(params.expiresAt);
 
-    return await db.transaction(async (tx) => {
+    return await this.db.transaction(async (tx) => {
       const existing = await tx
         .select()
         .from(invitations)
@@ -3373,7 +3385,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getInvitationByToken(token: string): Promise<Invitation | null> {
-    const [invite] = await db
+    const [invite] = await this.db
       .select()
       .from(invitations)
       .where(eq(invitations.token, token))
@@ -3382,7 +3394,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async consumeInvitation(id: string): Promise<Invitation | null> {
-    const [updated] = await db
+    const [updated] = await this.db
       .update(invitations)
       .set({
         status: "consumed",
@@ -3399,7 +3411,7 @@ export class DatabaseStorage implements IStorage {
     const usernameLocal = normalized.includes("@") ? normalized.split("@")[0] : normalized;
     const now = new Date();
 
-    const [invite] = await db
+    const [invite] = await this.db
       .select()
       .from(invitations)
       .where(and(
@@ -3435,7 +3447,7 @@ export class DatabaseStorage implements IStorage {
       where.push(sql`lower(${invitations.email}) like ${q}`);
     }
 
-    const rows = await db
+    const rows = await this.db
       .select({
         id: invitations.id,
         email: invitations.email,
@@ -3471,7 +3483,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserIdentities(userId: string): Promise<UserIdentity[]> {
-    return await db
+    return await this.db
       .select()
       .from(userIdentities)
       .where(eq(userIdentities.userId, userId))
@@ -3479,21 +3491,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUserIdentity(id: string): Promise<void> {
-    await db
+    await this.db
       .delete(userIdentities)
       .where(eq(userIdentities.id, id));
   }
 
   // Auth Providers methods
   async getAllAuthProviders(): Promise<AuthProvider[]> {
-    return await db
+    return await this.db
       .select()
       .from(authProviders)
       .orderBy(authProviders.id);
   }
 
   async getAuthProvider(id: string): Promise<AuthProvider | undefined> {
-    const [provider] = await db
+    const [provider] = await this.db
       .select()
       .from(authProviders)
       .where(eq(authProviders.id, id));
@@ -3501,7 +3513,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateAuthProvider(id: string, data: Partial<AuthProvider>): Promise<AuthProvider | undefined> {
-    const [provider] = await db
+    const [provider] = await this.db
       .update(authProviders)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(authProviders.id, id))
@@ -3510,4 +3522,15 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+const sharedStorageInstance = new DatabaseStorage();
+
+export const defaultStorage = sharedStorageInstance;
+export let storage: IStorage = sharedStorageInstance;
+
+export function setStorage(newStorage: IStorage): void {
+  storage = newStorage;
+}
+
+export function resetStorage(): void {
+  storage = sharedStorageInstance;
+}
