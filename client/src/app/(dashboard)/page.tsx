@@ -102,6 +102,7 @@ export default function Dashboard() {
 
   const upcomingStarts = useMemo(() => {
     const withStartDates = candidates
+      .filter((candidate: any) => candidate.status !== "canceled")
       .map((candidate: any) => {
         if (!candidate.anticipatedStartDate) return null;
         const startDate = new Date(candidate.anticipatedStartDate);
