@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
-import { Progress } from "@/shared/components/ui/progress";
+import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
 import { 
   Users, 
   Clock, 
@@ -20,7 +20,7 @@ import {
   UsersIcon
 } from "lucide-react";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { 
   AlertDialog,
@@ -31,6 +31,8 @@ import {
   AlertDialogTitle,
   AlertDialogAction,
 } from "@/shared/components/ui/alert-dialog";
+import { format, formatDistanceToNow } from "date-fns";
+import type { CandidateType } from "@shared/schemas";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -57,6 +59,66 @@ export default function Dashboard() {
       return res.json();
     }
   });
+
+  const { data: candidateTypes = [] } = useQuery<CandidateType[]>({
+    queryKey: ["/api/candidate-types", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await fetch('/api/candidate-types', { credentials: 'include' });
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json();
+    }
+  });
+
+  const statusBadgeVariants: Record<string, string> = {
+    draft: "bg-muted/70 text-muted-foreground",
+    active: "bg-primary/10 text-primary",
+    on_hold: "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200",
+    completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200",
+    canceled: "bg-destructive/10 text-destructive",
+    archived: "bg-muted/70 text-muted-foreground"
+  };
+
+  const formatStatusLabel = (status?: string) => {
+    if (!status) return "Unknown";
+    return status
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  };
+
+  const getStatusBadgeClass = (status?: string) => statusBadgeVariants[status ?? ""] ?? "bg-muted/70 text-muted-foreground";
+
+  const getCandidateTypeName = (candidateTypeId?: string) => {
+    const match = candidateTypes.find((type) => type.id === candidateTypeId);
+    return match?.name ?? "Role TBD";
+  };
+
+  const getInitials = (firstName?: string, lastName?: string) => {
+    const first = firstName?.charAt(0) ?? "";
+    const last = lastName?.charAt(0) ?? "";
+    return (first + last).toUpperCase() || "?";
+  };
+
+  const upcomingStarts = useMemo(() => {
+    const withStartDates = candidates
+      .map((candidate: any) => {
+        if (!candidate.anticipatedStartDate) return null;
+        const startDate = new Date(candidate.anticipatedStartDate);
+        if (isNaN(startDate.getTime())) return null;
+        return { ...candidate, startDate };
+      })
+      .filter(Boolean) as Array<any & { startDate: Date }>;
+
+    if (withStartDates.length === 0) return [];
+
+    const sorted = [...withStartDates].sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const upcoming = sorted.filter((entry) => entry.startDate >= startOfToday);
+    const prioritized = upcoming.length > 0 ? upcoming : sorted;
+    return prioritized.slice(0, 4);
+  }, [candidates]);
 
   // Calculate metrics
   const activeCandidates = candidates.filter((c: any) => c.status === "active").length;
@@ -195,60 +257,72 @@ export default function Dashboard() {
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-        {/* Stage Distribution Chart */}
-        <Card className="flex flex-col" data-testid="card-stage-distribution">
+        {/* Upcoming Starts */}
+        <Card className="flex flex-col" data-testid="card-upcoming-starts">
           <CardHeader className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base xs:text-lg sm:text-xl">Hiring Stage Distribution</CardTitle>
-              <Button variant="ghost" size="sm" className="min-h-[44px]">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                </svg>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-base xs:text-lg sm:text-xl">Upcoming Starts</CardTitle>
+                <p className="hidden xs:block text-xs text-muted-foreground mt-1">Next anticipated start dates</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="min-h-[44px] gap-1.5 text-xs xs:text-sm"
+                onClick={() => setLocation('/candidates')}
+              >
+                View All
+                <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 flex-1">
-            <div className="grid grid-rows-5 gap-y-2.5 sm:gap-y-3 h-full">
-              <div className="space-y-2 flex flex-col justify-center">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">LOI</span>
-                  <span className="text-sm text-muted-foreground">8 candidates</span>
+            {upcomingStarts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center gap-2 py-8 text-muted-foreground h-full">
+                <CircleAlert className="w-8 h-8 text-muted-foreground/70" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">No upcoming start dates</p>
+                  <p className="text-xs">Once start dates are scheduled they will appear here.</p>
                 </div>
-                <Progress value={33} className="h-2" />
               </div>
-              
-              <div className="space-y-2 flex flex-col justify-center">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">Offer</span>
-                  <span className="text-sm text-muted-foreground">6 candidates</span>
-                </div>
-                <Progress value={25} className="h-2" />
+            ) : (
+              <div className="space-y-3">
+                {upcomingStarts.map((candidate: any) => (
+                  <div
+                    key={candidate.id}
+                    className="rounded-xl border border-border/70 p-3 sm:p-3.5 hover:border-primary/40 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-10 w-10 border border-border/70">
+                        <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                          {getInitials(candidate.firstName, candidate.lastName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {candidate.firstName} {candidate.lastName}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">{getCandidateTypeName(candidate.candidateTypeId)}</p>
+                          </div>
+                          <Badge variant="secondary" className={`shrink-0 ${getStatusBadgeClass(candidate.status)}`}>
+                            {formatStatusLabel(candidate.status)}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1.5 text-foreground">
+                            <Clock className="w-3.5 h-3.5 text-primary" />
+                            <span className="font-medium">{format(candidate.startDate, "MMM d, yyyy")}</span>
+                          </div>
+                          <span>{formatDistanceToNow(candidate.startDate, { addSuffix: true })}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              
-              <div className="space-y-2 flex flex-col justify-center">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">Admin Processing</span>
-                  <span className="text-sm text-muted-foreground">5 candidates</span>
-                </div>
-                <Progress value={21} className="h-2" />
-              </div>
-              
-              <div className="space-y-2 flex flex-col justify-center">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">Credentialing</span>
-                  <span className="text-sm text-muted-foreground">3 candidates</span>
-                </div>
-                <Progress value={13} className="h-2" />
-              </div>
-              
-              <div className="space-y-2 flex flex-col justify-center">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">Onboarding</span>
-                  <span className="text-sm text-muted-foreground">2 candidates</span>
-                </div>
-                <Progress value={8} className="h-2" />
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 

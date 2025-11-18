@@ -64,9 +64,9 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
       lastName: candidate?.lastName || "",
       email: candidate?.email || "",
       departmentId: candidate?.departmentId || "",
-      divisionId: candidate?.divisionId || "",
-      managerId: candidate?.managerId || "",
-      facultyRankId: candidate?.facultyRankId || "",
+      divisionId: candidate?.divisionId ?? undefined,
+      managerId: candidate?.managerId ?? undefined,
+      facultyRankId: candidate?.facultyRankId ?? undefined,
     },
   });
 
@@ -137,14 +137,20 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
   });
 
   const onSubmit = (data: EditCandidateFormData) => {
-    updateMutation.mutate(data);
+    const payload = {
+      ...data,
+      divisionId: data.divisionId || undefined,
+      managerId: data.managerId || undefined,
+      facultyRankId: data.facultyRankId || undefined,
+    };
+    updateMutation.mutate(payload);
   };
 
   // Update divisions when department changes
   const handleDepartmentChange = (departmentId: string) => {
     setSelectedDepartmentId(departmentId);
-    form.setValue("divisionId", ""); // Clear division selection
-    form.setValue("managerId", ""); // Clear manager selection
+    form.setValue("divisionId", undefined); // Clear division selection
+    form.setValue("managerId", undefined); // Clear manager selection
   };
 
   // Prevent Enter key from submitting form when in select components
@@ -291,7 +297,7 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                         onValueChange={(value) => {
                           field.onChange(value);
                           // Clear manager selection when division changes
-                          form.setValue("managerId", "");
+                          form.setValue("managerId", undefined);
                         }} 
                         defaultValue={field.value}
                       >

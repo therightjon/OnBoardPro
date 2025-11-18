@@ -1017,6 +1017,13 @@ export async function registerRoutes(app: Express, options: RegisterRoutesOption
         'anticipatedStartDate'
       ];
       const immutableFields = ['templateAppliedFromId', 'candidateTypeId'];
+      const nullableIdFields = new Set([
+        'divisionId',
+        'managerId',
+        'facultyRankId',
+        'primaryOwnerId',
+        'linkedUserId'
+      ]);
 
       // Check for attempts to change immutable fields
       for (const field of immutableFields) {
@@ -1031,7 +1038,8 @@ export async function registerRoutes(app: Express, options: RegisterRoutesOption
       const updateData: any = {};
       for (const field of allowedFields) {
         if (req.body[field] !== undefined) {
-          updateData[field] = req.body[field];
+          const value = req.body[field];
+          updateData[field] = nullableIdFields.has(field) && value === '' ? null : value;
         }
       }
       
