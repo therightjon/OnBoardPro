@@ -42,8 +42,10 @@ The following environment variables govern builtin rate limit buckets (see
 | `RATE_LIMIT_MAX` | `120` | Requests allowed per window for non-sensitive routes |
 | `SENSITIVE_RATE_LIMIT_WINDOW_MS` | inherits default | Candidate/task sensitive routes window |
 | `SENSITIVE_RATE_LIMIT_MAX` | `60` | Requests allowed per window for sensitive routes |
-| `ADMIN_RATE_LIMIT_WINDOW_MS` | inherits default | Administrative endpoints window |
-| `ADMIN_RATE_LIMIT_MAX` | `30` | Requests allowed per window for administrative endpoints |
+
+Administrative/template endpoints intentionally skip throttling to avoid slowing
+internal workflows; rely on existing authentication/authorization controls when
+operating these routes.
 
 Adjust values with caution and document rationale alongside the change.
 
