@@ -301,7 +301,7 @@ export interface IStorage {
   upsertUserPreferences(userId: string, updates: UserPreferencesUpdateInput): Promise<UserPreferences>;
   
   // Candidates
-  getCandidates(filters?: any): Promise<Candidate[]>;
+  getCandidates(filters?: any, auth?: AuthorizationContext): Promise<Candidate[]>;
   getCandidate(id: string, auth?: AuthorizationContext): Promise<Candidate | undefined>;
   createCandidate(candidate: InsertCandidate): Promise<Candidate>;
   updateCandidate(id: string, data: Partial<Candidate>): Promise<Candidate | undefined>;

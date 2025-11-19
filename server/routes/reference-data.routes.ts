@@ -1,0 +1,131 @@
+import { Router } from "express";
+import { z } from "zod";
+import { storage } from "../db/storage";
+import { requireAuth, requireRole } from "../middleware/authorization";
+import {
+  insertHiringStageSchema,
+  insertTaskDefinitionSchema
+} from "@shared/schemas";
+
+const router = Router();
+
+// Task Definitions routes
+router.get("/task-definitions", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  try {
+    const taskDefs = await storage.getTaskDefinitions();
+    res.json(taskDefs);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/task-definitions", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  try {
+    const validatedData = insertTaskDefinitionSchema.parse(req.body);
+    const taskDef = await storage.createTaskDefinition(validatedData);
+    res.status(201).json(taskDef);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+    }
+    next(error);
+  }
+});
+
+router.patch("/task-definitions/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  try {
+    const taskDef = await storage.updateTaskDefinition(req.params.id, req.body);
+    if (!taskDef) {
+      return res.status(404).json({ message: "Task definition not found" });
+    }
+    res.json(taskDef);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Hiring Stages routes
+router.get("/hiring-stages", requireAuth, async (req, res, next) => {
+  try {
+    const stages = await storage.getHiringStages();
+    res.json(stages);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/hiring-stages", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  try {
+    const validatedData = insertHiringStageSchema.parse(req.body);
+    const stage = await storage.createHiringStage(validatedData);
+    res.status(201).json(stage);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+    }
+    next(error);
+  }
+});
+
+router.patch("/hiring-stages/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  try {
+    const stage = await storage.updateHiringStage(req.params.id, req.body);
+    if (!stage) {
+      return res.status(404).json({ message: "Hiring stage not found" });
+    }
+    res.json(stage);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/hiring-stages/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  try {
+    await storage.deleteHiringStage(req.params.id);
+    res.sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Task Categories route
+router.get("/task-categories", requireAuth, async (req, res, next) => {
+  try {
+    const categories = await storage.getTaskCategories();
+    res.json(categories);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Task Priorities route
+router.get("/task-priorities", requireAuth, async (req, res, next) => {
+  try {
+    const priorities = await storage.getTaskPriorities();
+    res.json(priorities);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Candidate Types route
+router.get("/candidate-types", requireAuth, async (req, res, next) => {
+  try {
+    const types = await storage.getCandidateTypes();
+    res.json(types);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Faculty Ranks route
+router.get("/faculty-ranks", requireAuth, requireRole(["system_admin", "hr_staff", "department_admin"]), async (req, res, next) => {
+  try {
+    const ranks = await storage.getFacultyRanks();
+    res.json(ranks);
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;
