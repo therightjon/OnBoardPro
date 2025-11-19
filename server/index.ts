@@ -88,6 +88,9 @@ app.use((req: any, res, next) => {
   // Global error handler (must be last)
   app.use(errorHandler);
 
+  // Enable strong ETags for caching
+  app.set('etag', 'strong');
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
