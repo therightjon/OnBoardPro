@@ -15,7 +15,7 @@ const app = express();
 
 // Security headers (must be early in middleware chain)
 app.use(helmet({
-  contentSecurityPolicy: {
+  contentSecurityPolicy: app.get("env") === "development" ? false : {
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
