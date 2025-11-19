@@ -220,6 +220,14 @@ export interface CandidateScopeFilters {
   linkedUserIds?: Iterable<string>;
 }
 
+export type DivisionActiveCandidateSummary = {
+  divisionId: string;
+  divisionName: string;
+  departmentId: string;
+  departmentName: string;
+  activeCandidateCount: number;
+};
+
 function applyScopeFilters(whereConditions: any[], filters: CandidateScopeFilters, requireScope = false) {
   const scopeConditions: any[] = [];
   const departmentIds = filters.departmentIds ? Array.from(new Set(filters.departmentIds)) : [];
@@ -308,6 +316,7 @@ export interface IStorage {
   resolveCandidateSelfAssignments(candidateId: string, userId: string): Promise<TemplateExpansionTask[]>;
   getCandidateStageHistory(candidateId: string): Promise<any[]>;
   getDashboardTasks(): Promise<any[]>;
+  getDivisionActiveCandidateCounts(limit?: number, auth?: AuthorizationContext): Promise<DivisionActiveCandidateSummary[]>;
   
   // Templates
   getTemplates(): Promise<Template[]>;
@@ -1356,6 +1365,53 @@ export class DatabaseStorage implements IStorage {
       assigneeResolvedAt: task.assignee_resolved_at,
       dueSoonNotifiedAt: task.due_soon_notified_at,
     }));
+  }
+
+  async getDivisionActiveCandidateCounts(limit: number = 4, auth?: AuthorizationContext): Promise<DivisionActiveCandidateSummary[]> {
+    const whereConditions: any[] = [
+      eq(candidates.archived, false),
+      eq(candidates.status, "active")
+    ];
+
+    if (auth && !auth.privileged) {
+      const scopeFilters: CandidateScopeFilters = {};
+      if (auth.departmentIds.size > 0) {
+        scopeFilters.departmentIds = auth.departmentIds;
+      }
+      if (auth.divisionIds.size > 0) {
+        scopeFilters.divisionIds = auth.divisionIds;
+      }
+      if (auth.managedCandidateIds.size > 0) {
+        scopeFilters.candidateIds = auth.managedCandidateIds;
+      }
+      if (auth.roles.has("manager") && auth.userId) {
+        scopeFilters.managerIds = [auth.userId];
+      }
+      if (auth.isCandidate && auth.userId) {
+        scopeFilters.linkedUserIds = [auth.userId];
+      }
+      applyScopeFilters(whereConditions, scopeFilters, true);
+    }
+
+    const countExpression = sql<number>`count(*)::int`;
+
+    const results = await this.db
+      .select({
+        divisionId: divisions.id,
+        divisionName: divisions.name,
+        departmentId: departments.id,
+        departmentName: departments.name,
+        activeCandidateCount: countExpression
+      })
+      .from(candidates)
+      .innerJoin(divisions, eq(candidates.divisionId, divisions.id))
+      .innerJoin(departments, eq(divisions.departmentId, departments.id))
+      .where(and(...whereConditions))
+      .groupBy(divisions.id, divisions.name, departments.id, departments.name)
+      .orderBy(desc(countExpression), asc(divisions.name))
+      .limit(Math.max(1, Math.min(limit, 25)));
+
+    return results;
   }
 
   async getCandidateTask(id: string): Promise<CandidateTask | undefined> {

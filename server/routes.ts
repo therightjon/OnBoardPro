@@ -1307,6 +1307,23 @@ export async function registerRoutes(app: Express, options: RegisterRoutesOption
     }
   });
 
+  app.get("/api/dashboard/divisions", requireAuth, async (req, res, next) => {
+    try {
+      const allowedRoles: AppRole[] = ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"];
+      if (!hasAnyRole(req.user, allowedRoles)) {
+        await logAuthorizationFailure({ req, resource: "general", action: "dashboard:divisions", reason: "role_mismatch" });
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      const limitParam = typeof req.query.limit === "string" ? parseInt(req.query.limit, 10) : NaN;
+      const limit = Number.isFinite(limitParam) ? limitParam : 4;
+      const authContext = storage.buildAuthorizationContext(req.user);
+      const stats = await storage.getDivisionActiveCandidateCounts(limit, authContext);
+      res.json(stats);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.get("/api/tasks/:id", sensitiveLimiter, requireAuth, async (req, res, next) => {
     try {
       const result = await fetchTaskWithAccess(req, res, req.params.id, "task:read");

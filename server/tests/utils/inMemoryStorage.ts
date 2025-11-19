@@ -419,6 +419,45 @@ export class InMemoryStorage implements IStorage {
   async resolveCandidateSelfAssignments(): Promise<any> { throw new Error("Not implemented"); }
   async getCandidateStageHistory(): Promise<any[]> { throw new Error("Not implemented"); }
   async getDashboardTasks(): Promise<any[]> { throw new Error("Not implemented"); }
+  async getDivisionActiveCandidateCounts(limit: number = 4): Promise<any[]> {
+    const counts = new Map<string, {
+      divisionId: string;
+      divisionName: string;
+      departmentId: string;
+      departmentName: string;
+      activeCandidateCount: number;
+    }>();
+
+    for (const candidate of this.data.candidates.values()) {
+      if (candidate.archived) continue;
+      if (candidate.status !== "active") continue;
+      if (!candidate.divisionId) continue;
+      const division = this.data.divisions.get(candidate.divisionId);
+      if (!division) continue;
+      const department = this.data.departments.get(division.departmentId);
+      const existing = counts.get(division.id);
+      if (existing) {
+        existing.activeCandidateCount += 1;
+      } else {
+        counts.set(division.id, {
+          divisionId: division.id,
+          divisionName: division.name,
+          departmentId: division.departmentId,
+          departmentName: department?.name ?? "",
+          activeCandidateCount: 1
+        });
+      }
+    }
+
+    return Array.from(counts.values())
+      .sort((a, b) => {
+        if (b.activeCandidateCount !== a.activeCandidateCount) {
+          return b.activeCandidateCount - a.activeCandidateCount;
+        }
+        return a.divisionName.localeCompare(b.divisionName);
+      })
+      .slice(0, Math.max(1, Math.min(limit, 25)));
+  }
   async getTemplates(): Promise<Template[]> { throw new Error("Not implemented"); }
   async getTemplate(): Promise<Template | undefined> { throw new Error("Not implemented"); }
   async createTemplate(): Promise<Template> { throw new Error("Not implemented"); }

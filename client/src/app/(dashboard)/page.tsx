@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 import { 
   Users, 
   Clock, 
@@ -34,9 +35,36 @@ import {
 import { format, formatDistanceToNow } from "date-fns";
 import type { CandidateType } from "@shared/schemas";
 
+type DivisionOverviewItem = {
+  divisionId: string;
+  divisionName: string;
+  departmentId: string;
+  departmentName: string;
+  activeCandidateCount: number;
+};
+
+type DivisionOverviewRenderItem =
+  | { kind: "data"; key: string; entry: DivisionOverviewItem }
+  | { kind: "loading"; key: string }
+  | { kind: "placeholder"; key: string };
+
+const divisionIconConfigs = [
+  { Icon: Stethoscope, bgClass: "bg-primary/10", iconClass: "text-primary" },
+  { Icon: UserRound, bgClass: "bg-chart-2/10", iconClass: "text-chart-2" },
+  { Icon: Laptop, bgClass: "bg-chart-3/10", iconClass: "text-chart-3" },
+  { Icon: UsersIcon, bgClass: "bg-chart-4/10", iconClass: "text-chart-4" },
+] as const;
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const canViewDivisionOverview = user ? [
+    "system_admin",
+    "hr_staff",
+    "department_admin",
+    "division_leader",
+    "manager"
+  ].includes(user.role) : false;
   const [showNoPermission, setShowNoPermission] = useState(false);
   const { data: candidates = [] } = useQuery<any[]>({
     // Include user id in the key, but fetch base URL explicitly
@@ -65,6 +93,16 @@ export default function Dashboard() {
     enabled: !!user,
     queryFn: async () => {
       const res = await fetch('/api/candidate-types', { credentials: 'include' });
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json();
+    }
+  });
+
+  const { data: divisionOverview = [], isLoading: divisionOverviewLoading, error: divisionOverviewError } = useQuery<DivisionOverviewItem[]>({
+    queryKey: ["/api/dashboard/divisions", user?.id],
+    enabled: !!user && canViewDivisionOverview,
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/divisions?limit=4', { credentials: 'include' });
       if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
       return res.json();
     }
@@ -142,6 +180,27 @@ export default function Dashboard() {
   const urgentTasks = tasks
     .filter((t: any) => t.priority === "critical" || (t.dueAt && new Date(t.dueAt) < new Date()))
     .slice(0, 3);
+
+  const divisionOverviewItems = useMemo<DivisionOverviewRenderItem[]>(() => {
+    if (!canViewDivisionOverview) return [];
+    if (divisionOverviewLoading) {
+      return Array.from({ length: 4 }, (_, index) => ({
+        kind: "loading" as const,
+        key: `division-loading-${index}`
+      }));
+    }
+    const entries = divisionOverview.slice(0, 4).map((entry) => ({
+      kind: "data" as const,
+      key: entry.divisionId,
+      entry
+    }));
+    const placeholdersNeeded = Math.max(0, 4 - entries.length);
+    const placeholders = Array.from({ length: placeholdersNeeded }, (_, index) => ({
+      kind: "placeholder" as const,
+      key: `division-placeholder-${index}`
+    }));
+    return [...entries, ...placeholders];
+  }, [divisionOverview, divisionOverviewLoading, canViewDivisionOverview]);
 
   return (
     <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
@@ -462,11 +521,11 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Department Overview */}
+        {/* Division Overview */}
         <Card data-testid="card-department-overview">
           <CardHeader className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base xs:text-lg sm:text-xl">Department Overview</CardTitle>
+              <CardTitle className="text-base xs:text-lg sm:text-xl">Division Overview</CardTitle>
               <Button variant="ghost" size="sm" className="min-h-[44px]">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z" />
@@ -475,71 +534,70 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <Stethoscope className="text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-foreground">Cardiology</h4>
-                    <p className="text-xs text-muted-foreground">Clinical Department</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-foreground">8</p>
-                  <p className="text-xs text-muted-foreground">Active</p>
-                </div>
+            {!canViewDivisionOverview ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                You don’t have permission to view division insights.
+              </p>
+            ) : divisionOverviewError ? (
+              <p className="text-sm text-destructive text-center py-4">
+                Unable to load division overview. Please try again later.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {divisionOverviewItems.map((item, index) => {
+                  const { Icon, bgClass, iconClass } = divisionIconConfigs[index % divisionIconConfigs.length];
+                  return (
+                    <div
+                      key={item.key}
+                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                      data-testid={`card-division-row-${index}`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-10 h-10 ${bgClass} rounded-lg flex items-center justify-center`}>
+                          <Icon className={iconClass} />
+                        </div>
+                        <div className="space-y-1">
+                          {item.kind === "data" ? (
+                            <>
+                              <h4 className="text-sm font-medium text-foreground">{item.entry.divisionName}</h4>
+                              <p className="text-xs text-muted-foreground">{item.entry.departmentName || "No department assigned"}</p>
+                            </>
+                          ) : item.kind === "loading" ? (
+                            <>
+                              <Skeleton className="h-4 w-32" />
+                              <Skeleton className="h-3 w-24" />
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm font-medium text-muted-foreground">No division data</p>
+                              <p className="text-xs text-muted-foreground">Awaiting active candidates</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right min-w-[48px]">
+                        {item.kind === "data" ? (
+                          <>
+                            <p className="text-sm font-semibold text-foreground">{item.entry.activeCandidateCount}</p>
+                            <p className="text-xs text-muted-foreground">Active</p>
+                          </>
+                        ) : item.kind === "loading" ? (
+                          <>
+                            <Skeleton className="h-4 w-8 ml-auto" />
+                            <Skeleton className="h-3 w-12 ml-auto mt-1" />
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-semibold text-muted-foreground">—</p>
+                            <p className="text-xs text-muted-foreground">Active</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-chart-2/10 rounded-lg flex items-center justify-center">
-                    <UserRound className="text-chart-2" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-foreground">Emergency Medicine</h4>
-                    <p className="text-xs text-muted-foreground">Clinical Department</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-foreground">6</p>
-                  <p className="text-xs text-muted-foreground">Active</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-chart-3/10 rounded-lg flex items-center justify-center">
-                    <Laptop className="text-chart-3" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-foreground">Information Technology</h4>
-                    <p className="text-xs text-muted-foreground">Administrative Department</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-foreground">4</p>
-                  <p className="text-xs text-muted-foreground">Active</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-chart-4/10 rounded-lg flex items-center justify-center">
-                    <UsersIcon className="text-chart-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-foreground">Human Resources</h4>
-                    <p className="text-xs text-muted-foreground">Administrative Department</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-foreground">6</p>
-                  <p className="text-xs text-muted-foreground">Active</p>
-                </div>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
