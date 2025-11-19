@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { randomBytes } from "crypto";
 import { setupAuth } from "./features/auth/services/auth.service";
 import { storage } from "./db/storage";
+import { requireAuth, requireRole } from "./middleware/authorization";
+import { defaultRateLimiter, sensitiveRateLimiter } from "./middleware/rate-limiter";
 import { 
   insertCandidateSchema,
   insertCandidateTaskSchema,
@@ -39,106 +41,11 @@ export interface RegisterRoutesOptions {
   rateLimiters?: Partial<Record<"default" | "sensitive", RequestHandler>>;
 }
 
-function requireAuth(req: any, res: any, next: any) {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: "Authentication required" });
-  }
-  next();
-}
-
-function requireRole(roles: string[]) {
-  const normalizedRoles = roles.filter(isAppRole) as AppRole[];
-  return async (req: any, res: any, next: any) => {
-    if (!req.user) {
-      await logAuthorizationFailure({ req, resource: "general", action: `role:${normalizedRoles.join("|")}`, reason: "unauthenticated" });
-      return res.status(401).json({ message: "Authentication required" });
-    }
-    if (normalizedRoles.length === 0) {
-      return res.status(403).json({ message: "Insufficient permissions" });
-    }
-    if (!hasAnyRole(req.user, normalizedRoles)) {
-      await logAuthorizationFailure({ req, resource: "general", action: `role:${normalizedRoles.join("|")}`, reason: "role_mismatch" });
-      return res.status(403).json({ message: "Insufficient permissions" });
-    }
-    next();
-  };
-}
+// Note: requireAuth and requireRole are now imported from middleware/authorization.ts
 
 const INVITE_TOKEN_BYTES = 32;
 
-type RateLimiterOptions = {
-  windowMs: number;
-  max: number;
-  name: string;
-  keyGenerator?: (req: any) => string | null | undefined;
-};
-
-function createRateLimiter(options: RateLimiterOptions) {
-  const { windowMs, max, name, keyGenerator } = options;
-  const buckets = new Map<string, { count: number; reset: number }>();
-
-  const resolveKey = (req: any) => {
-    if (keyGenerator) return keyGenerator(req) ?? "";
-    const ip = req.ip || req.headers["x-forwarded-for"] || req.connection?.remoteAddress;
-    if (Array.isArray(ip)) return ip[0] ?? "";
-    return typeof ip === "string" ? ip : "";
-  };
-
-  return async function rateLimiter(req: any, res: any, next: any) {
-    const key = resolveKey(req);
-    if (!key) {
-      return next();
-    }
-
-    const now = Date.now();
-    const bucket = buckets.get(key);
-
-    if (!bucket || now >= bucket.reset) {
-      buckets.set(key, { count: 1, reset: now + windowMs });
-      res.setHeader("X-RateLimit-Limit", String(max));
-      res.setHeader("X-RateLimit-Remaining", String(max - 1));
-      res.setHeader("X-RateLimit-Reset", String(Math.floor((now + windowMs) / 1000)));
-      return next();
-    }
-
-    if (bucket.count >= max) {
-      const retryAfterSeconds = Math.max(1, Math.ceil((bucket.reset - now) / 1000));
-      res.setHeader("Retry-After", String(retryAfterSeconds));
-      res.setHeader("X-RateLimit-Limit", String(max));
-      res.setHeader("X-RateLimit-Remaining", "0");
-      res.setHeader("X-RateLimit-Reset", String(Math.floor(bucket.reset / 1000)));
-      logAuthorizationFailure({
-        req,
-        resource: "general",
-        action: `rate_limit:${name}`,
-        reason: `exceeded_${max}`
-      }).catch(() => undefined);
-      return res.status(429).json({ message: "Too many requests, please slow down." });
-    }
-
-    bucket.count += 1;
-    res.setHeader("X-RateLimit-Limit", String(max));
-    res.setHeader("X-RateLimit-Remaining", String(Math.max(0, max - bucket.count)));
-    res.setHeader("X-RateLimit-Reset", String(Math.floor(bucket.reset / 1000)));
-    next();
-  };
-}
-
-const DEFAULT_RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000);
-const DEFAULT_RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX ?? 120);
-const SENSITIVE_RATE_LIMIT_WINDOW_MS = Number(process.env.SENSITIVE_RATE_LIMIT_WINDOW_MS ?? DEFAULT_RATE_LIMIT_WINDOW_MS);
-const SENSITIVE_RATE_LIMIT_MAX = Number(process.env.SENSITIVE_RATE_LIMIT_MAX ?? 60);
-const defaultRateLimiter = createRateLimiter({
-  windowMs: DEFAULT_RATE_LIMIT_WINDOW_MS,
-  max: DEFAULT_RATE_LIMIT_MAX,
-  name: "default"
-});
-
-const sensitiveRateLimiter = createRateLimiter({
-  windowMs: SENSITIVE_RATE_LIMIT_WINDOW_MS,
-  max: SENSITIVE_RATE_LIMIT_MAX,
-  name: "sensitive"
-});
+// Note: Rate limiters (defaultRateLimiter, sensitiveRateLimiter) are now imported from middleware/rate-limiter.ts
 
 export const PREFERENCE_KEYS = [
   "mytasksShowArchived",
