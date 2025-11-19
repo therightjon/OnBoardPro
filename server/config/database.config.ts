@@ -12,5 +12,21 @@ if (!process.env.DATABASE_URL) {
 const urlObj = new URL(process.env.DATABASE_URL);
 const needsSSL = /neon\.tech$/.test(urlObj.hostname);
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: needsSSL ? { rejectUnauthorized: false } : undefined });
-export const db = drizzle(pool, { schema });
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: needsSSL ? { rejectUnauthorized: false } : undefined
+});
+
+// Configure database with query logging in development
+export const db = drizzle(pool, {
+  schema,
+  logger: process.env.NODE_ENV === 'development' ? {
+    logQuery(query: string, params: unknown[]) {
+      const timestamp = new Date().toISOString();
+      console.log(`[DB Query ${timestamp}]`, query);
+      if (params && params.length > 0) {
+        console.log(`[DB Params]`, params);
+      }
+    }
+  } : false
+});
