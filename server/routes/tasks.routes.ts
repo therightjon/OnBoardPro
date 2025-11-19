@@ -31,7 +31,7 @@ import {
 } from "../features/notifications/services";
 import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helpers";
 import { authorizationService } from "../services/authorization";
-import { eventBus, taskAssigned, taskStatusChanged, taskCompleted } from "../events";
+import { eventBus, taskAssigned, taskStatusChanged, taskCompleted, commentCreated } from "../events";
 
 const router = Router();
 
@@ -321,14 +321,14 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
 
         // Publish taskCompleted event if status changed to done
         if (task.status === 'done' && task.completedAt) {
-          const wasOverdue = task.dueAt && task.dueAt < task.completedAt;
+          const wasOverdue = !!(task.dueAt && task.dueAt < task.completedAt);
           await eventBus.publish(taskCompleted(task.id, {
             candidateId: task.candidateId,
             taskTitle: task.title,
             completedBy: req.user!.id,
             completedAt: task.completedAt,
             dueAt: task.dueAt,
-            wasOverdue: wasOverdue
+            wasOverdue
           }, {
             actorId: req.user?.id
           }));
@@ -455,73 +455,23 @@ router.post("/tasks/:id/comments", sensitiveRateLimiter, requireAuth, async (req
     if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
     const created = await storage.createComment({ entityType: 'task', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
 
-    try {
-      const task = access.task ?? await storage.getCandidateTask(req.params.id);
-      if (task) {
-        const snippet = buildCommentSnippet(body);
-        const actorName = buildActorLabel(req.user!);
-        const mentionKeys = extractMentionKeys(body);
-        const mentionedUsers = mentionKeys.length > 0 ? await resolveMentionedUsers(mentionKeys) : [];
-        const mentionRecipientIds = new Set(mentionedUsers.map((user) => user.id));
+    // Publish domain event
+    const mentionKeys = extractMentionKeys(body);
+    await eventBus.publish(commentCreated(created.id, {
+      entityType: 'task',
+      entityId: req.params.id,
+      authorUserId: req.user.id,
+      commentBody: body,
+      visibility,
+      mentionedUserKeys: mentionKeys,
+      parentId
+    }, {
+      actorId: req.user?.id
+    }));
 
-        const watcherIds = new Set<string>();
-        if (task.assigneeKind === 'user' && task.assigneeUserId) {
-          watcherIds.add(task.assigneeUserId);
-        }
-
-        for (const id of mentionRecipientIds) {
-          watcherIds.delete(id);
-        }
-
-        const candidate = await storage.getCandidate(task.candidateId);
-        const basePayload = {
-          actor: { id: req.user.id, name: actorName },
-          comment: {
-            id: created.id,
-            preview: snippet,
-            visibility
-          },
-          candidate: candidate ? {
-            id: candidate.id,
-            name: `${candidate.firstName} ${candidate.lastName}`
-          } : { id: task.candidateId },
-          task: {
-            id: task.id,
-            title: task.title
-          },
-          source: 'task'
-        } as const;
-
-        const watcherList = Array.from(watcherIds);
-        if (watcherList.length > 0) {
-          await createNotifications({
-            type: "comment.created",
-            actorId: req.user.id,
-            recipients: watcherList,
-            entity: { type: "comment", id: created.id },
-            payload: { ...basePayload, reason: 'comment' },
-            visibility
-          });
-        }
-
-        if (mentionRecipientIds.size > 0) {
-          await createNotifications({
-            type: "mention",
-            actorId: req.user.id,
-            recipients: Array.from(mentionRecipientIds),
-            entity: { type: "comment", id: created.id },
-            payload: {
-              ...basePayload,
-              reason: 'mention',
-              mentions: mentionedUsers.map((user) => ({ id: user.id, mentionKey: user.mentionKey }))
-            },
-            visibility
-          });
-        }
-      }
-    } catch (notifyError) {
-      console.error('Failed to dispatch task comment notifications:', notifyError);
-    }
+    // NOTE: Notifications are now handled by the event system (comment.created event)
+    // The notification handler in server/events/handlers/notification-handler.ts
+    // automatically creates notifications for watchers and mentioned users
 
     res.status(201).json(created);
   } catch (error: any) { res.status(400).json({ message: error.message || 'Unable to create comment' }); }

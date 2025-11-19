@@ -246,10 +246,13 @@ export interface CommentCreatedEvent extends DomainEvent {
   aggregateType: "comment";
   payload: {
     commentId: string;
-    candidateId: string;
-    authorId: string;
-    content: string;
-    mentionedUserIds: string[];
+    entityType: 'candidate' | 'task';
+    entityId: string;
+    authorUserId: string;
+    commentBody: string;
+    visibility: 'internal' | 'candidate_visible';
+    mentionedUserKeys: string[];
+    parentId: string | null;
   };
 }
 

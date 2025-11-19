@@ -81,31 +81,125 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
     // TODO: Also notify followers (requires follower query)
   });
 
-  // Comment created with mentions -> notify mentioned users
+  // Comment created -> notify mentioned users and watchers
   eventBus.on<CommentCreatedEvent>("comment.created", async (event) => {
-    const { mentionedUserIds, candidateId, authorId } = event.payload;
+    const {
+      entityType,
+      entityId,
+      authorUserId,
+      commentBody,
+      visibility,
+      mentionedUserKeys
+    } = event.payload;
 
-    if (mentionedUserIds.length === 0) {
-      return;
+    // Import notification utilities
+    const {
+      resolveMentionedUsers,
+      createNotifications
+    } = await import("../../features/notifications/services");
+    const { buildCommentSnippet } = await import("../../utils/notification.utils");
+    const { storage } = await import("../../db/storage");
+
+    // Resolve mentioned users
+    const mentionedUsers = mentionedUserKeys.length > 0
+      ? await resolveMentionedUsers(mentionedUserKeys)
+      : [];
+
+    const mentionRecipientIds = new Set(mentionedUsers.map(u => u.id));
+    const watcherIds = new Set<string>();
+
+    // Get watchers based on entity type
+    if (entityType === 'candidate') {
+      const candidate = await storage.getCandidate(entityId);
+      if (candidate) {
+        // Get candidate followers
+        const followers = await storage.getCandidateFollowers(entityId);
+        followers.forEach(f => watcherIds.add(f.userId));
+
+        // Add manager as watcher
+        if (candidate.managerId) {
+          watcherIds.add(candidate.managerId);
+        }
+      }
+    } else if (entityType === 'task') {
+      const task = await storage.getCandidateTask(entityId);
+      if (task && task.assigneeKind === 'user' && task.assigneeUserId) {
+        watcherIds.add(task.assigneeUserId);
+      }
     }
 
-    // Create notification for each mentioned user
-    const notificationPromises = mentionedUserIds
-      .filter(userId => userId !== authorId) // Don't notify the author
-      .map(userId =>
-        createNotification({
-          recipientUserId: userId,
-          eventType: "mention",
-          title: "You were mentioned",
-          message: "You were mentioned in a comment",
-          actorUserId: authorId,
-          relatedEntityType: "comment",
-          relatedEntityId: event.aggregateId,
-          contextCandidateId: candidateId
-        })
-      );
+    // Remove mentioned users from watchers (they get separate notifications)
+    mentionedUsers.forEach(u => watcherIds.delete(u.id));
 
-    await Promise.all(notificationPromises);
+    // Don't notify the author
+    watcherIds.delete(authorUserId);
+
+    const snippet = buildCommentSnippet(commentBody);
+
+    // Get context for notification payload
+    let contextCandidateId: string | null = null;
+    let candidateName = '';
+
+    if (entityType === 'candidate') {
+      contextCandidateId = entityId;
+      const candidate = await storage.getCandidate(entityId);
+      if (candidate) {
+        candidateName = `${candidate.firstName} ${candidate.lastName}`;
+      }
+    } else if (entityType === 'task') {
+      const task = await storage.getCandidateTask(entityId);
+      if (task) {
+        contextCandidateId = task.candidateId;
+        const candidate = await storage.getCandidate(task.candidateId);
+        if (candidate) {
+          candidateName = `${candidate.firstName} ${candidate.lastName}`;
+        }
+      }
+    }
+
+    const basePayload = {
+      actor: { id: authorUserId },
+      comment: {
+        id: event.aggregateId,
+        preview: snippet,
+        visibility
+      },
+      candidate: contextCandidateId ? {
+        id: contextCandidateId,
+        name: candidateName
+      } : undefined,
+      source: entityType
+    };
+
+    // Map visibility: candidate_visible -> external, internal -> internal
+    const notificationVisibility: "internal" | "external" =
+      visibility === 'candidate_visible' ? 'external' : 'internal';
+
+    // Notify watchers
+    const watcherList = Array.from(watcherIds);
+    if (watcherList.length > 0) {
+      await createNotifications({
+        type: "comment.created",
+        actorId: authorUserId,
+        recipients: watcherList,
+        entity: { type: "comment", id: event.aggregateId },
+        payload: { ...basePayload, reason: 'comment' },
+        visibility: notificationVisibility
+      });
+    }
+
+    // Notify mentioned users
+    const mentionList = Array.from(mentionRecipientIds);
+    if (mentionList.length > 0) {
+      await createNotifications({
+        type: "mention",
+        actorId: authorUserId,
+        recipients: mentionList,
+        entity: { type: "comment", id: event.aggregateId },
+        payload: { ...basePayload, reason: 'mention' },
+        visibility: notificationVisibility
+      });
+    }
   });
 
   // Candidate stage changed -> notify manager and followers
@@ -185,20 +279,31 @@ async function createNotification(params: {
   contextCandidateId: string | null;
 }): Promise<void> {
   try {
+    // Map relatedEntityType to entityType enum
+    let entityType: 'candidate' | 'task' | 'comment' = 'task';
+    if (params.relatedEntityType === 'candidate') {
+      entityType = 'candidate';
+    } else if (params.relatedEntityType === 'comment') {
+      entityType = 'comment';
+    } else if (params.relatedEntityType === 'candidate_task') {
+      entityType = 'task';
+    }
+
     await db.insert(notifications).values({
       id: randomUUID(),
-      recipientUserId: params.recipientUserId,
-      eventType: params.eventType,
-      title: params.title,
-      message: params.message,
-      actorUserId: params.actorUserId ?? null,
-      relatedEntityType: params.relatedEntityType,
-      relatedEntityId: params.relatedEntityId,
-      contextCandidateId: params.contextCandidateId,
-      read: false,
+      userId: params.recipientUserId,
+      type: params.eventType,
+      entityType,
+      entityId: params.relatedEntityId,
+      payload: {
+        title: params.title,
+        message: params.message,
+        actorId: params.actorUserId,
+        contextCandidateId: params.contextCandidateId
+      },
+      isRead: false,
       readAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      deliveredChannels: []
     });
   } catch (error) {
     console.error("Failed to create notification:", error);

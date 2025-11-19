@@ -31,7 +31,7 @@ import {
 import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helpers";
 import { emitOwnerChanged } from "../features/notifications/owner-change";
 import { authorizationService } from "../services/authorization";
-import { eventBus, candidateCreated, candidateStatusChanged, candidateStageChanged } from "../events";
+import { eventBus, candidateCreated, candidateStatusChanged, candidateStageChanged, commentCreated } from "../events";
 
 const router = Router();
 
@@ -387,66 +387,23 @@ router.post("/candidates/:id/comments", sensitiveRateLimiter, requireAuth, async
     if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
     const created = await storage.createComment({ entityType: 'candidate', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
 
-    try {
-      const candidateId = req.params.id;
-      const snippet = buildCommentSnippet(body);
-      const actorName = buildActorLabel(req.user!);
-      const mentionKeys = extractMentionKeys(body);
-      const [context, mentionedUsers] = await Promise.all([
-        gatherCandidateNotificationContext(candidateId),
-        mentionKeys.length > 0 ? resolveMentionedUsers(mentionKeys) : Promise.resolve([])
-      ]);
+    // Publish domain event
+    const mentionKeys = extractMentionKeys(body);
+    await eventBus.publish(commentCreated(created.id, {
+      entityType: 'candidate',
+      entityId: req.params.id,
+      authorUserId: req.user.id,
+      commentBody: body,
+      visibility,
+      mentionedUserKeys: mentionKeys,
+      parentId
+    }, {
+      actorId: req.user?.id
+    }));
 
-      const watcherIds = new Set(context.watcherIds);
-      const mentionRecipientIds = new Set<string>();
-      for (const user of mentionedUsers) {
-        mentionRecipientIds.add(user.id);
-        watcherIds.delete(user.id);
-      }
-
-      const basePayload = {
-        actor: { id: req.user.id, name: actorName },
-        comment: {
-          id: created.id,
-          preview: snippet,
-          visibility
-        },
-        candidate: context.candidate ? {
-          id: context.candidate.id,
-          name: `${context.candidate.firstName} ${context.candidate.lastName}`
-        } : { id: candidateId },
-        source: 'candidate'
-      } as const;
-
-      const watcherList = Array.from(watcherIds);
-      if (watcherList.length > 0) {
-        await createNotifications({
-          type: "comment.created",
-          actorId: req.user.id,
-          recipients: watcherList,
-          entity: { type: "comment", id: created.id },
-          payload: { ...basePayload, reason: 'comment' },
-          visibility
-        });
-      }
-
-      if (mentionRecipientIds.size > 0) {
-        await createNotifications({
-          type: "mention",
-          actorId: req.user.id,
-          recipients: Array.from(mentionRecipientIds),
-          entity: { type: "comment", id: created.id },
-          payload: {
-            ...basePayload,
-            reason: 'mention',
-            mentions: mentionedUsers.map((user) => ({ id: user.id, mentionKey: user.mentionKey }))
-          },
-          visibility
-        });
-      }
-    } catch (notifyError) {
-      console.error('Failed to dispatch candidate comment notifications:', notifyError);
-    }
+    // NOTE: Notifications are now handled by the event system (comment.created event)
+    // The notification handler in server/events/handlers/notification-handler.ts
+    // automatically creates notifications for watchers and mentioned users
 
     res.status(201).json(created);
   } catch (error: any) { res.status(400).json({ message: error.message || 'Unable to create comment' }); }

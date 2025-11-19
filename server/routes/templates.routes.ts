@@ -7,6 +7,7 @@ import {
   insertTemplateStageSchema
 } from "@shared/schemas";
 import { logAuthorizationFailure } from "../utils/authorization.utils";
+import { eventBus, templateCreated, templateUpdated, templateCloned } from "../events";
 
 const router = Router();
 
@@ -46,6 +47,24 @@ router.post("/templates", requireAuth, requireRole(["system_admin", "hr_staff"])
     const { cloneFromTemplateId, ...templateData } = req.body;
     const validatedData = insertTemplateSchema.parse(templateData);
     const template = await storage.createTemplate(validatedData, cloneFromTemplateId);
+
+    // Publish domain event
+    if (cloneFromTemplateId) {
+      await eventBus.publish(templateCloned(template.id, {
+        originalTemplateId: cloneFromTemplateId,
+        newTemplateName: template.name
+      }, {
+        actorId: req.user?.id
+      }));
+    } else {
+      await eventBus.publish(templateCreated(template.id, {
+        templateName: template.name,
+        description: template.description
+      }, {
+        actorId: req.user?.id
+      }));
+    }
+
     res.status(201).json(template);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -62,6 +81,15 @@ router.patch("/templates/:id", requireAuth, requireRole(["system_admin", "hr_sta
       await logAuthorizationFailure({ req, resource: "template", resourceId: req.params.id, action: "template:update", reason: "not_found" });
       return res.status(404).json({ message: "Template not found" });
     }
+
+    // Publish domain event
+    await eventBus.publish(templateUpdated(template.id, {
+      templateName: template.name,
+      changes: Object.keys(req.body)
+    }, {
+      actorId: req.user?.id
+    }));
+
     res.json(template);
   } catch (error: any) {
     // Handle template activation constraint violation
@@ -124,6 +152,15 @@ router.patch("/templates/:id/status", requireAuth, requireRole(["system_admin", 
       await logAuthorizationFailure({ req, resource: "template", resourceId: req.params.id, action: "template:status", reason: "not_found" });
       return res.status(404).json({ message: "Template not found" });
     }
+
+    // Publish domain event
+    await eventBus.publish(templateUpdated(template.id, {
+      templateName: template.name,
+      changes: ['status']
+    }, {
+      actorId: req.user?.id
+    }));
+
     res.json(template);
   } catch (error: any) {
     // Handle template readiness constraint violation

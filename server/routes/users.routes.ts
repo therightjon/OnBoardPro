@@ -15,6 +15,7 @@ import {
   type UserPreferences,
   type UserPreferencesDTO
 } from "@shared/schemas";
+import { eventBus, userCreated, userRoleChanged } from "../events";
 
 const router = Router();
 
@@ -246,6 +247,15 @@ router.post("/users", requireAuth, requireRole(["system_admin", "hr_staff"]), as
       await storage.setUserRoles(user.id, userData.roles);
     }
 
+    // Publish domain event
+    await eventBus.publish(userCreated(user.id, {
+      email: user.email,
+      role: user.role,
+      invited: false
+    }, {
+      actorId: req.user?.id
+    }));
+
     res.status(201).json(user);
   } catch (error) {
     if (error instanceof Error && error.message.includes('duplicate key')) {
@@ -291,7 +301,21 @@ router.patch("/users/:id/roles", requireAuth, requireRole(["system_admin", "hr_s
       return res.status(400).json({ message: "Roles must be an array" });
     }
 
+    // Get existing user to track role changes
+    const existingUser = await storage.getUser(id);
+    const previousRoles = existingUser ? [existingUser.role] : [];
+
     const userRoles = await storage.setUserRoles(id, roles);
+
+    // Publish domain event
+    await eventBus.publish(userRoleChanged(id, {
+      previousRoles,
+      newRoles: roles,
+      changedBy: req.user?.id || 'system'
+    }, {
+      actorId: req.user?.id
+    }));
+
     res.json({ userRoles });
   } catch (error) {
     next(error);
