@@ -1,51 +1,52 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { formatUnreadCount } from "../src/features/notifications/utils";
 
-test("formatUnreadCount hides badge at zero", () => {
-  const result = formatUnreadCount(0);
-  assert.equal(result.count, 0);
-  assert.equal(result.showBadge, false);
-  assert.equal(result.badgeText, "0");
-  assert.equal(result.announcement, "0 unread notifications");
-});
+describe("formatUnreadCount", () => {
+  it("hides badge at zero", () => {
+    const result = formatUnreadCount(0);
+    expect(result.count).toBe(0);
+    expect(result.showBadge).toBe(false);
+    expect(result.badgeText).toBe("0");
+    expect(result.announcement).toBe("0 unread notifications");
+  });
 
-test("formatUnreadCount shows single digits", () => {
-  const result = formatUnreadCount(9);
-  assert.equal(result.count, 9);
-  assert.equal(result.showBadge, true);
-  assert.equal(result.badgeText, "9");
-});
+  it("shows single digits", () => {
+    const result = formatUnreadCount(9);
+    expect(result.count).toBe(9);
+    expect(result.showBadge).toBe(true);
+    expect(result.badgeText).toBe("9");
+  });
 
-test("formatUnreadCount preserves two digits", () => {
-  const result = formatUnreadCount(10);
-  assert.equal(result.count, 10);
-  assert.equal(result.badgeText, "10");
-});
+  it("preserves two digits", () => {
+    const result = formatUnreadCount(10);
+    expect(result.count).toBe(10);
+    expect(result.badgeText).toBe("10");
+  });
 
-test("formatUnreadCount caps at 99 plus", () => {
-  const ninetyNine = formatUnreadCount(99);
-  assert.equal(ninetyNine.badgeText, "99");
-  assert.equal(ninetyNine.showBadge, true);
+  it("caps at 99 plus", () => {
+    const ninetyNine = formatUnreadCount(99);
+    expect(ninetyNine.badgeText).toBe("99");
+    expect(ninetyNine.showBadge).toBe(true);
 
-  const overMax = formatUnreadCount(100);
-  assert.equal(overMax.count, 100);
-  assert.equal(overMax.badgeText, "99+");
-});
+    const overMax = formatUnreadCount(100);
+    expect(overMax.count).toBe(100);
+    expect(overMax.badgeText).toBe("99+");
+  });
 
-test("formatUnreadCount handles one", () => {
-  const result = formatUnreadCount(1);
-  assert.equal(result.count, 1);
-  assert.equal(result.badgeText, "1");
-  assert.equal(result.announcement, "1 unread notification");
-});
+  it("handles one", () => {
+    const result = formatUnreadCount(1);
+    expect(result.count).toBe(1);
+    expect(result.badgeText).toBe("1");
+    expect(result.announcement).toBe("1 unread notification");
+  });
 
-test("formatUnreadCount handles nullish", () => {
-  const resultNull = formatUnreadCount(null);
-  assert.equal(resultNull.count, 0);
-  assert.equal(resultNull.showBadge, false);
+  it("handles nullish", () => {
+    const resultNull = formatUnreadCount(null);
+    expect(resultNull.count).toBe(0);
+    expect(resultNull.showBadge).toBe(false);
 
-  const resultUndefined = formatUnreadCount(undefined);
-  assert.equal(resultUndefined.count, 0);
-  assert.equal(resultUndefined.showBadge, false);
+    const resultUndefined = formatUnreadCount(undefined);
+    expect(resultUndefined.count).toBe(0);
+    expect(resultUndefined.showBadge).toBe(false);
+  });
 });
