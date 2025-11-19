@@ -9,6 +9,8 @@ import type {
   DomainEvent,
   AnyDomainEvent,
   CandidateCreatedEvent,
+  CandidateStageChangedEvent,
+  TaskCreatedEvent,
   TaskAssignedEvent,
   TaskStatusChangedEvent,
   TaskCompletedEvent,
@@ -120,8 +122,8 @@ export function candidateStageChanged(
     automated: boolean;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): CandidateStageChangedEvent {
+  return createBaseEvent<CandidateStageChangedEvent>(
     "candidate.stage_changed",
     candidateId,
     "candidate",
@@ -206,8 +208,8 @@ export function taskCreated(
     fromTemplate: boolean;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): TaskCreatedEvent {
+  return createBaseEvent<TaskCreatedEvent>(
     "task.created",
     taskId,
     "candidate_task",

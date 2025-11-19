@@ -6,6 +6,7 @@
 
 import type { EventBus } from "../EventBus";
 import type {
+  TaskCreatedEvent,
   TaskAssignedEvent,
   TaskCompletedEvent,
   CommentCreatedEvent,
@@ -20,6 +21,32 @@ import { randomUUID } from "node:crypto";
  * Register notification handlers with the event bus
  */
 export function registerNotificationHandlers(eventBus: EventBus): void {
+  // Task created -> notify assignee (if assigned)
+  eventBus.on<TaskCreatedEvent>("task.created", async (event) => {
+    const { assigneeUserId, title, candidateId, dueAt } = event.payload;
+
+    if (!assigneeUserId) {
+      return; // No assignee to notify
+    }
+
+    let message = `You have been assigned a new task: ${title}`;
+    if (dueAt) {
+      const dueDateStr = new Date(dueAt).toLocaleDateString();
+      message += ` (due ${dueDateStr})`;
+    }
+
+    await createNotification({
+      recipientUserId: assigneeUserId,
+      eventType: "task.created",
+      title: "New Task Assigned",
+      message,
+      actorUserId: event.actorId,
+      relatedEntityType: "candidate_task",
+      relatedEntityId: event.aggregateId,
+      contextCandidateId: candidateId
+    });
+  });
+
   // Task assigned -> notify assignee
   eventBus.on<TaskAssignedEvent>("task.assigned", async (event) => {
     const { assigneeUserId, taskTitle, candidateId, dueAt } = event.payload;

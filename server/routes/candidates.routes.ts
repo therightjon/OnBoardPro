@@ -31,7 +31,7 @@ import {
 import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helpers";
 import { emitOwnerChanged } from "../features/notifications/owner-change";
 import { authorizationService } from "../services/authorization";
-import { eventBus, candidateCreated, candidateStatusChanged, candidateStageChanged, commentCreated } from "../events";
+import { eventBus, candidateCreated, candidateStatusChanged, candidateStageChanged, taskCreated, taskAssigned, commentCreated } from "../events";
 
 const router = Router();
 
@@ -258,7 +258,18 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
       const resolvedTasks = await storage.resolveCandidateSelfAssignments(fullCandidate.id, fullCandidate.linkedUserId);
       if (resolvedTasks.length > 0) {
         for (const task of resolvedTasks) {
-          await notifyTaskAssignees(task, req.user!, 'assignment');
+          // Publish taskAssigned event for self-assignment resolution
+          if (task.assigneeUserId) {
+            await eventBus.publish(taskAssigned(task.id, {
+              candidateId: task.candidateId,
+              taskTitle: task.title,
+              assigneeUserId: task.assigneeUserId,
+              previousAssigneeId: null,
+              dueAt: task.dueAt
+            }, {
+              actorId: req.user?.id
+            }));
+          }
           await emitDeadlinesIfNeeded(task.id, { actorId: req.user!.id });
         }
       }
@@ -435,8 +446,21 @@ router.post("/candidates/:id/apply-template", requireAuth, requireRole(["system_
     const expansion = await storage.expandTemplate(template_id, req.params.id, req.user!.id);
 
     try {
+      // Publish taskCreated events for all tasks created from template
       await Promise.all(
-        expansion.createdTasks.map((task) => notifyTaskAssignees(task, req.user!, 'assignment'))
+        expansion.createdTasks.map((task) =>
+          eventBus.publish(taskCreated(task.id, {
+            candidateId: task.candidateId,
+            title: task.title,
+            assigneeUserId: task.assigneeUserId,
+            assigneeRole: task.assigneeKind === 'role' ? task.assigneeRole : null,
+            dueAt: task.dueAt,
+            isRequired: false, // Not available in TemplateExpansionTask
+            fromTemplate: true
+          }, {
+            actorId: req.user?.id
+          }))
+        )
       );
     } catch (notifyError) {
       console.error('Failed to dispatch template task assignment notifications:', notifyError);

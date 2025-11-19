@@ -31,7 +31,7 @@ import {
 } from "../features/notifications/services";
 import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helpers";
 import { authorizationService } from "../services/authorization";
-import { eventBus, taskAssigned, taskStatusChanged, taskCompleted, commentCreated } from "../events";
+import { eventBus, candidateStageChanged, taskCreated, taskAssigned, taskStatusChanged, taskCompleted, commentCreated } from "../events";
 
 const router = Router();
 
@@ -205,11 +205,23 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
 
     const task = await storage.createCandidateTask(validatedData);
 
+    // Publish domain event
+    await eventBus.publish(taskCreated(task.id, {
+      candidateId: task.candidateId,
+      title: task.title,
+      assigneeUserId: task.assigneeUserId,
+      assigneeRole: task.assigneeKind === 'role' ? task.assigneeRole : null,
+      dueAt: task.dueAt,
+      isRequired: task.required || false,
+      fromTemplate: false
+    }, {
+      actorId: req.user?.id
+    }));
+
     try {
-      await notifyTaskAssignees(task, req.user!, 'assignment');
       await emitDeadlinesIfNeeded(task.id, { actorId: req.user!.id });
     } catch (notifyError) {
-      console.error('Failed to dispatch task assignment notification:', notifyError);
+      console.error('Failed to emit deadlines:', notifyError);
     }
 
     res.status(201).json(task);
@@ -282,8 +294,6 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
 
     if (assignmentChanged) {
       try {
-        await notifyTaskAssignees(task, req.user!, 'assignment', { previousAssigneeId: existingTask.assigneeUserId });
-
         // Publish taskAssigned event
         if (task.assigneeUserId) {
           await eventBus.publish(taskAssigned(task.id, {
@@ -303,11 +313,6 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
 
     if (statusChanged) {
       try {
-        await notifyTaskAssignees(task, req.user!, 'status_change', {
-          previousStatus: existingTask.status,
-          newStatus: task.status
-        });
-
         // Publish taskStatusChanged event
         await eventBus.publish(taskStatusChanged(task.id, {
           candidateId: task.candidateId,
@@ -375,13 +380,15 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
     if (advancement?.advanced) {
       updatedCandidate = await storage.getCandidate(existingTask.candidateId);
       try {
-        await notifyCandidateStageChange({
-          candidateId: existingTask.candidateId,
-          actor: req.user!,
-          fromStageId: advancement.fromStageId,
-          toStageId: advancement.toStageId,
-          toStageName: advancement.toStageName
-        });
+        // Publish candidateStageChanged event
+        await eventBus.publish(candidateStageChanged(existingTask.candidateId, {
+          previousStageId: advancement.fromStageId,
+          newStageId: advancement.toStageId,
+          stageName: advancement.toStageName || 'Unknown',
+          automated: true // Stage changed automatically due to task completion
+        }, {
+          actorId: req.user?.id
+        }));
       } catch (notifyError) {
         console.error('Failed to notify stage change:', notifyError);
       }
