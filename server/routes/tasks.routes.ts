@@ -30,6 +30,8 @@ import {
   resolveMentionedUsers
 } from "../features/notifications/services";
 import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helpers";
+import { authorizationService } from "../services/authorization";
+import { eventBus, taskAssigned, taskStatusChanged, taskCompleted } from "../events";
 
 const router = Router();
 
@@ -281,6 +283,19 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
     if (assignmentChanged) {
       try {
         await notifyTaskAssignees(task, req.user!, 'assignment', { previousAssigneeId: existingTask.assigneeUserId });
+
+        // Publish taskAssigned event
+        if (task.assigneeUserId) {
+          await eventBus.publish(taskAssigned(task.id, {
+            candidateId: task.candidateId,
+            taskTitle: task.title,
+            assigneeUserId: task.assigneeUserId,
+            previousAssigneeId: existingTask.assigneeUserId,
+            dueAt: task.dueAt
+          }, {
+            actorId: req.user?.id
+          }));
+        }
       } catch (notifyError) {
         console.error('Failed to notify assignment change:', notifyError);
       }
@@ -292,6 +307,32 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
           previousStatus: existingTask.status,
           newStatus: task.status
         });
+
+        // Publish taskStatusChanged event
+        await eventBus.publish(taskStatusChanged(task.id, {
+          candidateId: task.candidateId,
+          taskTitle: task.title,
+          previousStatus: existingTask.status,
+          newStatus: task.status,
+          assigneeUserId: task.assigneeUserId
+        }, {
+          actorId: req.user?.id
+        }));
+
+        // Publish taskCompleted event if status changed to done
+        if (task.status === 'done' && task.completedAt) {
+          const wasOverdue = task.dueAt && task.dueAt < task.completedAt;
+          await eventBus.publish(taskCompleted(task.id, {
+            candidateId: task.candidateId,
+            taskTitle: task.title,
+            completedBy: req.user!.id,
+            completedAt: task.completedAt,
+            dueAt: task.dueAt,
+            wasOverdue: wasOverdue
+          }, {
+            actorId: req.user?.id
+          }));
+        }
       } catch (notifyError) {
         console.error('Failed to notify task status change:', notifyError);
       }

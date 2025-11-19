@@ -30,6 +30,8 @@ import {
 } from "../features/notifications/services";
 import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helpers";
 import { emitOwnerChanged } from "../features/notifications/owner-change";
+import { authorizationService } from "../services/authorization";
+import { eventBus, candidateCreated, candidateStatusChanged, candidateStageChanged } from "../events";
 
 const router = Router();
 
@@ -58,13 +60,29 @@ router.get("/candidates", sensitiveRateLimiter, requireAuth, async (req, res, ne
 // GET /api/candidates/:id - Get a single candidate by ID
 router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
   try {
-    const authContext = storage.buildAuthorizationContext(req.user);
-    const candidate = await storage.getCandidate(req.params.id, authContext);
+    // Build authorization context
+    const authContext = authorizationService.buildContext(req.user);
+
+    // Fetch candidate (no auth check yet)
+    const candidate = await storage.getCandidate(req.params.id);
     if (!candidate) {
-      await logAuthorizationFailure({ req, resource: "candidate", resourceId: req.params.id, action: "candidate:read", reason: "not_found_or_scope" });
       return res.status(404).json({ message: "Candidate not found" });
     }
-    const response = hasPrivilegedRole(req.user) ? candidate : sanitizeCandidateForCandidateUser(candidate);
+
+    // Authorize access using AuthorizationService
+    const authorized = await authorizationService.authorizeCandidateOrRespond(
+      req, res, authContext, candidate, "view"
+    );
+
+    if (!authorized) {
+      return; // Response already sent
+    }
+
+    // Sanitize response if candidate viewing their own record
+    const response = authContext.isCandidate && authContext.userId === candidate.linkedUserId
+      ? sanitizeCandidateForCandidateUser(candidate)
+      : candidate;
+
     res.json(response);
   } catch (error) {
     next(error);
@@ -74,8 +92,10 @@ router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res
 // POST /api/candidates - Create a new candidate
 router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff", "department_admin", "division_leader", "manager"]), async (req, res, next) => {
   try {
-    const authContext = storage.buildAuthorizationContext(req.user);
+    // Build authorization context
+    const authContext = authorizationService.buildContext(req.user);
 
+    // Check scope-based permissions
     if (authContext.roles.has("department_admin") || authContext.roles.has("manager")) {
       if (!req.body.departmentId || !authContext.departmentIds.has(req.body.departmentId)) {
         return res.status(403).json({ message: "Insufficient department scope to create candidate" });
@@ -117,6 +137,19 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
     };
 
     const candidate = await storage.createCandidate(candidateData);
+
+    // Publish candidateCreated event
+    await eventBus.publish(candidateCreated(candidate.id, {
+      firstName: candidate.firstName,
+      lastName: candidate.lastName,
+      email: candidate.email,
+      departmentId: candidate.departmentId,
+      divisionId: candidate.divisionId,
+      managerId: candidate.managerId
+    }, {
+      actorId: req.user?.id
+    }));
+
     res.status(201).json(candidate);
   } catch (error) {
     if (error instanceof z.ZodError) {
