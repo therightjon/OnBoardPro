@@ -109,18 +109,25 @@ export async function setupAuth(app: Express) {
     throw error;
   }
 
+  // Validate session secret exists
+  if (!process.env.SESSION_SECRET) {
+    throw new Error("SESSION_SECRET environment variable is required");
+  }
+
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "dev-secret-key-change-in-production",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: new PostgresSessionStore({ 
-      pool, 
-      createTableIfMissing: true 
+    store: new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true
     }),
     cookie: {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       secure: process.env.NODE_ENV === "production",
-      httpOnly: true
+      httpOnly: true,
+      sameSite: 'strict', // Prevent CSRF attacks
+      ...(process.env.COOKIE_DOMAIN && { domain: process.env.COOKIE_DOMAIN })
     }
   };
 
