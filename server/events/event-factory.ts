@@ -9,7 +9,9 @@ import type {
   DomainEvent,
   AnyDomainEvent,
   CandidateCreatedEvent,
+  CandidateStatusChangedEvent,
   CandidateStageChangedEvent,
+  TemplateAppliedEvent,
   TaskCreatedEvent,
   TaskAssignedEvent,
   TaskStatusChangedEvent,
@@ -100,8 +102,8 @@ export function candidateStatusChanged(
     reason?: string;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): CandidateStatusChangedEvent {
+  return createBaseEvent<CandidateStatusChangedEvent>(
     "candidate.status_changed",
     candidateId,
     "candidate",
@@ -144,8 +146,8 @@ export function templateApplied(
     stagesCreated: number;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): TemplateAppliedEvent {
+  return createBaseEvent<TemplateAppliedEvent>(
     "candidate.template_applied",
     candidateId,
     "candidate",
