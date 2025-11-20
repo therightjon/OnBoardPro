@@ -5,10 +5,91 @@ export const openApiSpec: OpenAPIV3.Document = {
   info: {
     title: 'OnBoardPro API Documentation',
     version: '1.0.0',
-    description: 'Complete API documentation for the OnBoardPro hiring pipeline management system',
+    description: 
+    'Complete API documentation for the OnBoardPro hiring pipeline management system\n\n' +
+      'OnBoardPro is a comprehensive hiring pipeline management system that helps organizations streamline their candidate onboarding process.\n\n' +
+      '## Architecture\n\n' +
+      'The API is organized into **four bounded contexts**:\n\n' +
+      '### 1. Candidate Management\n' +
+      'Manage candidates through the hiring pipeline from application to onboarding.\n' +
+      '- Create and update candidates\n' +
+      '- Apply workflow templates\n' +
+      '- Track stage progression\n' +
+      '- Manage candidate followers\n\n' +
+      '### 2. Task Management\n' +
+      'Manage tasks, assignments, and completion tracking for candidates.\n' +
+      '- Create and assign tasks\n' +
+      '- Track task status and completion\n' +
+      '- Handle task assignments and reassignments\n' +
+      '- Query tasks by various filters\n\n' +
+      '### 3. Template Management\n' +
+      'Define and manage reusable hiring workflow templates.\n' +
+      '- Create and manage templates\n' +
+      '- Define stages and tasks\n' +
+      '- Activate/deactivate templates\n' +
+      '- Clone existing templates\n\n' +
+      '### 4. User Management\n' +
+      'Manage users, authentication, authorization, and preferences.\n' +
+      '- User CRUD operations\n' +
+      '- Role management\n' +
+      '- User preferences\n' +
+      '- Authentication and authorization\n\n' +
+      '## Authentication\n\n' +
+      'The API uses session-based authentication with cookies. Most endpoints require authentication.\n\n' +
+      '**Authentication Flow:**\n' +
+      '1. POST /api/auth/signin with credentials\n' +
+      '2. Server sets httpOnly session cookie\n' +
+      '3. Include cookie in subsequent requests\n' +
+      '4. POST /api/auth/signout to end session\n\n' +
+      '## Authorization\n\n' +
+      'Role-based access control (RBAC) with the following roles:\n' +
+      '- system_admin - Full system access\n' +
+      '- hr_staff - HR operations\n' +
+      '- department_admin - Department-level management\n' +
+      '- division_leader - Division-level management\n' +
+      '- manager - Team manager\n' +
+      '- candidate - Self-service candidate access\n\n' +
+      '## Rate Limiting\n\n' +
+      'Sensitive endpoints are rate-limited to prevent abuse:\n' +
+      '- Default: 100 requests per 15 minutes\n' +
+      '- Auth endpoints: 5 requests per 15 minutes\n\n' +
+      '## Error Responses\n\n' +
+      'Standard error response format:\n' +
+      '```json\n' +
+      '{\n' +
+      '  "message": "Error description",\n' +
+      '  "errors": []\n' +
+      '}\n' +
+      '```\n\n' +
+      'Common HTTP status codes:\n' +
+      '- 200 - Success\n' +
+      '- 201 - Created\n' +
+      '- 400 - Bad Request (validation error)\n' +
+      '- 401 - Unauthorized (not authenticated)\n' +
+      '- 403 - Forbidden (insufficient permissions)\n' +
+      '- 404 - Not Found\n' +
+      '- 429 - Too Many Requests (rate limited)\n' +
+      '- 500 - Internal Server Error\n\n' +
+      '## Domain Events\n\n' +
+      'The system uses an event-driven architecture. Many operations publish domain events:\n' +
+      '- candidate.created, candidate.updated, candidate.stage_changed\n' +
+      '- task.created, task.assigned, task.completed\n' +
+      '- template.created, template.updated, template.activated\n' +
+      '- user.created, user.role_changed\n\n' +
+      'These events trigger notifications, background jobs, and cross-context integrations.\n\n' +
+      '## Pagination\n\n' +
+      'List endpoints support pagination via query parameters:\n' +
+      '- limit - Number of results per page (default: 20)\n' +
+      '- offset - Number of results to skip (default: 0)\n\n' +
+      '## Filtering\n\n' +
+      'Most list endpoints support filtering via query parameters specific to the resource.\n\n' +
+      '## Further Documentation\n\n' +
+      '- [Architecture Review](../docs/ARCHITECTURE_REVIEW.md)\n' +
+      '- [Bounded Contexts](../docs/BOUNDED_CONTEXTS.md)\n' +
+      '- [Service Layer Documentation](../server/services/README.md)',
     contact: {
       name: 'OnBoardPro Team',
-      email: 'support@onboardpro.com'
+      email: 'jesteen@uabmc.edu'
     }
   },
   servers: [
