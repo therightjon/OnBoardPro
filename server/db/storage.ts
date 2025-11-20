@@ -68,7 +68,7 @@ import {
 } from "@shared/schemas";
 import type { Pool } from "pg";
 import { db as defaultDb, pool as defaultPool } from "./connection";
-import { eq, and, isNull, sql, desc, asc, ilike, inArray, or, ne, lte, gt, lt } from "drizzle-orm";
+import { eq, and, isNull, isNotNull, sql, desc, asc, ilike, inArray, or, ne, lte, gt, lt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { decryptSecret, encryptSecret } from "../utils/secret";
 import type { Express } from "express";
@@ -228,6 +228,25 @@ export type DivisionActiveCandidateSummary = {
   activeCandidateCount: number;
 };
 
+export type RecentActivityEventType =
+  | "candidate_created"
+  | "task_completed"
+  | "candidate_stage_changed"
+  | "template_applied";
+
+export type RecentActivityEvent = {
+  id: string;
+  type: RecentActivityEventType;
+  occurredAt: Date;
+  candidateId: string | null;
+  candidateFirstName: string | null;
+  candidateLastName: string | null;
+  candidateTypeName: string | null;
+  taskTitle?: string | null;
+  stageName?: string | null;
+  templateName?: string | null;
+};
+
 function applyScopeFilters(whereConditions: any[], filters: CandidateScopeFilters, requireScope = false) {
   const scopeConditions: any[] = [];
   const departmentIds = filters.departmentIds ? Array.from(new Set(filters.departmentIds)) : [];
@@ -317,6 +336,7 @@ export interface IStorage {
   getCandidateStageHistory(candidateId: string): Promise<any[]>;
   getDashboardTasks(): Promise<any[]>;
   getDivisionActiveCandidateCounts(limit?: number, auth?: AuthorizationContext): Promise<DivisionActiveCandidateSummary[]>;
+  getRecentActivityEvents(limit?: number, auth?: AuthorizationContext): Promise<RecentActivityEvent[]>;
   
   // Templates
   getTemplates(): Promise<Template[]>;
@@ -1326,6 +1346,9 @@ export class DatabaseStorage implements IStorage {
       .select({
         id: candidateTasks.id,
         candidateId: candidateTasks.candidateId,
+        candidateFirstName: candidates.firstName,
+        candidateLastName: candidates.lastName,
+        candidateTypeId: candidates.candidateTypeId,
         title: candidateTasks.title,
         description: candidateTasks.description,
         assignee_id: candidateTasks.assigneeUserId,
@@ -1364,6 +1387,13 @@ export class DatabaseStorage implements IStorage {
       assigneeRole: task.assignee_role,
       assigneeResolvedAt: task.assignee_resolved_at,
       dueSoonNotifiedAt: task.due_soon_notified_at,
+      candidate: {
+        id: task.candidateId,
+        firstName: task.candidateFirstName,
+        lastName: task.candidateLastName,
+        candidateTypeId: task.candidateTypeId,
+        status: task.candidate_status
+      }
     }));
   }
 
@@ -1412,6 +1442,152 @@ export class DatabaseStorage implements IStorage {
       .limit(Math.max(1, Math.min(limit, 25)));
 
     return results;
+  }
+
+  async getRecentActivityEvents(limit: number = 5, auth?: AuthorizationContext): Promise<RecentActivityEvent[]> {
+    const effectiveLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 10) : 5;
+    const perTypeLimit = Math.max(effectiveLimit * 2, 8);
+
+    const buildCandidateScopeConditions = (): any[] => {
+      const scopeConditions: any[] = [eq(candidates.archived, false)];
+      if (auth && !auth.privileged) {
+        const scopeFilters: CandidateScopeFilters = {};
+        if (auth.departmentIds.size > 0) {
+          scopeFilters.departmentIds = auth.departmentIds;
+        }
+        if (auth.divisionIds.size > 0) {
+          scopeFilters.divisionIds = auth.divisionIds;
+        }
+        if (auth.managedCandidateIds.size > 0) {
+          scopeFilters.candidateIds = auth.managedCandidateIds;
+        }
+        if (auth.roles.has("manager") && auth.userId) {
+          scopeFilters.managerIds = [auth.userId];
+        }
+        if (auth.isCandidate && auth.userId) {
+          scopeFilters.linkedUserIds = [auth.userId];
+        }
+        applyScopeFilters(scopeConditions, scopeFilters, true);
+      }
+      return scopeConditions;
+    };
+
+    const candidateCreatedConditions = buildCandidateScopeConditions();
+    const taskConditions = buildCandidateScopeConditions();
+    taskConditions.push(eq(candidateTasks.archived, false));
+    taskConditions.push(eq(candidateTasks.status, "done"));
+    taskConditions.push(isNotNull(candidateTasks.completedAt));
+
+    const stageConditions = buildCandidateScopeConditions();
+    const templateConditions = buildCandidateScopeConditions();
+    templateConditions.push(isNotNull(candidates.templateAppliedAt));
+
+    const [candidateCreatedRows, taskCompletedRows, stageRows, templateRows] = await Promise.all([
+      this.db
+        .select({
+          candidateId: candidates.id,
+          firstName: candidates.firstName,
+          lastName: candidates.lastName,
+          occurredAt: candidates.createdAt,
+          candidateTypeName: candidateTypes.name
+        })
+        .from(candidates)
+        .leftJoin(candidateTypes, eq(candidateTypes.id, candidates.candidateTypeId))
+        .where(and(...candidateCreatedConditions))
+        .orderBy(desc(candidates.createdAt))
+        .limit(perTypeLimit),
+      this.db
+        .select({
+          candidateId: candidates.id,
+          firstName: candidates.firstName,
+          lastName: candidates.lastName,
+          candidateTypeName: candidateTypes.name,
+          occurredAt: candidateTasks.completedAt,
+          taskTitle: candidateTasks.title
+        })
+        .from(candidateTasks)
+        .innerJoin(candidates, eq(candidateTasks.candidateId, candidates.id))
+        .leftJoin(candidateTypes, eq(candidateTypes.id, candidates.candidateTypeId))
+        .where(and(...taskConditions))
+        .orderBy(desc(candidateTasks.completedAt))
+        .limit(perTypeLimit),
+      this.db
+        .select({
+          candidateId: candidates.id,
+          firstName: candidates.firstName,
+          lastName: candidates.lastName,
+          candidateTypeName: candidateTypes.name,
+          occurredAt: candidateStageHistory.changedAt,
+          stageName: hiringStages.name
+        })
+        .from(candidateStageHistory)
+        .innerJoin(candidates, eq(candidateStageHistory.candidateId, candidates.id))
+        .leftJoin(hiringStages, eq(candidateStageHistory.toStageId, hiringStages.id))
+        .leftJoin(candidateTypes, eq(candidateTypes.id, candidates.candidateTypeId))
+        .where(and(...stageConditions))
+        .orderBy(desc(candidateStageHistory.changedAt))
+        .limit(perTypeLimit),
+      this.db
+        .select({
+          candidateId: candidates.id,
+          firstName: candidates.firstName,
+          lastName: candidates.lastName,
+          candidateTypeName: candidateTypes.name,
+          occurredAt: candidates.templateAppliedAt,
+          templateName: sql<string>`COALESCE(${candidates.templateNameSnapshot}, ${templates.name})`
+        })
+        .from(candidates)
+        .leftJoin(candidateTypes, eq(candidateTypes.id, candidates.candidateTypeId))
+        .leftJoin(templates, eq(templates.id, candidates.templateAppliedFromId))
+        .where(and(...templateConditions))
+        .orderBy(desc(candidates.templateAppliedAt))
+        .limit(perTypeLimit)
+    ]);
+
+    const events: RecentActivityEvent[] = [
+      ...candidateCreatedRows.map((row) => ({
+        id: `candidate_created:${row.candidateId}:${row.occurredAt?.toISOString() ?? row.candidateId}`,
+        type: "candidate_created" as const,
+        occurredAt: row.occurredAt ?? new Date(0),
+        candidateId: row.candidateId,
+        candidateFirstName: row.firstName,
+        candidateLastName: row.lastName,
+        candidateTypeName: row.candidateTypeName
+      })),
+      ...taskCompletedRows.map((row) => ({
+        id: `task_completed:${row.candidateId}:${row.occurredAt?.toISOString() ?? row.taskTitle}`,
+        type: "task_completed" as const,
+        occurredAt: row.occurredAt ?? new Date(0),
+        candidateId: row.candidateId,
+        candidateFirstName: row.firstName,
+        candidateLastName: row.lastName,
+        candidateTypeName: row.candidateTypeName,
+        taskTitle: row.taskTitle
+      })),
+      ...stageRows.map((row) => ({
+        id: `candidate_stage_changed:${row.candidateId}:${row.occurredAt?.toISOString() ?? row.stageName ?? "stage"}`,
+        type: "candidate_stage_changed" as const,
+        occurredAt: row.occurredAt ?? new Date(0),
+        candidateId: row.candidateId,
+        candidateFirstName: row.firstName,
+        candidateLastName: row.lastName,
+        candidateTypeName: row.candidateTypeName,
+        stageName: row.stageName
+      })),
+      ...templateRows.map((row) => ({
+        id: `template_applied:${row.candidateId}:${row.occurredAt?.toISOString() ?? row.templateName ?? "template"}`,
+        type: "template_applied" as const,
+        occurredAt: row.occurredAt ?? new Date(0),
+        candidateId: row.candidateId,
+        candidateFirstName: row.firstName,
+        candidateLastName: row.lastName,
+        candidateTypeName: row.candidateTypeName,
+        templateName: row.templateName
+      }))
+    ];
+
+    events.sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+    return events.slice(0, effectiveLimit);
   }
 
   async getCandidateTask(id: string): Promise<CandidateTask | undefined> {

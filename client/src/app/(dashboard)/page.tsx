@@ -20,6 +20,7 @@ import {
   Laptop,
   UsersIcon
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -47,6 +48,88 @@ type DivisionOverviewRenderItem =
   | { kind: "data"; key: string; entry: DivisionOverviewItem }
   | { kind: "loading"; key: string }
   | { kind: "placeholder"; key: string };
+
+type RecentActivityEvent = {
+  id: string;
+  type: "candidate_created" | "task_completed" | "candidate_stage_changed" | "template_applied";
+  candidateId: string | null;
+  candidateFirstName: string | null;
+  candidateLastName: string | null;
+  candidateTypeName: string | null;
+  occurredAt: string;
+  taskTitle?: string | null;
+  stageName?: string | null;
+  templateName?: string | null;
+};
+
+type ActivityVisualConfig = {
+  icon: LucideIcon;
+  iconWrapperClass: string;
+  iconClass: string;
+  badgeVariant?: "default" | "secondary" | "outline" | "destructive";
+  badgeClassName?: string;
+  badgeText: string;
+};
+
+const RECENT_ACTIVITY_VISUALS: Record<RecentActivityEvent["type"], ActivityVisualConfig> = {
+  candidate_created: {
+    icon: UserPlus,
+    iconWrapperClass: "bg-accent/10",
+    iconClass: "text-accent",
+    badgeVariant: "secondary",
+    badgeText: "New"
+  },
+  task_completed: {
+    icon: CheckCircle,
+    iconWrapperClass: "bg-primary/10",
+    iconClass: "text-primary",
+    badgeVariant: "secondary",
+    badgeClassName: "bg-primary/10 text-primary border-primary/30",
+    badgeText: "Completed"
+  },
+  candidate_stage_changed: {
+    icon: ArrowRight,
+    iconWrapperClass: "bg-chart-3/10",
+    iconClass: "text-chart-3",
+    badgeVariant: "outline",
+    badgeText: "Stage"
+  },
+  template_applied: {
+    icon: ClipboardList,
+    iconWrapperClass: "bg-chart-2/10",
+    iconClass: "text-chart-2",
+    badgeVariant: "secondary",
+    badgeText: "Template"
+  }
+};
+
+const getFullName = (first?: string | null, last?: string | null): string => {
+  const parts = [first, last].filter((part): part is string => Boolean(part && part.trim()));
+  return parts.join(" ");
+};
+
+const formatActivityTitle = (activity: RecentActivityEvent): string => {
+  const fullName = getFullName(activity.candidateFirstName, activity.candidateLastName);
+  switch (activity.type) {
+    case "candidate_created":
+      return fullName ? `New candidate ${fullName} added` : "New candidate added";
+    case "task_completed":
+      return `Task completed: ${activity.taskTitle || "Task"}`;
+    case "candidate_stage_changed":
+      return `${fullName || "Candidate"} moved to ${activity.stageName || "new stage"}`;
+    case "template_applied":
+    default:
+      return activity.templateName ? `Template applied: ${activity.templateName}` : "Template applied";
+  }
+};
+
+const getActivityDetailText = (activity: RecentActivityEvent): string => {
+  const fullName = getFullName(activity.candidateFirstName, activity.candidateLastName);
+  if (activity.type === "task_completed" || activity.type === "template_applied") {
+    return fullName || activity.candidateTypeName || "Candidate update";
+  }
+  return activity.candidateTypeName || fullName || "Candidate update";
+};
 
 const divisionIconConfigs = [
   { Icon: Stethoscope, bgClass: "bg-primary/10", iconClass: "text-primary" },
@@ -93,6 +176,16 @@ export default function Dashboard() {
     enabled: !!user,
     queryFn: async () => {
       const res = await fetch('/api/candidate-types', { credentials: 'include' });
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json();
+    }
+  });
+
+  const { data: recentActivity = [], isLoading: recentActivityLoading, isError: recentActivityError } = useQuery<RecentActivityEvent[]>({
+    queryKey: ["/api/dashboard/recent-activity", 4, user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/recent-activity?limit=4', { credentials: 'include' });
       if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
       return res.json();
     }
@@ -179,7 +272,15 @@ export default function Dashboard() {
 
   const urgentTasks = tasks
     .filter((t: any) => t.priority === "critical" || (t.dueAt && new Date(t.dueAt) < new Date()))
-    .slice(0, 3);
+    .slice(0, 4);
+
+  const handleUrgentTaskClick = (task: any) => {
+    if (task?.candidateId) {
+      setLocation(`/candidates/${task.candidateId}`);
+      return;
+    }
+    setLocation('/tasks/mine');
+  };
 
   const divisionOverviewItems = useMemo<DivisionOverviewRenderItem[]>(() => {
     if (!canViewDivisionOverview) return [];
@@ -390,86 +491,77 @@ export default function Dashboard() {
           <CardHeader className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base xs:text-lg sm:text-xl">Recent Activity</CardTitle>
-              <Button variant="link" size="sm" className="text-primary text-xs xs:text-sm">View All</Button>
             </div>
+            <div>
+              <p className="hidden xs:block text-xs text-muted-foreground mt-1">Recent actions and updates</p>
+              </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 max-w-full">
-            <div className="space-y-2">
-              <div className="flex items-start gap-2.5 p-2.5 sm:p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0">
-                  <UserPlus className="text-accent text-sm" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 w-full">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <p className="text-sm text-foreground truncate">New candidate <span className="font-medium">Sarah Johnson</span> added</p>
-                      <Badge variant="secondary" className="shrink-0">New</Badge>
+            {recentActivityLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="flex items-start gap-3 rounded-xl border border-border/50 p-3 sm:p-3.5">
+                    <Skeleton className="w-10 h-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
                     </div>
-                    <p className="text-xs text-muted-foreground whitespace-nowrap sm:ml-2">2 hours ago</p>
                   </div>
-                </div>
+                ))}
               </div>
-              
-              <div className="flex items-start gap-2.5 p-2.5 sm:p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                  <CheckCircle className="text-primary text-sm" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 w-full">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <p className="text-sm text-foreground truncate">Task completed: <span className="font-medium">Background Check</span></p>
-                      <Badge className="shrink-0">Completed</Badge>
+            ) : recentActivityError ? (
+              <div className="text-sm text-destructive text-center py-6">
+                Unable to load recent activity.
+              </div>
+            ) : recentActivity.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-6">
+                No recent activity yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentActivity.slice(0, 4).map((activity) => {
+                  const config = RECENT_ACTIVITY_VISUALS[activity.type] ?? RECENT_ACTIVITY_VISUALS.candidate_created;
+                  const timestamp = activity.occurredAt ? new Date(activity.occurredAt) : null;
+                  const hasValidDate = Boolean(timestamp && !Number.isNaN(timestamp.getTime()));
+                  const formattedDate = hasValidDate ? format(timestamp!, "MMM d, yyyy") : "Date pending";
+                  const relativeTime = hasValidDate ? formatDistanceToNow(timestamp!, { addSuffix: true }) : "Just now";
+                  const detailText = getActivityDetailText(activity);
+                  const title = formatActivityTitle(activity);
+                  return (
+                    <div
+                      key={activity.id}
+                      className="rounded-xl border border-border/70 p-3 sm:p-3.5 hover:border-primary/40 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${config.iconWrapperClass}`}>
+                          <config.icon className={`w-4 h-4 ${config.iconClass}`} />
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate">{title}</p>
+                            </div>
+                            <Badge
+                              variant={config.badgeVariant ?? "secondary"}
+                              className={`shrink-0 ${config.badgeClassName ?? ""}`.trim()}
+                            >
+                              {config.badgeText}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            <p className="truncate">{detailText}</p>
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-primary" />
+                              <span className="font-medium text-foreground">{formattedDate}</span> <span className="text-xs text-muted-foreground">{relativeTime}</span>
+                            </div>
+                          </div>
+                          
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground whitespace-nowrap sm:ml-2">4 hours ago</p>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
-              
-              <div className="flex items-start gap-2.5 p-2.5 sm:p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="w-8 h-8 bg-chart-3/10 rounded-full flex items-center justify-center flex-shrink-0">
-                  <ArrowRight className="text-chart-3 text-sm" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 w-full">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <p className="text-sm text-foreground truncate"><span className="font-medium">Michael Chen</span> moved to Offer stage</p>
-                      <Badge variant="outline" className="shrink-0">Stage</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground whitespace-nowrap sm:ml-2">6 hours ago</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-2.5 p-2.5 sm:p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="w-8 h-8 bg-destructive/10 rounded-full flex items-center justify-center flex-shrink-0">
-                  <CircleAlert className="text-destructive text-sm" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 w-full">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <p className="text-sm text-foreground truncate">Task overdue: <span className="font-medium">Reference Check</span></p>
-                      <Badge variant="destructive" className="shrink-0">Overdue</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground whitespace-nowrap sm:ml-2">1 day ago</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3 p-3 sm:p-4 rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="w-8 h-8 bg-chart-2/10 rounded-full flex items-center justify-center flex-shrink-0">
-                  <ClipboardList className="text-chart-2 text-sm" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 w-full">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <p className="text-sm text-foreground truncate">Template applied: <span className="font-medium">Faculty - Base</span></p>
-                      <Badge variant="secondary" className="shrink-0">Template</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground whitespace-nowrap sm:ml-2">2 days ago</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -477,11 +569,22 @@ export default function Dashboard() {
       {/* Quick Actions and Tasks Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* Urgent Tasks */}
-        <Card data-testid="card-urgent-tasks">
+        <Card data-testid="card-urgent-tasks" datat-testid="card-urgent-tasks">
           <CardHeader className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
+              <div>
               <CardTitle className="text-base xs:text-lg sm:text-xl">Urgent Tasks</CardTitle>
-              <Button variant="link" size="sm" className="text-primary text-xs xs:text-sm">View All Tasks</Button>
+                <p className="hidden xs:block text-xs text-muted-foreground mt-1">Critical and overdue tasks</p>
+                </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="min-h-[44px] gap-1.5 text-xs xs:text-sm"
+                onClick={() => setLocation('/tasks/mine')}
+              >
+                View All Tasks
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0">
@@ -489,50 +592,64 @@ export default function Dashboard() {
               {urgentTasks.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-2.5">No urgent tasks at the moment</p>
               ) : (
-                urgentTasks.map((task: any, index: number) => (
-                  <div key={task.id} className="border border-border rounded-lg p-3 hover:bg-muted/50 transition-colors" data-testid={`card-urgent-task-${index}`}>
+                urgentTasks.map((task: any, index: number) => {
+                  const candidateName = [task.candidate?.firstName, task.candidate?.lastName].filter(Boolean).join(" ") || "Unknown Candidate";
+                  const candidateTypeLabel = task.candidate?.candidateTypeId ? getCandidateTypeName(task.candidate.candidateTypeId) : null;
+                  const dueDate = task.dueAt ? new Date(task.dueAt) : null;
+                  const isOverdue = dueDate ? dueDate < new Date() : false;
+                  const dueLabel = dueDate ? dueDate.toLocaleDateString() : "No due date";
+                  return (
+                  <button
+                    type="button"
+                    key={task.id}
+                    onClick={() => handleUrgentTaskClick(task)}
+                    className="w-full text-left border border-border rounded-lg p-3 hover:bg-muted/50 hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    data-testid={`card-urgent-task-${index}`}
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-sm font-medium text-foreground">{task.title}</h4>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        new Date(task.dueAt) < new Date() 
+                        isOverdue 
                           ? 'bg-destructive/10 text-destructive' 
                           : 'bg-accent/10 text-accent'
                       }`}>
-                        {new Date(task.dueAt) < new Date() ? 'Overdue' : 'Due Soon'}
+                        {isOverdue ? 'Overdue' : 'Due Soon'}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>Candidate Name</span>
-                      <span>Due: {task.dueAt ? new Date(task.dueAt).toLocaleDateString() : 'No due date'}</span>
+                      <span className="truncate">{candidateName}</span>
+                      <span>Due: {dueLabel}</span>
                     </div>
-                    <div className="flex items-center mt-2">
-                      <div className={`w-2 h-2 rounded-full mr-2 ${
-                        task.priority === 'critical' ? 'bg-destructive' :
-                        task.priority === 'high' ? 'bg-chart-3' :
-                        task.priority === 'medium' ? 'bg-chart-5' : 'bg-muted-foreground'
-                      }`} />
-                      <span className="text-xs text-muted-foreground capitalize">{task.priority} Priority</span>
+                    <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+                      <span className="truncate">{candidateTypeLabel ?? "Candidate"}</span>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          task.priority === 'critical' ? 'bg-destructive' :
+                          task.priority === 'high' ? 'bg-chart-3' :
+                          task.priority === 'medium' ? 'bg-chart-5' : 'bg-muted-foreground'
+                        }`} />
+                        <span className="capitalize">{task.priority} Priority</span>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  </button>
+                );
+                })
               )}
             </div>
           </CardContent>
         </Card>
 
         {/* Division Overview */}
-        <Card data-testid="card-department-overview">
-          <CardHeader className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base xs:text-lg sm:text-xl">Division Overview</CardTitle>
-              <Button variant="ghost" size="sm" className="min-h-[44px]">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z" />
-                </svg>
-              </Button>
+        <Card data-testid="card-department-overview" className="flex flex-col">
+          <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-base xs:text-lg sm:text-xl">Division Overview</CardTitle>
+                <p className="hidden xs:block text-xs text-muted-foreground mt-1">Active candidates per division</p>
+              </div>
             </div>
           </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-0">
+          <CardContent className="p-3 sm:p-4 pt-0 flex-1">
             {!canViewDivisionOverview ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 You don’t have permission to view division insights.
@@ -548,12 +665,12 @@ export default function Dashboard() {
                   return (
                     <div
                       key={item.key}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                      className="flex items-center justify-between p-3 border border-border/70 rounded-xl"
                       data-testid={`card-division-row-${index}`}
                     >
                       <div className="flex items-center space-x-3">
                         <div className={`w-10 h-10 ${bgClass} rounded-lg flex items-center justify-center`}>
-                          <Icon className={iconClass} />
+                          <Icon className={`${iconClass} w-5 h-5`} />
                         </div>
                         <div className="space-y-1">
                           {item.kind === "data" ? (

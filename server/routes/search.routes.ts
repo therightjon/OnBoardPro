@@ -127,6 +127,23 @@ router.get("/dashboard/divisions", requireAuth, async (req, res, next) => {
   }
 });
 
+router.get("/dashboard/recent-activity", requireAuth, async (req, res, next) => {
+  try {
+    const allowedRoles: AppRole[] = ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"];
+    if (!hasAnyRole(req.user, allowedRoles)) {
+      await logAuthorizationFailure({ req, resource: "general", action: "dashboard:recent-activity", reason: "role_mismatch" });
+      return res.status(403).json({ message: "Insufficient permissions" });
+    }
+    const limitParam = typeof req.query.limit === "string" ? parseInt(req.query.limit, 10) : NaN;
+    const limit = Number.isFinite(limitParam) ? limitParam : 5;
+    const authContext = storage.buildAuthorizationContext(req.user);
+    const events = await storage.getRecentActivityEvents(limit, authContext);
+    res.json(events);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Search API endpoints
 router.get("/search/departments", requireAuth, async (req, res, next) => {
   try {
