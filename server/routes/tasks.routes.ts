@@ -30,6 +30,9 @@ import {
   resolveMentionedUsers
 } from "../features/notifications/services";
 import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helpers";
+import { authorizationService } from "../services/authorization";
+import { eventBus, candidateStageChanged, taskCreated, taskAssigned, taskStatusChanged, taskCompleted, commentCreated } from "../events";
+import { getTaskService } from "../services/service-factory";
 
 const router = Router();
 
@@ -37,11 +40,12 @@ const router = Router();
 router.get("/tasks", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
   try {
     const { candidateId, assigneeId } = req.query;
-    const authContext = storage.buildAuthorizationContext(req.user);
+    const authContext = authorizationService.buildContext(req.user);
     const roleSet = authContext.roles;
+    const taskService = getTaskService();
 
     if (!hasPrivilegedRole(req.user) && roleSet.has("candidate")) {
-      let tasks = await storage.getCandidateTasks({ assigneeId: req.user!.id }, authContext);
+      let tasks = await taskService.getTasks({ assigneeId: req.user!.id }, authContext);
       tasks = tasks.map(sanitizeTaskForCandidateUser);
       return res.json(tasks);
     }
@@ -75,7 +79,7 @@ router.get("/tasks", sensitiveRateLimiter, requireAuth, async (req, res, next) =
       filters.assigneeId = assigneeId as string;
     }
 
-    let tasks = await storage.getCandidateTasks(filters, authContext);
+    let tasks = await taskService.getTasks(filters, authContext);
     if (!hasPrivilegedRole(req.user)) {
       tasks = tasks.map(sanitizeTaskForCandidateUser);
     }
@@ -110,8 +114,9 @@ router.get("/tasks/mine", sensitiveRateLimiter, requireAuth, async (req, res, ne
     // For backward compatibility, handle includeClosed parameter
     const includeClosed = req.query.includeClosed === 'true';
 
-    const authContext = storage.buildAuthorizationContext(req.user);
-    let tasks = await storage.getCandidateTasks({
+    const authContext = authorizationService.buildContext(req.user);
+    const taskService = getTaskService();
+    let tasks = await taskService.getTasks({
       assigneeId: userId,
       includeClosed,
       showArchived,
@@ -144,6 +149,8 @@ router.get("/tasks/dashboard", requireAuth, async (req, res, next) => {
 // GET /api/tasks/:id - Get a specific task by ID
 router.get("/tasks/:id", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
   try {
+    // Note: fetchTaskWithAccess still uses storage, but it's mainly for authorization check
+    // We could refactor this to use service, but keeping it simple for now
     const result = await fetchTaskWithAccess(req, res, req.params.id, "task:read");
     if (!result) return;
     const response = hasPrivilegedRole(req.user) ? result.task : sanitizeTaskForCandidateUser(result.task);
@@ -201,13 +208,18 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
       validatedData.taskDefId = taskDef.id;
     }
 
-    const task = await storage.createCandidateTask(validatedData);
+    // Create task using service (handles event publishing)
+    const taskService = getTaskService();
+    const task = await taskService.createTask({
+      data: validatedData,
+      actorId: req.user?.id
+    });
 
+    // Integration concern: Emit deadline notifications
     try {
-      await notifyTaskAssignees(task, req.user!, 'assignment');
       await emitDeadlinesIfNeeded(task.id, { actorId: req.user!.id });
     } catch (notifyError) {
-      console.error('Failed to dispatch task assignment notification:', notifyError);
+      console.error('Failed to emit deadlines:', notifyError);
     }
 
     res.status(201).json(task);
@@ -268,34 +280,21 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
       updateData.assigneeResolvedAt = updateData.assigneeUserId ? new Date() : null;
     }
 
-    const task = await storage.updateCandidateTask(req.params.id, updateData);
+    // Update task using service (handles event publishing)
+    const taskService = getTaskService();
+    const task = await taskService.updateTask({
+      id: req.params.id,
+      data: updateData,
+      actorId: req.user?.id
+    });
+
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    const assignmentChanged = Boolean(task.assigneeKind === 'user' && task.assigneeUserId && task.assigneeUserId !== existingTask.assigneeUserId);
     const statusChanged = body.status && body.status !== existingTask.status;
     const dueChanged = Object.prototype.hasOwnProperty.call(updateData, 'dueAt');
     const completionChanged = Object.prototype.hasOwnProperty.call(updateData, 'completedAt');
-
-    if (assignmentChanged) {
-      try {
-        await notifyTaskAssignees(task, req.user!, 'assignment', { previousAssigneeId: existingTask.assigneeUserId });
-      } catch (notifyError) {
-        console.error('Failed to notify assignment change:', notifyError);
-      }
-    }
-
-    if (statusChanged) {
-      try {
-        await notifyTaskAssignees(task, req.user!, 'status_change', {
-          previousStatus: existingTask.status,
-          newStatus: task.status
-        });
-      } catch (notifyError) {
-        console.error('Failed to notify task status change:', notifyError);
-      }
-    }
 
     // Audit log on cancellation
     try {
@@ -334,13 +333,15 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
     if (advancement?.advanced) {
       updatedCandidate = await storage.getCandidate(existingTask.candidateId);
       try {
-        await notifyCandidateStageChange({
-          candidateId: existingTask.candidateId,
-          actor: req.user!,
-          fromStageId: advancement.fromStageId,
-          toStageId: advancement.toStageId,
-          toStageName: advancement.toStageName
-        });
+        // Publish candidateStageChanged event
+        await eventBus.publish(candidateStageChanged(existingTask.candidateId, {
+          previousStageId: advancement.fromStageId,
+          newStageId: advancement.toStageId,
+          stageName: advancement.toStageName || 'Unknown',
+          automated: true // Stage changed automatically due to task completion
+        }, {
+          actorId: req.user?.id
+        }));
       } catch (notifyError) {
         console.error('Failed to notify stage change:', notifyError);
       }
@@ -385,8 +386,9 @@ router.delete("/tasks/:id", requireAuth, async (req, res, next) => {
       await logAuthorizationFailure({ req, resource: "task", resourceId: access.task.id, action: "task:delete", reason: "role_mismatch" });
       return res.status(403).json({ message: "Insufficient permissions" });
     }
-    // Soft delete by archiving
-    await storage.archiveCandidateTask(req.params.id);
+    // Soft delete by archiving using service
+    const taskService = getTaskService();
+    await taskService.archiveTask(req.params.id, req.user?.id);
     res.sendStatus(204);
   } catch (error) {
     next(error);
@@ -414,73 +416,23 @@ router.post("/tasks/:id/comments", sensitiveRateLimiter, requireAuth, async (req
     if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
     const created = await storage.createComment({ entityType: 'task', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
 
-    try {
-      const task = access.task ?? await storage.getCandidateTask(req.params.id);
-      if (task) {
-        const snippet = buildCommentSnippet(body);
-        const actorName = buildActorLabel(req.user!);
-        const mentionKeys = extractMentionKeys(body);
-        const mentionedUsers = mentionKeys.length > 0 ? await resolveMentionedUsers(mentionKeys) : [];
-        const mentionRecipientIds = new Set(mentionedUsers.map((user) => user.id));
+    // Publish domain event
+    const mentionKeys = extractMentionKeys(body);
+    await eventBus.publish(commentCreated(created.id, {
+      entityType: 'task',
+      entityId: req.params.id,
+      authorUserId: req.user.id,
+      commentBody: body,
+      visibility,
+      mentionedUserKeys: mentionKeys,
+      parentId
+    }, {
+      actorId: req.user?.id
+    }));
 
-        const watcherIds = new Set<string>();
-        if (task.assigneeKind === 'user' && task.assigneeUserId) {
-          watcherIds.add(task.assigneeUserId);
-        }
-
-        for (const id of mentionRecipientIds) {
-          watcherIds.delete(id);
-        }
-
-        const candidate = await storage.getCandidate(task.candidateId);
-        const basePayload = {
-          actor: { id: req.user.id, name: actorName },
-          comment: {
-            id: created.id,
-            preview: snippet,
-            visibility
-          },
-          candidate: candidate ? {
-            id: candidate.id,
-            name: `${candidate.firstName} ${candidate.lastName}`
-          } : { id: task.candidateId },
-          task: {
-            id: task.id,
-            title: task.title
-          },
-          source: 'task'
-        } as const;
-
-        const watcherList = Array.from(watcherIds);
-        if (watcherList.length > 0) {
-          await createNotifications({
-            type: "comment.created",
-            actorId: req.user.id,
-            recipients: watcherList,
-            entity: { type: "comment", id: created.id },
-            payload: { ...basePayload, reason: 'comment' },
-            visibility
-          });
-        }
-
-        if (mentionRecipientIds.size > 0) {
-          await createNotifications({
-            type: "mention",
-            actorId: req.user.id,
-            recipients: Array.from(mentionRecipientIds),
-            entity: { type: "comment", id: created.id },
-            payload: {
-              ...basePayload,
-              reason: 'mention',
-              mentions: mentionedUsers.map((user) => ({ id: user.id, mentionKey: user.mentionKey }))
-            },
-            visibility
-          });
-        }
-      }
-    } catch (notifyError) {
-      console.error('Failed to dispatch task comment notifications:', notifyError);
-    }
+    // NOTE: Notifications are now handled by the event system (comment.created event)
+    // The notification handler in server/events/handlers/notification-handler.ts
+    // automatically creates notifications for watchers and mentioned users
 
     res.status(201).json(created);
   } catch (error: any) { res.status(400).json({ message: error.message || 'Unable to create comment' }); }

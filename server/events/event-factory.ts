@@ -5,7 +5,25 @@
  */
 
 import { randomUUID } from "node:crypto";
-import type { DomainEvent, AnyDomainEvent } from "./event-types";
+import type {
+  DomainEvent,
+  AnyDomainEvent,
+  CandidateCreatedEvent,
+  CandidateStatusChangedEvent,
+  CandidateStageChangedEvent,
+  TemplateAppliedEvent,
+  TaskCreatedEvent,
+  TaskAssignedEvent,
+  TaskStatusChangedEvent,
+  TaskCompletedEvent,
+  CommentCreatedEvent,
+  TemplateCreatedEvent,
+  TemplateUpdatedEvent,
+  TemplateClonedEvent,
+  UserCreatedEvent,
+  UserLoggedInEvent,
+  UserRoleChangedEvent
+} from "./event-types";
 
 /**
  * Context for creating events
@@ -63,8 +81,8 @@ export function candidateCreated(
     managerId: string | null;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): CandidateCreatedEvent {
+  return createBaseEvent<CandidateCreatedEvent>(
     "candidate.created",
     candidateId,
     "candidate",
@@ -84,8 +102,8 @@ export function candidateStatusChanged(
     reason?: string;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): CandidateStatusChangedEvent {
+  return createBaseEvent<CandidateStatusChangedEvent>(
     "candidate.status_changed",
     candidateId,
     "candidate",
@@ -106,8 +124,8 @@ export function candidateStageChanged(
     automated: boolean;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): CandidateStageChangedEvent {
+  return createBaseEvent<CandidateStageChangedEvent>(
     "candidate.stage_changed",
     candidateId,
     "candidate",
@@ -128,8 +146,8 @@ export function templateApplied(
     stagesCreated: number;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): TemplateAppliedEvent {
+  return createBaseEvent<TemplateAppliedEvent>(
     "candidate.template_applied",
     candidateId,
     "candidate",
@@ -192,8 +210,8 @@ export function taskCreated(
     fromTemplate: boolean;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): TaskCreatedEvent {
+  return createBaseEvent<TaskCreatedEvent>(
     "task.created",
     taskId,
     "candidate_task",
@@ -215,8 +233,8 @@ export function taskAssigned(
     dueAt: Date | null;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): TaskAssignedEvent {
+  return createBaseEvent<TaskAssignedEvent>(
     "task.assigned",
     taskId,
     "candidate_task",
@@ -238,8 +256,8 @@ export function taskStatusChanged(
     assigneeUserId: string | null;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): TaskStatusChangedEvent {
+  return createBaseEvent<TaskStatusChangedEvent>(
     "task.status_changed",
     taskId,
     "candidate_task",
@@ -262,8 +280,8 @@ export function taskCompleted(
     wasOverdue: boolean;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): TaskCompletedEvent {
+  return createBaseEvent<TaskCompletedEvent>(
     "task.completed",
     taskId,
     "candidate_task",
@@ -326,14 +344,17 @@ export function taskDeleted(
 export function commentCreated(
   commentId: string,
   payload: {
-    candidateId: string;
-    authorId: string;
-    content: string;
-    mentionedUserIds: string[];
+    entityType: 'candidate' | 'task';
+    entityId: string;
+    authorUserId: string;
+    commentBody: string;
+    visibility: 'internal' | 'candidate_visible';
+    mentionedUserKeys: string[];
+    parentId: string | null;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): CommentCreatedEvent {
+  return createBaseEvent<CommentCreatedEvent>(
     "comment.created",
     commentId,
     "comment",
@@ -394,8 +415,8 @@ export function templateCreated(
     description: string | null;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): TemplateCreatedEvent {
+  return createBaseEvent<TemplateCreatedEvent>(
     "template.created",
     templateId,
     "template",
@@ -414,8 +435,8 @@ export function templateUpdated(
     changes: string[];
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): TemplateUpdatedEvent {
+  return createBaseEvent<TemplateUpdatedEvent>(
     "template.updated",
     templateId,
     "template",
@@ -434,8 +455,8 @@ export function templateCloned(
     newTemplateName: string;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): TemplateClonedEvent {
+  return createBaseEvent<TemplateClonedEvent>(
     "template.cloned",
     newTemplateId,
     "template",
@@ -459,8 +480,8 @@ export function userCreated(
     invited: boolean;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): UserCreatedEvent {
+  return createBaseEvent<UserCreatedEvent>(
     "user.created",
     userId,
     "user",
@@ -479,8 +500,8 @@ export function userLoggedIn(
     ipAddress?: string;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): UserLoggedInEvent {
+  return createBaseEvent<UserLoggedInEvent>(
     "user.logged_in",
     userId,
     "user",
@@ -500,8 +521,8 @@ export function userRoleChanged(
     changedBy: string;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): UserRoleChangedEvent {
+  return createBaseEvent<UserRoleChangedEvent>(
     "user.role_changed",
     userId,
     "user",

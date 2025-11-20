@@ -7,6 +7,8 @@ import {
   insertTemplateStageSchema
 } from "@shared/schemas";
 import { logAuthorizationFailure } from "../utils/authorization.utils";
+import { eventBus, templateCreated, templateUpdated, templateCloned } from "../events";
+import { getTemplateService } from "../services/service-factory";
 
 const router = Router();
 
@@ -24,7 +26,8 @@ async function fetchTemplateWithAccess(req: any, res: any, templateId: string, a
 // Templates routes
 router.get("/templates", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const templates = await storage.getTemplates();
+    const templateService = getTemplateService();
+    const templates = await templateService.getTemplates();
     res.json(templates);
   } catch (error) {
     next(error);
@@ -33,8 +36,12 @@ router.get("/templates", requireAuth, requireRole(["system_admin", "hr_staff"]),
 
 router.get("/templates/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:read");
-    if (!template) return;
+    const templateService = getTemplateService();
+    const template = await templateService.getTemplate(req.params.id);
+    if (!template) {
+      await logAuthorizationFailure({ req, resource: "template", resourceId: req.params.id, action: "template:read", reason: "not_found" });
+      return res.status(404).json({ message: "Template not found" });
+    }
     res.json(template);
   } catch (error) {
     next(error);
@@ -45,7 +52,15 @@ router.post("/templates", requireAuth, requireRole(["system_admin", "hr_staff"])
   try {
     const { cloneFromTemplateId, ...templateData } = req.body;
     const validatedData = insertTemplateSchema.parse(templateData);
-    const template = await storage.createTemplate(validatedData, cloneFromTemplateId);
+
+    // Create template using service (handles event publishing)
+    const templateService = getTemplateService();
+    const template = await templateService.createTemplate({
+      data: validatedData,
+      cloneFromTemplateId,
+      actorId: req.user?.id
+    });
+
     res.status(201).json(template);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -57,11 +72,19 @@ router.post("/templates", requireAuth, requireRole(["system_admin", "hr_staff"])
 
 router.patch("/templates/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const template = await storage.updateTemplate(req.params.id, req.body);
+    // Update template using service (handles event publishing)
+    const templateService = getTemplateService();
+    const template = await templateService.updateTemplate({
+      id: req.params.id,
+      data: req.body,
+      actorId: req.user?.id
+    });
+
     if (!template) {
       await logAuthorizationFailure({ req, resource: "template", resourceId: req.params.id, action: "template:update", reason: "not_found" });
       return res.status(404).json({ message: "Template not found" });
     }
+
     res.json(template);
   } catch (error: any) {
     // Handle template activation constraint violation
@@ -76,9 +99,13 @@ router.patch("/templates/:id", requireAuth, requireRole(["system_admin", "hr_sta
 
 router.delete("/templates/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:delete");
-    if (!template) return;
-    await storage.archiveTemplate(req.params.id);
+    const templateService = getTemplateService();
+    const template = await templateService.getTemplate(req.params.id);
+    if (!template) {
+      await logAuthorizationFailure({ req, resource: "template", resourceId: req.params.id, action: "template:delete", reason: "not_found" });
+      return res.status(404).json({ message: "Template not found" });
+    }
+    await templateService.archiveTemplate(req.params.id, req.user?.id);
     res.sendStatus(204);
   } catch (error) {
     next(error);
@@ -88,10 +115,20 @@ router.delete("/templates/:id", requireAuth, requireRole(["system_admin", "hr_st
 // Template readiness endpoint
 router.get("/templates/:id/readiness", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:readiness");
-    if (!template) return;
-    const readiness = await storage.getTemplateReadiness(req.params.id);
-    res.json(readiness);
+    const templateService = getTemplateService();
+    const template = await templateService.getTemplate(req.params.id);
+    if (!template) {
+      await logAuthorizationFailure({ req, resource: "template", resourceId: req.params.id, action: "template:readiness", reason: "not_found" });
+      return res.status(404).json({ message: "Template not found" });
+    }
+
+    // Use service to check readiness
+    const readinessCheck = await templateService.checkTemplateReadiness(req.params.id);
+
+    // Get detailed readiness info from storage for backward compatibility
+    const readinessDetails = await storage.getTemplateReadiness(req.params.id);
+
+    res.json({ ...readinessDetails, ...readinessCheck });
   } catch (error) {
     next(error);
   }
@@ -105,32 +142,38 @@ router.patch("/templates/:id/status", requireAuth, requireRole(["system_admin", 
       return res.status(400).json({ message: "Invalid status. Must be draft, active, or archived." });
     }
 
-    // Map status to database columns
-    let updateData: { isActive?: boolean; archived?: boolean } = {};
+    const templateService = getTemplateService();
+    let template;
+
+    // Use service methods for activation/deactivation
     switch (status) {
       case "draft":
-        updateData = { isActive: false, archived: false };
+        template = await templateService.deactivateTemplate(req.params.id, req.user?.id);
         break;
       case "active":
-        updateData = { isActive: true, archived: false };
+        template = await templateService.activateTemplate(req.params.id, req.user?.id);
         break;
       case "archived":
-        updateData = { archived: true, isActive: false };
+        template = await templateService.updateTemplate({
+          id: req.params.id,
+          data: { archived: true, isActive: false },
+          actorId: req.user?.id
+        });
         break;
     }
 
-    const template = await storage.updateTemplate(req.params.id, updateData);
     if (!template) {
       await logAuthorizationFailure({ req, resource: "template", resourceId: req.params.id, action: "template:status", reason: "not_found" });
       return res.status(404).json({ message: "Template not found" });
     }
+
     res.json(template);
   } catch (error: any) {
     // Handle template readiness constraint violation
-    if (error.message?.includes('Template cannot be set to Active until it has at least one stage')) {
+    if (error.message?.includes('Template cannot be set to Active') || error.message?.includes('Template is not ready')) {
       return res.status(400).json({
         code: 'TEMPLATE_NOT_READY',
-        message: 'At least one stage is required.'
+        message: error.message || 'At least one stage is required.'
       });
     }
     next(error);

@@ -10,6 +10,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { requestIdMiddleware, getRequestId } from "./middleware/request-id";
 import { errorHandler } from "./utils/error-handler";
 import healthRouter from "./routes/health";
+import { eventBus, registerNotificationHandlers, createLoggingMiddleware } from "./events";
 
 const app = express();
 
@@ -71,6 +72,15 @@ app.use((req: any, res, next) => {
 (async () => {
   // Health check routes (before auth middleware)
   app.use(healthRouter);
+
+  // Initialize event system
+  eventBus.use(createLoggingMiddleware({
+    enabled: env.NODE_ENV === "development",
+    level: "info",
+    logPayload: false // Don't log payloads for privacy
+  }));
+  registerNotificationHandlers(eventBus);
+  log('✓ Event system initialized');
 
   // Register main application routes
   const server = await registerRoutes(app);
