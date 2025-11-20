@@ -35,6 +35,7 @@ import {
   markAllNotificationsReadHandler
 } from "./features/notifications/routes";
 import { reportAuthorizationFailure } from "./observability/authMetrics";
+import docsRouter from "./routes/docs";
 
 export interface RegisterRoutesOptions {
   skipAuthSetup?: boolean;
@@ -3017,6 +3018,9 @@ export async function registerRoutes(app: Express, options: RegisterRoutesOption
       next(error);
     }
   });
+
+  // API Documentation
+  app.use(docsRouter);
 
   const httpServer = createServer(app);
   return httpServer;
