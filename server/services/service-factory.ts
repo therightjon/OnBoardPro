@@ -20,6 +20,7 @@ import { UserRepository } from "../repositories/users/UserRepository";
 import { CandidateService } from "./candidates/candidate.service";
 import { TaskService } from "./tasks/task.service";
 import { TemplateService } from "./templates/template.service";
+import { UserService } from "./users/user.service";
 
 /**
  * Service factory class
@@ -39,6 +40,7 @@ class ServiceFactory {
   private candidateServiceInstance: CandidateService | null = null;
   private taskServiceInstance: TaskService | null = null;
   private templateServiceInstance: TemplateService | null = null;
+  private userServiceInstance: UserService | null = null;
 
   constructor() {
     // Initialize repositories
@@ -93,6 +95,18 @@ class ServiceFactory {
   }
 
   /**
+   * Get UserService instance
+   */
+  getUserService(): UserService {
+    if (!this.userServiceInstance) {
+      this.userServiceInstance = new UserService(
+        this.userRepo
+      );
+    }
+    return this.userServiceInstance;
+  }
+
+  /**
    * Get all services
    * Useful for initializing everything at once
    */
@@ -100,7 +114,8 @@ class ServiceFactory {
     return {
       candidate: this.getCandidateService(),
       task: this.getTaskService(),
-      template: this.getTemplateService()
+      template: this.getTemplateService(),
+      user: this.getUserService()
     };
   }
 }
@@ -112,3 +127,4 @@ export const serviceFactory = new ServiceFactory();
 export const getCandidateService = () => serviceFactory.getCandidateService();
 export const getTaskService = () => serviceFactory.getTaskService();
 export const getTemplateService = () => serviceFactory.getTemplateService();
+export const getUserService = () => serviceFactory.getUserService();

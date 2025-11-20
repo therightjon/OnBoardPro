@@ -16,6 +16,8 @@ import {
   type UserPreferencesDTO
 } from "@shared/schemas";
 import { eventBus, userCreated, userRoleChanged } from "../events";
+import { getUserService } from "../services/service-factory";
+import { UserValidationError } from "../services/users/user.service";
 
 const router = Router();
 
@@ -47,7 +49,8 @@ router.get("/me/preferences", requireAuth, async (req, res, next) => {
   try {
     const userId = req.user!.id;
     const role = req.user!.role;
-    const preferences = await storage.getUserPreferences(userId);
+    const userService = getUserService();
+    const preferences = await userService.getUserPreferences(userId);
     const response = buildPreferenceResponse(preferences);
     res.json(pickPreferencesForRole(response, role));
   } catch (error) {
@@ -61,7 +64,8 @@ router.patch("/me/preferences", requireAuth, async (req, res, next) => {
     const role = req.user!.role;
     const parsedUpdates = preferencesUpdateSchema.parse(req.body ?? {});
     const filteredUpdates = filterUpdatesForRole(parsedUpdates, role);
-    const updatedPreferences = await storage.upsertUserPreferences(userId, filteredUpdates);
+    const userService = getUserService();
+    const updatedPreferences = await userService.upsertUserPreferences(userId, filteredUpdates);
     const response = buildPreferenceResponse(updatedPreferences);
     res.json(pickPreferencesForRole(response, role));
   } catch (error) {
@@ -96,7 +100,8 @@ router.get("/users/managers", requireAuth, requireRole(["system_admin", "hr_staf
       }
     }
 
-    const managers = await storage.getManagersByDepartment(
+    const userService = getUserService();
+    const managers = await userService.getManagersByDepartment(
       departmentId as string,
       divisionId as string,
       q as string,
@@ -121,7 +126,8 @@ router.get("/users", requireAuth, requireRole(["system_admin", "hr_staff"]), asy
     if (divisionId) filters.divisionId = divisionId as string;
     if (search) filters.search = search as string;
 
-    const users = await storage.getAllUsers(filters);
+    const userService = getUserService();
+    const users = await userService.getAllUsers(filters);
 
     // Append pending invitations as pseudo-users unless status filter excludes them
     let includeInvites = true;
@@ -212,7 +218,8 @@ router.get("/users/assignable", requireAuth, async (req, res, next) => {
       }
     }
 
-    const users = await storage.getAllUsers(filters);
+    const userService = getUserService();
+    const users = await userService.getAllUsers(filters);
     res.json(users);
   } catch (error) {
     next(error);
@@ -221,43 +228,18 @@ router.get("/users/assignable", requireAuth, async (req, res, next) => {
 
 router.post("/users", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const userData = req.body;
-
-    // Check if email already exists
-    const existingUser = await storage.getUserByEmail(userData.email);
-    if (existingUser) {
-      return res.status(400).json({ message: "Email already exists" });
-    }
-
-    // Hash password if provided using the same method as auth.ts
-    if (userData.passwordHash) {
-      const { scrypt, randomBytes } = await import('crypto');
-      const { promisify } = await import('util');
-      const scryptAsync = promisify(scrypt);
-
-      const salt = randomBytes(16).toString("hex");
-      const buf = (await scryptAsync(userData.passwordHash, salt, 64)) as Buffer;
-      userData.passwordHash = `${buf.toString("hex")}.${salt}`;
-    }
-
-    const user = await storage.createUser(userData);
-
-    // Set roles if provided
-    if (userData.roles && Array.isArray(userData.roles)) {
-      await storage.setUserRoles(user.id, userData.roles);
-    }
-
-    // Publish domain event
-    await eventBus.publish(userCreated(user.id, {
-      email: user.email,
-      role: user.role,
-      invited: false
-    }, {
+    // Create user using service (handles duplicate checking, password hashing, role assignment, events)
+    const userService = getUserService();
+    const user = await userService.createUser({
+      data: req.body,
       actorId: req.user?.id
-    }));
+    });
 
     res.status(201).json(user);
   } catch (error) {
+    if (error instanceof UserValidationError) {
+      return res.status(400).json({ message: error.message });
+    }
     if (error instanceof Error && error.message.includes('duplicate key')) {
       return res.status(400).json({ message: "Email already exists" });
     }
@@ -267,21 +249,14 @@ router.post("/users", requireAuth, requireRole(["system_admin", "hr_staff"]), as
 
 router.patch("/users/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const updateData = req.body;
+    // Update user using service (handles password hashing)
+    const userService = getUserService();
+    const user = await userService.updateUser({
+      id: req.params.id,
+      data: req.body,
+      actorId: req.user?.id
+    });
 
-    // Hash password if being updated using the same method as auth.ts
-    if (updateData.passwordHash) {
-      const { scrypt, randomBytes } = await import('crypto');
-      const { promisify } = await import('util');
-      const scryptAsync = promisify(scrypt);
-
-      const salt = randomBytes(16).toString("hex");
-      const buf = (await scryptAsync(updateData.passwordHash, salt, 64)) as Buffer;
-      updateData.passwordHash = `${buf.toString("hex")}.${salt}`;
-    }
-
-    const user = await storage.updateUser(id, updateData);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -294,49 +269,34 @@ router.patch("/users/:id", requireAuth, requireRole(["system_admin", "hr_staff"]
 
 router.patch("/users/:id/roles", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { roles } = req.body;
-
-    if (!Array.isArray(roles)) {
-      return res.status(400).json({ message: "Roles must be an array" });
-    }
-
-    // Get existing user to track role changes
-    const existingUser = await storage.getUser(id);
-    const previousRoles = existingUser ? [existingUser.role] : [];
-
-    const userRoles = await storage.setUserRoles(id, roles);
-
-    // Publish domain event
-    await eventBus.publish(userRoleChanged(id, {
-      previousRoles,
-      newRoles: roles,
-      changedBy: req.user?.id || 'system'
-    }, {
+    // Update roles using service (handles event publishing)
+    const userService = getUserService();
+    const userRoles = await userService.updateUserRoles({
+      userId: req.params.id,
+      roles: req.body.roles,
       actorId: req.user?.id
-    }));
+    });
 
     res.json({ userRoles });
   } catch (error) {
+    if (error instanceof UserValidationError) {
+      return res.status(400).json({ message: error.message });
+    }
     next(error);
   }
 });
 
 router.post("/users/:id/disable", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { reassignOpenTasksTo } = req.body;
-
-    // Get task count before disabling
-    const taskCount = await storage.getUserOpenTaskCount(id);
-
-    const result = await storage.disableUser(id, reassignOpenTasksTo);
-
-    res.json({
-      success: result.success,
-      tasksReassigned: result.tasksReassigned,
-      taskCount
+    // Disable user using service (handles task reassignment)
+    const userService = getUserService();
+    const result = await userService.disableUser({
+      userId: req.params.id,
+      reassignOpenTasksTo: req.body.reassignOpenTasksTo,
+      actorId: req.user?.id
     });
+
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -344,9 +304,8 @@ router.post("/users/:id/disable", requireAuth, requireRole(["system_admin", "hr_
 
 router.post("/users/:id/enable", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const { id } = req.params;
-
-    const user = await storage.enableUser(id);
+    const userService = getUserService();
+    const user = await userService.enableUser(req.params.id, req.user?.id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -359,8 +318,8 @@ router.post("/users/:id/enable", requireAuth, requireRole(["system_admin", "hr_s
 
 router.get("/users/:id/task-count", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const taskCount = await storage.getUserOpenTaskCount(id);
+    const userService = getUserService();
+    const taskCount = await userService.getUserOpenTaskCount(req.params.id);
     res.json(taskCount);
   } catch (error) {
     next(error);
