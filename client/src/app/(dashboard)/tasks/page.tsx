@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -28,6 +28,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { TaskDefinition } from "@shared/schemas";
 import { RouteGuard } from "@/shared/components/route-guard";
+import { PaginationControls } from "@/shared/components/pagination-controls";
+
+const PAGE_SIZE = 5;
 
 const taskDefinitionSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -39,6 +42,7 @@ type TaskDefinitionForm = z.infer<typeof taskDefinitionSchema>;
 export default function TasksPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [archiveFilter, setArchiveFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const [isNewTaskDefDialogOpen, setIsNewTaskDefDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
@@ -104,17 +108,33 @@ export default function TasksPage() {
     },
   });
 
-  const filteredTaskDefinitions = taskDefinitions.filter((taskDef: TaskDefinition) => {
-    if (!taskDef) return false;
-    
-    // Apply archive filter
-    if (archiveFilter === "active" && taskDef.archived) return false;
-    if (archiveFilter === "archived" && !taskDef.archived) return false;
-    
-    // Apply search filter
-    return taskDef.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           (taskDef.description && taskDef.description.toLowerCase().includes(searchTerm.toLowerCase()));
-  });
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, archiveFilter]);
+
+  const filteredTaskDefinitions = useMemo(() => {
+    return taskDefinitions.filter((taskDef: TaskDefinition) => {
+      if (!taskDef) return false;
+      
+      if (archiveFilter === "active" && taskDef.archived) return false;
+      if (archiveFilter === "archived" && !taskDef.archived) return false;
+      
+      return taskDef.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             (taskDef.description && taskDef.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    });
+  }, [taskDefinitions, archiveFilter, searchTerm]);
+
+  const pageSize = PAGE_SIZE;
+  const totalTaskDefinitions = filteredTaskDefinitions.length;
+  const totalPages = totalTaskDefinitions > 0 ? Math.ceil(totalTaskDefinitions / pageSize) : 1;
+  const paginatedTaskDefinitions = filteredTaskDefinitions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
 
   const archiveTaskDefMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -326,7 +346,7 @@ export default function TasksPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTaskDefinitions.map((taskDef: TaskDefinition) => (
+                paginatedTaskDefinitions.map((taskDef: TaskDefinition) => (
                   <TableRow key={taskDef.id} className="hover:bg-muted/50" data-testid={`row-task-def-${taskDef.id}`}>
                     <TableCell className="font-medium p-2 xs:p-3 sm:p-4">
                       <div className="break-words">{taskDef.name}</div>
@@ -382,6 +402,17 @@ export default function TasksPage() {
             </TableBody>
             </Table>
           </div>
+          {totalTaskDefinitions > pageSize && (
+            <div className="border-t border-border/60 px-4 py-3">
+              <PaginationControls
+                page={currentPage}
+                pageSize={pageSize}
+                totalCount={totalTaskDefinitions}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -396,7 +427,8 @@ export default function TasksPage() {
             </CardContent>
           </Card>
         ) : (
-          filteredTaskDefinitions.map((taskDef) => (
+          <>
+          {paginatedTaskDefinitions.map((taskDef) => (
             <Card key={taskDef.id} className="p-4" data-testid={`card-task-def-${taskDef.id}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -442,7 +474,20 @@ export default function TasksPage() {
                 )}
               </div>
             </Card>
-          ))
+          ))}
+          {totalTaskDefinitions > pageSize && (
+            <div className="mt-4">
+              <PaginationControls
+                page={currentPage}
+                pageSize={pageSize}
+                totalCount={totalTaskDefinitions}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                className="justify-center"
+              />
+            </div>
+          )}
+          </>
         )}
       </div>
 

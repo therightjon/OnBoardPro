@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -24,6 +24,7 @@ import { ArchiveCandidateDialog } from "@/features/candidates/components/archive
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import type { Candidate, CandidateType, HiringStage } from "@shared/schemas";
+import { PaginationControls } from "@/shared/components/pagination-controls";
 
 type CandidateWithStage = Candidate & {
   currentStage?: {
@@ -37,6 +38,8 @@ type CandidateWithStage = Candidate & {
   openOnboardingTasks?: number;
 };
 
+const PAGE_SIZE = 5;
+
 export default function CandidatesPage() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
@@ -47,6 +50,7 @@ export default function CandidatesPage() {
   const [sortBy, setSortBy] = useState<string>("createdAt");
   const [sortOrder, setSortOrder] = useState<string>("desc");
   const [showArchived, setShowArchived] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [isNewCandidateDialogOpen, setIsNewCandidateDialogOpen] = useState(false);
   const [archiveDialogCandidate, setArchiveDialogCandidate] = useState<any>(null);
   const { user } = useAuth();
@@ -97,7 +101,12 @@ const daysSince = (isoDate?: string | null) => {
   return diff >= 0 ? diff : null;
 };
 
-  const filteredAndSortedCandidates = candidates
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, typeFilter, stageFilter, phaseFilter, showArchived]);
+
+  const filteredAndSortedCandidates = useMemo(() => {
+    return candidates
     .filter((candidate: any) => {
       const matchesSearch = candidate.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            candidate.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -157,6 +166,19 @@ const daysSince = (isoDate?: string | null) => {
       if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
+  }, [candidates, searchTerm, statusFilter, typeFilter, stageFilter, phaseFilter, sortBy, sortOrder]);
+
+  const pageSize = PAGE_SIZE;
+  const totalCandidates = filteredAndSortedCandidates.length;
+  const totalPages = totalCandidates > 0 ? Math.ceil(totalCandidates / pageSize) : 1;
+  const paginatedCandidates = filteredAndSortedCandidates.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -437,7 +459,7 @@ const daysSince = (isoDate?: string | null) => {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAndSortedCandidates.map((candidate: any) => {
+                paginatedCandidates.map((candidate: any) => {
                   const phase = candidate.currentStage?.phase ?? "pre_hire";
                   const phaseText = phaseLabel(phase);
                   const pendingAnchorCount = Number(candidate.pendingAnchorCount ?? 0);
@@ -527,6 +549,17 @@ const daysSince = (isoDate?: string | null) => {
               )}
             </TableBody>
           </Table>
+          {totalCandidates > pageSize && (
+            <div className="border-t border-border/60 px-4 py-3">
+              <PaginationControls
+                page={currentPage}
+                pageSize={pageSize}
+                totalCount={totalCandidates}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -539,8 +572,9 @@ const daysSince = (isoDate?: string | null) => {
             </CardContent>
           </Card>
         ) : (
+          <>
           <ul className="grid gap-3" role="list">
-            {filteredAndSortedCandidates.map((candidate: any) => {
+            {paginatedCandidates.map((candidate: any) => {
               const pendingCount = Number(candidate.pendingAnchorCount ?? 0);
               const openPrehire = Number(candidate.openPrehireTasks ?? 0);
               const openOnboarding = Number(candidate.openOnboardingTasks ?? 0);
@@ -654,6 +688,19 @@ const daysSince = (isoDate?: string | null) => {
               </li>
             )})}
           </ul>
+          {totalCandidates > pageSize && (
+            <div className="mt-4">
+              <PaginationControls
+                page={currentPage}
+                pageSize={pageSize}
+                totalCount={totalCandidates}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                className="justify-center"
+              />
+            </div>
+          )}
+          </>
         )}
       </div>
       
