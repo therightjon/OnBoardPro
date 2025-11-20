@@ -26,6 +26,7 @@ import { db } from "./db/connection";
 import { sql } from "drizzle-orm";
 import { getSmtpSettings, updateSmtpSettings, sendTestEmail } from "./features/email/smtp-settings.service";
 import { reportAuthorizationFailure } from "./observability/authMetrics";
+import docsRouter from "./routes/docs";
 import { hasAnyRole, logAuthorizationFailure } from "./utils/authorization.utils";
 import referenceDataRouter from "./routes/reference-data.routes";
 import searchRouter from "./routes/search.routes";
@@ -1037,6 +1038,9 @@ export async function registerRoutes(app: Express, options: RegisterRoutesOption
       next(error);
     }
   });
+
+  // API Documentation
+  app.use(docsRouter);
 
   const httpServer = createServer(app);
   return httpServer;

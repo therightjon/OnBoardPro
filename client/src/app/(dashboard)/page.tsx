@@ -364,18 +364,17 @@ export default function Dashboard() {
                             <p className="text-sm font-semibold text-foreground truncate">
                               {candidate.firstName} {candidate.lastName}
                             </p>
-                            <p className="text-xs text-muted-foreground truncate">{getCandidateTypeName(candidate.candidateTypeId)}</p>
                           </div>
                           <Badge variant="secondary" className={`shrink-0 ${getStatusBadgeClass(candidate.status)}`}>
                             {formatStatusLabel(candidate.status)}
                           </Badge>
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1.5 text-foreground">
+                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+                          <p className="text-muted-foreground truncate">{getCandidateTypeName(candidate.candidateTypeId)}</p>
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Clock className="w-3.5 h-3.5 text-primary" />
-                            <span className="font-medium">{format(candidate.startDate, "MMM d, yyyy")}</span>
+                            <span className="font-medium text-foreground">{format(candidate.startDate, "MMM d, yyyy")} {formatDistanceToNow(candidate.startDate, { addSuffix: true })}</span>
                           </div>
-                          <span>{formatDistanceToNow(candidate.startDate, { addSuffix: true })}</span>
                         </div>
                       </div>
                     </div>
