@@ -18,12 +18,21 @@ export interface CreateCandidateInput {
   data: InsertCandidate;
   templateId?: string;
   actorId?: string;
+  authContext?: AuthorizationContext;
+}
+
+export class CandidateValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CandidateValidationError';
+  }
 }
 
 export interface UpdateCandidateInput {
   id: string;
   data: Partial<Candidate>;
   actorId?: string;
+  authContext?: AuthorizationContext;
 }
 
 export interface ApplyTemplateInput {
@@ -45,10 +54,27 @@ export class CandidateService {
 
   /**
    * Create a new candidate
-   * Optionally apply a template during creation
+   * Validates business rules and optionally applies a template
    */
   async createCandidate(input: CreateCandidateInput): Promise<Candidate> {
-    const { data, templateId, actorId } = input;
+    const { data, templateId, actorId, authContext } = input;
+
+    // Business Rule: Check for duplicate email in the same department
+    if (data.email && data.departmentId) {
+      const existingCandidates = await this.candidateRepo.getCandidates(
+        { departmentId: data.departmentId },
+        authContext
+      );
+
+      const duplicateEmail = existingCandidates.find(
+        (c: any) => c.email.toLowerCase() === data.email.toLowerCase() &&
+                    c.departmentId === data.departmentId
+      );
+
+      if (duplicateEmail) {
+        throw new CandidateValidationError("Email already exists in this department");
+      }
+    }
 
     // Create the candidate
     const candidate = await this.candidateRepo.createCandidate(data);
@@ -68,7 +94,7 @@ export class CandidateService {
     // Apply template if requested
     if (templateId) {
       // TODO: Implement template application logic
-      // This should use a TemplateService
+      // This should use a TemplateService or be handled separately
     }
 
     return candidate;

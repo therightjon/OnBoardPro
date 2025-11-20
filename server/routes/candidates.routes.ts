@@ -32,6 +32,8 @@ import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helper
 import { emitOwnerChanged } from "../features/notifications/owner-change";
 import { authorizationService } from "../services/authorization";
 import { eventBus, candidateCreated, candidateStatusChanged, candidateStageChanged, taskCreated, taskAssigned, commentCreated } from "../events";
+import { getCandidateService, getTaskService } from "../services/service-factory";
+import { CandidateValidationError } from "../services/candidates/candidate.service";
 
 const router = Router();
 
@@ -40,14 +42,15 @@ router.get("/candidates", sensitiveRateLimiter, requireAuth, async (req, res, ne
   try {
     const includeArchived = req.query.includeArchived === "true";
     const filters: Record<string, any> = { includeArchived };
-    const authContext = storage.buildAuthorizationContext(req.user);
+    const authContext = authorizationService.buildContext(req.user);
 
     if (!authContext.privileged && authContext.roles.size === 0) {
       await logAuthorizationFailure({ req, resource: "candidate", action: "candidate:list", reason: "no_scope" });
       return res.status(403).json({ message: "Insufficient permissions" });
     }
 
-    const candidates = await storage.getCandidates(filters, authContext);
+    const candidateService = getCandidateService();
+    const candidates = await candidateService.getCandidates(filters, authContext);
     const response = hasPrivilegedRole(req.user)
       ? candidates
       : candidates.map(sanitizeCandidateForCandidateUser);
@@ -63,8 +66,9 @@ router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res
     // Build authorization context
     const authContext = authorizationService.buildContext(req.user);
 
-    // Fetch candidate (no auth check yet)
-    const candidate = await storage.getCandidate(req.params.id);
+    // Fetch candidate using service
+    const candidateService = getCandidateService();
+    const candidate = await candidateService.getCandidate(req.params.id, authContext);
     if (!candidate) {
       return res.status(404).json({ message: "Candidate not found" });
     }
@@ -95,7 +99,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
     // Build authorization context
     const authContext = authorizationService.buildContext(req.user);
 
-    // Check scope-based permissions
+    // Check scope-based permissions (HTTP/Authorization layer)
     if (authContext.roles.has("department_admin") || authContext.roles.has("manager")) {
       if (!req.body.departmentId || !authContext.departmentIds.has(req.body.departmentId)) {
         return res.status(403).json({ message: "Insufficient department scope to create candidate" });
@@ -108,17 +112,6 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
       }
     }
 
-    // Check for duplicate email in the same department
-    const existingCandidates = await storage.getCandidates({ departmentId: req.body.departmentId }, authContext);
-    const duplicateEmail = existingCandidates.find(
-      (c: any) => c.email.toLowerCase() === req.body.email.toLowerCase() &&
-                  c.departmentId === req.body.departmentId
-    );
-
-    if (duplicateEmail) {
-      return res.status(400).json({ message: "Email already exists in this department" });
-    }
-
     // Faculty rank validation for faculty candidate types
     const candidateTypes = await storage.getCandidateTypes();
     const candidateType = candidateTypes.find(type => type.id === req.body.candidateTypeId);
@@ -129,6 +122,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
       }
     }
 
+    // Validate input
     const validatedData = insertCandidateSchema.parse(req.body);
     const candidateData = {
       ...validatedData,
@@ -136,24 +130,21 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
       primaryOwnerId: req.user!.id
     };
 
-    const candidate = await storage.createCandidate(candidateData);
-
-    // Publish candidateCreated event
-    await eventBus.publish(candidateCreated(candidate.id, {
-      firstName: candidate.firstName,
-      lastName: candidate.lastName,
-      email: candidate.email,
-      departmentId: candidate.departmentId,
-      divisionId: candidate.divisionId,
-      managerId: candidate.managerId
-    }, {
-      actorId: req.user?.id
-    }));
+    // Use service for business logic (duplicate checking, event publishing)
+    const candidateService = getCandidateService();
+    const candidate = await candidateService.createCandidate({
+      data: candidateData,
+      actorId: req.user?.id,
+      authContext
+    });
 
     res.status(201).json(candidate);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: "Invalid data", errors: error.errors });
+    }
+    if (error instanceof CandidateValidationError) {
+      return res.status(400).json({ message: error.message });
     }
     next(error);
   }
@@ -162,7 +153,15 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
 // PATCH /api/candidates/:id - Update a candidate
 router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const previousCandidate = await storage.getCandidate(req.params.id);
+    const candidateService = getCandidateService();
+    const authContext = authorizationService.buildContext(req.user);
+
+    // Get existing candidate before update
+    const previousCandidate = await candidateService.getCandidate(req.params.id, authContext);
+    if (!previousCandidate) {
+      return res.status(404).json({ message: "Candidate not found" });
+    }
+
     // Define allowed editable fields
     const allowedFields = [
       'salutation',
@@ -222,30 +221,40 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
       return res.status(400).json({ message: "No valid fields provided for update" });
     }
 
-    const candidate = await storage.updateCandidate(req.params.id, updateData);
+    // Update candidate using service (handles events)
+    const candidate = await candidateService.updateCandidate({
+      id: req.params.id,
+      data: updateData,
+      actorId: req.user?.id,
+      authContext
+    });
+
     if (!candidate) {
       return res.status(404).json({ message: "Candidate not found" });
     }
 
-    // Return the full candidate with joined data
-    const fullCandidate = await storage.getCandidate(req.params.id);
-
-    if (previousCandidate && fullCandidate) {
-      const anchorFields = ['offerLetterIssuedAt', 'offerLetterAcceptedAt', 'anticipatedStartDate'] as const;
-      const anchorChanged = anchorFields.some((field) => {
-        const beforeValue = (previousCandidate as any)[field];
-        const afterValue = (fullCandidate as any)[field];
-        const before = beforeValue ? new Date(beforeValue as any).getTime() : null;
-        const after = afterValue ? new Date(afterValue as any).getTime() : null;
-        return before !== after;
-      });
-
-      if (anchorChanged) {
-        await storage.recomputeCandidateDueDates(fullCandidate.id);
-      }
+    // Refetch full candidate with joined data
+    const fullCandidate = await candidateService.getCandidate(req.params.id, authContext);
+    if (!fullCandidate) {
+      return res.status(404).json({ message: "Candidate not found" });
     }
 
-    if (previousCandidate && fullCandidate && previousCandidate.primaryOwnerId !== fullCandidate.primaryOwnerId) {
+    // Integration concerns: Recompute due dates if anchor dates changed
+    const anchorFields = ['offerLetterIssuedAt', 'offerLetterAcceptedAt', 'anticipatedStartDate'] as const;
+    const anchorChanged = anchorFields.some((field) => {
+      const beforeValue = (previousCandidate as any)[field];
+      const afterValue = (fullCandidate as any)[field];
+      const before = beforeValue ? new Date(beforeValue as any).getTime() : null;
+      const after = afterValue ? new Date(afterValue as any).getTime() : null;
+      return before !== after;
+    });
+
+    if (anchorChanged) {
+      await storage.recomputeCandidateDueDates(fullCandidate.id);
+    }
+
+    // Integration concerns: Emit owner changed notification
+    if (previousCandidate.primaryOwnerId !== fullCandidate.primaryOwnerId) {
       await emitOwnerChanged({
         candidate: fullCandidate,
         previousOwnerId: previousCandidate.primaryOwnerId,
@@ -254,7 +263,8 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
       });
     }
 
-    if (previousCandidate && fullCandidate && previousCandidate.linkedUserId !== fullCandidate.linkedUserId && fullCandidate.linkedUserId) {
+    // Integration concerns: Resolve self-assignments when linkedUserId changes
+    if (previousCandidate.linkedUserId !== fullCandidate.linkedUserId && fullCandidate.linkedUserId) {
       const resolvedTasks = await storage.resolveCandidateSelfAssignments(fullCandidate.id, fullCandidate.linkedUserId);
       if (resolvedTasks.length > 0) {
         for (const task of resolvedTasks) {
@@ -284,14 +294,20 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
 // DELETE /api/candidates/:id - Archive candidate (soft delete)
 router.delete("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const updateData = {
-      archived: true,
-      archivedAt: new Date(),
-      archivedBy: req.user!.id,
-      status: 'archived' as const
-    };
+    const candidateService = getCandidateService();
 
-    const candidate = await storage.updateCandidate(req.params.id, updateData);
+    // Archive using service, which will also update status
+    const candidate = await candidateService.updateCandidate({
+      id: req.params.id,
+      data: {
+        archived: true,
+        archivedAt: new Date(),
+        archivedBy: req.user!.id,
+        status: 'archived' as const
+      },
+      actorId: req.user?.id
+    });
+
     if (!candidate) {
       return res.status(404).json({ message: "Candidate not found" });
     }
@@ -299,7 +315,7 @@ router.delete("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_s
     res.json({
       id: candidate.id,
       archived: true,
-      archivedAt: updateData.archivedAt
+      archivedAt: candidate.archivedAt
     });
   } catch (error) {
     next(error);
@@ -309,20 +325,28 @@ router.delete("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_s
 // POST /api/candidates/:id/restore - Restore archived candidate
 router.post("/candidates/:id/restore", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const updateData = {
-      archived: false,
-      archivedAt: null,
-      archivedBy: null,
-      status: 'active' as const
-    };
+    const candidateService = getCandidateService();
+    const authContext = authorizationService.buildContext(req.user);
 
-    const candidate = await storage.updateCandidate(req.params.id, updateData);
+    // Restore using service
+    const candidate = await candidateService.updateCandidate({
+      id: req.params.id,
+      data: {
+        archived: false,
+        archivedAt: null,
+        archivedBy: null,
+        status: 'active' as const
+      },
+      actorId: req.user?.id,
+      authContext
+    });
+
     if (!candidate) {
       return res.status(404).json({ message: "Candidate not found" });
     }
 
     // Return the full candidate with joined data
-    const fullCandidate = await storage.getCandidate(req.params.id);
+    const fullCandidate = await candidateService.getCandidate(req.params.id, authContext);
     res.json(fullCandidate);
   } catch (error) {
     next(error);
@@ -335,8 +359,9 @@ router.get("/candidates/:id/tasks", sensitiveRateLimiter, requireAuth, async (re
     const { id } = req.params;
     if (!(await fetchCandidateWithAccess(req, res, id, "candidate:tasks:list"))) return;
 
-    const authContext = storage.buildAuthorizationContext(req.user);
-    let tasks = await storage.getCandidateTasks({ candidateId: id }, authContext);
+    const authContext = authorizationService.buildContext(req.user);
+    const taskService = getTaskService();
+    let tasks = await taskService.getTasks({ candidateId: id }, authContext);
     if (!hasPrivilegedRole(req.user)) {
       tasks = tasks.map(sanitizeTaskForCandidateUser);
     }
