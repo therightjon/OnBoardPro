@@ -11,6 +11,8 @@ import { requestIdMiddleware, getRequestId } from "./middleware/request-id";
 import { errorHandler } from "./utils/error-handler";
 import healthRouter from "./routes/health";
 import { eventBus, registerNotificationHandlers, createLoggingMiddleware } from "./events";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./config/swagger.config";
 
 const app = express();
 
@@ -72,6 +74,18 @@ app.use((req: any, res, next) => {
 (async () => {
   // Health check routes (before auth middleware)
   app.use(healthRouter);
+
+  // API Documentation (Swagger UI)
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'OnBoardPro API Documentation',
+  }));
+  // Swagger JSON endpoint
+  app.get('/api/docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  });
+  log('✓ API documentation available at /api/docs');
 
   // Initialize event system
   eventBus.use(createLoggingMiddleware({

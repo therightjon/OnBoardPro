@@ -37,7 +37,46 @@ import { CandidateValidationError } from "../services/candidates/candidate.servi
 
 const router = Router();
 
-// GET /api/candidates - List all candidates with authorization scope
+/**
+ * @swagger
+ * /api/candidates:
+ *   get:
+ *     summary: List all candidates
+ *     description: |
+ *       Retrieves a list of all candidates visible to the authenticated user.
+ *       Results are scoped based on user role and department/division assignments.
+ *     tags:
+ *       - Candidate Management
+ *     security:
+ *       - sessionCookie: []
+ *     parameters:
+ *       - in: query
+ *         name: includeArchived
+ *         schema:
+ *           type: boolean
+ *         description: Include archived candidates in results
+ *     responses:
+ *       200:
+ *         description: List of candidates
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Candidate'
+ *       401:
+ *         description: Not authenticated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Insufficient permissions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get("/candidates", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
   try {
     const includeArchived = req.query.includeArchived === "true";
@@ -60,7 +99,44 @@ router.get("/candidates", sensitiveRateLimiter, requireAuth, async (req, res, ne
   }
 });
 
-// GET /api/candidates/:id - Get a single candidate by ID
+/**
+ * @swagger
+ * /api/candidates/{id}:
+ *   get:
+ *     summary: Get candidate by ID
+ *     description: Retrieves a single candidate by their unique identifier
+ *     tags:
+ *       - Candidate Management
+ *     security:
+ *       - sessionCookie: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Candidate ID
+ *     responses:
+ *       200:
+ *         description: Candidate details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Candidate'
+ *       404:
+ *         description: Candidate not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Insufficient permissions to view this candidate
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
   try {
     // Build authorization context
@@ -93,7 +169,90 @@ router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res
   }
 });
 
-// POST /api/candidates - Create a new candidate
+/**
+ * @swagger
+ * /api/candidates:
+ *   post:
+ *     summary: Create a new candidate
+ *     description: |
+ *       Creates a new candidate in the system.
+ *       Validates email uniqueness within the department and enforces business rules.
+ *       Publishes a `candidate.created` domain event.
+ *     tags:
+ *       - Candidate Management
+ *     security:
+ *       - sessionCookie: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - email
+ *               - candidateTypeId
+ *               - departmentId
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 example: John
+ *               lastName:
+ *                 type: string
+ *                 example: Doe
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: john.doe@example.com
+ *               candidateTypeId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Type of candidate (e.g., Faculty, Staff)
+ *               departmentId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Department assignment
+ *               divisionId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Division assignment (optional)
+ *               managerId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Manager assignment (optional)
+ *               facultyRankId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Faculty rank (required for Faculty types)
+ *     responses:
+ *       201:
+ *         description: Candidate created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Candidate'
+ *       400:
+ *         description: Validation error or duplicate email
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             examples:
+ *               duplicate:
+ *                 value:
+ *                   message: Email already exists in this department
+ *               validation:
+ *                 value:
+ *                   message: Invalid data
+ *                   errors: []
+ *       403:
+ *         description: Insufficient permissions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff", "department_admin", "division_leader", "manager"]), async (req, res, next) => {
   try {
     // Build authorization context
