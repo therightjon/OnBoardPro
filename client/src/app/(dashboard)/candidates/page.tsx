@@ -97,8 +97,19 @@ const daysSince = (isoDate?: string | null) => {
   if (!isoDate) return null;
   const anchor = new Date(isoDate);
   if (Number.isNaN(anchor.getTime())) return null;
-  const diff = Math.floor((Date.now() - anchor.getTime()) / (1000 * 60 * 60 * 24));
-  return diff >= 0 ? diff : null;
+  // Normalize both dates to UTC midnight so we don't lose a day due to time zones
+  const anchorMidnight = Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth(), anchor.getUTCDate());
+  const now = new Date();
+  const todayMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.floor((todayMidnight - anchorMidnight) / (1000 * 60 * 60 * 24));
+};
+
+const formatLooAge = (isoDate?: string | null) => {
+  const diff = daysSince(isoDate);
+  if (diff === null) return "–";
+  if (diff === 0) return "Today";
+  if (diff < 0) return `In ${Math.abs(diff)}d`;
+  return `${diff}d`;
 };
 
   useEffect(() => {
@@ -466,7 +477,7 @@ const daysSince = (isoDate?: string | null) => {
                   const openPrehire = Number(candidate.openPrehireTasks ?? 0);
                   const openOnboarding = Number(candidate.openOnboardingTasks ?? 0);
                   const looAnchor = candidate.offerLetterAcceptedAt || candidate.offerLetterIssuedAt || null;
-                  const looDays = daysSince(looAnchor);
+                  const looAgeLabel = formatLooAge(looAnchor);
                   return (
                     <TableRow key={candidate.id} className={`hover:bg-muted/50 ${candidate.archived ? 'opacity-60' : ''}`} data-testid={`row-candidate-${candidate.id}`}>
                       <TableCell className="font-medium">
@@ -511,7 +522,7 @@ const daysSince = (isoDate?: string | null) => {
                         </div>
                       </TableCell>
                       <TableCell className="hidden xl:table-cell">
-                        {looDays !== null ? `${looDays}d` : "–"}
+                        {looAgeLabel}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
                         {candidate.anticipatedStartDate ? new Date(candidate.anticipatedStartDate).toLocaleDateString() : "-"}
@@ -639,8 +650,7 @@ const daysSince = (isoDate?: string | null) => {
                           <dd className="font-medium text-foreground">
                             {(() => {
                               const looAnchor = candidate.offerLetterAcceptedAt || candidate.offerLetterIssuedAt || null;
-                              const value = daysSince(looAnchor);
-                              return value !== null ? `${value}d` : "–";
+                              return formatLooAge(looAnchor);
                             })()}
                           </dd>
                         </div>
