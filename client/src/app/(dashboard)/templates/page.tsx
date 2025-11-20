@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -23,6 +23,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import type { Template, CandidateType } from "@shared/schemas";
+import { PaginationControls } from "@/shared/components/pagination-controls";
+
+const PAGE_SIZE = 5;
 
 const templateSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -39,6 +42,7 @@ export default function TemplatesPage() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -120,12 +124,30 @@ export default function TemplatesPage() {
     },
   });
 
-  const filteredTemplates = templates.filter((template: any) => {
-    const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = typeFilter === "all" || template.candidateTypeId === typeFilter;
-    
-    return matchesSearch && matchesType;
-  });
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, typeFilter]);
+
+  const filteredTemplates = useMemo(() => {
+    return templates.filter((template: any) => {
+      const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = typeFilter === "all" || template.candidateTypeId === typeFilter;
+      
+      return matchesSearch && matchesType;
+    });
+  }, [templates, searchTerm, typeFilter]);
+
+  const pageSize = PAGE_SIZE;
+  const totalTemplates = filteredTemplates.length;
+  const totalPages = totalTemplates > 0 ? Math.ceil(totalTemplates / pageSize) : 1;
+  const paginatedTemplates = filteredTemplates.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
 
   const getCandidateTypeName = (candidateTypeId: string) => {
     const type = candidateTypes.find((t: any) => t.id === candidateTypeId);
@@ -341,7 +363,7 @@ export default function TemplatesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTemplates.map((template: any) => (
+                paginatedTemplates.map((template: any) => (
                   <TableRow key={template.id} className="hover:bg-muted/50" data-testid={`row-template-${template.id}`}>
                     <TableCell className="font-medium">{template.name}</TableCell>
                     <TableCell>{getCandidateTypeName(template.candidateTypeId)}</TableCell>
@@ -408,6 +430,17 @@ export default function TemplatesPage() {
             </TableBody>
           </Table>
         </CardContent>
+        {totalTemplates > pageSize && (
+          <div className="border-t border-border/60 px-4 py-3">
+            <PaginationControls
+              page={currentPage}
+              pageSize={pageSize}
+              totalCount={totalTemplates}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </Card>
 
       {/* Templates (Mobile Cards) */}
@@ -419,7 +452,8 @@ export default function TemplatesPage() {
             </CardContent>
           </Card>
         ) : (
-          filteredTemplates.map((template: any) => (
+          <>
+          {paginatedTemplates.map((template: any) => (
             <Card key={template.id} className="p-4" data-testid={`card-template-${template.id}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -465,7 +499,20 @@ export default function TemplatesPage() {
                 )}
               </div>
             </Card>
-          ))
+          ))}
+          {totalTemplates > pageSize && (
+            <div className="mt-4">
+              <PaginationControls
+                page={currentPage}
+                pageSize={pageSize}
+                totalCount={totalTemplates}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                className="justify-center"
+              />
+            </div>
+          )}
+          </>
         )}
       </div>
       </div>

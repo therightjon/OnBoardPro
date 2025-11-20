@@ -10,7 +10,7 @@ import { TaskCommentsButton } from "@/features/comments/components/task-comments
 import { useCommentStats } from "@/features/comments/api";
 import { Switch } from "@/shared/components/ui/switch";
 import { Label } from "@/shared/components/ui/label";
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Filter, Calendar, Clock, AlertTriangle, MessageSquare } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
@@ -18,6 +18,9 @@ import { useAuth } from "@/features/auth/hooks/use-auth.tsx";
 import { Link } from "wouter";
 import type { CandidateTask, Candidate } from "@shared/schemas";
 import { mergeUserPreferences, type UserPreferencesDTO } from "@shared/preferences";
+import { PaginationControls } from "@/shared/components/pagination-controls";
+
+const PAGE_SIZE = 5;
 
 export default function MyTasksPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -27,6 +30,7 @@ export default function MyTasksPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [showCanceled, setShowCanceled] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const { user } = useAuth();
 
   const { data: myTasks = [], isLoading } = useQuery<CandidateTask[]>({
@@ -118,14 +122,32 @@ export default function MyTasksPage() {
 
   // Removed task update mutation (dialog removed). Status changes are handled inline via TaskStatusCell.
 
-  const filteredTasks = myTasks.filter((task: CandidateTask) => {
-    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus = statusFilter === "all" || task.status === statusFilter;
-    const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
-    
-    return matchesSearch && matchesStatus && matchesPriority;
-  });
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, priorityFilter, showArchived, showCanceled, showCompleted]);
+
+  const filteredTasks = useMemo(() => {
+    return myTasks.filter((task: CandidateTask) => {
+      const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+      const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
+      
+      return matchesSearch && matchesStatus && matchesPriority;
+    });
+  }, [myTasks, searchTerm, statusFilter, priorityFilter]);
+
+  const pageSize = PAGE_SIZE;
+  const totalTasks = filteredTasks.length;
+  const totalPages = totalTasks > 0 ? Math.ceil(totalTasks / pageSize) : 1;
+  const paginatedTasks = filteredTasks.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -396,7 +418,7 @@ export default function MyTasksPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTasks.map((task: CandidateTask) => (
+                paginatedTasks.map((task: CandidateTask) => (
                   <TableRow 
                     key={task.id} 
                     className={`hover:bg-muted/50 ${
@@ -504,6 +526,17 @@ export default function MyTasksPage() {
             </TableBody>
             </Table>
           </div>
+          {totalTasks > pageSize && (
+            <div className="border-t border-border/60 px-4 py-3">
+              <PaginationControls
+                page={currentPage}
+                pageSize={pageSize}
+                totalCount={totalTasks}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -516,7 +549,8 @@ export default function MyTasksPage() {
             </CardContent>
           </Card>
         ) : (
-          filteredTasks.map((task: CandidateTask) => (
+          <>
+          {paginatedTasks.map((task: CandidateTask) => (
             <Card key={task.id} className={`p-4 ${isOverdue(task.dueAt) && task.status !== "done" ? "bg-destructive/5" : ""}`} data-testid={`card-my-task-${task.id}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -561,7 +595,20 @@ export default function MyTasksPage() {
                 />
               </div>
             </Card>
-          ))
+          ))}
+          {totalTasks > pageSize && (
+            <div className="mt-4">
+              <PaginationControls
+                page={currentPage}
+                pageSize={pageSize}
+                totalCount={totalTasks}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                className="justify-center"
+              />
+            </div>
+          )}
+          </>
         )}
       </div>
       {openTaskComments && (
