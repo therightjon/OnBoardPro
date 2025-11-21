@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useLocation } from "wouter";
-import { useMemo, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { 
   AlertDialog,
@@ -131,6 +131,154 @@ const getActivityDetailText = (activity: RecentActivityEvent): string => {
   return activity.candidateTypeName || fullName || "Candidate update";
 };
 
+type StatusTone = "primary" | "success" | "warning" | "danger" | "muted" | "info";
+
+const STATUS_PILL_TONES: Record<StatusTone, string> = {
+  primary: "bg-primary/10 text-primary border-primary/30",
+  success: "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-100 dark:border-emerald-500/40",
+  warning: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/10 dark:text-amber-50 dark:border-amber-500/40",
+  danger: "bg-destructive/10 text-destructive border-destructive/30",
+  muted: "bg-muted/70 text-muted-foreground border-border",
+  info: "bg-accent/10 text-accent border-accent/30"
+};
+
+const normalizeStatusKey = (status?: string | null) =>
+  (status ?? "").toString().trim().toLowerCase().replace(/\s+/g, "_");
+
+const statusLabel = (status?: string | null, overrideLabel?: string) => {
+  if (overrideLabel) return overrideLabel;
+  if (!status) return "Unknown";
+  return status
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
+const getStatusToneForStatus = (status?: string | null): StatusTone => {
+  const key = normalizeStatusKey(status);
+  switch (key) {
+    case "active":
+    case "new":
+    case "stage":
+    case "template":
+      return "primary";
+    case "completed":
+      return "success";
+    case "on_hold":
+    case "pending":
+      return "warning";
+    case "overdue":
+    case "canceled":
+      return "danger";
+    case "due_soon":
+      return "info";
+    case "draft":
+    case "archived":
+    default:
+      return "muted";
+  }
+};
+
+const StatusPill = ({
+  status,
+  tone,
+  label
+}: {
+  status?: string | null;
+  tone?: StatusTone;
+  label?: string;
+}) => {
+  const computedTone = tone ?? getStatusToneForStatus(status);
+  return (
+    <Badge
+      variant="secondary"
+      className={`shrink-0 ${STATUS_PILL_TONES[computedTone]}`}
+    >
+      {statusLabel(status, label)}
+    </Badge>
+  );
+};
+
+type DashboardListRowProps = {
+  leading?: ReactNode;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  status?: string | null;
+  statusTone?: StatusTone;
+  statusContent?: ReactNode;
+  metaLeft?: ReactNode;
+  metaRight?: ReactNode;
+  onClick?: () => void;
+  testId?: string;
+};
+
+const DashboardListRow = ({
+  leading,
+  title,
+  subtitle,
+  status,
+  statusTone,
+  statusContent,
+  metaLeft,
+  metaRight,
+  onClick,
+  testId
+}: DashboardListRowProps) => {
+  const Component = onClick ? "button" : "div";
+  const resolvedStatus = statusContent ?? (status ? <StatusPill status={status} tone={statusTone} /> : null);
+
+  return (
+    <Component
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      data-testid={testId}
+      className={`w-full text-left rounded-xl border border-border/70 p-3 sm:p-3.5 hover:border-primary/40 hover:bg-muted/50 transition-colors ${
+        onClick ? "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" : ""
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        {leading}
+        <div className="flex-1 min-w-0 space-y-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-sm font-semibold text-foreground truncate">{title}</p>
+              {subtitle ? <p className="text-xs text-muted-foreground truncate">{subtitle}</p> : null}
+            </div>
+            {resolvedStatus ? <div className="shrink-0">{resolvedStatus}</div> : null}
+          </div>
+          {(metaLeft || metaRight) && (
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              {metaLeft ? <div className="min-w-0 truncate">{metaLeft}</div> : null}
+              {metaRight ? <div className="flex items-center gap-2 text-right">{metaRight}</div> : null}
+            </div>
+          )}
+        </div>
+      </div>
+    </Component>
+  );
+};
+
+const DashboardListRowSkeleton = () => (
+  <div className="rounded-xl border border-border/70 p-3 sm:p-3.5">
+    <div className="flex items-start gap-3">
+      <Skeleton className="w-10 h-10 rounded-full" />
+      <div className="flex-1 space-y-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1 min-w-0">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          <Skeleton className="h-6 w-16 rounded-full" />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const divisionIconConfigs = [
   { Icon: Stethoscope, bgClass: "bg-primary/10", iconClass: "text-primary" },
   { Icon: UserRound, bgClass: "bg-chart-2/10", iconClass: "text-chart-2" },
@@ -200,25 +348,6 @@ export default function Dashboard() {
       return res.json();
     }
   });
-
-  const statusBadgeVariants: Record<string, string> = {
-    draft: "bg-muted/70 text-muted-foreground",
-    active: "bg-primary/10 text-primary",
-    on_hold: "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200",
-    completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200",
-    canceled: "bg-destructive/10 text-destructive",
-    archived: "bg-muted/70 text-muted-foreground"
-  };
-
-  const formatStatusLabel = (status?: string) => {
-    if (!status) return "Unknown";
-    return status
-      .split("_")
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" ");
-  };
-
-  const getStatusBadgeClass = (status?: string) => statusBadgeVariants[status ?? ""] ?? "bg-muted/70 text-muted-foreground";
 
   const getCandidateTypeName = (candidateTypeId?: string) => {
     const match = candidateTypes.find((type) => type.id === candidateTypeId);
@@ -449,37 +578,26 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-3">
                 {upcomingStarts.map((candidate: any) => (
-                  <div
+                  <DashboardListRow
                     key={candidate.id}
-                    className="rounded-xl border border-border/70 p-3 sm:p-3.5 hover:border-primary/40 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-start gap-3">
+                    leading={
                       <Avatar className="h-10 w-10 border border-border/70">
                         <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                           {getInitials(candidate.firstName, candidate.lastName)}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1 min-w-0 space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">
-                              {candidate.firstName} {candidate.lastName}
-                            </p>
-                          </div>
-                          <Badge variant="secondary" className={`shrink-0 ${getStatusBadgeClass(candidate.status)}`}>
-                            {formatStatusLabel(candidate.status)}
-                          </Badge>
-                        </div>
-                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
-                          <p className="text-muted-foreground truncate">{getCandidateTypeName(candidate.candidateTypeId)}</p>
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Clock className="w-3.5 h-3.5 text-primary" />
-                            <span className="font-medium text-foreground">{format(candidate.startDate, "MMM d, yyyy")} {formatDistanceToNow(candidate.startDate, { addSuffix: true })}</span>
-                          </div>
-                        </div>
+                    }
+                    title={`${candidate.firstName} ${candidate.lastName}`}
+                    status={candidate.status}
+                    metaLeft={<p className="text-muted-foreground truncate">{getCandidateTypeName(candidate.candidateTypeId)}</p>}
+                    metaRight={
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Clock className="w-3.5 h-3.5 text-primary" />
+                        <span className="font-medium text-foreground">{format(candidate.startDate, "MMM d, yyyy")}</span>
+                        <span className="text-muted-foreground">{formatDistanceToNow(candidate.startDate, { addSuffix: true })}</span>
                       </div>
-                    </div>
-                  </div>
+                    }
+                  />
                 ))}
               </div>
             )}
@@ -499,14 +617,8 @@ export default function Dashboard() {
           <CardContent className="p-3 sm:p-4 pt-0 max-w-full">
             {recentActivityLoading ? (
               <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <div key={index} className="flex items-start gap-3 rounded-xl border border-border/50 p-3 sm:p-3.5">
-                    <Skeleton className="w-10 h-10 rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-3 w-1/2" />
-                    </div>
-                  </div>
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <DashboardListRowSkeleton key={index} />
                 ))}
               </div>
             ) : recentActivityError ? (
@@ -528,36 +640,31 @@ export default function Dashboard() {
                   const detailText = getActivityDetailText(activity);
                   const title = formatActivityTitle(activity);
                   return (
-                    <div
+                    <DashboardListRow
                       key={activity.id}
-                      className="rounded-xl border border-border/70 p-3 sm:p-3.5 hover:border-primary/40 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-start gap-3">
+                      leading={
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${config.iconWrapperClass}`}>
                           <config.icon className={`w-4 h-4 ${config.iconClass}`} />
                         </div>
-                        <div className="flex-1 min-w-0 space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-foreground truncate">{title}</p>
-                            </div>
-                            <Badge
-                              variant={config.badgeVariant ?? "secondary"}
-                              className={`shrink-0 ${config.badgeClassName ?? ""}`.trim()}
-                            >
-                              {config.badgeText}
-                            </Badge>
-                          </div>
-                          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                            <p className="truncate">{detailText}</p>
-                            <div className="flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5 text-primary" />
-                              <span className="font-medium text-foreground">{formattedDate}</span> <span className="text-xs text-muted-foreground">{relativeTime}</span>
-                            </div>
-                          </div>
-                          
+                      }
+                      title={title}
+                      metaLeft={<p className="truncate">{detailText}</p>}
+                      statusContent={
+                        <Badge
+                          variant={config.badgeVariant ?? "secondary"}
+                          className={`shrink-0 ${config.badgeClassName ?? ""}`.trim()}
+                        >
+                          {config.badgeText}
+                        </Badge>
+                      }
+                      metaRight={
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-primary" />
+                          <span className="font-medium text-foreground">{formattedDate}</span>
+                          <span className="text-xs text-muted-foreground">{relativeTime}</span>
                         </div>
-                      </div>
-                    </div>
+                      }
+                    />
                   );
                 })}
               </div>
@@ -599,40 +706,36 @@ export default function Dashboard() {
                   const isOverdue = dueDate ? dueDate < new Date() : false;
                   const dueLabel = dueDate ? dueDate.toLocaleDateString() : "No due date";
                   return (
-                  <button
-                    type="button"
-                    key={task.id}
-                    onClick={() => handleUrgentTaskClick(task)}
-                    className="w-full text-left border border-border rounded-lg p-3 hover:bg-muted/50 hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                    data-testid={`card-urgent-task-${index}`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium text-foreground">{task.title}</h4>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        isOverdue 
-                          ? 'bg-destructive/10 text-destructive' 
-                          : 'bg-accent/10 text-accent'
-                      }`}>
-                        {isOverdue ? 'Overdue' : 'Due Soon'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span className="truncate">{candidateName}</span>
-                      <span>Due: {dueLabel}</span>
-                    </div>
-                    <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                      <span className="truncate">{candidateTypeLabel ?? "Candidate"}</span>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${
-                          task.priority === 'critical' ? 'bg-destructive' :
-                          task.priority === 'high' ? 'bg-chart-3' :
-                          task.priority === 'medium' ? 'bg-chart-5' : 'bg-muted-foreground'
-                        }`} />
-                        <span className="capitalize">{task.priority} Priority</span>
-                      </div>
-                    </div>
-                  </button>
-                );
+                    <DashboardListRow
+                      key={task.id}
+                      onClick={() => handleUrgentTaskClick(task)}
+                      testId={`card-urgent-task-${index}`}
+                      leading={
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isOverdue ? "bg-destructive/10 text-destructive" : "bg-accent/10 text-accent"}`}>
+                          <Clock className="w-4 h-4" />
+                        </div>
+                      }
+                      title={task.title}
+                      subtitle={candidateName}
+                      status={isOverdue ? "Overdue" : "Due Soon"}
+                      statusTone={isOverdue ? "danger" : "info"}
+                      metaLeft={<span className="truncate">{candidateTypeLabel ?? "Candidate"}</span>}
+                      metaRight={
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Clock className="w-3.5 h-3.5 text-primary" />
+                          <span className="font-medium text-foreground">Due: {dueLabel}</span>
+                          <div className="flex items-center gap-1">
+                            <div className={`w-2 h-2 rounded-full ${
+                              task.priority === 'critical' ? 'bg-destructive' :
+                              task.priority === 'high' ? 'bg-chart-3' :
+                              task.priority === 'medium' ? 'bg-chart-5' : 'bg-muted-foreground'
+                            }`} />
+                            <span className="capitalize text-muted-foreground">{task.priority} Priority</span>
+                          </div>
+                        </div>
+                      }
+                    />
+                  );
                 })
               )}
             </div>
@@ -663,53 +766,44 @@ export default function Dashboard() {
                 {divisionOverviewItems.map((item, index) => {
                   const { Icon, bgClass, iconClass } = divisionIconConfigs[index % divisionIconConfigs.length];
                   return (
-                    <div
-                      key={item.key}
-                      className="flex items-center justify-between p-3 border border-border/70 rounded-xl"
-                      data-testid={`card-division-row-${index}`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-10 h-10 ${bgClass} rounded-lg flex items-center justify-center`}>
-                          <Icon className={`${iconClass} w-5 h-5`} />
-                        </div>
-                        <div className="space-y-1">
-                          {item.kind === "data" ? (
-                            <>
-                              <h4 className="text-sm font-medium text-foreground">{item.entry.divisionName}</h4>
-                              <p className="text-xs text-muted-foreground">{item.entry.departmentName || "No department assigned"}</p>
-                            </>
-                          ) : item.kind === "loading" ? (
-                            <>
-                              <Skeleton className="h-4 w-32" />
-                              <Skeleton className="h-3 w-24" />
-                            </>
+                    item.kind === "loading" ? (
+                      <DashboardListRowSkeleton key={item.key} />
+                    ) : (
+                      <DashboardListRow
+                        key={item.key}
+                        testId={`card-division-row-${index}`}
+                        leading={
+                          <div className={`w-10 h-10 ${bgClass} rounded-lg flex items-center justify-center`}>
+                            <Icon className={`${iconClass} w-5 h-5`} />
+                          </div>
+                        }
+                        title={
+                          item.kind === "data"
+                            ? item.entry.divisionName
+                            : "No division data"
+                        }
+                        subtitle={
+                          item.kind === "data"
+                            ? item.entry.departmentName || "No department assigned"
+                            : "Awaiting active candidates"
+                        }
+                        statusContent={
+                          <div className="flex items-center gap-2">
+                            {item.kind === "data" ? (
+                              <span className="text-sm font-semibold text-foreground">{item.entry.activeCandidateCount}</span>
+                            ) : null}
+                            <StatusPill status={item.kind === "data" ? "Active" : "Pending"} statusTone={item.kind === "data" ? "primary" : "muted"} />
+                          </div>
+                        }
+                        metaLeft={
+                          item.kind === "data" ? (
+                            <span className="text-muted-foreground">Active candidates</span>
                           ) : (
-                            <>
-                              <p className="text-sm font-medium text-muted-foreground">No division data</p>
-                              <p className="text-xs text-muted-foreground">Awaiting active candidates</p>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right min-w-[48px]">
-                        {item.kind === "data" ? (
-                          <>
-                            <p className="text-sm font-semibold text-foreground">{item.entry.activeCandidateCount}</p>
-                            <p className="text-xs text-muted-foreground">Active</p>
-                          </>
-                        ) : item.kind === "loading" ? (
-                          <>
-                            <Skeleton className="h-4 w-8 ml-auto" />
-                            <Skeleton className="h-3 w-12 ml-auto mt-1" />
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-sm font-semibold text-muted-foreground">—</p>
-                            <p className="text-xs text-muted-foreground">Active</p>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                            <span className="text-muted-foreground">No active candidates yet</span>
+                          )
+                        }
+                      />
+                    )
                   );
                 })}
               </div>
