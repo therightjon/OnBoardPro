@@ -582,7 +582,7 @@ export default function Dashboard() {
                 className="min-h-[44px] gap-1.5 text-xs xs:text-sm"
                 onClick={() => setLocation('/tasks/mine')}
               >
-                View All Tasks
+                View All
                 <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </div>
