@@ -232,13 +232,13 @@ const DashboardListRow = ({
       type={onClick ? "button" : undefined}
       onClick={onClick}
       data-testid={testId}
-      className={`w-full text-left rounded-xl border border-border/70 p-3 sm:p-3.5 hover:border-primary/40 hover:bg-muted/50 transition-colors ${
+      className={`w-full text-left rounded-xl border border-border/70 p-3 sm:p-3.5 min-h-[86px] hover:border-primary/40 hover:bg-muted/50 transition-colors ${
         onClick ? "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" : ""
       }`}
     >
-      <div className="flex items-start gap-3">
-        {leading}
-        <div className="flex-1 min-w-0 space-y-2.5">
+      <div className="flex items-center gap-3">
+        {leading ? <div className="flex-shrink-0">{leading}</div> : null}
+        <div className="flex-1 min-w-0 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-semibold text-foreground truncate">{title}</p>
@@ -259,10 +259,10 @@ const DashboardListRow = ({
 };
 
 const DashboardListRowSkeleton = () => (
-  <div className="rounded-xl border border-border/70 p-3 sm:p-3.5">
-    <div className="flex items-start gap-3">
+  <div className="rounded-xl border border-border/70 p-3 sm:p-3.5 min-h-[86px]">
+    <div className="flex items-center gap-3">
       <Skeleton className="w-10 h-10 rounded-full" />
-      <div className="flex-1 space-y-2.5">
+      <div className="flex-1 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1 min-w-0">
             <Skeleton className="h-4 w-32" />
