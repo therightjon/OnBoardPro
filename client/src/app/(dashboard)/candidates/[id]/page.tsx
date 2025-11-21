@@ -25,6 +25,10 @@ import { EditCandidateDialog } from "@/features/candidates/components/edit-candi
 import { ArchiveCandidateDialog } from "@/features/candidates/components/archive-candidate-dialog";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
+import { Textarea } from "@/shared/components/ui/textarea";
+import { AutoSelectCombobox } from "@/shared/components/inputs/AutoSelectCombobox";
+import { PaginationControls } from "@/shared/components/pagination-controls";
 import { useToast } from "@/shared/hooks/use-toast";
 
 const dateOnlyIsoRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -35,6 +39,12 @@ const readableDateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   timeZone: "UTC",
 });
+
+type TaskNote = {
+  text: string;
+  author?: string;
+  createdAt?: string;
+};
 
 const getUtcMidnightMs = (iso: string) => {
   const normalized = normalizeIso(iso);
@@ -61,6 +71,69 @@ const formatUtcDate = (iso?: string | null) => {
   return readableDateFormatter.format(date);
 };
 
+const parseTaskNotes = (raw: any): TaskNote[] => {
+  if (!raw) return [];
+  const extractAuthorFromText = (text: string): string | undefined => {
+    const match = text.match(/\bby\s+([^:]+)(?::|$)/i);
+    return match ? match[1].trim() : undefined;
+  };
+
+  try {
+    if (Array.isArray(raw)) {
+      return (raw as any[]).filter((n) => n && typeof n === 'object' && n.text).map((n: any) => {
+        const text = String(n.text);
+        const author = n.author ? String(n.author) : extractAuthorFromText(text);
+        return {
+          text,
+          author,
+          createdAt: n.createdAt ? String(n.createdAt) : undefined
+        };
+      });
+    }
+    if (typeof raw === 'string') {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((n: any) => n && typeof n === 'object' && n.text).map((n: any) => {
+          const text = String(n.text);
+          const author = n.author ? String(n.author) : extractAuthorFromText(text);
+          return {
+            text,
+            author,
+            createdAt: n.createdAt ? String(n.createdAt) : undefined
+          };
+        });
+      }
+    }
+  } catch (_) {
+    // fall through to text parsing
+  }
+
+  const text = typeof raw === 'string' ? raw : '';
+  const parts = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  return parts.map((p) => ({ text: p, author: extractAuthorFromText(p) }));
+};
+
+const serializeNotes = (notes: TaskNote[]) => JSON.stringify(notes);
+
+const buildAssigneeNoteEntry = (reason: string, nextAssigneeName: string, author?: string): TaskNote => {
+  const trimmedReason = reason.trim();
+  const base = `Assignee changed to ${nextAssigneeName || 'Unassigned'}`;
+  const text = trimmedReason ? `${base}: ${trimmedReason}` : base;
+  return {
+    text,
+    author,
+    createdAt: new Date().toISOString()
+  };
+};
+
+const sortNotesDesc = (notes: TaskNote[]) => {
+  return [...notes].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTime - aTime;
+  });
+};
+
 export default function CandidateDetailPage() {
   const params = useParams();
   const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : '';
@@ -71,6 +144,17 @@ export default function CandidateDetailPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [openTaskComments, setOpenTaskComments] = useState<{ id: string; title?: string } | null>(null);
+  const [pendingAssignees, setPendingAssignees] = useState<Record<string, string | null>>({});
+  const [assigneePrompt, setAssigneePrompt] = useState<{
+    taskId: string;
+    taskTitle: string;
+    nextAssigneeId: string | null;
+    nextAssigneeName: string;
+    previousNotes: string | null | undefined;
+  } | null>(null);
+  const [assigneeNote, setAssigneeNote] = useState("");
+  const [openNotesModal, setOpenNotesModal] = useState<{ title: string; notes: TaskNote[]; fallbackTimestamp?: string | null } | null>(null);
+  const [notesPage, setNotesPage] = useState(1);
 
   const { data: candidate, isLoading: candidateLoading, error: candidateError } = useQuery({
     queryKey: ["/api/candidates", id],
@@ -108,6 +192,11 @@ export default function CandidateDetailPage() {
     }
   });
 
+  const { data: assignableUsers = [], isLoading: assigneesLoading, error: assigneeError } = useQuery({
+    queryKey: ["/api/users/assignable"],
+    enabled: !!user,
+  });
+
   const recomputeDueDatesMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest('POST', `/api/candidates/${id}/recompute-due-dates`);
@@ -139,20 +228,74 @@ export default function CandidateDetailPage() {
 
   // Attach order for stable sorting and map field names from API
   const tasksWithOrder = useMemo(
-    () => (candidateTasks as any[]).map((t: any) => ({
-      ...t,
-      // Map field names from new API structure
-      stageId: t.stage_id,
-      stageName: t.stage_name,
-      stageOrderIndex: t.stage_order_index ?? orderMap.get(t.stage_id) ?? Number.MAX_SAFE_INTEGER,
-      dueAt: t.dueAt,
-      assigneeName: t.assignee_name,
-      priorityName: t.priority_name,
-      categoryName: t.category_name,
-      updatedAt: t.updated_at,
-      phaseSnapshot: t.phase_snapshot
-    })),
+    () => (candidateTasks as any[]).map((t: any) => {
+      const fallbackAssigneeId = t.assigneeUserId ?? t.assignee_user_id ?? t.assignee_id ?? null;
+      const fallbackAssignee = t.assignee ?? (
+        t.assignee_firstName || t.assignee_lastName
+          ? {
+              id: fallbackAssigneeId,
+              firstName: t.assignee_firstName,
+              lastName: t.assignee_lastName
+            }
+          : null
+      );
+
+      return {
+        ...t,
+        // Map field names from new API structure
+        stageId: t.stage_id,
+        stageName: t.stage_name,
+        stageOrderIndex: t.stage_order_index ?? orderMap.get(t.stage_id) ?? Number.MAX_SAFE_INTEGER,
+        dueAt: t.dueAt,
+        assignee: fallbackAssignee,
+        assigneeUserId: fallbackAssigneeId,
+        assigneeName: t.assignee_name ?? (fallbackAssignee ? `${fallbackAssignee.firstName ?? ''} ${fallbackAssignee.lastName ?? ''}`.trim() : undefined),
+        priorityName: t.priority_name,
+        categoryName: t.category_name,
+        updatedAt: t.updated_at,
+        phaseSnapshot: t.phase_snapshot
+      };
+    }),
     [candidateTasks, orderMap]
+  );
+
+  const assigneeLookup = useMemo(() => {
+    const map = new Map<string, { id: string; firstName: string; lastName: string }>();
+    (assignableUsers as any[]).forEach((u: any) => {
+      if (u?.id) {
+        map.set(u.id, { id: u.id, firstName: u.firstName, lastName: u.lastName });
+      }
+    });
+    (tasksWithOrder as any[]).forEach((t: any) => {
+      if (t.assigneeUserId && !map.has(t.assigneeUserId)) {
+        const first = t.assignee?.firstName ?? '';
+        const last = t.assignee?.lastName ?? '';
+        map.set(t.assigneeUserId, { id: t.assigneeUserId, firstName: first, lastName: last });
+      }
+    });
+    return map;
+  }, [assignableUsers, tasksWithOrder]);
+
+  const assigneeOptions = useMemo(
+    () => {
+      const opts = new Map<string, { id: string; name: string; firstName?: string; lastName?: string }>();
+      opts.set('none', { id: 'none', name: 'Unassigned' });
+      (assignableUsers as any[]).forEach((u: any) => {
+        if (u?.id) {
+          opts.set(u.id, { id: u.id, name: `${u.firstName} ${u.lastName}`, firstName: u.firstName, lastName: u.lastName });
+        }
+      });
+      (tasksWithOrder as any[]).forEach((t: any) => {
+        if (t.assigneeUserId && !opts.has(t.assigneeUserId)) {
+          const fallbackName = t.assignee?.firstName || t.assignee?.lastName
+            ? `${t.assignee.firstName ?? ''} ${t.assignee.lastName ?? ''}`.trim()
+            : (t.assigneeName ?? '');
+          opts.set(t.assigneeUserId, { id: t.assigneeUserId, name: fallbackName || 'Unassigned' });
+        }
+      });
+      return Array.from(opts.values());
+    },
+    [assignableUsers, tasksWithOrder]
   );
 
   const pendingAnchorTasks = useMemo(() => (
@@ -217,6 +360,201 @@ export default function CandidateDetailPage() {
     })();
   }, [candidate, onboardingComplete, queryClient]);
 
+  const candidatePhase = (candidate as any)?.currentStage?.phase ?? "pre_hire";
+  const candidatePhaseLabel = candidatePhase === "onboarding" ? "Onboarding" : "Pre-hire";
+  const pendingAnchorCount = pendingAnchorTasks.length;
+  const hasPendingAnchor = pendingAnchorCount > 0;
+  const looAnchor = (candidate as any)?.offerLetterAcceptedAt ?? (candidate as any)?.offerLetterIssuedAt ?? null;
+  const anchorSourceLabel = looAnchor
+    ? (candidate as any)?.offerLetterAcceptedAt ? "LOO Accepted" : "LOO Issued"
+    : (candidate as any)?.anticipatedStartDate ? "Anticipated Start" : "Anchor not set";
+  const anchorDate = looAnchor ?? (candidate as any)?.anticipatedStartDate ?? null;
+  const daysSinceLoo = daysSince(looAnchor);
+  const anchorDateLabel = formatUtcDate(anchorDate);
+  const employmentDates = [
+    {
+      key: "anticipatedStartDate",
+      label: "Anticipated Start",
+      value: formatUtcDate((candidate as any)?.anticipatedStartDate),
+      testId: "text-candidate-start-date",
+    },
+    {
+      key: "offerLetterIssuedAt",
+      label: "LOO Issued",
+      value: formatUtcDate((candidate as any)?.offerLetterIssuedAt),
+      testId: "text-loo-issued",
+    },
+    {
+      key: "offerLetterAcceptedAt",
+      label: "LOO Accepted",
+      value: formatUtcDate((candidate as any)?.offerLetterAcceptedAt),
+      testId: "text-loo-accepted",
+    },
+  ];
+
+  const candidateId = (candidate as any)?.id || id;
+  const candidateStatus = (candidate as any)?.status || 'draft';
+  const taskStatusDisabled = onboardingComplete ||
+    !['draft', 'active', 'on_hold'].includes(candidateStatus);
+  const assigneeSelectLocked = taskStatusDisabled || !!assigneeError;
+
+  const getAssigneeDisplayName = (task: any) => {
+    if (task?.assignee?.firstName || task?.assignee?.lastName) {
+      const first = task.assignee.firstName ?? '';
+      const last = task.assignee.lastName ?? '';
+      const combined = `${first} ${last}`.trim();
+      return combined || 'Unassigned';
+    }
+    if (task?.assigneeName) return task.assigneeName;
+    return 'Unassigned';
+  };
+
+  const getAssigneeNameById = (assigneeId: string | null | undefined) => {
+    if (!assigneeId) return 'Unassigned';
+    const match = assigneeLookup.get(assigneeId);
+    if (match) {
+      const name = `${match.firstName ?? ''} ${match.lastName ?? ''}`.trim();
+      return name || 'Unassigned';
+    }
+    return 'Unassigned';
+  };
+
+  const buildAssigneeNote = (existingNotes: string | null | undefined, note: string, nextAssigneeName: string) => {
+    const trimmed = note.trim();
+    if (!trimmed) return existingNotes ?? '';
+    const actor = user ? ` by ${user.firstName} ${user.lastName}` : '';
+    const target = nextAssigneeName || 'Unassigned';
+    const entry = `Assignee changed to ${target}${actor}: ${trimmed}`;
+    const current = (existingNotes ?? '').trim();
+    return current ? `${current}\n\n${entry}` : entry;
+  };
+
+  const clearAssigneeDraft = (taskId?: string) => {
+    if (!taskId) {
+      setPendingAssignees({});
+      return;
+    }
+    setPendingAssignees((prev) => {
+      const next = { ...prev };
+      delete next[taskId];
+      return next;
+    });
+  };
+
+  const closeAssigneePrompt = () => {
+    if (assigneePrompt) {
+      clearAssigneeDraft(assigneePrompt.taskId);
+    }
+    setAssigneePrompt(null);
+    setAssigneeNote('');
+  };
+
+  const updateAssigneeMutation = useMutation({
+    mutationFn: async (vars: {
+      taskId: string;
+      candidateId: string;
+      assigneeUserId: string | null;
+      note: string;
+      previousNotes: string | null | undefined;
+      assigneeName: string;
+    }) => {
+      const payload: any = { assigneeUserId: vars.assigneeUserId ?? null };
+      const entry = buildAssigneeNoteEntry(vars.note, vars.assigneeName, user ? `${user.firstName} ${user.lastName}` : undefined);
+      const existingNotes = parseTaskNotes(vars.previousNotes);
+      payload.notes = serializeNotes([entry, ...existingNotes]);
+      const res = await apiRequest('PATCH', `/api/tasks/${vars.taskId}`, payload);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to update assignee');
+      }
+      return { ...data, appliedNotes: payload.notes };
+    },
+    onMutate: async (vars) => {
+      const taskKey = ['/api/candidates', vars.candidateId, 'tasks'];
+      await queryClient.cancelQueries({ queryKey: taskKey });
+      const previous = queryClient.getQueryData<any[]>(taskKey);
+
+      const optimisticUser = vars.assigneeUserId ? assigneeLookup.get(vars.assigneeUserId) : null;
+      const optimisticName = vars.assigneeUserId
+        ? (optimisticUser ? `${optimisticUser.firstName} ${optimisticUser.lastName}` : vars.assigneeName)
+        : 'Unassigned';
+      const entry = buildAssigneeNoteEntry(vars.note, optimisticName, user ? `${user.firstName} ${user.lastName}` : undefined);
+      const optimisticNotes = serializeNotes([entry, ...parseTaskNotes(vars.previousNotes)]);
+
+      queryClient.setQueryData<any[]>(taskKey, (old = []) =>
+        old.map((t: any) => t.id === vars.taskId ? {
+          ...t,
+          assigneeUserId: vars.assigneeUserId,
+          assignee: vars.assigneeUserId ? {
+            id: vars.assigneeUserId,
+            firstName: optimisticUser?.firstName || vars.assigneeName.split(' ')[0] || '',
+            lastName: optimisticUser?.lastName || vars.assigneeName.split(' ').slice(1).join(' ') || ''
+          } : null,
+          assigneeName: optimisticName,
+          notes: optimisticNotes
+        } : t)
+      );
+
+      clearAssigneeDraft(vars.taskId);
+      setAssigneePrompt(null);
+      setAssigneeNote('');
+
+      return { previous, taskKey };
+    },
+    onError: (error: any, _vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(ctx.taskKey, ctx.previous);
+      toast({
+        title: "Unable to update assignee",
+        description: error?.message || "Please try again.",
+        variant: "destructive"
+      });
+    },
+    onSuccess: (data, vars) => {
+      const update = (data as any) ?? {};
+      const updatedTask = update.task;
+
+      if (updatedTask) {
+        queryClient.setQueryData(['/api/candidates', vars.candidateId, 'tasks'], (old: any[] = []) =>
+          old.map((t) => t.id === updatedTask.id ? { ...t, ...updatedTask, notes: update.appliedNotes ?? updatedTask.notes } : t)
+        );
+      }
+
+      if (update.candidate && update.advancement?.advanced) {
+        queryClient.setQueryData(['/api/candidates', vars.candidateId], (old: any) =>
+          old ? {
+            ...old,
+            currentStageId: update.candidate.current_stage_id,
+            updatedAt: update.candidate.updated_at
+          } : old
+        );
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['/api/candidates', vars.candidateId, 'tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/candidates', vars.candidateId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/candidates', vars.candidateId, 'stage-history'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/candidates', vars.candidateId, 'estimate', { businessDays: true }] });
+      queryClient.invalidateQueries({ queryKey: ['/api/candidates'] });
+      invalidateMyTasks(queryClient);
+
+      toast({
+        title: "Assignee updated",
+        description: vars.assigneeUserId ? `Task assigned to ${vars.assigneeName}` : "Task unassigned",
+      });
+    }
+  });
+
+  const handleConfirmAssigneeChange = () => {
+    if (!assigneePrompt || updateAssigneeMutation.isPending) return;
+    updateAssigneeMutation.mutate({
+      taskId: assigneePrompt.taskId,
+      candidateId,
+      assigneeUserId: assigneePrompt.nextAssigneeId,
+      note: assigneeNote,
+      previousNotes: assigneePrompt.previousNotes ?? null,
+      assigneeName: assigneePrompt.nextAssigneeName
+    });
+  };
+
   if (candidateLoading) {
     return (
       <div className="space-y-4 xs:space-y-5 sm:space-y-6">
@@ -261,38 +599,6 @@ export default function CandidateDetailPage() {
       </div>
     );
   }
-
-  const candidatePhase = (candidate as any)?.currentStage?.phase ?? "pre_hire";
-  const candidatePhaseLabel = candidatePhase === "onboarding" ? "Onboarding" : "Pre-hire";
-  const pendingAnchorCount = pendingAnchorTasks.length;
-  const hasPendingAnchor = pendingAnchorCount > 0;
-  const looAnchor = (candidate as any)?.offerLetterAcceptedAt ?? (candidate as any)?.offerLetterIssuedAt ?? null;
-  const anchorSourceLabel = looAnchor
-    ? (candidate as any)?.offerLetterAcceptedAt ? "LOO Accepted" : "LOO Issued"
-    : (candidate as any)?.anticipatedStartDate ? "Anticipated Start" : "Anchor not set";
-  const anchorDate = looAnchor ?? (candidate as any)?.anticipatedStartDate ?? null;
-  const daysSinceLoo = daysSince(looAnchor);
-  const anchorDateLabel = formatUtcDate(anchorDate);
-  const employmentDates = [
-    {
-      key: "anticipatedStartDate",
-      label: "Anticipated Start",
-      value: formatUtcDate((candidate as any)?.anticipatedStartDate),
-      testId: "text-candidate-start-date",
-    },
-    {
-      key: "offerLetterIssuedAt",
-      label: "LOO Issued",
-      value: formatUtcDate((candidate as any)?.offerLetterIssuedAt),
-      testId: "text-loo-issued",
-    },
-    {
-      key: "offerLetterAcceptedAt",
-      label: "LOO Accepted",
-      value: formatUtcDate((candidate as any)?.offerLetterAcceptedAt),
-      testId: "text-loo-accepted",
-    },
-  ];
 
   const EditableStatusBadge = ({ candidate, user, tasks, onStatusChange }: { 
     candidate: any; 
@@ -885,10 +1191,7 @@ export default function CandidateDetailPage() {
                                       taskId={task.id}
                                       candidateId={(candidate as any).id}
                                       value={task.status}
-                                      disabled={
-                                        onboardingComplete ||
-                                        !['draft', 'active', 'on_hold'].includes(((candidate as any).status || 'draft'))
-                                      }
+                                      disabled={taskStatusDisabled}
                                     />
                                   </div>
                                 </div>
@@ -897,13 +1200,49 @@ export default function CandidateDetailPage() {
                                 )}
                                 <div className="flex flex-col gap-2 text-xs xs:text-sm text-muted-foreground">
                                   <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
-                                    <div className="flex flex-col xs:flex-row xs:flex-wrap gap-1 xs:gap-x-4 xs:gap-y-1">
+                                    <div className="flex flex-col xs:flex-row xs:flex-wrap gap-2 xs:gap-x-4 xs:gap-y-1 xs:items-center">
                                       <span>Priority: {task.priority?.toUpperCase()}</span>
-                                      {task.assignee && (
-                                        <span>
-                                          Assignee: <span className="font-bold">{`${task.assignee.firstName} ${task.assignee.lastName}`}</span>
-                                        </span>
-                                      )}
+                                      <div className="flex items-center gap-2 min-w-[180px]">
+                                        <span className="text-muted-foreground">Assignee:</span>
+                                        {assigneeSelectLocked ? (
+                                          <span className="font-bold">
+                                            {getAssigneeDisplayName(task)}
+                                          </span>
+                                        ) : (
+                                          <div className="w-[190px] xs:w-[220px]">
+                                            <AutoSelectCombobox
+                                              label="Assignee"
+                                              labelClassName="sr-only"
+                                              value={(pendingAssignees[task.id] ?? task.assignee?.id ?? task.assigneeUserId ?? 'none') as string}
+                                              onChange={(id, item) => {
+                                                const normalized = id === 'none' ? null : id;
+                                                const current = task.assignee?.id ?? task.assigneeUserId ?? null;
+                                                if (normalized === current) {
+                                                  clearAssigneeDraft(task.id);
+                                                  return;
+                                                }
+                                                const selectedName = item?.name ?? getAssigneeNameById(normalized);
+                                                setAssigneeNote('');
+                                                setAssigneePrompt({
+                                                  taskId: task.id,
+                                                  taskTitle: task.title,
+                                                  nextAssigneeId: normalized,
+                                                  nextAssigneeName: selectedName,
+                                                  previousNotes: task.notes
+                                                });
+                                                setPendingAssignees((prev) => ({ ...prev, [task.id]: id ?? 'none' }));
+                                              }}
+                                              fetchItems={async (q: string) => {
+                                                const query = q.trim().toLowerCase();
+                                                return assigneeOptions.filter((opt) => opt.id === 'none' || opt.name.toLowerCase().includes(query));
+                                              }}
+                                              placeholder="Select assignee"
+                                              disabled={assigneesLoading || updateAssigneeMutation.isPending || assigneeSelectLocked}
+                                              data-testid={`select-task-assignee-${task.id}`}
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                     <span className="xs:ml-auto">
                                       {task.pendingAnchor
@@ -915,11 +1254,38 @@ export default function CandidateDetailPage() {
                                   </div>
                                 </div>
                                 {task.notes && (
-                                  <div className="mt-2 pt-2 border-t">
-                                    <p className="text-sm text-muted-foreground">
-                                      <strong>Notes:</strong> {task.notes}
-                                    </p>
-                                  </div>
+                                  (() => {
+                                    const notes = sortNotesDesc(parseTaskNotes(task.notes));
+                                    if (!notes.length) return null;
+                                    const latest = notes[0];
+                                    const moreCount = notes.length - 1;
+                                    return (
+                                      <div className="mt-2 pt-2 border-t">
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                          <span className="font-semibold">Notes:</span>
+                                          <span className="line-clamp-1 break-words">{latest.text}</span>
+                                          {moreCount > 0 && (
+                                            <Button
+                                              variant="link"
+                                              size="sm"
+                                              className="p-0 h-auto text-xs"
+                                              onClick={() => {
+                                                setOpenNotesModal({
+                                                  title: task.title,
+                                                  notes,
+                                                  fallbackTimestamp: task.updatedAt || task.updated_at || null
+                                                });
+                                                setNotesPage(1);
+                                              }}
+                                              aria-label={`View ${moreCount} more notes for ${task.title}`}
+                                            >
+                                              +{moreCount} more
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()
                                 )}
                               </div>
                             ))}
@@ -1035,6 +1401,91 @@ export default function CandidateDetailPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      <Dialog open={!!assigneePrompt} onOpenChange={(open) => { if (!open) closeAssigneePrompt(); }}>
+        <DialogContent className="max-w-md max-h-min">
+          <DialogHeader>
+            <DialogTitle>Change assignee</DialogTitle>
+            <DialogDescription>
+              Add a short note explaining why you're changing the assignee.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {assigneePrompt?.taskTitle && (
+              <p className="text-sm font-medium text-foreground break-words">{assigneePrompt.taskTitle}</p>
+            )}
+            <div className="space-y-1">
+              <label className="text-sm font-medium" htmlFor="assignee-change-note">Reason for change</label>
+              <Textarea
+                id="assignee-change-note"
+                value={assigneeNote}
+                onChange={(e) => setAssigneeNote(e.target.value)}
+                placeholder="Include a brief note"
+                className="min-h-[96px]"
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" onClick={closeAssigneePrompt} disabled={updateAssigneeMutation.isPending}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleConfirmAssigneeChange}
+                disabled={updateAssigneeMutation.isPending || assigneeNote.trim().length === 0}
+              >
+                {updateAssigneeMutation.isPending ? 'Saving...' : 'Confirm'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!openNotesModal} onOpenChange={(open) => { if (!open) { setOpenNotesModal(null); setNotesPage(1); } }}>
+        <DialogContent className="sm:max-w-lg max-h-min">
+          <DialogHeader>
+            <DialogTitle>Assignee notes</DialogTitle>
+            <DialogDescription>
+              {openNotesModal?.title ? `Notes for ${openNotesModal.title}` : 'Notes'}
+            </DialogDescription>
+          </DialogHeader>
+          {openNotesModal && (
+            <div className="space-y-3">
+              {(openNotesModal.notes.length === 0) ? (
+                <p className="text-sm text-muted-foreground">No notes available.</p>
+              ) : (
+                <>
+                  {(() => {
+                    const pageSize = 5;
+                    const start = (notesPage - 1) * pageSize;
+                    const current = sortNotesDesc(openNotesModal.notes).slice(start, start + pageSize);
+                    return (
+                      <div className="space-y-3">
+                        {current.map((note, idx) => (
+                          <div key={`${note.createdAt ?? 'note'}-${idx}`} className="border rounded-md p-3">
+                            <p className="text-sm text-foreground break-words">{note.text}</p>
+                            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
+                              <span>{note.author || 'Unknown user'}</span>
+                              <span aria-hidden>•</span>
+                              <span>{note.createdAt ? format(new Date(note.createdAt), "PPP p") : (openNotesModal.fallbackTimestamp ? format(new Date(openNotesModal.fallbackTimestamp), "PPP p") : 'Unknown time')}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                  <PaginationControls
+                    page={notesPage}
+                    pageSize={5}
+                    totalCount={openNotesModal.notes.length}
+                    onPageChange={setNotesPage}
+                    className="mt-2"
+                  />
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <EditCandidateDialog

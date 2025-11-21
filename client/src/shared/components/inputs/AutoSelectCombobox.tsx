@@ -19,6 +19,7 @@ type Props = {
   required?: boolean;
   onOpenChange?: (open: boolean) => void;
   onError?: (error: Error) => void;
+  labelClassName?: string;
   'data-testid'?: string;
 };
 
@@ -35,6 +36,7 @@ export function AutoSelectCombobox({
   required,
   onOpenChange,
   onError,
+  labelClassName,
   'data-testid': testId
 }: Props) {
   const [open, setOpen] = React.useState(false);
@@ -112,7 +114,7 @@ export function AutoSelectCombobox({
 
   return (
     <div className="grid gap-1.5">
-      <label className="text-sm font-medium text-foreground">
+      <label className={cn("text-sm font-medium text-foreground", labelClassName)}>
         {label}{required ? ' *' : ''}
       </label>
       <Popover open={open} onOpenChange={(v: boolean) => { setOpen(v); onOpenChange?.(v); }}>
