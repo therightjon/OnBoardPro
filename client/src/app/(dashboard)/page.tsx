@@ -24,6 +24,7 @@ import type { LucideIcon } from "lucide-react";
 import { useLocation } from "wouter";
 import { ReactNode, useMemo, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
 import { 
   AlertDialog,
   AlertDialogContent,
@@ -34,7 +35,7 @@ import {
   AlertDialogAction,
 } from "@/shared/components/ui/alert-dialog";
 import { format, formatDistanceToNow } from "date-fns";
-import type { CandidateType } from "@shared/schemas";
+import type { CandidateTask, CandidateType } from "@shared/schemas";
 
 type DivisionOverviewItem = {
   divisionId: string;
@@ -179,6 +180,12 @@ const getStatusToneForStatus = (status?: string | null): StatusTone => {
   }
 };
 
+const parseDueDate = (value?: string | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? null : date;
+};
+
 const StatusPill = ({
   status,
   tone,
@@ -308,16 +315,7 @@ export default function Dashboard() {
     }
   });
 
-  const { data: tasks = [] } = useQuery<any[]>({
-    // Include user id in the key, but fetch base URL explicitly
-    queryKey: ["/api/tasks/dashboard", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const res = await fetch('/api/tasks/dashboard', { credentials: 'include' });
-      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
-      return res.json();
-    }
-  });
+  const { data: tasks = [] } = useMyTasks();
 
   const { data: candidateTypes = [] } = useQuery<CandidateType[]>({
     queryKey: ["/api/candidate-types", user?.id],
@@ -383,27 +381,43 @@ export default function Dashboard() {
 
   // Calculate metrics
   const activeCandidates = candidates.filter((c: any) => c.status === "active").length;
-  const tasksDue = tasks.filter((t: any) => {
-    if (!t.dueAt) return false;
-    const dueDate = new Date(t.dueAt);
+  const tasksDue = tasks.filter((t: CandidateTask) => {
+    const dueDate = parseDueDate(t.dueAt);
+    if (!dueDate) return false;
     const sevenDaysFromNow = new Date();
     sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
     return dueDate <= sevenDaysFromNow && t.status !== "done";
   }).length;
-  const overdueTasks = tasks.filter((t: any) => {
-    if (!t.dueAt) return false;
-    const dueDate = new Date(t.dueAt);
+  const overdueTasks = tasks.filter((t: CandidateTask) => {
+    const dueDate = parseDueDate(t.dueAt);
+    if (!dueDate) return false;
     return dueDate < new Date() && t.status !== "done";
   }).length;
-  const completedTasks = tasks.filter((t: any) => t.status === "done").length;
+  const completedTasks = tasks.filter((t: CandidateTask) => t.status === "done").length;
   const totalTasks = tasks.length;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-  const urgentTasks = tasks
-    .filter((t: any) => t.priority === "critical" || (t.dueAt && new Date(t.dueAt) < new Date()))
-    .slice(0, 4);
+  const urgentTasks = useMemo(() => {
+    const now = new Date();
+    const excludedStatuses = new Set(["done", "completed", "canceled"]);
 
-  const handleUrgentTaskClick = (task: any) => {
+    return tasks
+      .map((task: CandidateTask) => {
+        const dueDate = parseDueDate(task.dueAt);
+        const statusKey = normalizeStatusKey(task.status);
+        const isOverdue = (dueDate ? dueDate < now : false) || statusKey === "overdue";
+        return { task, dueDate, isOverdue, statusKey };
+      })
+      .filter(({ statusKey, isOverdue }) => isOverdue && !excludedStatuses.has(statusKey))
+      .sort((a, b) => {
+        const aTime = a.dueDate ? a.dueDate.getTime() : Number.POSITIVE_INFINITY;
+        const bTime = b.dueDate ? b.dueDate.getTime() : Number.POSITIVE_INFINITY;
+        return aTime - bTime;
+      })
+      .slice(0, 4);
+  }, [tasks]);
+
+  const handleUrgentTaskClick = (task: CandidateTask) => {
     if (task?.candidateId) {
       setLocation(`/candidates/${task.candidateId}`);
       return;
@@ -699,11 +713,9 @@ export default function Dashboard() {
               {urgentTasks.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-2.5">No urgent tasks at the moment</p>
               ) : (
-                urgentTasks.map((task: any, index: number) => {
+                urgentTasks.map(({ task, dueDate, isOverdue }: { task: CandidateTask; dueDate: Date | null; isOverdue: boolean }, index: number) => {
                   const candidateName = [task.candidate?.firstName, task.candidate?.lastName].filter(Boolean).join(" ") || "Unknown Candidate";
                   const candidateTypeLabel = task.candidate?.candidateTypeId ? getCandidateTypeName(task.candidate.candidateTypeId) : null;
-                  const dueDate = task.dueAt ? new Date(task.dueAt) : null;
-                  const isOverdue = dueDate ? dueDate < new Date() : false;
                   const dueLabel = dueDate ? dueDate.toLocaleDateString() : "No due date";
                   return (
                     <DashboardListRow
@@ -717,8 +729,8 @@ export default function Dashboard() {
                       }
                       title={task.title}
                       subtitle={candidateName}
-                      status={isOverdue ? "Overdue" : "Due Soon"}
-                      statusTone={isOverdue ? "danger" : "info"}
+                      status="Overdue"
+                      statusTone="danger"
                       metaLeft={<span className="truncate">{candidateTypeLabel ?? "Candidate"}</span>}
                       metaRight={
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">

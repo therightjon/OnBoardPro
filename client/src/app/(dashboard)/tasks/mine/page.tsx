@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Filter, Calendar, Clock, AlertTriangle, MessageSquare } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
+import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
 import { useAuth } from "@/features/auth/hooks/use-auth.tsx";
 import { Link } from "wouter";
 import type { CandidateTask, Candidate } from "@shared/schemas";
@@ -33,22 +34,10 @@ export default function MyTasksPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const { user } = useAuth();
 
-  const { data: myTasks = [], isLoading } = useQuery<CandidateTask[]>({
-    // Include user id in key to prevent cross-user cache reuse
-    queryKey: ["/api/tasks/mine", user?.id, { showArchived, showCanceled, showCompleted }],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (showArchived) params.append('showArchived', '1');
-      if (showCanceled) params.append('showCanceled', '1');
-      if (showCompleted) params.append('showCompleted', '1');
-      const url = `/api/tasks/mine${params.toString() ? '?' + params.toString() : ''}`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return response.json();
-    },
-    enabled: !!user,
+  const { data: myTasks = [], isLoading } = useMyTasks({
+    showArchived,
+    showCanceled,
+    showCompleted,
   });
 
   const { data: candidates = [] } = useQuery<Candidate[]>({

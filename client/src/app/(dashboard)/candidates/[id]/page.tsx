@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { invalidateMyTasks } from "@/lib/query-invalidate";
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -314,8 +315,7 @@ export default function CandidateDetailPage() {
         queryClient.invalidateQueries({ queryKey: ['candidate', candidate.id] });
         queryClient.invalidateQueries({ queryKey: ['/api/candidates'] });
         queryClient.invalidateQueries({ queryKey: ['candidateTasks', candidate.id] });
-        queryClient.invalidateQueries({ queryKey: ['/api/tasks/mine'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/tasks/dashboard'] });
+        invalidateMyTasks(queryClient);
 
         // Show cascade results if tasks were closed
         if (data.cascaded?.closedTasks > 0) {
