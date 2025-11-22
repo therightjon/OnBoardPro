@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Bell } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
@@ -9,41 +9,19 @@ import { NotificationItem } from "@/features/notifications/components/Notificati
 import { mapNotificationToDisplay } from "@/features/notifications/utils";
 import { useUnreadNotifications, UNREAD_COUNT_QUERY_KEY } from "@/features/notifications/hooks/useUnreadNotifications";
 import { useLocation, Link } from "wouter";
-
-const POPOVER_KEY = ["notifications", "popover"] as const;
+import { NOTIFICATIONS_DROPDOWN_QUERY_KEY, NOTIFICATIONS_LIST_QUERY_KEY } from "@/features/notifications/constants";
 
 export function HeaderBell() {
   const [open, setOpen] = useState(false);
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
-  const pendingRemovalRef = useRef<Set<string>>(new Set());
 
   const unread = useUnreadNotifications();
   const unreadCount = unread.count ?? 0;
 
-  const prunePopoverData = useCallback(() => {
-    const toRemove = pendingRemovalRef.current;
-    queryClient.setQueryData<NotificationsResponse | undefined>(POPOVER_KEY, (data) => {
-      if (!data) return data;
-      const filtered = data.items.filter(
-        (notification) => !notification.isRead && !toRemove.has(notification.id)
-      );
-      if (filtered.length === data.items.length) return data;
-      return { ...data, items: filtered };
-    });
-    if (toRemove.size > 0) {
-      toRemove.clear();
-    }
-  }, [queryClient]);
-
-  const closePopover = useCallback(() => {
-    setOpen(false);
-    prunePopoverData();
-  }, [prunePopoverData]);
-
   const popoverQuery = useQuery({
-    queryKey: POPOVER_KEY,
-    queryFn: () => fetchNotifications({ limit: 5, unreadOnly: true }),
+    queryKey: NOTIFICATIONS_DROPDOWN_QUERY_KEY,
+    queryFn: () => fetchNotifications({ limit: 5 }),
     enabled: open,
     staleTime: 0,
   });
@@ -53,7 +31,7 @@ export function HeaderBell() {
       await markNotificationRead(id, isRead);
     },
     onSuccess: (_, variables) => {
-      queryClient.setQueryData<NotificationsResponse | undefined>(POPOVER_KEY, (data) => {
+      queryClient.setQueryData<NotificationsResponse | undefined>(NOTIFICATIONS_DROPDOWN_QUERY_KEY, (data) => {
         if (!data) return data;
         return {
           ...data,
@@ -63,8 +41,8 @@ export function HeaderBell() {
         };
       });
       void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: POPOVER_KEY });
-      void queryClient.invalidateQueries({ queryKey: ["notifications", "list"] });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_DROPDOWN_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_LIST_QUERY_KEY });
     }
   });
 
@@ -78,7 +56,7 @@ export function HeaderBell() {
     },
     onSuccess: (_, visibleNotifications) => {
       if (!visibleNotifications || visibleNotifications.length === 0) return;
-      queryClient.setQueryData<NotificationsResponse | undefined>(POPOVER_KEY, (data) => {
+      queryClient.setQueryData<NotificationsResponse | undefined>(NOTIFICATIONS_DROPDOWN_QUERY_KEY, (data) => {
         if (!data) return data;
         const readIds = new Set(visibleNotifications.map((notification) => notification.id));
         return {
@@ -89,8 +67,8 @@ export function HeaderBell() {
         };
       });
       void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: POPOVER_KEY });
-      void queryClient.invalidateQueries({ queryKey: ["notifications", "list"] });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_DROPDOWN_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_LIST_QUERY_KEY });
     }
   });
 
@@ -100,9 +78,8 @@ export function HeaderBell() {
 
   const handleSelect = (notification: NotificationRecord) => {
     const display = mapNotificationToDisplay(notification);
-    pendingRemovalRef.current.add(notification.id);
     markReadMutation.mutate({ id: notification.id, isRead: true });
-    closePopover();
+    setOpen(false);
     if (display.link) {
       navigate(display.link);
     }
@@ -112,25 +89,13 @@ export function HeaderBell() {
     if (!hasUnreadVisible) return;
     const unreadVisible = notifications.filter((notification) => !notification.isRead);
     if (unreadVisible.length === 0) return;
-    unreadVisible.forEach((notification) => pendingRemovalRef.current.add(notification.id));
     markVisibleMutation.mutate(unreadVisible);
-    closePopover();
+    setOpen(false);
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) {
-      if (unreadCount === 0) return;
-      setOpen(true);
-      return;
-    }
-    closePopover();
+    setOpen(nextOpen);
   };
-
-  useEffect(() => {
-    if (open && unreadCount === 0) {
-      closePopover();
-    }
-  }, [closePopover, open, unreadCount]);
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -140,7 +105,6 @@ export function HeaderBell() {
           size="icon"
           className="relative"
           aria-label="Notifications"
-          disabled={unreadCount === 0}
         >
           <Bell className="h-5 w-5" />
           {unread.showBadge && (

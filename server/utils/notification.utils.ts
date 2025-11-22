@@ -85,7 +85,8 @@ export async function notifyTaskAssignees(task: any, actor: Express.User, reason
     task: {
       id: task.id,
       title: task.title,
-      status: task.status
+      status: task.status,
+      assigneeUserId: task.assigneeUserId ?? null,
     },
     candidate: candidate ? {
       id: candidate.id,

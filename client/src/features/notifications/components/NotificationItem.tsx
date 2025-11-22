@@ -30,10 +30,10 @@ export function NotificationItem({ notification, onSelect, compact = false }: No
       <div
         className={cn(
           "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-          notification.isRead ? "bg-secondary" : "bg-primary/80"
+          "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100"
         )}
       >
-        <Icon className={cn("h-4 w-4", notification.isRead ? "text-foreground" : "text-primary-foreground")} />
+        <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground truncate">{display.title}</p>

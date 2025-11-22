@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import type { LucideIcon } from "lucide-react";
-import { Bell, MessageCircle, AtSign, ClipboardList, Flag } from "lucide-react";
+import { Bell, MessageCircle, AtSign, ClipboardList, Flag, CheckCircle, UserRound } from "lucide-react";
 import type { NotificationRecord } from "./types";
 
 export interface NotificationDisplayData {
@@ -25,6 +25,10 @@ function getCandidateLink(payload: Record<string, unknown> | null | undefined): 
   if (candidate && typeof candidate === "object" && typeof candidate.id === "string") {
     return `/candidates/${candidate.id}`;
   }
+  const contextCandidateId = (payload as any).contextCandidateId;
+  if (typeof contextCandidateId === "string" && contextCandidateId.trim()) {
+    return `/candidates/${contextCandidateId}`;
+  }
   return undefined;
 }
 
@@ -34,6 +38,10 @@ function getCandidateName(payload: Record<string, unknown> | null | undefined): 
   if (candidate && typeof candidate === "object" && typeof candidate.name === "string") {
     return candidate.name;
   }
+  const contextCandidateName = (payload as any).contextCandidateName;
+  if (typeof contextCandidateName === "string" && contextCandidateName.trim()) {
+    return contextCandidateName;
+  }
   return undefined;
 }
 
@@ -42,6 +50,7 @@ function getTaskInfo(payload: Record<string, unknown> | null | undefined): {
   title?: string;
   status?: string;
   dueAt?: string;
+  assigneeUserId?: string;
 } {
   if (!payload || typeof payload !== "object") return {};
   const task = (payload as any).task;
@@ -51,6 +60,7 @@ function getTaskInfo(payload: Record<string, unknown> | null | undefined): {
       title: typeof task.title === "string" ? task.title : undefined,
       status: typeof task.status === "string" ? task.status : undefined,
       dueAt: typeof task.dueAt === "string" ? task.dueAt : undefined,
+      assigneeUserId: typeof (task as any).assigneeUserId === "string" ? (task as any).assigneeUserId : undefined,
     };
   }
   return {};
@@ -92,6 +102,35 @@ function formatTaskDueDate(value: string | undefined): string | undefined {
   return format(parsed, "MMM d, yyyy");
 }
 
+function buildTaskLink(notification: NotificationRecord, payload: Record<string, unknown> | null | undefined, fallbackCandidateLink?: string): string | undefined {
+  const task = getTaskInfo(payload);
+  if (task.id) {
+    const assignedToRecipient = task.assigneeUserId && task.assigneeUserId === notification.userId;
+    if (assignedToRecipient || notification.type === "task.assigned") {
+      return `/tasks/mine?taskId=${task.id}`;
+    }
+  }
+  return fallbackCandidateLink ?? (task.id ? "/tasks/mine" : undefined);
+}
+
+function getLegacyTitle(payload: Record<string, unknown> | null | undefined): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const rawTitle = (payload as any).title;
+  if (typeof rawTitle === "string" && rawTitle.trim()) {
+    return rawTitle.trim();
+  }
+  return undefined;
+}
+
+function getLegacyMessage(payload: Record<string, unknown> | null | undefined): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const rawMessage = (payload as any).message;
+  if (typeof rawMessage === "string" && rawMessage.trim()) {
+    return rawMessage.trim();
+  }
+  return undefined;
+}
+
 export function mapNotificationToDisplay(notification: NotificationRecord): NotificationDisplayData {
   const payload = notification.payload ?? {};
   const actorName = getActorName(payload);
@@ -100,11 +139,14 @@ export function mapNotificationToDisplay(notification: NotificationRecord): Noti
   const task = getTaskInfo(payload);
   const stage = getStageInfo(payload);
   const reason = getReason(payload);
+  const candidateLink = getCandidateLink(payload);
+  const legacyTitle = getLegacyTitle(payload);
+  const legacyMessage = getLegacyMessage(payload);
 
   switch (notification.type) {
     case "comment.created": {
       const source = typeof (payload as any).source === "string" ? (payload as any).source : undefined;
-      const link = getCandidateLink(payload);
+      const link = candidateLink;
       const baseTitle = actorName ? `${actorName} commented` : "New comment";
       if (source === "task" && task.title) {
         return {
@@ -122,7 +164,7 @@ export function mapNotificationToDisplay(notification: NotificationRecord): Noti
       };
     }
     case "mention": {
-      const link = getCandidateLink(payload);
+      const link = candidateLink;
       const title = actorName ? `${actorName} mentioned you` : "You were mentioned";
       return {
         title,
@@ -132,7 +174,7 @@ export function mapNotificationToDisplay(notification: NotificationRecord): Noti
       };
     }
     case "task.assigned": {
-      const link = task.id ? getCandidateLink(payload) ?? `/tasks/mine` : `/tasks/mine`;
+      const link = buildTaskLink(notification, payload, candidateLink) ?? "/tasks/mine";
       const title = task.title ? `Task "${task.title}"` : "Task update";
       if (reason === "status_change") {
         return {
@@ -149,8 +191,30 @@ export function mapNotificationToDisplay(notification: NotificationRecord): Noti
         icon: ClipboardList,
       };
     }
+    case "task.created": {
+      const link = buildTaskLink(notification, payload, candidateLink) ?? candidateLink;
+      const title = legacyTitle ?? (task.title ? `Task "${task.title}" created` : "Task created");
+      const body = legacyMessage ?? (candidateName ? `Candidate ${candidateName}` : undefined);
+      return {
+        title,
+        body,
+        link,
+        icon: ClipboardList,
+      };
+    }
+    case "task.completed": {
+      const link = buildTaskLink(notification, payload, candidateLink) ?? candidateLink;
+      const title = legacyTitle ?? (task.title ? `Task "${task.title}" completed` : "Task completed");
+      const body = legacyMessage ?? (candidateName ? `Candidate ${candidateName}` : undefined);
+      return {
+        title,
+        body,
+        link,
+        icon: CheckCircle,
+      };
+    }
     case "stage.changed": {
-      const link = getCandidateLink(payload);
+      const link = candidateLink;
       const targetName = stage.toStageName ?? "a new stage";
       const title = candidateName ? `${candidateName} moved to ${targetName}` : `Stage changed to ${targetName}`;
       return {
@@ -160,9 +224,25 @@ export function mapNotificationToDisplay(notification: NotificationRecord): Noti
         icon: Flag,
       };
     }
+    case "candidate.owner_changed": {
+      const link = candidateLink;
+      const variant = typeof (payload as any).variant === "string" ? (payload as any).variant : undefined;
+      const name = candidateName ?? "Candidate";
+      const title =
+        variant === "former"
+          ? `${name} reassigned to a new owner`
+          : `You are now the owner for ${name}`;
+      const body = actorName ? `Updated by ${actorName}` : undefined;
+      return {
+        title,
+        body,
+        link,
+        icon: variant === "former" ? UserRound : UserRound,
+      };
+    }
     case "task.due_soon":
     case "task.overdue": {
-      const link = task.id ? getCandidateLink(payload) ?? `/tasks/mine` : `/tasks/mine`;
+      const link = buildTaskLink(notification, payload, candidateLink) ?? candidateLink ?? "/tasks/mine";
       const baseTitle = task.title ? `Task "${task.title}"` : "Task update";
       const statusText = notification.type === "task.due_soon" ? "due soon" : "overdue";
       const dueDate = formatTaskDueDate(task.dueAt);
@@ -182,10 +262,18 @@ export function mapNotificationToDisplay(notification: NotificationRecord): Noti
       };
     }
     default: {
+      if (legacyTitle || legacyMessage) {
+        return {
+          title: legacyTitle ?? notification.type,
+          body: legacyMessage ?? commentPreview,
+          link: candidateLink,
+          icon: Bell,
+        };
+      }
       return {
         title: notification.type,
         body: commentPreview,
-        link: getCandidateLink(payload),
+        link: candidateLink,
         icon: Bell,
       };
     }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/shared/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -23,6 +23,7 @@ import { fetchNotifications, markNotificationRead } from "@/features/notificatio
 import { NotificationItem } from "@/features/notifications/components/NotificationItem";
 import { mapNotificationToDisplay } from "@/features/notifications/utils";
 import type { NotificationRecord, NotificationsResponse } from "@/features/notifications/types";
+import { NOTIFICATIONS_DROPDOWN_QUERY_KEY, NOTIFICATIONS_LIST_QUERY_KEY } from "@/features/notifications/constants";
 
 interface SidebarProps {
   className?: string;
@@ -48,8 +49,6 @@ const allNavigation: NavigationItem[] = [
 ];
 
 const RESET_UNREAD_ON_NAVIGATE = false;
-const SIDEBAR_POPOVER_KEY = ["notifications", "sidebar-popover"] as const;
-
 export function Sidebar({ className, onNavigate }: SidebarProps) {
   const [location] = useLocation();
   const { user, logoutMutation } = useAuth();
@@ -170,11 +169,10 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
   const [, navigate] = useLocation();
   const previousCountRef = useRef<number | undefined>(undefined);
   const queryClient = useQueryClient();
-  const pendingRemovalRef = useRef<Set<string>>(new Set());
 
   const popoverQuery = useQuery({
-    queryKey: SIDEBAR_POPOVER_KEY,
-    queryFn: () => fetchNotifications({ limit: 5, unreadOnly: true }),
+    queryKey: NOTIFICATIONS_DROPDOWN_QUERY_KEY,
+    queryFn: () => fetchNotifications({ limit: 5 }),
     enabled: open,
     staleTime: 0,
   });
@@ -184,7 +182,7 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
       await markNotificationRead(id, isRead);
     },
     onSuccess: (_, variables) => {
-      queryClient.setQueryData<NotificationsResponse | undefined>(SIDEBAR_POPOVER_KEY, (data) => {
+      queryClient.setQueryData<NotificationsResponse | undefined>(NOTIFICATIONS_DROPDOWN_QUERY_KEY, (data) => {
         if (!data) return data;
         return {
           ...data,
@@ -194,8 +192,8 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
         };
       });
       void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: SIDEBAR_POPOVER_KEY });
-      void queryClient.invalidateQueries({ queryKey: ["notifications", "list"] });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_DROPDOWN_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_LIST_QUERY_KEY });
     }
   });
 
@@ -209,7 +207,7 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
     },
     onSuccess: (_, visibleNotifications) => {
       if (!visibleNotifications || visibleNotifications.length === 0) return;
-      queryClient.setQueryData<NotificationsResponse | undefined>(SIDEBAR_POPOVER_KEY, (data) => {
+      queryClient.setQueryData<NotificationsResponse | undefined>(NOTIFICATIONS_DROPDOWN_QUERY_KEY, (data) => {
         if (!data) return data;
         const readIds = new Set(visibleNotifications.map((notification) => notification.id));
         return {
@@ -220,8 +218,8 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
         };
       });
       void queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: SIDEBAR_POPOVER_KEY });
-      void queryClient.invalidateQueries({ queryKey: ["notifications", "list"] });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_DROPDOWN_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_LIST_QUERY_KEY });
     }
   });
 
@@ -252,31 +250,10 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
   const unreadCount = rawCount ?? 0;
   const Icon = item.icon;
 
-  const prunePopoverData = useCallback(() => {
-    const toRemove = pendingRemovalRef.current;
-    queryClient.setQueryData<NotificationsResponse | undefined>(SIDEBAR_POPOVER_KEY, (data) => {
-      if (!data) return data;
-      const filtered = data.items.filter(
-        (notification) => !notification.isRead && !toRemove.has(notification.id)
-      );
-      if (filtered.length === data.items.length) return data;
-      return { ...data, items: filtered };
-    });
-    if (toRemove.size > 0) {
-      toRemove.clear();
-    }
-  }, [queryClient]);
-
-  const closePopover = useCallback(() => {
-    setOpen(false);
-    prunePopoverData();
-  }, [prunePopoverData]);
-
   const handleSelect = (notification: NotificationRecord) => {
     const display = mapNotificationToDisplay(notification);
-    pendingRemovalRef.current.add(notification.id);
     markReadMutation.mutate({ id: notification.id, isRead: true });
-    closePopover();
+    setOpen(false);
     onNavigate?.();
     if (display.link) {
       navigate(display.link);
@@ -284,7 +261,7 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
   };
 
   const handleViewAll = () => {
-    closePopover();
+    setOpen(false);
     onNavigate?.();
     navigate("/notifications");
   };
@@ -293,33 +270,13 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
     if (!hasUnreadVisible) return;
     const unreadVisible = notifications.filter((notification) => !notification.isRead);
     if (unreadVisible.length === 0) return;
-    unreadVisible.forEach((notification) => pendingRemovalRef.current.add(notification.id));
     markVisibleMutation.mutate(unreadVisible);
-    closePopover();
+    setOpen(false);
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) {
-      if (unreadCount === 0) return;
-      setOpen(true);
-      return;
-    }
-    closePopover();
+    setOpen(nextOpen);
   };
-
-  const handleTriggerClick = () => {
-    if (unreadCount === 0) {
-      closePopover();
-      onNavigate?.();
-      navigate(item.href);
-    }
-  };
-
-  useEffect(() => {
-    if (open && unreadCount === 0) {
-      closePopover();
-    }
-  }, [closePopover, open, unreadCount]);
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -337,7 +294,6 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
           )}
           aria-haspopup="dialog"
           aria-expanded={open}
-          onClick={handleTriggerClick}
         >
           <Icon className="w-5 h-5" />
           <span className="flex-1 truncate">{item.name}</span>

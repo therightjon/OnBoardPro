@@ -7,34 +7,18 @@ import { NotificationItem } from "@/features/notifications/components/Notificati
 import type { NotificationRecord, NotificationsResponse } from "@/features/notifications/types";
 import { fetchNotifications, markNotificationRead, markAllNotificationsRead } from "@/features/notifications/api";
 import { mapNotificationToDisplay } from "@/features/notifications/utils";
-
-const FILTERS: Array<{
-  key: FilterKey;
-  label: string;
-  types?: string[];
-  unreadOnly?: boolean;
-}> = [
-  { key: "all", label: "All" },
-  { key: "unread", label: "Unread", unreadOnly: true },
-  { key: "mentions", label: "Mentions", types: ["mention"] },
-  { key: "comments", label: "Comments", types: ["comment.created"] },
-  { key: "assignments", label: "Assignments", types: ["task.assigned"] },
-  { key: "stage", label: "Stage changes", types: ["stage.changed"] }
-];
-
-type FilterKey = "all" | "unread" | "mentions" | "comments" | "assignments" | "stage";
-
-const LIST_QUERY_KEY = ["notifications", "list"] as const;
+import { NOTIFICATIONS_LIST_QUERY_KEY, NOTIFICATIONS_DROPDOWN_QUERY_KEY } from "@/features/notifications/constants";
+import { getNotificationFilter, NOTIFICATION_FILTERS, type NotificationFilterKey } from "@/features/notifications/filters";
 
 export default function NotificationsPage() {
-  const [filter, setFilter] = useState<FilterKey>("all");
+  const [filter, setFilter] = useState<NotificationFilterKey>("all");
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
-  const currentFilter = FILTERS.find((item) => item.key === filter) ?? FILTERS[0];
+  const currentFilter = getNotificationFilter(filter);
 
   const notificationsQuery = useInfiniteQuery({
-    queryKey: [...LIST_QUERY_KEY, filter],
+    queryKey: [...NOTIFICATIONS_LIST_QUERY_KEY, filter],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => fetchNotifications({
       limit: 20,
@@ -54,18 +38,18 @@ export default function NotificationsPage() {
       await markNotificationRead(id, isRead);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: LIST_QUERY_KEY, exact: false });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_LIST_QUERY_KEY, exact: false });
       void queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"], exact: false });
-      void queryClient.invalidateQueries({ queryKey: ["notifications", "dropdown"], exact: false });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_DROPDOWN_QUERY_KEY, exact: false });
     }
   });
 
   const markAllMutation = useMutation({
     mutationFn: markAllNotificationsRead,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: LIST_QUERY_KEY, exact: false });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_LIST_QUERY_KEY, exact: false });
       void queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"], exact: false });
-      void queryClient.invalidateQueries({ queryKey: ["notifications", "dropdown"], exact: false });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_DROPDOWN_QUERY_KEY, exact: false });
     }
   });
 
@@ -103,9 +87,9 @@ export default function NotificationsPage() {
       </div>
 
       <div className="mt-6">
-        <Tabs value={filter} onValueChange={(value) => setFilter(value as FilterKey)}>
+        <Tabs value={filter} onValueChange={(value) => setFilter(value as NotificationFilterKey)}>
           <TabsList className="flex flex-wrap gap-2">
-            {FILTERS.map(({ key, label }) => (
+            {NOTIFICATION_FILTERS.map(({ key, label }) => (
               <TabsTrigger key={key} value={key} className="capitalize">
                 {label}
               </TabsTrigger>

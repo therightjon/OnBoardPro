@@ -128,6 +128,7 @@ async function emitTaskDueSoonInternal(
       id: task.id,
       title: task.title,
       dueAt: dueAt.toISOString(),
+      assigneeUserId: task.assigneeUserId ?? null,
     },
     candidate: {
       id: candidate.id,
@@ -220,6 +221,7 @@ async function emitTaskOverdueInternal(
       id: task.id,
       title: task.title,
       dueAt: dueAt.toISOString(),
+      assigneeUserId: task.assigneeUserId ?? null,
     },
     candidate: {
       id: candidate.id,
