@@ -619,14 +619,16 @@ export default function Dashboard() {
         </Card>
 
         {/* Recent Activity */}
-        <Card data-testid="card-recent-activity">
+        <Card className="flex flex-col" data-testid="card-recent-activity">
           <CardHeader className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
+              <div>
               <CardTitle className="text-base xs:text-lg sm:text-xl">Recent Activity</CardTitle>
-            </div>
-            <div>
               <p className="hidden xs:block text-xs text-muted-foreground mt-1">Recent actions and updates</p>
               </div>
+              <div className="min-h-[44px] gap-1.5 text-xs xs:text-sm">
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 max-w-full">
             {recentActivityLoading ? (
@@ -755,12 +757,14 @@ export default function Dashboard() {
         </Card>
 
         {/* Division Overview */}
-        <Card data-testid="card-department-overview" className="flex flex-col">
-          <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
+        <Card className="flex flex-col" data-testid="card-department-overview">
+          <CardHeader className="p-3 sm:p-4">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <CardTitle className="text-base xs:text-lg sm:text-xl">Division Overview</CardTitle>
                 <p className="hidden xs:block text-xs text-muted-foreground mt-1">Active candidates per division</p>
+              </div>
+              <div className="min-h-[44px] gap-1.5 text-xs xs:text-sm">
               </div>
             </div>
           </CardHeader>
