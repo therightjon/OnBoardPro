@@ -134,6 +134,14 @@ const getActivityDetailText = (activity: RecentActivityEvent): string => {
 
 type StatusTone = "primary" | "success" | "warning" | "danger" | "muted" | "info";
 
+type CandidateWithTypeInfo = {
+  firstName?: string | null;
+  lastName?: string | null;
+  candidateTypeId?: string | null;
+};
+
+type TaskWithCandidate = CandidateTask & { candidate?: CandidateWithTypeInfo };
+
 const STATUS_PILL_TONES: Record<StatusTone, string> = {
   primary: "bg-primary/10 text-primary border-primary/30",
   success: "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-100 dark:border-emerald-500/40",
@@ -180,9 +188,9 @@ const getStatusToneForStatus = (status?: string | null): StatusTone => {
   }
 };
 
-const parseDueDate = (value?: string | null) => {
+const parseDueDate = (value?: string | Date | null) => {
   if (!value) return null;
-  const date = new Date(value);
+  const date = value instanceof Date ? value : new Date(value);
   return isNaN(date.getTime()) ? null : date;
 };
 
@@ -406,7 +414,7 @@ export default function Dashboard() {
     const excludedStatuses = new Set(["done", "completed", "canceled"]);
 
     return tasks
-      .map((task: CandidateTask) => {
+      .map((task: TaskWithCandidate) => {
         const dueDate = parseDueDate(task.dueAt);
         const statusKey = normalizeStatusKey(task.status);
         const isOverdue = (dueDate ? dueDate < now : false) || statusKey === "overdue";
@@ -719,7 +727,7 @@ export default function Dashboard() {
               {urgentTasks.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-2.5">No urgent tasks at the moment</p>
               ) : (
-                urgentTasks.map(({ task, dueDate, isOverdue }: { task: CandidateTask; dueDate: Date | null; isOverdue: boolean }, index: number) => {
+                urgentTasks.map(({ task, dueDate, isOverdue }: { task: TaskWithCandidate; dueDate: Date | null; isOverdue: boolean }, index: number) => {
                   const candidateName = [task.candidate?.firstName, task.candidate?.lastName].filter(Boolean).join(" ") || "Unknown Candidate";
                   const candidateTypeLabel = task.candidate?.candidateTypeId ? getCandidateTypeName(task.candidate.candidateTypeId) : null;
                   const dueLabel = dueDate ? dueDate.toLocaleDateString() : "No due date";
@@ -812,7 +820,7 @@ export default function Dashboard() {
                             {item.kind === "data" ? (
                               <span className="text-sm font-semibold text-foreground">{item.entry.activeCandidateCount}</span>
                             ) : null}
-                            <StatusPill status={item.kind === "data" ? "Active" : "Pending"} statusTone={item.kind === "data" ? "primary" : "muted"} />
+                            <StatusPill status={item.kind === "data" ? "Active" : "Pending"} tone={item.kind === "data" ? "primary" : "muted"} />
                           </div>
                         }
                         metaLeft={
