@@ -1234,7 +1234,53 @@ export default function CandidateDetailPage() {
                                               }}
                                               fetchItems={async (q: string) => {
                                                 const query = q.trim().toLowerCase();
-                                                return assigneeOptions.filter((opt) => opt.id === 'none' || opt.name.toLowerCase().includes(query));
+                                                const allOptions = assigneeOptions;
+                                                // Show a small curated list when empty query: Unassigned + current + up to 3 others
+                                                if (query.length === 0) {
+                                                  const currentId = (pendingAssignees[task.id] ?? task.assignee?.id ?? task.assigneeUserId ?? 'none') as string;
+                                                  const picked: any[] = [];
+                                                  const seen = new Set<string>();
+                                                  const addOption = (id: string) => {
+                                                    const found = allOptions.find((o) => o.id === id);
+                                                    if (found && !seen.has(id)) {
+                                                      picked.push(found);
+                                                      seen.add(id);
+                                                    }
+                                                  };
+                                                  addOption('none');
+                                                  addOption(currentId);
+                                                  for (const opt of allOptions) {
+                                                    if (picked.length >= 5) break;
+                                                    if (!seen.has(opt.id)) addOption(opt.id);
+                                                  }
+                                                  return picked.slice(0, 5);
+                                                }
+
+                                                // For search, filter across full list but cap at 5, ensuring current (if matching) is included
+                                                const currentId = (pendingAssignees[task.id] ?? task.assignee?.id ?? task.assigneeUserId ?? 'none') as string;
+                                                const matches = allOptions.filter((opt) => opt.id === 'none' || opt.name.toLowerCase().includes(query));
+
+                                                const results: typeof allOptions = [];
+                                                const seen = new Set<string>();
+                                                for (const opt of matches) {
+                                                  if (results.length >= 5) break;
+                                                  if (!seen.has(opt.id)) {
+                                                    results.push(opt);
+                                                    seen.add(opt.id);
+                                                  }
+                                                }
+
+                                                const currentMatch = matches.find((m) => m.id === currentId);
+                                                if (currentMatch && !seen.has(currentId)) {
+                                                  if (results.length < 5) {
+                                                    results.push(currentMatch);
+                                                  } else {
+                                                    // Replace the last non-current entry to keep size at 5
+                                                    results[results.length - 1] = currentMatch;
+                                                  }
+                                                }
+
+                                                return results.slice(0, 5);
                                               }}
                                               placeholder="Select assignee"
                                               disabled={assigneesLoading || updateAssigneeMutation.isPending || assigneeSelectLocked}
