@@ -352,6 +352,10 @@ export default function Dashboard() {
     return match?.name ?? "Role TBD";
   };
 
+  const greetingMessage = user?.firstName?.trim()
+    ? `Welcome back, ${user.firstName.trim()}, manage your hiring pipeline`
+    : "Welcome back";
+
   const getInitials = (firstName?: string, lastName?: string) => {
     const first = firstName?.charAt(0) ?? "";
     const last = lastName?.charAt(0) ?? "";
@@ -452,7 +456,7 @@ export default function Dashboard() {
       <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
         <div className="min-w-0">
           <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-foreground" data-testid="text-dashboard-title">Dashboard</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Welcome back, manage your hiring pipeline</p>
+          <p className="text-sm sm:text-base text-muted-foreground">{greetingMessage}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 xs:gap-3">
           <Button variant="secondary" size="sm" className="min-h-[44px] px-3 xs:px-4" data-testid="button-export-report">
