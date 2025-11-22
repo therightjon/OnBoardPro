@@ -71,6 +71,8 @@ import { db as defaultDb, pool as defaultPool } from "./connection";
 import { eq, and, isNull, isNotNull, sql, desc, asc, ilike, inArray, or, ne, lte, gt, lt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { decryptSecret, encryptSecret } from "../utils/secret";
+import { addDays, ensureDate, resolveLooAnchor, resolveStartAnchor, computeDueFromRule, normalizeToUtcDate, MS_PER_DAY, type AnchorKey, type AnchorDates, type DueComputationResult } from "../utils/date.utils";
+import { addBusinessDays, countBusinessDays } from "../utils/business-day.utils";
 import type { Express } from "express";
 
 const MENTION_KEY_REPLACE = /[^a-z0-9]+/g;
@@ -85,83 +87,6 @@ function sanitizeMentionKey(value?: string | null): string | null {
     .replace(MENTION_KEY_DOTS, ".")
     .replace(/^\.+|\.+$/g, "");
   return cleaned || null;
-}
-
-type AnchorKey = 'loo' | 'start';
-type AnchorDates = Record<AnchorKey, Date | null>;
-
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-const normalizeToUtcDate = (date: Date): Date =>
-  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-
-function addDays(base: Date, amount: number): Date {
-  return new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate() + amount));
-}
-
-function ensureDate(input?: Date | string | null): Date | null {
-  if (!input) return null;
-  const date = input instanceof Date ? new Date(input.getTime()) : new Date(input);
-  if (Number.isNaN(date.getTime())) return null;
-  return normalizeToUtcDate(date);
-}
-
-function resolveLooAnchor(candidate: Candidate): Date | null {
-  return ensureDate(candidate.offerLetterAcceptedAt) ?? ensureDate(candidate.offerLetterIssuedAt);
-}
-
-function resolveStartAnchor(candidate: Candidate): Date | null {
-  return ensureDate(candidate.anticipatedStartDate);
-}
-
-type DueComputationResult = {
-  dueAt: Date | null;
-  pendingAnchor: boolean;
-  anchorType?: AnchorKey;
-  missingAnchor?: AnchorKey;
-};
-
-function computeDueFromRule(
-  ruleType: string | null | undefined,
-  ruleValue: number | null | undefined,
-  fixedDate: Date | string | null | undefined,
-  anchors: AnchorDates
-): DueComputationResult {
-  const applyAnchor = (anchorKey: AnchorKey, offsetDays: number): DueComputationResult => {
-    const anchor = anchors[anchorKey];
-    if (!anchor) {
-      return { dueAt: null, pendingAnchor: true, missingAnchor: anchorKey };
-    }
-    return { dueAt: addDays(anchor, offsetDays), pendingAnchor: false, anchorType: anchorKey };
-  };
-
-  switch (ruleType) {
-    case "on_loo_date":
-      return applyAnchor("loo", 0);
-    case "days_before_loo":
-      return applyAnchor("loo", -1 * (ruleValue ?? 0));
-    case "days_after_loo":
-      return applyAnchor("loo", ruleValue ?? 0);
-    case "on_start_date":
-      return applyAnchor("start", 0);
-    case "days_before_start":
-      return applyAnchor("start", -1 * (ruleValue ?? 0));
-    case "days_after_start":
-      return applyAnchor("start", ruleValue ?? 0);
-    case "fixed_date": {
-      const date = ensureDate(fixedDate);
-      if (!date) {
-        return { dueAt: null, pendingAnchor: true };
-      }
-      return { dueAt: date, pendingAnchor: false };
-    }
-    case "days_before_stage":
-    case "days_after_stage":
-      // Stage-relative rules will be determined dynamically later.
-      return { dueAt: null, pendingAnchor: false };
-    default:
-      return { dueAt: null, pendingAnchor: false };
-  }
 }
 
 // LDAP settings stored under system_settings key 'auth.ldap'
@@ -422,37 +347,6 @@ export interface IStorage {
   editComment(params: { id: string; userId: string; userRole: string; body: string }): Promise<any>;
   deleteComment(params: { id: string; userId: string; userRole: string }): Promise<void>;
   getCommentStats(params: { candidateId: string; role: string }): Promise<{ profile: { internalCount: number; externalCount: number; totalVisible: number }; byTask: Record<string, { internalCount: number; externalCount: number; totalVisible: number }> }>;
-}
-
-// Business day utility functions
-function addBusinessDays(startDate: Date, businessDays: number): Date {
-  let result = new Date(startDate);
-  let remainingDays = businessDays;
-  
-  while (remainingDays > 0) {
-    result.setDate(result.getDate() + 1);
-    // 0 = Sunday, 6 = Saturday
-    if (result.getDay() !== 0 && result.getDay() !== 6) {
-      remainingDays--;
-    }
-  }
-  
-  return result;
-}
-
-function countBusinessDays(startDate: Date, endDate: Date): number {
-  let count = 0;
-  let current = new Date(startDate);
-  
-  while (current <= endDate) {
-    // 0 = Sunday, 6 = Saturday
-    if (current.getDay() !== 0 && current.getDay() !== 6) {
-      count++;
-    }
-    current.setDate(current.getDate() + 1);
-  }
-  
-  return count;
 }
 
 export interface DatabaseStorageOptions {

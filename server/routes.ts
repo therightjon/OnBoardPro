@@ -1,6 +1,5 @@
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
-import { randomBytes } from "crypto";
 import { setupAuth } from "./features/auth/services/auth.service";
 import { storage } from "./db/storage";
 import { requireAuth, requireRole } from "./middleware/authorization";
@@ -28,6 +27,8 @@ import { getSmtpSettings, updateSmtpSettings, sendTestEmail } from "./features/e
 import { reportAuthorizationFailure } from "./observability/authMetrics";
 import docsRouter from "./routes/docs";
 import { hasAnyRole, logAuthorizationFailure } from "./utils/authorization.utils";
+import { getAllowedPreferenceKeys, buildPreferenceResponse, pickPreferencesForRole, filterUpdatesForRole, PREFERENCE_KEYS } from "./utils/preferences.utils";
+import { generateInviteToken, getInviteBaseUrl, sendInviteEmail } from "./utils/invitation.utils";
 import referenceDataRouter from "./routes/reference-data.routes";
 import searchRouter from "./routes/search.routes";
 import notificationsRouter from "./routes/notifications.routes";
@@ -41,28 +42,9 @@ export interface RegisterRoutesOptions {
 }
 
 // Note: requireAuth and requireRole are now imported from middleware/authorization.ts
-
-const INVITE_TOKEN_BYTES = 32;
-
 // Note: Rate limiters (defaultRateLimiter, sensitiveRateLimiter) are now imported from middleware/rate-limiter.ts
-
-export const PREFERENCE_KEYS = [
-  "mytasksShowArchived",
-  "mytasksShowCanceled",
-  "mytasksShowCompleted",
-  "notifyInApp",
-  "notifyEmail",
-  "digestFrequency",
-  "quietHoursStart",
-  "quietHoursEnd",
-  "allowSelfNotifications",
-  "eventSubscriptions"
-] as const;
-
-type PreferenceKey = (typeof PREFERENCE_KEYS)[number];
-
-const candidatePreferenceKeys = new Set<PreferenceKey>(PREFERENCE_KEYS);
-const defaultPreferenceKeys = new Set<PreferenceKey>(PREFERENCE_KEYS);
+// Note: Preference utilities are now imported from utils/preferences.utils.ts
+// Note: Invitation utilities are now imported from utils/invitation.utils.ts
 
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/;
 
@@ -84,62 +66,6 @@ export const preferencesUpdateSchema = z.object({
   allowSelfNotifications: z.boolean().optional(),
   eventSubscriptions: z.record(z.boolean()).optional()
 }).strict();
-
-type PreferencesUpdatePayload = z.infer<typeof preferencesUpdateSchema>;
-
-type PreferencesResponse = typeof USER_PREFERENCES_DEFAULTS & {
-  eventSubscriptions: Record<string, boolean>;
-};
-
-type UserPreferencesUpdate = Partial<Omit<UserPreferences, "userId" | "updatedAt">>;
-
-export function getAllowedPreferenceKeys(role: string): Set<PreferenceKey> {
-  return role === "candidate" ? candidatePreferenceKeys : defaultPreferenceKeys;
-}
-
-export function buildPreferenceResponse(preferences?: UserPreferences): PreferencesResponse {
-  const merged = mergeUserPreferences(preferences as Partial<UserPreferencesDTO> | undefined);
-  return {
-    ...merged,
-    eventSubscriptions: { ...merged.eventSubscriptions }
-  };
-}
-
-export function pickPreferencesForRole(preferences: PreferencesResponse, role: string) {
-  const allowedKeys = getAllowedPreferenceKeys(role);
-  return Array.from(allowedKeys).reduce<Record<string, unknown>>((acc, key) => {
-    acc[key] = preferences[key as keyof PreferencesResponse];
-    return acc;
-  }, {});
-}
-
-export function filterUpdatesForRole(updates: PreferencesUpdatePayload, role: string): UserPreferencesUpdate {
-  const allowedKeys = getAllowedPreferenceKeys(role);
-  return Object.entries(updates).reduce<UserPreferencesUpdate>((acc, [key, value]) => {
-    if (allowedKeys.has(key as PreferenceKey)) {
-      acc[key as PreferenceKey] = value as any;
-    }
-    return acc;
-  }, {} as UserPreferencesUpdate);
-}
-
-function generateInviteToken(): string {
-  const raw = randomBytes(INVITE_TOKEN_BYTES).toString("base64");
-  return raw.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function getInviteBaseUrl(): string {
-  const value = process.env.APP_BASE_URL 
-    || process.env.PUBLIC_URL 
-    || process.env.CLIENT_URL 
-    || process.env.VITE_APP_URL;
-  return value ? value.replace(/\/$/, "") : "http://localhost:5173";
-}
-
-async function sendInviteEmail(email: string, token: string, expiresAt: Date) {
-  const link = `${getInviteBaseUrl()}/accept-invite?token=${token}`;
-  console.info(`[invite] Sent invitation`, { email, link, expiresAt: expiresAt.toISOString() });
-}
 
 export async function registerRoutes(app: Express, options: RegisterRoutesOptions = {}): Promise<Server> {
   if (!options.skipAuthSetup) {
