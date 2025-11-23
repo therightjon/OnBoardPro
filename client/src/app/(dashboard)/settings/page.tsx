@@ -75,7 +75,7 @@ const userSchema = z.object({
   status: z.string().min(1, "Status is required"),
   departmentId: z.string().min(1, "Department is required"),
   divisionId: z.string().min(1, "Division is required"),
-  roles: z.array(z.string()).optional(),
+  // Note: Single role per user. Use department/division scopes for access control.
 });
 
 const createUserSchema = userSchema.extend({
@@ -1109,8 +1109,7 @@ export default function SettingsPage() {
       role: "",
       status: "active",
       departmentId: undefined,
-      divisionId: undefined,
-      roles: []
+      divisionId: undefined
     },
   });
 
@@ -1276,8 +1275,7 @@ export default function SettingsPage() {
       role: user.role,
       status: user.status,
       departmentId: user.departmentId || undefined,
-      divisionId: user.divisionId || undefined,
-      roles: []
+      divisionId: user.divisionId || undefined
     });
     // Update resolver for edit mode
     userForm.clearErrors();
@@ -1294,8 +1292,7 @@ export default function SettingsPage() {
       role: "",
       status: "active",
       departmentId: undefined,
-      divisionId: undefined,
-      roles: []
+      divisionId: undefined
     });
     // Update resolver for create mode
     userForm.clearErrors();

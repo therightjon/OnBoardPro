@@ -1,8 +1,47 @@
 # User Role Architecture Analysis & Recommendations
 
 **Date:** November 23, 2025
-**Status:** 🚨 Critical Issue - Architecture Mismatch Detected
+**Status:** ✅ **RESOLVED - Single Role + Scope-Based Authorization**
 **Priority:** High - Blocks Schema Consolidation
+
+---
+
+## 🎯 FINAL DECISION
+
+**Decision Made:** November 23, 2025
+
+The OnBoardPro system has been standardized to use **Single Role Per User + Scope-Based Authorization**.
+
+### Implementation Summary
+
+1. ✅ **Removed Multi-Role Support from Client**
+   - Removed `roles: z.array(z.string())` from userSchema
+   - Removed roles field from user creation/edit forms
+   - Updated settings/page.tsx to enforce single role
+
+2. ✅ **Documented Scope-Based Approach**
+   - Created comprehensive authorization guide: `docs/scope-based-authorization-guide.md`
+   - Documented how to use department and division scopes
+   - Provided examples and best practices
+
+3. ⚠️ **Preserved for Future**
+   - `userRoles` table remains in database but is unused
+   - Invitations still use multiple roles (user selects ONE on acceptance)
+
+### Key Architectural Decisions
+
+- **WHAT users can do** = Determined by single `role` field
+- **WHERE users can do it** = Determined by `userDepartmentScopes` and `userDivisionScopes`
+- **System simplicity** = No role conflicts, clearer authorization logic
+- **Performance** = No JOIN required on every request
+
+**See:** `docs/scope-based-authorization-guide.md` for complete implementation guide.
+
+---
+
+## 📋 Original Analysis (Historical Context)
+
+The analysis below documents the original architecture mismatch that led to this decision.
 
 ---
 
