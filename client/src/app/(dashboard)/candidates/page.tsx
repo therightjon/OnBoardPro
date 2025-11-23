@@ -23,6 +23,7 @@ import { NewCandidateDialog } from "@/features/candidates/components/new-candida
 import { ArchiveCandidateDialog } from "@/features/candidates/components/archive-candidate-dialog";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
+import { candidateStatusBadgeClass, resolveCandidateStatus } from "@/features/candidates/utils/status";
 import type { Candidate, CandidateType, HiringStage } from "@shared/schemas";
 import { PaginationControls } from "@/shared/components/pagination-controls";
 
@@ -190,17 +191,6 @@ const formatLooAge = (isoDate?: string | null) => {
   useEffect(() => {
     setCurrentPage((prev) => Math.min(prev, totalPages));
   }, [totalPages]);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active": return "bg-accent/10 text-accent";
-      case "draft": return "bg-chart-3/10 text-chart-3";
-      case "completed": return "bg-chart-5/10 text-chart-5";
-      case "on_hold": return "bg-chart-4/10 text-chart-4";
-      case "canceled": return "bg-destructive/10 text-destructive";
-      default: return "bg-muted text-muted-foreground";
-    }
-  };
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -473,6 +463,8 @@ const formatLooAge = (isoDate?: string | null) => {
                 paginatedCandidates.map((candidate: any) => {
                   const phase = candidate.currentStage?.phase ?? "pre_hire";
                   const phaseText = phaseLabel(phase);
+                  const resolvedStatus = resolveCandidateStatus(candidate);
+                  const statusClass = candidateStatusBadgeClass(resolvedStatus.status);
                   const pendingAnchorCount = Number(candidate.pendingAnchorCount ?? 0);
                   const openPrehire = Number(candidate.openPrehireTasks ?? 0);
                   const openOnboarding = Number(candidate.openOnboardingTasks ?? 0);
@@ -506,8 +498,8 @@ const formatLooAge = (isoDate?: string | null) => {
                         {candidateTypes.find((type) => type.id === candidate.candidateTypeId)?.name || "Unknown"}
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(candidate.status)}>
-                          {candidate.status.replace('_', ' ').toUpperCase()}
+                        <Badge className={statusClass}>
+                          {resolvedStatus.label.toUpperCase()}
                         </Badge>
                       </TableCell>
                       <TableCell data-testid={`cell-stage-${candidate.id}`}>
@@ -589,6 +581,8 @@ const formatLooAge = (isoDate?: string | null) => {
               const pendingCount = Number(candidate.pendingAnchorCount ?? 0);
               const openPrehire = Number(candidate.openPrehireTasks ?? 0);
               const openOnboarding = Number(candidate.openOnboardingTasks ?? 0);
+              const resolvedStatus = resolveCandidateStatus(candidate);
+              const statusClass = candidateStatusBadgeClass(resolvedStatus.status);
               return (
               <li key={candidate.id}>
                 <Card className={`p-4 hover:shadow-md transition-shadow ${candidate.archived ? 'opacity-60' : ''}`} data-testid={`card-candidate-${candidate.id}`}>
@@ -626,8 +620,8 @@ const formatLooAge = (isoDate?: string | null) => {
                         <div>
                           <dt className="text-muted-foreground">Status</dt>
                           <dd>
-                            <Badge className={`${getStatusColor(candidate.status)} text-xs`}>
-                              {candidate.status.replace('_', ' ').toUpperCase()}
+                            <Badge className={`${statusClass} text-xs`}>
+                              {resolvedStatus.label.toUpperCase()}
                             </Badge>
                           </dd>
                         </div>

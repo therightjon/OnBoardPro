@@ -25,6 +25,7 @@ import { useLocation } from "wouter";
 import { ReactNode, useMemo, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
+import { resolveCandidateStatus } from "@/features/candidates/utils/status";
 import { 
   AlertDialog,
   AlertDialogContent,
@@ -603,28 +604,32 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {upcomingStarts.map((candidate: any) => (
-                  <DashboardListRow
-                    key={candidate.id}
-                    leading={
-                      <Avatar className="h-10 w-10 border border-border/70">
-                        <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                          {getInitials(candidate.firstName, candidate.lastName)}
-                        </AvatarFallback>
-                      </Avatar>
-                    }
-                    title={`${candidate.firstName} ${candidate.lastName}`}
-                    status={candidate.status}
-                    metaLeft={<p className="text-muted-foreground truncate">{getCandidateTypeName(candidate.candidateTypeId)}</p>}
-                    metaRight={
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Clock className="w-3.5 h-3.5 text-primary" />
-                        <span className="font-medium text-foreground">{format(candidate.startDate, "MMM d, yyyy")}</span>
-                        <span className="text-muted-foreground">{formatDistanceToNow(candidate.startDate, { addSuffix: true })}</span>
-                      </div>
-                    }
-                  />
-                ))}
+                {upcomingStarts.map((candidate: any) => {
+                  const resolvedStatus = resolveCandidateStatus(candidate);
+                  return (
+                    <DashboardListRow
+                      key={candidate.id}
+                      leading={
+                        <Avatar className="h-10 w-10 border border-border/70">
+                          <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                            {getInitials(candidate.firstName, candidate.lastName)}
+                          </AvatarFallback>
+                        </Avatar>
+                      }
+                      title={`${candidate.firstName} ${candidate.lastName}`}
+                      status={resolvedStatus.label}
+                      statusTone={resolvedStatus.tone}
+                      metaLeft={<p className="text-muted-foreground truncate">{getCandidateTypeName(candidate.candidateTypeId)}</p>}
+                      metaRight={
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Clock className="w-3.5 h-3.5 text-primary" />
+                          <span className="font-medium text-foreground">{format(candidate.startDate, "MMM d, yyyy")}</span>
+                          <span className="text-muted-foreground">{formatDistanceToNow(candidate.startDate, { addSuffix: true })}</span>
+                        </div>
+                      }
+                    />
+                  );
+                })}
               </div>
             )}
           </CardContent>

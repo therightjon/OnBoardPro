@@ -1,0 +1,109 @@
+export type CandidateLifecycleStatus =
+  | "draft"
+  | "active"
+  | "on_hold"
+  | "completed"
+  | "canceled"
+  | "archived";
+
+export type ResolvedCandidateStatusKey = CandidateLifecycleStatus | "unknown";
+
+export type CandidateStatusTone = "primary" | "success" | "warning" | "danger" | "muted" | "info";
+
+export type CandidateStatusLike = {
+  status?: string | null;
+  archived?: boolean | null;
+};
+
+export type ResolvedCandidateStatus = {
+  status: ResolvedCandidateStatusKey;
+  label: string;
+  tone: CandidateStatusTone;
+  badgeClass: string;
+  isArchived: boolean;
+  isCanceled: boolean;
+  isCompleted: boolean;
+};
+
+export const CANDIDATE_STATUS_PRIORITY: CandidateLifecycleStatus[] = [
+  "archived",
+  "canceled",
+  "completed",
+  "on_hold",
+  "active",
+  "draft"
+];
+
+const STATUS_LABELS: Record<ResolvedCandidateStatusKey, string> = {
+  archived: "Archived",
+  canceled: "Canceled",
+  completed: "Completed",
+  on_hold: "On Hold",
+  active: "Active",
+  draft: "Draft",
+  unknown: "Unknown"
+};
+
+const STATUS_BADGE_CLASSES: Record<ResolvedCandidateStatusKey, string> = {
+  active: "bg-accent/10 text-accent",
+  draft: "bg-chart-3/10 text-chart-3",
+  completed: "bg-chart-5/10 text-chart-5",
+  on_hold: "bg-chart-4/10 text-chart-4",
+  canceled: "bg-destructive/10 text-destructive",
+  archived: "bg-muted text-muted-foreground",
+  unknown: "bg-muted text-muted-foreground"
+};
+
+const STATUS_TONES: Record<ResolvedCandidateStatusKey, CandidateStatusTone> = {
+  active: "primary",
+  draft: "muted",
+  completed: "success",
+  on_hold: "warning",
+  canceled: "danger",
+  archived: "muted",
+  unknown: "muted"
+};
+
+export const normalizeCandidateStatus = (status?: string | null): ResolvedCandidateStatusKey => {
+  const key = (status ?? "").toString().trim().toLowerCase();
+  if ((CANDIDATE_STATUS_PRIORITY as string[]).includes(key)) {
+    return key as CandidateLifecycleStatus;
+  }
+  return "unknown";
+};
+
+export const candidateStatusBadgeClass = (status: ResolvedCandidateStatusKey) =>
+  STATUS_BADGE_CLASSES[status] ?? STATUS_BADGE_CLASSES.unknown;
+
+export function resolveCandidateStatus(
+  candidate?: CandidateStatusLike | null,
+  options: { onboardingComplete?: boolean } = {}
+): ResolvedCandidateStatus {
+  const normalized = normalizeCandidateStatus(candidate?.status);
+  const onboardingComplete = Boolean(options.onboardingComplete);
+
+  const resolved: ResolvedCandidateStatusKey =
+    candidate?.archived || normalized === "archived"
+      ? "archived"
+      : normalized === "canceled"
+        ? "canceled"
+        : normalized === "completed" || onboardingComplete
+          ? "completed"
+          : normalized === "on_hold"
+            ? "on_hold"
+            : normalized === "active"
+              ? "active"
+              : normalized === "draft"
+                ? "draft"
+                : "unknown";
+
+  return {
+    status: resolved,
+    label: STATUS_LABELS[resolved],
+    badgeClass: STATUS_BADGE_CLASSES[resolved],
+    tone: STATUS_TONES[resolved],
+    isArchived: resolved === "archived",
+    isCanceled: resolved === "canceled",
+    isCompleted: resolved === "completed"
+  };
+}

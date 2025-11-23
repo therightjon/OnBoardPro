@@ -23,6 +23,7 @@ import { TaskCommentsModal } from "@/features/comments/components/task-comments-
 import { CommentsTab } from "@/features/comments/components/comments-tab";
 import { EditCandidateDialog } from "@/features/candidates/components/edit-candidate-dialog";
 import { ArchiveCandidateDialog } from "@/features/candidates/components/archive-candidate-dialog";
+import { candidateStatusBadgeClass, resolveCandidateStatus, type ResolvedCandidateStatus } from "@/features/candidates/utils/status";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
@@ -393,10 +394,25 @@ export default function CandidateDetailPage() {
   ];
 
   const candidateId = (candidate as any)?.id || id;
-  const candidateStatus = (candidate as any)?.status || 'draft';
+  const resolvedStatus = resolveCandidateStatus(candidate as any, { onboardingComplete });
+  const candidateStatusKey = resolvedStatus.status === 'unknown'
+    ? ((candidate as any)?.status || 'draft')
+    : resolvedStatus.status;
   const taskStatusDisabled = onboardingComplete ||
-    !['draft', 'active', 'on_hold'].includes(candidateStatus);
+    !['draft', 'active', 'on_hold'].includes(candidateStatusKey);
   const assigneeSelectLocked = taskStatusDisabled || !!assigneeError;
+
+  const currentStageName = (candidate as any)?.currentStage?.name || "Not set";
+  const stageDisplay = resolvedStatus.isArchived
+    ? (currentStageName === "Not set" ? "Archived" : `${currentStageName} (Archived)`)
+    : resolvedStatus.isCanceled
+      ? (currentStageName === "Not set" ? "Canceled" : `${currentStageName} (Canceled)`)
+      : resolvedStatus.isCompleted
+        ? "Fully Onboarded!"
+        : currentStageName;
+  const stageClassName = resolvedStatus.isCompleted
+    ? "text-xs xs:text-sm font-bold text-green-700 dark:text-green-400 break-words"
+    : "text-xs xs:text-sm text-muted-foreground break-words";
 
   const getAssigneeDisplayName = (task: any) => {
     if (task?.assignee?.firstName || task?.assignee?.lastName) {
@@ -600,11 +616,12 @@ export default function CandidateDetailPage() {
     );
   }
 
-  const EditableStatusBadge = ({ candidate, user, tasks, onStatusChange }: { 
+  const EditableStatusBadge = ({ candidate, user, tasks, onStatusChange, resolvedStatus }: { 
     candidate: any; 
     user: any; 
     tasks: any[];
-    onStatusChange: () => void; 
+    onStatusChange: () => void;
+    resolvedStatus: ResolvedCandidateStatus;
   }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -710,8 +727,8 @@ export default function CandidateDetailPage() {
     
     if (!canEdit) {
       return (
-        <Badge className={getStatusColor(candidate.status || 'draft')} data-testid="badge-candidate-status">
-          {(candidate.status || 'draft').replace('_', ' ').toUpperCase()}
+        <Badge className={candidateStatusBadgeClass(resolvedStatus.status)} data-testid="badge-candidate-status">
+          {resolvedStatus.label.toUpperCase()}
         </Badge>
       );
     }
@@ -728,11 +745,11 @@ export default function CandidateDetailPage() {
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
           <DropdownMenuTrigger asChild>
             <button 
-              className={`${getStatusColor(candidate.status || 'draft')} inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity`}
+              className={`${candidateStatusBadgeClass(resolvedStatus.status)} inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity`}
               data-testid="button-status-dropdown"
               disabled={updateStatusMutation.isPending}
             >
-              {(candidate.status || 'draft').replace('_', ' ').toUpperCase()}
+              {resolvedStatus.label.toUpperCase()}
               <ChevronDown className="w-3 h-3 ml-1" />
             </button>
           </DropdownMenuTrigger>
@@ -805,17 +822,6 @@ export default function CandidateDetailPage() {
     );
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active": return "bg-accent/10 text-accent";
-      case "draft": return "bg-chart-3/10 text-chart-3";
-      case "completed": return "bg-chart-5/10 text-chart-5";
-      case "on_hold": return "bg-chart-4/10 text-chart-4";
-      case "canceled": return "bg-destructive/10 text-destructive";
-      default: return "bg-muted text-muted-foreground";
-    }
-  };
-
   return (
     <div className="space-y-3 xs:space-y-4 sm:space-y-6 max-w-none xs:max-w-[350px] sm:max-w-4xl lg:max-w-6xl mx-auto">
       {/* Header */}
@@ -838,8 +844,9 @@ export default function CandidateDetailPage() {
               queryClient.invalidateQueries({ queryKey: ["/api/candidates", (candidate as any).id] });
               queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
             }}
+            resolvedStatus={resolvedStatus}
           />
-          {(candidate as any).archived && (
+          {resolvedStatus.isArchived && (
             <Badge variant="destructive" data-testid="badge-archived">
               ARCHIVED
             </Badge>
@@ -899,9 +906,17 @@ export default function CandidateDetailPage() {
             {(candidate as any).salutation ? `${(candidate as any).salutation} ` : ''}{(candidate as any).firstName} {(candidate as any).lastName}
           </CardTitle>
           {(() => {
-            const status = (candidate as any).status as string | undefined;
-            // Show a clear banner when candidate is canceled
-            if (status === 'canceled') {
+            if (resolvedStatus.isArchived) {
+              return (
+                <div className="mt-4 p-4 bg-muted border border-muted-foreground/40 rounded-lg">
+                  <p className="text-2xl font-bold text-muted-foreground text-center" data-testid="text-candidate-archived">
+                    Candidate Archived
+                  </p>
+                </div>
+              );
+            }
+
+            if (resolvedStatus.isCanceled) {
               return (
                 <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg">
                   <p className="text-2xl font-bold text-orange-700 dark:text-orange-300 text-center" data-testid="text-candidate-canceled">
@@ -911,7 +926,7 @@ export default function CandidateDetailPage() {
               );
             }
 
-            return onboardingComplete ? (
+            return resolvedStatus.isCompleted ? (
               <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
                 <p className="text-2xl font-bold text-green-700 dark:text-green-400 text-center" data-testid="text-onboarding-complete">
                   Onboarding Complete!
@@ -1041,15 +1056,9 @@ export default function CandidateDetailPage() {
                 <CheckCircle className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                 <div className="min-w-0">
                   <div className="text-xs xs:text-sm font-medium">Current Hiring Stage</div>
-                  {onboardingComplete ? (
-                    <div className="text-xs xs:text-sm font-bold text-green-700 dark:text-green-400 break-words" data-testid="text-current-stage">
-                      Fully Onboarded!
-                    </div>
-                  ) : (
-                    <div className="text-xs xs:text-sm text-muted-foreground break-words" data-testid="text-current-stage">
-                      {(candidate as any).currentStage?.name || "Not set"}
-                    </div>
-                  )}
+                  <div className={stageClassName} data-testid="text-current-stage">
+                    {stageDisplay}
+                  </div>
                   <div className="text-[11px] text-muted-foreground mt-1 capitalize">
                     Phase: {candidatePhaseLabel}
                   </div>
@@ -1354,7 +1363,7 @@ export default function CandidateDetailPage() {
                   <CardTitle className="flex items-center gap-2 flex-wrap">
                     <Clock className="w-4 h-4" />
                     <span>Stage Timeline</span>
-                    {onboardingComplete && (
+                    {resolvedStatus.isCompleted && (
                       <span className="font-bold text-green-700 dark:text-green-400" data-testid="text-fully-onboarded-timeline">Fully Onboarded!</span>
                     )}
                     {(candidate as any).isBlockedByPriorStage && (candidate as any).blockerSummary?.earliestPriorStage && (
