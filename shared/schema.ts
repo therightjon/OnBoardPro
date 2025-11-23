@@ -1,11 +1,11 @@
 import { sql } from "drizzle-orm";
-import { 
-  pgTable, 
-  uuid, 
-  text, 
-  varchar, 
-  timestamp, 
-  boolean, 
+import {
+  pgTable,
+  uuid,
+  text,
+  varchar,
+  timestamp,
+  boolean,
   integer,
   date,
   time,
@@ -19,101 +19,32 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Enums
-export const roleEnum = pgEnum("role", [
-  "system_admin", 
-  "hr_staff", 
-  "department_admin", 
-  "division_leader", 
-  "manager", 
-  "candidate"
-]);
-
-export const userStatusEnum = pgEnum("user_status", [
-  "active",
-  "invited", 
-  "disabled"
-]);
-
-export const appRoleEnum = pgEnum("app_role", [
-  "system_admin",
-  "hr_staff", 
-  "department_admin",
-  "division_leader",
-  "manager",
-  "candidate"
-]);
-
-export const candidateStatusEnum = pgEnum("candidate_status", [
-  "draft", 
-  "active", 
-  "on_hold", 
-  "completed", 
-  "canceled",
-  "archived"
-]);
-
-export const taskStatusEnum = pgEnum("task_status", [
-  "todo", 
-  "in_progress", 
-  "blocked", 
-  "done", 
-  "canceled"
-]);
-
-export const priorityEnum = pgEnum("priority", [
-  "low", 
-  "medium", 
-  "high", 
-  "critical"
-]);
-
-export const taskAssigneeKindEnum = pgEnum("task_assignee_kind", [
-  "user",
-  "role"
-]);
-
-export const dueRuleTypeEnum = pgEnum("due_rule_type", [
-  "on_loo_date",
-  "days_before_loo",
-  "days_after_loo",
-  "days_before_start",
-  "on_start_date",
-  "days_after_start", 
-  "days_before_stage",
-  "days_after_stage",
-  "fixed_date"
-]);
-
-export const salutationEnum = pgEnum("salutation_type", [
-  "Mr.",
-  "Ms.", 
-  "Mrs.",
-  "Dr.",
-  "Prof.",
-  "Mx.",
-  "Other"
-]);
-
-export const notificationEntityEnum = pgEnum("notification_entity", [
-  "candidate",
-  "task",
-  "comment"
-]);
-
-export const smtpSecurityEnum = pgEnum("smtp_security", [
-  "none",
-  "starttls",
-  "ssl_tls"
-]);
-
-export const smtpAuthTypeEnum = pgEnum("smtp_auth_type", [
-  "none",
-  "plain",
-  "login",
-  "cram_md5",
-  "xoauth2"
-]);
+// Import enums from split schemas (single source of truth)
+export { roleEnum, userStatusEnum, appRoleEnum } from "./schemas/auth.schema";
+export { candidateStatusEnum, salutationEnum, stagePhaseEnum } from "./schemas/candidate.schema";
+export { taskStatusEnum, priorityEnum, dueRuleTypeEnum, taskAssigneeKindEnum } from "./schemas/task.enums";
+export {
+  notificationEntityEnum,
+  notifications,
+  notificationKeys,
+  type Notification,
+  type InsertNotification,
+  type NotificationKey,
+  type InsertNotificationKey
+} from "./schemas/notifications.schema";
+export {
+  smtpSecurityEnum,
+  smtpAuthTypeEnum,
+  SMTP_OUTBOX_STATUSES,
+  smtpSettings,
+  notificationOutbox,
+  type SmtpOutboxStatus,
+  type SmtpEncryptedSecretPayload,
+  type SmtpSettings,
+  type InsertSmtpSettings,
+  type NotificationOutboxEntry,
+  type InsertNotificationOutboxEntry
+} from "./schemas/email.schema";
 
 // Base tables
 export const users = pgTable("users", {
@@ -209,11 +140,6 @@ export const taskPriorities = pgTable("task_priorities", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
-
-export const stagePhaseEnum = pgEnum("stage_phase", [
-  "pre_hire",
-  "onboarding"
-]);
 
 export const hiringStages = pgTable("hiring_stages", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -400,77 +326,6 @@ export const authProviders = pgTable("auth_providers", {
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 
-export const SMTP_OUTBOX_STATUSES = ["pending", "retrying", "failed", "sent", "digest_pending"] as const;
-export type SmtpOutboxStatus = typeof SMTP_OUTBOX_STATUSES[number];
-
-export type SmtpEncryptedSecretPayload = {
-  wrappedKey: string;
-  wrappedKeyIv: string;
-  wrappedKeyTag: string;
-  ciphertext: string;
-  iv: string;
-  tag: string;
-};
-
-export const smtpSettings = pgTable("smtp_settings", {
-  id: text("id").primaryKey().default("primary"),
-  enabled: boolean("enabled").notNull().default(false),
-  hostname: text("hostname"),
-  port: integer("port"),
-  security: smtpSecurityEnum("security").notNull().default("none"),
-  authType: smtpAuthTypeEnum("auth_type").notNull().default("none"),
-  username: text("username"),
-  encryptedPassword: jsonb("encrypted_password").$type<SmtpEncryptedSecretPayload | null>(),
-  encryptionVersion: text("encryption_version"),
-  passwordSetAt: timestamp("password_set_at", { withTimezone: true }),
-  fromName: text("from_name"),
-  fromEmail: text("from_email"),
-  allowHeaderSpoofing: boolean("allow_header_spoofing").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
-});
-
-export const notifications = pgTable("notifications", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  type: text("type").notNull(),
-  entityType: notificationEntityEnum("entity_type").notNull(),
-  entityId: uuid("entity_id").notNull(),
-  payload: jsonb("payload").notNull(),
-  isRead: boolean("is_read").notNull().default(false),
-  readAt: timestamp("read_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  deliveredChannels: text("delivered_channels").array().notNull().default(sql`'{}'::text[]`)
-}, (t) => ({
-  userReadCreatedIdx: index("notifications_user_read_created_idx").on(t.userId, t.isRead, t.createdAt)
-}));
-
-export const notificationOutbox = pgTable("notification_outbox", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  notificationId: uuid("notification_id").notNull().references(() => notifications.id, { onDelete: "cascade" }),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  status: text("status").notNull().default("pending"),
-  retryCount: integer("retry_count").notNull().default(0),
-  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  digestCandidate: boolean("digest_candidate").notNull().default(false),
-  lastError: text("last_error"),
-  deliveredAt: timestamp("delivered_at", { withTimezone: true })
-}, (t) => ({
-  statusNextAttemptIdx: index("notification_outbox_status_next_attempt_idx").on(t.status, t.nextAttemptAt),
-  notificationUniqueIdx: uniqueIndex("notification_outbox_notification_unique").on(t.notificationId)
-}));
-
-export const notificationKeys = pgTable("notification_keys", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  key: text("key").notNull(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-}, (t) => ({
-  keyUserUnique: uniqueIndex("notification_keys_key_user_idx").on(t.key, t.userId)
-}));
-
-// Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   department: one(departments, {
     fields: [users.departmentId],
@@ -611,24 +466,6 @@ export const candidateFollowersRelations = relations(candidateFollowers, ({ one 
   })
 }));
 
-export const notificationsRelations = relations(notifications, ({ one, many }) => ({
-  user: one(users, {
-    fields: [notifications.userId],
-    references: [users.id]
-  }),
-  outboxEntries: many(notificationOutbox)
-}));
-
-export const notificationOutboxRelations = relations(notificationOutbox, ({ one }) => ({
-  notification: one(notifications, {
-    fields: [notificationOutbox.notificationId],
-    references: [notifications.id]
-  }),
-  user: one(users, {
-    fields: [notificationOutbox.userId],
-    references: [users.id]
-  })
-}));
 
 export const templatesRelations = relations(templates, ({ one, many }) => ({
   candidateType: one(candidateTypes, {
@@ -837,14 +674,6 @@ export type Division = typeof divisions.$inferSelect;
 export type InsertDivision = z.infer<typeof insertDivisionSchema>;
 export type HiringStage = typeof hiringStages.$inferSelect;
 export type InsertHiringStage = z.infer<typeof insertHiringStageSchema>;
-export type Notification = typeof notifications.$inferSelect;
-export type InsertNotification = typeof notifications.$inferInsert;
-export type NotificationOutboxEntry = typeof notificationOutbox.$inferSelect;
-export type InsertNotificationOutboxEntry = typeof notificationOutbox.$inferInsert;
-export type NotificationKey = typeof notificationKeys.$inferSelect;
-export type InsertNotificationKey = typeof notificationKeys.$inferInsert;
-export type SmtpSettings = typeof smtpSettings.$inferSelect;
-export type InsertSmtpSettings = typeof smtpSettings.$inferInsert;
 export type TaskCategory = typeof taskCategories.$inferSelect;
 export type TaskPriority = typeof taskPriorities.$inferSelect;
 export type CandidateType = typeof candidateTypes.$inferSelect;
