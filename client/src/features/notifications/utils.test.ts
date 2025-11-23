@@ -63,4 +63,34 @@ describe("mapNotificationToDisplay", () => {
       expect(display.body).toBe("Legacy message");
       expect(display.link).toBe("/candidates/cand-3");
   });
+
+  it("uses taskTitle fallback when task object is missing", () => {
+    const notification: NotificationRecord = {
+      ...baseNotification,
+      type: "task.assigned",
+      payload: {
+        taskTitle: "Fallback Task",
+        candidate: { id: "cand-4", name: "Fallback Cand" }
+      },
+    } as NotificationRecord;
+
+    const display = mapNotificationToDisplay(notification);
+    expect(display.title).toContain("Fallback Task");
+  });
+
+  it("uses legacy title/message for task.assigned when no task object", () => {
+    const notification: NotificationRecord = {
+      ...baseNotification,
+      type: "task.assigned",
+      payload: {
+        title: "Legacy assigned title",
+        message: "Legacy assigned message",
+        contextCandidateId: "cand-5"
+      }
+    } as NotificationRecord;
+
+    const display = mapNotificationToDisplay(notification);
+    expect(display.title).toContain("Legacy assigned title");
+    expect(display.body).toBe("Legacy assigned message");
+  });
 });

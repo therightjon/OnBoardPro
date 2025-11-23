@@ -145,7 +145,7 @@ export function HeaderBell() {
           )}
         </div>
         <div className="border-t border-border px-4 py-3 text-center text-sm">
-          <Link href="/notifications" onClick={() => closePopover()} className="font-medium text-primary hover:underline">
+          <Link href="/notifications" onClick={() => setOpen(false)} className="font-medium text-primary hover:underline">
             View all notifications
           </Link>
         </div>

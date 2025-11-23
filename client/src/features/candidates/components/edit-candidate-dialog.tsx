@@ -94,11 +94,13 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
     queryKey: ["/api/users/managers", { departmentId: selectedDepartmentId, divisionId: form.watch('divisionId') }],
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
-      const params = new URLSearchParams({
-        departmentId: selectedDepartmentId,
-        ...(form.watch('divisionId') && form.watch('divisionId') !== 'none' && { divisionId: form.watch('divisionId') }),
-        limit: '20'
-      });
+      const params = new URLSearchParams();
+      params.set('departmentId', selectedDepartmentId);
+      const divisionId = form.watch('divisionId');
+      if (divisionId && divisionId !== 'none') {
+        params.set('divisionId', divisionId);
+      }
+      params.set('limit', '20');
       const response = await fetch(`/api/users/managers?${params}`);
       if (!response.ok) throw new Error('Failed to fetch managers');
       return response.json();

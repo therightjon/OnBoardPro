@@ -74,18 +74,18 @@ export class CandidateRepository extends BaseRepository {
     if (auth && !auth.privileged) {
       const authFilters: CandidateScopeFilters = {};
       if (auth.departmentIds.size > 0) {
-        authFilters.departmentIds = auth.departmentIds;
+        authFilters.departmentIds = Array.from(auth.departmentIds);
       }
       if (auth.divisionIds.size > 0) {
-        authFilters.divisionIds = auth.divisionIds;
+        authFilters.divisionIds = Array.from(auth.divisionIds);
       }
       const managerScope = new Set<string>();
       if (auth.managedCandidateIds.size > 0) {
-        authFilters.candidateIds = auth.managedCandidateIds;
+        authFilters.candidateIds = Array.from(auth.managedCandidateIds);
       }
       if (auth.roles.has("manager") && auth.userId) {
         managerScope.add(auth.userId);
-        authFilters.managerIds = managerScope;
+        authFilters.managerIds = Array.from(managerScope);
       }
       if (auth.roles.has("candidate") && auth.userId) {
         authFilters.linkedUserIds = [auth.userId];
@@ -541,13 +541,13 @@ export class CandidateRepository extends BaseRepository {
     if (auth && !auth.privileged) {
       const scopeFilters: CandidateScopeFilters = {};
       if (auth.departmentIds.size > 0) {
-        scopeFilters.departmentIds = auth.departmentIds;
+        scopeFilters.departmentIds = Array.from(auth.departmentIds);
       }
       if (auth.divisionIds.size > 0) {
-        scopeFilters.divisionIds = auth.divisionIds;
+        scopeFilters.divisionIds = Array.from(auth.divisionIds);
       }
       if (auth.managedCandidateIds.size > 0) {
-        scopeFilters.candidateIds = auth.managedCandidateIds;
+        scopeFilters.candidateIds = Array.from(auth.managedCandidateIds);
       }
       if (auth.roles.has("manager") && auth.userId) {
         scopeFilters.managerIds = [auth.userId];

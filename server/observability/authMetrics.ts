@@ -1,5 +1,5 @@
 export type AuthorizationFailureEvent = {
-  resource: "candidate" | "task" | "general" | "template" | "settings";
+  resource: string;
   action: string;
   reason: string;
   actorId: string | null;

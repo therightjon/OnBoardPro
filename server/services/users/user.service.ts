@@ -105,7 +105,8 @@ export class UserService {
 
     // Set roles if provided
     if (roles && Array.isArray(roles)) {
-      await this.userRepo.setUserRoles(user.id, roles);
+      const roleNames = roles.map((r: any) => typeof r === "string" ? r : r.role).filter(Boolean) as string[];
+      await this.userRepo.setUserRoles(user.id, roleNames);
     }
 
     // Publish domain event
@@ -151,12 +152,13 @@ export class UserService {
     const existingUser = await this.userRepo.getUser(userId);
     const previousRoles = existingUser ? [existingUser.role] : [];
 
-    const userRoles = await this.userRepo.setUserRoles(userId, roles);
+    const roleNames = roles.map((r: any) => typeof r === "string" ? r : r.role).filter(Boolean) as string[];
+    const userRoles = await this.userRepo.setUserRoles(userId, roleNames);
 
     // Publish domain event
     await eventBus.publish(userRoleChanged(userId, {
       previousRoles,
-      newRoles: roles,
+      newRoles: roleNames,
       changedBy: actorId || 'system'
     }, {
       actorId
@@ -179,8 +181,8 @@ export class UserService {
 
     return {
       success: result.success,
-      tasksReassigned: result.tasksReassigned,
-      taskCount
+      tasksReassigned: result.tasksReassigned ?? 0,
+      taskCount: (result as any).taskCount ?? 0
     };
   }
 
@@ -222,27 +224,39 @@ export class UserService {
     limit?: number,
     offset?: number
   ): Promise<User[]> {
-    return this.userRepo.getManagersByDepartment(departmentId, divisionId, search, limit, offset);
+    const repo: any = this.userRepo as any;
+    if (typeof repo.getManagersByDepartment === "function") {
+      return repo.getManagersByDepartment(departmentId, divisionId, search, limit, offset);
+    }
+    return [];
   }
 
   /**
    * Get user open task count
    */
   async getUserOpenTaskCount(userId: string): Promise<number> {
-    return this.userRepo.getUserOpenTaskCount(userId);
+    return this.userRepo.getUserOpenTaskCount(userId) as unknown as number;
   }
 
   /**
    * Get user preferences
    */
   async getUserPreferences(userId: string): Promise<any> {
-    return this.userRepo.getUserPreferences(userId);
+    const repo: any = this.userRepo as any;
+    if (typeof repo.getUserPreferences === "function") {
+      return repo.getUserPreferences(userId);
+    }
+    return undefined;
   }
 
   /**
    * Upsert user preferences
    */
   async upsertUserPreferences(userId: string, preferences: any): Promise<any> {
-    return this.userRepo.upsertUserPreferences(userId, preferences);
+    const repo: any = this.userRepo as any;
+    if (typeof repo.upsertUserPreferences === "function") {
+      return repo.upsertUserPreferences(userId, preferences);
+    }
+    return undefined;
   }
 }

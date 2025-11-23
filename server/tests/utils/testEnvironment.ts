@@ -11,7 +11,7 @@ export async function createAuthTestEnvironment(): Promise<AuthTestEnvironment> 
   const storage = new InMemoryStorage();
 
   const useAsGlobalStorage = () => {
-    setStorage(storage);
+    setStorage(storage as any);
     return () => resetStorage();
   };
 

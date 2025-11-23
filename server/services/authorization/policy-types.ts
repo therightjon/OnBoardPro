@@ -5,7 +5,8 @@
  */
 
 import type { Express } from "express";
-import type { AuthorizationContext } from "../repositories/base/types";
+import type { AuthorizationContext } from "../../repositories/base/types";
+export type { AuthorizationContext };
 
 /**
  * Result of an authorization check

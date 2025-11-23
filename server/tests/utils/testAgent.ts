@@ -48,10 +48,10 @@ export async function createAuthedAgent({
   app.use((req, _res, next) => {
     if (sessionUser) {
       req.user = { ...sessionUser } as Express.User;
-      req.isAuthenticated = () => true;
+      req.isAuthenticated = (() => true) as any;
     } else {
       req.user = undefined;
-      req.isAuthenticated = () => false;
+      req.isAuthenticated = (() => false) as any;
     }
     next();
   });

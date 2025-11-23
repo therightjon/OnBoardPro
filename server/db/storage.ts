@@ -208,14 +208,19 @@ function applyScopeFilters(whereConditions: any[], filters: CandidateScopeFilter
 }
 
 export interface IStorage {
-  sessionStore?: session.Store;
   buildAuthorizationContext(user: Express.User | null | undefined): AuthorizationContext;
   // Basic user operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
   getAllUsers(filters?: { status?: string; role?: string; departmentId?: string; divisionId?: string; search?: string }): Promise<User[]>;
+  getUserIdentities(userId: string): Promise<UserIdentity[]>;
+  getUserIdentityByProvider(provider: string, externalId: string): Promise<UserIdentity | undefined>;
+  createUserIdentity(identity: InsertUserIdentity): Promise<UserIdentity>;
+  updateUserIdentity(id: string, data: Partial<UserIdentity>): Promise<UserIdentity | undefined>;
+  deleteUserIdentity(id: string): Promise<void>;
   
   // User role management
   getUserRoles(userId: string): Promise<UserRole[]>;
@@ -316,19 +321,32 @@ export interface IStorage {
   createDivision(div: InsertDivision): Promise<Division>;
   updateDepartment(id: string, data: Partial<Department>): Promise<Department | undefined>;
   updateDivision(id: string, data: Partial<Division>): Promise<Division | undefined>;
+  searchDepartments(query: string): Promise<Array<{ id: string; name: string; score?: number }>>;
+  searchDivisions(query: string, departmentId?: string): Promise<Array<{ id: string; name: string; departmentId?: string; score?: number }>>;
+  searchUsers(query: string, options?: { departmentId?: string; divisionId?: string; role?: string }): Promise<Array<{ id: string; name: string; email: string; role: string }>>;
   
   // Reference data
   getHiringStages(): Promise<HiringStage[]>;
+  createHiringStage(stage: InsertHiringStage): Promise<HiringStage>;
+  updateHiringStage(id: string, stage: Partial<HiringStage>): Promise<HiringStage | undefined>;
+  deleteHiringStage(id: string): Promise<void>;
   getTaskCategories(): Promise<TaskCategory[]>;
   getTaskPriorities(): Promise<TaskPriority[]>;
   getCandidateTypes(): Promise<CandidateType[]>;
   getFacultyRanks(): Promise<FacultyRank[]>;
   getUsers(): Promise<User[]>; // Legacy method - use getAllUsers for new code
   
+  // System settings
+  getSystemSettings(): Promise<{ auto_regress_on_prior_open: boolean }>;
+  setSystemSettings(patch: { auto_regress_on_prior_open?: boolean }): Promise<{ auto_regress_on_prior_open: boolean } | undefined>;
+  
   // Auth Providers
   getAllAuthProviders(): Promise<AuthProvider[]>;
   getAuthProvider(id: string): Promise<AuthProvider | undefined>;
   updateAuthProvider(id: string, data: Partial<AuthProvider>): Promise<AuthProvider | undefined>;
+  getLdapSettings(): Promise<LdapSettings>;
+  getLdapConfigured(): Promise<boolean>;
+  setLdapSettings(patch: Partial<LdapSettings>): Promise<LdapSettings>;
   
   // Session store
   sessionStore: session.Store;
@@ -3286,12 +3304,12 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async searchDivisions(query: string, departmentId?: string): Promise<{ id: string; name: string; score?: number }[]> {
+  async searchDivisions(query: string, departmentId?: string): Promise<{ id: string; name: string; departmentId?: string; score?: number }[]> {
     const results = await this.db.execute(sql`
       WITH qry AS (
         SELECT nullif(trim(${query}), '') AS q, ${departmentId || null}::uuid AS dept_id
       )
-      SELECT id, name,
+      SELECT id, name, department_id,
              CASE WHEN (SELECT q FROM qry) IS NULL THEN 1.0
                   ELSE GREATEST(similarity(lower(name), lower((SELECT q FROM qry))), 0)
              END AS score
@@ -3313,11 +3331,16 @@ export class DatabaseStorage implements IStorage {
     return results.rows.map((r: any) => ({ 
       id: r.id as string, 
       name: r.name as string, 
+      departmentId: r.department_id as string | undefined,
       score: r.score as number 
     }));
   }
 
-  async searchUsers(query: string, role?: string, departmentId?: string, divisionId?: string): Promise<{ id: string; name: string; score?: number }[]> {
+  async searchUsers(
+    query: string,
+    options: { role?: string; departmentId?: string; divisionId?: string } = {}
+  ): Promise<{ id: string; name: string; email: string; role: string; score?: number }[]> {
+    const { role, departmentId, divisionId } = options;
     const results = await this.db.execute(sql`
       WITH params AS (
         SELECT 
@@ -3328,15 +3351,17 @@ export class DatabaseStorage implements IStorage {
       )
       SELECT u.id,
              u.first_name || ' ' || u.last_name AS name,
+             u.email,
+             u.role,
              CASE
-               WHEN (SELECT q FROM params) IS NULL THEN 1.0
-               ELSE GREATEST(similarity(lower(u.first_name || ' ' || u.last_name), lower((SELECT q FROM params))), 0)
+              WHEN (SELECT q FROM params) IS NULL THEN 1.0
+              ELSE GREATEST(similarity(lower(u.first_name || ' ' || u.last_name), lower((SELECT q FROM params))), 0)
              END AS score
       FROM users u, params p
       WHERE u.status = 'active'
         AND (p.role IS NULL OR u.role::text = p.role)
         AND (
-          p.division_id IS NOT NULL AND u.division_id = p.division_id
+          (p.division_id IS NOT NULL AND u.division_id = p.division_id)
           OR (p.division_id IS NULL AND (p.department_id IS NULL OR u.department_id = p.department_id))
         )
         AND (
@@ -3356,6 +3381,8 @@ export class DatabaseStorage implements IStorage {
     return results.rows.map((r: any) => ({ 
       id: r.id as string, 
       name: r.name as string, 
+      email: r.email as string, 
+      role: r.role as string, 
       score: r.score as number 
     }));
   }

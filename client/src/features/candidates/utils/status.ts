@@ -25,6 +25,10 @@ export type ResolvedCandidateStatus = {
   isCompleted: boolean;
 };
 
+export type CandidateTaskLike = {
+  status?: string | null;
+};
+
 export const CANDIDATE_STATUS_PRIORITY: CandidateLifecycleStatus[] = [
   "archived",
   "canceled",
@@ -76,23 +80,21 @@ export const candidateStatusBadgeClass = (status: ResolvedCandidateStatusKey) =>
   STATUS_BADGE_CLASSES[status] ?? STATUS_BADGE_CLASSES.unknown;
 
 export function resolveCandidateStatus(
-  candidate?: CandidateStatusLike | null,
-  options: { onboardingComplete?: boolean } = {}
+  candidate?: CandidateStatusLike | null
 ): ResolvedCandidateStatus {
   const normalized = normalizeCandidateStatus(candidate?.status);
-  const onboardingComplete = Boolean(options.onboardingComplete);
 
   const resolved: ResolvedCandidateStatusKey =
     candidate?.archived || normalized === "archived"
       ? "archived"
       : normalized === "canceled"
         ? "canceled"
-        : normalized === "completed" || onboardingComplete
+        : normalized === "completed"
           ? "completed"
-          : normalized === "on_hold"
-            ? "on_hold"
-            : normalized === "active"
-              ? "active"
+        : normalized === "on_hold"
+          ? "on_hold"
+          : normalized === "active"
+            ? "active"
               : normalized === "draft"
                 ? "draft"
                 : "unknown";
@@ -107,3 +109,32 @@ export function resolveCandidateStatus(
     isCompleted: resolved === "completed"
   };
 }
+
+export type CandidateTaskSummary = {
+  total: number;
+  completed: number;
+  canceled: number;
+  open: number;
+  allDone: boolean;
+  allClosed: boolean;
+};
+
+export const summarizeCandidateTasks = (tasks: CandidateTaskLike[] = []): CandidateTaskSummary => {
+  const normalized = tasks.map((t) => (t?.status ?? "").toString().toLowerCase());
+  const completed = normalized.filter((s) => s === "done").length;
+  const canceled = normalized.filter((s) => s === "canceled").length;
+  const total = normalized.length;
+  const open = total - completed - canceled;
+  const allDone = total > 0 && completed === total;
+  const allClosed = total > 0 && completed + canceled === total;
+  return { total, completed, canceled, open, allDone, allClosed };
+};
+
+export const isCandidateFullyOnboarded = (
+  candidate: CandidateStatusLike | null | undefined,
+  tasks: CandidateTaskLike[]
+) => {
+  const status = normalizeCandidateStatus(candidate?.status);
+  const summary = summarizeCandidateTasks(tasks);
+  return status === "completed" && summary.allDone;
+};

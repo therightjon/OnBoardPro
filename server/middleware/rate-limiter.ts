@@ -44,15 +44,19 @@ export function createRateLimiter(options: RateLimiterOptions): RequestHandler {
       res.setHeader("X-RateLimit-Reset", String(Math.floor(bucket.reset / 1000)));
 
       // Log rate limit exceeded
-      const { reportAuthorizationFailure } = await import("../observability/authMetrics");
-      reportAuthorizationFailure({
-        actorId: (req as any).user?.id || 'anonymous',
-        roles: (req as any).user?.roles || [],
-        resource: "general",
-        action: `rate_limit:${name}`,
-        reason: `exceeded_${max}`,
-        timestamp: new Date()
-      }).catch(() => undefined);
+      try {
+        const { reportAuthorizationFailure } = await import("../observability/authMetrics");
+        reportAuthorizationFailure({
+          actorId: (req as any).user?.id || 'anonymous',
+          roles: (req as any).user?.roles || [],
+          resource: "general",
+          action: `rate_limit:${name}`,
+          reason: `exceeded_${max}`,
+          timestamp: new Date()
+        });
+      } catch {
+        // ignore metrics errors
+      }
 
       return res.status(429).json({ message: "Too many requests, please slow down." });
     }

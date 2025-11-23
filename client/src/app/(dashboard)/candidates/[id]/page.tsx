@@ -23,7 +23,7 @@ import { TaskCommentsModal } from "@/features/comments/components/task-comments-
 import { CommentsTab } from "@/features/comments/components/comments-tab";
 import { EditCandidateDialog } from "@/features/candidates/components/edit-candidate-dialog";
 import { ArchiveCandidateDialog } from "@/features/candidates/components/archive-candidate-dialog";
-import { candidateStatusBadgeClass, resolveCandidateStatus, type ResolvedCandidateStatus } from "@/features/candidates/utils/status";
+import { candidateStatusBadgeClass, isCandidateFullyOnboarded, resolveCandidateStatus, summarizeCandidateTasks, type ResolvedCandidateStatus } from "@/features/candidates/utils/status";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
@@ -338,15 +338,17 @@ export default function CandidateDetailPage() {
 
   // Compute onboarding completion: all tasks are either done or canceled
   const allTasksFlat = useMemo(() => (Object.values(tasksByStage).flat() as any[]), [tasksByStage]);
+  const taskSummary = summarizeCandidateTasks(allTasksFlat);
   const hasAnyTasks = allTasksFlat.length > 0;
-  const onboardingComplete = hasAnyTasks && allTasksFlat.every((task: any) => task.status === 'done' || task.status === 'canceled');
 
   // Automatically set status to completed when onboarding is complete (excluding canceled/archived)
   useEffect(() => {
     // no-op on server / ensure candidate exists
     if (!candidate) return;
     const status = (candidate as any).status as string | undefined;
-    if (!onboardingComplete) return;
+    // Only auto-complete when every task is actually done (no canceled) and status isn't already terminal
+    const shouldAutoComplete = taskSummary.allDone;
+    if (!shouldAutoComplete) return;
     if (!status || status === 'completed' || status === 'canceled' || status === 'archived') return;
     // Fire-and-forget status update; ignore errors here and let manual update handle it
     (async () => {
@@ -359,7 +361,7 @@ export default function CandidateDetailPage() {
         // Silently ignore; user can manually adjust if needed
       }
     })();
-  }, [candidate, onboardingComplete, queryClient]);
+  }, [candidate, taskSummary.allDone, queryClient]);
 
   const candidatePhase = (candidate as any)?.currentStage?.phase ?? "pre_hire";
   const candidatePhaseLabel = candidatePhase === "onboarding" ? "Onboarding" : "Pre-hire";
@@ -394,11 +396,12 @@ export default function CandidateDetailPage() {
   ];
 
   const candidateId = (candidate as any)?.id || id;
-  const resolvedStatus = resolveCandidateStatus(candidate as any, { onboardingComplete });
+  const resolvedStatus = resolveCandidateStatus(candidate as any);
   const candidateStatusKey = resolvedStatus.status === 'unknown'
     ? ((candidate as any)?.status || 'draft')
     : resolvedStatus.status;
-  const taskStatusDisabled = onboardingComplete ||
+  const fullyOnboarded = isCandidateFullyOnboarded(candidate as any, allTasksFlat);
+  const taskStatusDisabled = fullyOnboarded ||
     !['draft', 'active', 'on_hold'].includes(candidateStatusKey);
   const assigneeSelectLocked = taskStatusDisabled || !!assigneeError;
 
@@ -407,10 +410,10 @@ export default function CandidateDetailPage() {
     ? (currentStageName === "Not set" ? "Archived" : `${currentStageName} (Archived)`)
     : resolvedStatus.isCanceled
       ? (currentStageName === "Not set" ? "Canceled" : `${currentStageName} (Canceled)`)
-      : resolvedStatus.isCompleted
+      : fullyOnboarded
         ? "Fully Onboarded!"
         : currentStageName;
-  const stageClassName = resolvedStatus.isCompleted
+  const stageClassName = fullyOnboarded
     ? "text-xs xs:text-sm font-bold text-green-700 dark:text-green-400 break-words"
     : "text-xs xs:text-sm text-muted-foreground break-words";
 
@@ -723,7 +726,7 @@ export default function CandidateDetailPage() {
     // Only show editable for authorized roles and when not already fully onboarded
     const canEdit = (user?.role === 'system_admin' || user?.role === 'hr_staff') 
       && candidate?.status !== 'completed'
-      && !onboardingComplete;
+      && !fullyOnboarded;
     
     if (!canEdit) {
       return (
@@ -926,7 +929,7 @@ export default function CandidateDetailPage() {
               );
             }
 
-            return resolvedStatus.isCompleted ? (
+            return fullyOnboarded ? (
               <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
                 <p className="text-2xl font-bold text-green-700 dark:text-green-400 text-center" data-testid="text-onboarding-complete">
                   Onboarding Complete!
@@ -1363,7 +1366,7 @@ export default function CandidateDetailPage() {
                   <CardTitle className="flex items-center gap-2 flex-wrap">
                     <Clock className="w-4 h-4" />
                     <span>Stage Timeline</span>
-                    {resolvedStatus.isCompleted && (
+                    {fullyOnboarded && (
                       <span className="font-bold text-green-700 dark:text-green-400" data-testid="text-fully-onboarded-timeline">Fully Onboarded!</span>
                     )}
                     {(candidate as any).isBlockedByPriorStage && (candidate as any).blockerSummary?.earliestPriorStage && (

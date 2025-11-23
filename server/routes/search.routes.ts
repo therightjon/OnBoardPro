@@ -189,13 +189,17 @@ router.get("/search/users", requireAuth, async (req, res, next) => {
       await logAuthorizationFailure({ req, resource: "general", action: "search:users", reason: "role_mismatch" });
       return res.status(403).json({ message: "Insufficient permissions" });
     }
-    const q = (req.query.q ?? '').toString().trim();
-    const role = (req.query.role ?? '').toString().trim();
-    const departmentId = typeof req.query.departmentId === 'string' ? req.query.departmentId : undefined;
-    const divisionId = typeof req.query.divisionId === 'string' ? req.query.divisionId : undefined;
+  const q = (req.query.q ?? '').toString().trim();
+  const role = (req.query.role ?? '').toString().trim();
+  const departmentId = typeof req.query.departmentId === 'string' ? req.query.departmentId : undefined;
+  const divisionId = typeof req.query.divisionId === 'string' ? req.query.divisionId : undefined;
 
-    console.log('Searching users with query:', q, 'role:', role, 'departmentId:', departmentId, 'divisionId:', divisionId);
-    const results = await storage.searchUsers(q, role || undefined, departmentId, divisionId);
+  console.log('Searching users with query:', q, 'role:', role, 'departmentId:', departmentId, 'divisionId:', divisionId);
+  const results = await storage.searchUsers(q, {
+    role: role || undefined,
+    departmentId,
+    divisionId
+  });
     console.log('User search results:', results.length, 'items');
     res.setHeader('Content-Type', 'application/json');
     res.status(200).json({ items: results, query: q });

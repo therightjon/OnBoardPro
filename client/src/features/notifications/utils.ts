@@ -63,7 +63,12 @@ function getTaskInfo(payload: Record<string, unknown> | null | undefined): {
       assigneeUserId: typeof (task as any).assigneeUserId === "string" ? (task as any).assigneeUserId : undefined,
     };
   }
-  return {};
+  const fallbackTitle = typeof (payload as any).taskTitle === "string"
+    ? (payload as any).taskTitle
+    : typeof (payload as any).title === "string"
+      ? (payload as any).title
+      : undefined;
+  return fallbackTitle ? { title: fallbackTitle } : {};
 }
 
 function getStageInfo(payload: Record<string, unknown> | null | undefined): { toStageName?: string } {
@@ -175,18 +180,19 @@ export function mapNotificationToDisplay(notification: NotificationRecord): Noti
     }
     case "task.assigned": {
       const link = buildTaskLink(notification, payload, candidateLink) ?? "/tasks/mine";
-      const title = task.title ? `Task "${task.title}"` : "Task update";
+      const preferredTitle = task.title ?? legacyTitle;
+      const title = preferredTitle ? `Task "${preferredTitle}"` : "Task update";
       if (reason === "status_change") {
         return {
           title: `${title} marked ${task.status ?? "updated"}`,
-          body: candidateName ? `Candidate ${candidateName}` : undefined,
+          body: legacyMessage ?? (candidateName ? `Candidate ${candidateName}` : undefined),
           link,
           icon: ClipboardList,
         };
       }
       return {
         title: `${title} assigned to you`,
-        body: candidateName ? `Candidate ${candidateName}` : undefined,
+        body: legacyMessage ?? (candidateName ? `Candidate ${candidateName}` : undefined),
         link,
         icon: ClipboardList,
       };
@@ -243,17 +249,16 @@ export function mapNotificationToDisplay(notification: NotificationRecord): Noti
     case "task.due_soon":
     case "task.overdue": {
       const link = buildTaskLink(notification, payload, candidateLink) ?? candidateLink ?? "/tasks/mine";
-      const baseTitle = task.title ? `Task "${task.title}"` : "Task update";
+      const taskTitle = task.title ?? legacyTitle;
+      const baseTitle = taskTitle ? `Task "${taskTitle}"` : "Task update";
       const statusText = notification.type === "task.due_soon" ? "due soon" : "overdue";
       const dueDate = formatTaskDueDate(task.dueAt);
       const bodyParts: string[] = [];
-      if (candidateName) {
-        bodyParts.push(`Candidate ${candidateName}`);
-      }
-      if (dueDate) {
-        bodyParts.push(`Due ${dueDate}`);
-      }
-      const body = bodyParts.length > 0 ? bodyParts.join(" - ") : undefined;
+      const bodyCandidate = candidateName ? `Candidate ${candidateName}` : undefined;
+      const bodyDue = dueDate ? `Due ${dueDate}` : undefined;
+      if (bodyCandidate) bodyParts.push(bodyCandidate);
+      if (bodyDue) bodyParts.push(bodyDue);
+      const body = legacyMessage ?? (bodyParts.length > 0 ? bodyParts.join(" - ") : undefined);
       return {
         title: `${baseTitle} ${statusText}`,
         body,

@@ -68,7 +68,7 @@ const createEmptyDataset = (): StorageDataset => ({
   userPreferences: new Map()
 });
 
-export class InMemoryStorage implements IStorage {
+export class InMemoryStorage implements Partial<IStorage> {
   public readonly sessionStore: session.Store;
   protected readonly data: StorageDataset;
 
@@ -252,6 +252,30 @@ export class InMemoryStorage implements IStorage {
     return undefined;
   }
 
+  async getUserByUsername(_username: string): Promise<User | undefined> {
+    throw new Error("Not implemented");
+  }
+
+  async getUserIdentities(_userId: string): Promise<any[]> {
+    throw new Error("Not implemented");
+  }
+
+  async getUserIdentityByProvider(_provider: string, _externalId: string): Promise<any | undefined> {
+    throw new Error("Not implemented");
+  }
+
+  async createUserIdentity(_identity: any): Promise<any> {
+    throw new Error("Not implemented");
+  }
+
+  async updateUserIdentity(_id: string, _data: Partial<any>): Promise<any | undefined> {
+    throw new Error("Not implemented");
+  }
+
+  async deleteUserIdentity(_id: string): Promise<void> {
+    throw new Error("Not implemented");
+  }
+
   async getUserRoles(userId: string): Promise<UserRole[]> {
     const set = this.data.userRoles.get(userId);
     if (!set) return [];
@@ -259,7 +283,7 @@ export class InMemoryStorage implements IStorage {
     return Array.from(set).map((role) => ({
       id: randomUUID(),
       userId,
-      role,
+      role: role as any,
       createdAt: now,
       updatedAt: now
     }));
@@ -486,6 +510,9 @@ export class InMemoryStorage implements IStorage {
   async updateDivision(): Promise<Division | undefined> { throw new Error("Not implemented"); }
   async archiveDivision(): Promise<void> { throw new Error("Not implemented"); }
   async restoreDivision(): Promise<void> { throw new Error("Not implemented"); }
+  async searchDepartments(): Promise<any[]> { throw new Error("Not implemented"); }
+  async searchDivisions(): Promise<any[]> { throw new Error("Not implemented"); }
+  async searchUsers(): Promise<any[]> { throw new Error("Not implemented"); }
   async getHiringStages(): Promise<any[]> { throw new Error("Not implemented"); }
   async createHiringStage(): Promise<any> { throw new Error("Not implemented"); }
   async updateHiringStage(): Promise<any> { throw new Error("Not implemented"); }
@@ -499,17 +526,19 @@ export class InMemoryStorage implements IStorage {
     return provider ? { ...provider } : undefined;
   }
   async updateAuthProvider(): Promise<AuthProvider | undefined> { throw new Error("Not implemented"); }
-  async getSystemSettings(): Promise<any[]> {
-    return Array.from(this.data.systemSettings.entries()).map(([key, value]) => ({
-      key,
-      value,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }));
+  async getLdapSettings(): Promise<any> { throw new Error("Not implemented"); }
+  async getLdapConfigured(): Promise<boolean> { throw new Error("Not implemented"); }
+  async setLdapSettings(): Promise<any> { throw new Error("Not implemented"); }
+  async getSystemSettings(): Promise<{ auto_regress_on_prior_open: boolean }> {
+    return { auto_regress_on_prior_open: false };
   }
-  async setSystemSettings(): Promise<any> { throw new Error("Not implemented"); }
+  async setSystemSettings(): Promise<{ auto_regress_on_prior_open: boolean } | undefined> {
+    throw new Error("Not implemented");
+  }
   async getCandidateFollowers(): Promise<any[]> { throw new Error("Not implemented"); }
-  async getCandidateComments(): Promise<any[]> { throw new Error("Not implemented"); }
+  async getCandidateComments(): Promise<{ items: any[]; nextCursor?: string; totalVisibleCount: number }> {
+    throw new Error("Not implemented");
+  }
   async createComment(): Promise<any> { throw new Error("Not implemented"); }
   async getNotifications(): Promise<any> { throw new Error("Not implemented"); }
   async createNotifications(): Promise<any> { throw new Error("Not implemented"); }

@@ -75,19 +75,19 @@ export class BaseRepository {
     const linkedUserIds = filters.linkedUserIds ? Array.from(new Set(filters.linkedUserIds)) : [];
 
     if (departmentIds.length > 0) {
-      scopeConditions.push(inArray(candidates.departmentId, departmentIds));
+      scopeConditions.push(inArray(candidates.departmentId, departmentIds as string[]));
     }
     if (divisionIds.length > 0) {
-      scopeConditions.push(inArray(candidates.divisionId, divisionIds));
+      scopeConditions.push(inArray(candidates.divisionId, divisionIds as string[]));
     }
     if (managerIds.length > 0) {
-      scopeConditions.push(inArray(candidates.managerId, managerIds));
+      scopeConditions.push(inArray(candidates.managerId, managerIds as string[]));
     }
     if (candidateIds.length > 0) {
-      scopeConditions.push(inArray(candidates.id, candidateIds));
+      scopeConditions.push(inArray(candidates.id, candidateIds as string[]));
     }
     if (linkedUserIds.length > 0) {
-      scopeConditions.push(inArray(candidates.linkedUserId, linkedUserIds));
+      scopeConditions.push(inArray(candidates.linkedUserId, linkedUserIds as string[]));
     }
 
     if (scopeConditions.length > 0) {
@@ -150,6 +150,6 @@ export class BaseRepository {
   protected async transaction<T>(
     callback: (tx: typeof DbType) => Promise<T>
   ): Promise<T> {
-    return this.db.transaction(callback);
+    return this.db.transaction(callback as any);
   }
 }

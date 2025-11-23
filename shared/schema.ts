@@ -18,12 +18,10 @@ import {
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-
-// Import enums from split schemas (single source of truth)
-export { roleEnum, userStatusEnum, appRoleEnum } from "./schemas/auth.schema";
-export { candidateStatusEnum, salutationEnum, stagePhaseEnum } from "./schemas/candidate.schema";
-export { taskStatusEnum, priorityEnum, dueRuleTypeEnum, taskAssigneeKindEnum } from "./schemas/task.enums";
-export {
+import { roleEnum, userStatusEnum, appRoleEnum } from "./schemas/auth.schema";
+import { candidateStatusEnum, salutationEnum, stagePhaseEnum } from "./schemas/candidate.schema";
+import { taskStatusEnum, priorityEnum, dueRuleTypeEnum, taskAssigneeKindEnum } from "./schemas/task.enums";
+import {
   notificationEntityEnum,
   notifications,
   notificationKeys,
@@ -32,7 +30,7 @@ export {
   type NotificationKey,
   type InsertNotificationKey
 } from "./schemas/notifications.schema";
-export {
+import {
   smtpSecurityEnum,
   smtpAuthTypeEnum,
   SMTP_OUTBOX_STATUSES,
@@ -45,6 +43,37 @@ export {
   type NotificationOutboxEntry,
   type InsertNotificationOutboxEntry
 } from "./schemas/email.schema";
+
+// Re-export enums and types for external consumers
+export { roleEnum, userStatusEnum, appRoleEnum };
+export { candidateStatusEnum, salutationEnum, stagePhaseEnum };
+export { taskStatusEnum, priorityEnum, dueRuleTypeEnum, taskAssigneeKindEnum };
+export {
+  notificationEntityEnum,
+  notifications,
+  notificationKeys,
+};
+export type {
+  Notification,
+  InsertNotification,
+  NotificationKey,
+  InsertNotificationKey
+};
+export {
+  smtpSecurityEnum,
+  smtpAuthTypeEnum,
+  SMTP_OUTBOX_STATUSES,
+  smtpSettings,
+  notificationOutbox,
+};
+export type {
+  SmtpOutboxStatus,
+  SmtpEncryptedSecretPayload,
+  SmtpSettings,
+  InsertSmtpSettings,
+  NotificationOutboxEntry,
+  InsertNotificationOutboxEntry
+};
 
 // Base tables
 export const users = pgTable("users", {
