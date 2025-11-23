@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
@@ -47,6 +47,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { insertDepartmentSchema, insertDivisionSchema, insertHiringStageSchema } from "@shared/schemas";
+import { PaginationControls } from "@/shared/components/pagination-controls";
 import { NotificationsCard } from "./NotificationsCard";
 import { SmtpSettingsCard } from "./SmtpSettingsCard";
 
@@ -109,6 +110,8 @@ const inviteRoleOptions = [
   { value: "manager", label: "Manager" },
   { value: "candidate", label: "Candidate" },
 ];
+
+const USERS_PAGE_SIZE = 5;
 
 // Authentication Providers Card Component
 function AuthenticationProvidersCard() {
@@ -533,6 +536,7 @@ export default function SettingsPage() {
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [userStatusFilter, setUserStatusFilter] = useState<string>("all");
   const [userRoleFilter, setUserRoleFilter] = useState<string>("all");
+  const [userCurrentPage, setUserCurrentPage] = useState(1);
   const [departmentSearchTerm, setDepartmentSearchTerm] = useState("");
   const [departmentArchiveFilter, setDepartmentArchiveFilter] = useState<string>("active");
   const [divisionSearchTerm, setDivisionSearchTerm] = useState("");
@@ -667,6 +671,34 @@ export default function SettingsPage() {
     },
     enabled: !!user && !!disablingUser?.id,
   });
+
+  const filteredUsers = useMemo(() => {
+    return (users as any[]).filter((user: any) => {
+      const matchesSearch =
+        `${user.firstName} ${user.lastName}`.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(userSearchTerm.toLowerCase());
+      const matchesStatus = userStatusFilter === "all" || user.status === userStatusFilter;
+      const matchesRole = userRoleFilter === "all" || user.role === userRoleFilter;
+
+      return matchesSearch && matchesStatus && matchesRole;
+    });
+  }, [users, userSearchTerm, userStatusFilter, userRoleFilter]);
+
+  const userPageSize = USERS_PAGE_SIZE;
+  const totalUsers = filteredUsers.length;
+  const userTotalPages = totalUsers > 0 ? Math.ceil(totalUsers / userPageSize) : 1;
+  const paginatedUsers = useMemo(() => {
+    const start = (userCurrentPage - 1) * userPageSize;
+    return filteredUsers.slice(start, start + userPageSize);
+  }, [filteredUsers, userCurrentPage, userPageSize]);
+
+  useEffect(() => {
+    setUserCurrentPage(1);
+  }, [userSearchTerm, userStatusFilter, userRoleFilter]);
+
+  useEffect(() => {
+    setUserCurrentPage((prev) => Math.min(prev, userTotalPages));
+  }, [userTotalPages]);
 
   const roleBadgeBase =
     "rounded-sm font-medium transition-colors shadow-none";
@@ -2362,101 +2394,107 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Users Table (Desktop) */}
-                <div className="border rounded-lg hidden md:block overflow-x-auto">
-                  <Table className="min-w-full">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Division</TableHead>
-                        <TableHead>Last Login</TableHead>
-                        <TableHead className="w-[100px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {usersLoading ? (
+                <div className="hidden md:block border rounded-lg">
+                  <div className="overflow-x-auto">
+                    <Table className="min-w-full">
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">
-                            <div className="animate-pulse">Loading users...</div>
-                          </TableCell>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Department</TableHead>
+                          <TableHead>Division</TableHead>
+                          <TableHead>Last Login</TableHead>
+                          <TableHead className="w-[100px]">Actions</TableHead>
                         </TableRow>
-                      ) : (users as any[]).length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                            No users found. Create your first user to get started.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        (users as any[])
-                          .filter((user: any) => {
-                            const matchesSearch = (user.firstName + ' ' + user.lastName).toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-                                                user.email.toLowerCase().includes(userSearchTerm.toLowerCase());
-                            const matchesStatus = userStatusFilter === "all" || user.status === userStatusFilter;
-                            const matchesRole = userRoleFilter === "all" || user.role === userRoleFilter;
-                            
-                            return matchesSearch && matchesStatus && matchesRole;
-                          })
-                          .map((user: any) => (
-                          <TableRow key={user.id} className="hover:bg-muted/50" data-testid={`row-user-${user.id}`}>
-                            <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
-                            <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={getRoleBadgeColor(user.role)}>
-                                {user.role.replace('_', ' ').toUpperCase()}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge 
-                                variant={user.status === 'active' ? 'default' : user.status === 'disabled' ? 'destructive' : 'secondary'}
-                              >
-                                {user.status.toUpperCase()}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {user.department?.name || 'Not Assigned'}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {user.division?.name || 'Not Assigned'}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center space-x-2">
-                                <Button variant="ghost" size="sm" onClick={() => handleEditUser(user)} data-testid={`button-edit-user-${user.id}`}>
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                {user.status === 'active' ? (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="text-destructive" 
-                                    onClick={() => handleDisableUser(user)}
-                                    data-testid={`button-disable-user-${user.id}`}
-                                  >
-                                    <Archive className="w-4 h-4" />
-                                  </Button>
-                                ) : (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="text-green-600" 
-                                    onClick={() => handleEnableUser(user)}
-                                    data-testid={`button-enable-user-${user.id}`}
-                                  >
-                                    <Users className="w-4 h-4" />
-                                  </Button>
-                                )}
-                              </div>
+                      </TableHeader>
+                      <TableBody>
+                        {usersLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-8">
+                              <div className="animate-pulse">Loading users...</div>
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                        ) : filteredUsers.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                              {(users as any[]).length === 0
+                                ? "No users found. Create your first user to get started."
+                                : "No users found matching your filters."}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          paginatedUsers.map((user: any) => (
+                            <TableRow key={user.id} className="hover:bg-muted/50" data-testid={`row-user-${user.id}`}>
+                              <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
+                              <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={getRoleBadgeColor(user.role)}>
+                                  {user.role.replace('_', ' ').toUpperCase()}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge 
+                                  variant={user.status === 'active' ? 'default' : user.status === 'disabled' ? 'destructive' : 'secondary'}
+                                >
+                                  {user.status.toUpperCase()}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {user.department?.name || 'Not Assigned'}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {user.division?.name || 'Not Assigned'}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center space-x-2">
+                                  <Button variant="ghost" size="sm" onClick={() => handleEditUser(user)} data-testid={`button-edit-user-${user.id}`}>
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  {user.status === 'active' ? (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="text-destructive" 
+                                      onClick={() => handleDisableUser(user)}
+                                      data-testid={`button-disable-user-${user.id}`}
+                                    >
+                                      <Archive className="w-4 h-4" />
+                                    </Button>
+                                  ) : (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="text-green-600" 
+                                      onClick={() => handleEnableUser(user)}
+                                      data-testid={`button-enable-user-${user.id}`}
+                                    >
+                                      <Users className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {totalUsers > userPageSize && (
+                    <div className="border-t border-border/60 px-4 py-3">
+                      <PaginationControls
+                        page={userCurrentPage}
+                        pageSize={userPageSize}
+                        totalCount={totalUsers}
+                        totalPages={userTotalPages}
+                        onPageChange={setUserCurrentPage}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Users (Mobile Cards) */}
@@ -2465,20 +2503,17 @@ export default function SettingsPage() {
                     <Card>
                       <CardContent className="p-4 text-center text-muted-foreground text-sm">Loading users...</CardContent>
                     </Card>
-                  ) : (users as any[]).length === 0 ? (
+                  ) : filteredUsers.length === 0 ? (
                     <Card>
-                      <CardContent className="p-4 text-center text-muted-foreground text-sm">No users found. Create your first user to get started.</CardContent>
+                      <CardContent className="p-4 text-center text-muted-foreground text-sm">
+                        {(users as any[]).length === 0
+                          ? "No users found. Create your first user to get started."
+                          : "No users found matching your filters."}
+                      </CardContent>
                     </Card>
                   ) : (
-                    (users as any[])
-                      .filter((user: any) => {
-                        const matchesSearch = (user.firstName + ' ' + user.lastName).toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-                                             user.email.toLowerCase().includes(userSearchTerm.toLowerCase());
-                        const matchesStatus = userStatusFilter === "all" || user.status === userStatusFilter;
-                        const matchesRole = userRoleFilter === "all" || user.role === userRoleFilter;
-                        return matchesSearch && matchesStatus && matchesRole;
-                      })
-                      .map((user: any) => (
+                    <>
+                      {paginatedUsers.map((user: any) => (
                         <Card key={user.id} className="p-4" data-testid={`card-user-${user.id}`}>
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
@@ -2521,7 +2556,20 @@ export default function SettingsPage() {
                             )}
                           </div>
                         </Card>
-                      ))
+                      ))}
+                      {totalUsers > userPageSize && (
+                        <div className="pt-2">
+                          <PaginationControls
+                            page={userCurrentPage}
+                            pageSize={userPageSize}
+                            totalCount={totalUsers}
+                            totalPages={userTotalPages}
+                            onPageChange={setUserCurrentPage}
+                            className="justify-center"
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </CardContent>
