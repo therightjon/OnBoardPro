@@ -1,11 +1,11 @@
 import { sql } from "drizzle-orm";
-import { 
-  pgTable, 
-  uuid, 
-  text, 
-  varchar, 
-  timestamp, 
-  boolean, 
+import {
+  pgTable,
+  uuid,
+  text,
+  varchar,
+  timestamp,
+  boolean,
   integer,
   date,
   time,
@@ -19,82 +19,12 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Enums
-export const roleEnum = pgEnum("role", [
-  "system_admin", 
-  "hr_staff", 
-  "department_admin", 
-  "division_leader", 
-  "manager", 
-  "candidate"
-]);
+// Import enums from split schemas (single source of truth)
+export { roleEnum, userStatusEnum, appRoleEnum } from "./schemas/auth.schema";
+export { candidateStatusEnum, salutationEnum, stagePhaseEnum } from "./schemas/candidate.schema";
+export { taskStatusEnum, priorityEnum, dueRuleTypeEnum, taskAssigneeKindEnum } from "./schemas/task.enums";
 
-export const userStatusEnum = pgEnum("user_status", [
-  "active",
-  "invited", 
-  "disabled"
-]);
-
-export const appRoleEnum = pgEnum("app_role", [
-  "system_admin",
-  "hr_staff", 
-  "department_admin",
-  "division_leader",
-  "manager",
-  "candidate"
-]);
-
-export const candidateStatusEnum = pgEnum("candidate_status", [
-  "draft", 
-  "active", 
-  "on_hold", 
-  "completed", 
-  "canceled",
-  "archived"
-]);
-
-export const taskStatusEnum = pgEnum("task_status", [
-  "todo", 
-  "in_progress", 
-  "blocked", 
-  "done", 
-  "canceled"
-]);
-
-export const priorityEnum = pgEnum("priority", [
-  "low", 
-  "medium", 
-  "high", 
-  "critical"
-]);
-
-export const taskAssigneeKindEnum = pgEnum("task_assignee_kind", [
-  "user",
-  "role"
-]);
-
-export const dueRuleTypeEnum = pgEnum("due_rule_type", [
-  "on_loo_date",
-  "days_before_loo",
-  "days_after_loo",
-  "days_before_start",
-  "on_start_date",
-  "days_after_start", 
-  "days_before_stage",
-  "days_after_stage",
-  "fixed_date"
-]);
-
-export const salutationEnum = pgEnum("salutation_type", [
-  "Mr.",
-  "Ms.", 
-  "Mrs.",
-  "Dr.",
-  "Prof.",
-  "Mx.",
-  "Other"
-]);
-
+// Enums specific to this schema (not yet migrated)
 export const notificationEntityEnum = pgEnum("notification_entity", [
   "candidate",
   "task",
@@ -209,11 +139,6 @@ export const taskPriorities = pgTable("task_priorities", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
-
-export const stagePhaseEnum = pgEnum("stage_phase", [
-  "pre_hire",
-  "onboarding"
-]);
 
 export const hiringStages = pgTable("hiring_stages", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
