@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { insertCandidateSchema } from "@shared/schemas";
 import {
   Dialog,
   DialogContent,
@@ -32,15 +33,15 @@ import { useToast } from "@/shared/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
 // Validation schema for editable fields only
-const editCandidateSchema = z.object({
-  salutation: z.enum(["Mr.", "Ms.", "Mrs.", "Dr.", "Prof.", "Mx.", "Other"]),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Please enter a valid email address"),
-  departmentId: z.string().min(1, "Department is required"),
-  divisionId: z.string().optional(),
-  managerId: z.string().optional(),
-  facultyRankId: z.string().optional(),
+const editCandidateSchema = insertCandidateSchema.pick({
+  salutation: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  departmentId: true,
+  divisionId: true,
+  managerId: true,
+  facultyRankId: true,
 });
 
 type EditCandidateFormData = z.infer<typeof editCandidateSchema>;

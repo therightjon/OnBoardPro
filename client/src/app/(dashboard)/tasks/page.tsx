@@ -26,15 +26,15 @@ import { useToast } from "@/shared/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { TaskDefinition } from "@shared/schemas";
+import { insertTaskDefinitionSchema, type TaskDefinition } from "@shared/schemas";
 import { RouteGuard } from "@/shared/components/route-guard";
 import { PaginationControls } from "@/shared/components/pagination-controls";
 
 const PAGE_SIZE = 5;
 
-const taskDefinitionSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  description: z.string().optional(),
+const taskDefinitionSchema = insertTaskDefinitionSchema.pick({
+  name: true,
+  description: true,
 });
 
 type TaskDefinitionForm = z.infer<typeof taskDefinitionSchema>;

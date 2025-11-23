@@ -114,6 +114,12 @@ export const templateTasksRelations = relations(templateTasks, ({ one }) => ({
 // Zod schemas
 export const insertTemplateSchema = createInsertSchema(templates);
 export const insertTemplateStageSchema = createInsertSchema(templateStages);
+export const insertTemplateTaskSchema = createInsertSchema(templateTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  archived: true,
+});
 
 // Types
 export type Template = typeof templates.$inferSelect;

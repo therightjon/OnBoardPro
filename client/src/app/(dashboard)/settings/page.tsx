@@ -46,23 +46,24 @@ import { useTheme } from "@/shared/components/layout/theme-provider";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { insertDepartmentSchema, insertDivisionSchema, insertHiringStageSchema } from "@shared/schemas";
 import { NotificationsCard } from "./NotificationsCard";
 import { SmtpSettingsCard } from "./SmtpSettingsCard";
 
-const departmentSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+const departmentSchema = insertDepartmentSchema.pick({
+  name: true,
 });
 
-const divisionSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  departmentId: z.string().min(1, "Department is required"),
+const divisionSchema = insertDivisionSchema.pick({
+  name: true,
+  departmentId: true,
 });
 
-const hiringStageSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  description: z.string().optional(),
-  orderIndex: z.number().min(0, "Order must be 0 or greater").optional(),
-  isActive: z.boolean().optional(),
+const hiringStageSchema = insertHiringStageSchema.pick({
+  name: true,
+  description: true,
+  orderIndex: true,
+  isActive: true,
 });
 
 const userSchema = z.object({
