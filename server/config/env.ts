@@ -22,6 +22,7 @@ const envSchema = z.object({
   // Background Jobs
   DISABLE_DEADLINE_SCANNER: z.string().optional(),
   DISABLE_EMAIL_JOBS: z.string().optional(),
+  DISABLE_NOTIFICATION_CLEANUP: z.string().optional(),
 
   // SMTP (Optional)
   SMTP_HOST: z.string().optional(),

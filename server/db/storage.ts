@@ -305,6 +305,7 @@ export interface IStorage {
   getNotifications(params: { userId: string; limit?: number; cursor?: string; unreadOnly?: boolean; types?: string[] }): Promise<{ items: Notification[]; nextCursor?: string; unreadCount: number; totalCount: number }>;
   setNotificationRead(userId: string, notificationId: string, isRead: boolean): Promise<boolean>;
   markAllNotificationsRead(userId: string): Promise<number>;
+  deleteReadNotificationsBefore(cutoff: Date, batchSize: number): Promise<number>;
   
   // Task Definitions
   getTaskDefinitions(): Promise<TaskDefinition[]>;
@@ -2268,6 +2269,23 @@ export class DatabaseStorage implements IStorage {
       .returning({ id: notifications.id });
 
     return result.length;
+  }
+
+  async deleteReadNotificationsBefore(cutoff: Date, batchSize: number): Promise<number> {
+    const candidates = await this.db
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(and(isNotNull(notifications.readAt), lte(notifications.readAt, cutoff)))
+      .limit(batchSize);
+
+    if (candidates.length === 0) return 0;
+
+    const deleted = await this.db
+      .delete(notifications)
+      .where(inArray(notifications.id, candidates.map((row) => row.id)))
+      .returning({ id: notifications.id });
+
+    return deleted.length;
   }
 
   async archiveTemplate(id: string): Promise<void> {

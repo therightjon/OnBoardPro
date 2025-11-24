@@ -5,6 +5,7 @@ import { env } from "./config/env"; // Validate environment early
 import { registerRoutes } from "./routes";
 import { startDeadlineScanner } from "./jobs/scan-deadlines";
 import { startNotificationEmailJobs } from "./jobs/notification-email";
+import { startNotificationCleanupJob } from "./jobs/notification-cleanup";
 import "./config/database.config"; // initialize DB side-effects
 import { setupVite, serveStatic, log } from "./vite";
 import { requestIdMiddleware, getRequestId } from "./middleware/request-id";
@@ -109,6 +110,10 @@ app.use((req: any, res, next) => {
   if (env.DISABLE_EMAIL_JOBS !== '1') {
     startNotificationEmailJobs();
     log('✓ Email notification jobs started');
+  }
+  if (env.DISABLE_NOTIFICATION_CLEANUP !== '1') {
+    startNotificationCleanupJob();
+    log('✓ Notification cleanup job started');
   }
 
   // Global error handler (must be last)
