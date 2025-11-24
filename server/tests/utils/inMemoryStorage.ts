@@ -438,6 +438,7 @@ export class InMemoryStorage implements Partial<IStorage> {
     return { ...base };
   }
   async updateCandidate(): Promise<Candidate | undefined> { throw new Error("Not implemented"); }
+  async resetCandidateTasksForReactivation(): Promise<number> { throw new Error("Not implemented"); }
   async deleteCandidateTask(): Promise<void> { throw new Error("Not implemented"); }
   async archiveCandidateTask(): Promise<void> { throw new Error("Not implemented"); }
   async resolveCandidateSelfAssignments(): Promise<any> { throw new Error("Not implemented"); }

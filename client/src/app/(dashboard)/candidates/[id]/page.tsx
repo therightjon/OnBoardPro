@@ -619,12 +619,13 @@ export default function CandidateDetailPage() {
     );
   }
 
-  const EditableStatusBadge = ({ candidate, user, tasks, onStatusChange, resolvedStatus }: { 
+  const EditableStatusBadge = ({ candidate, user, tasks, onStatusChange, resolvedStatus, onRequestRestore }: { 
     candidate: any; 
     user: any; 
     tasks: any[];
     onStatusChange: () => void;
     resolvedStatus: ResolvedCandidateStatus;
+    onRequestRestore: () => void;
   }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -703,6 +704,12 @@ export default function CandidateDetailPage() {
     };
 
     const handleStatusSelect = (newStatus: string) => {
+      if (candidate.archived && newStatus === 'active' && onRequestRestore) {
+        setIsOpen(false);
+        onRequestRestore();
+        return;
+      }
+
       const transitions = getValidTransitions(candidate.status);
       const transition = transitions.find(t => t.value === newStatus);
       
@@ -848,6 +855,7 @@ export default function CandidateDetailPage() {
               queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
             }}
             resolvedStatus={resolvedStatus}
+            onRequestRestore={() => setIsArchiveDialogOpen(true)}
           />
           {resolvedStatus.isArchived && (
             <Badge variant="destructive" data-testid="badge-archived">

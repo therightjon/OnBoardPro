@@ -108,6 +108,7 @@ export const candidates = pgTable("candidates", {
   templateLocked: boolean("template_locked").default(false).notNull(),
   templateNameSnapshot: text("template_name_snapshot"), // Template name captured at expansion time
   templateVersion: integer("template_version").default(1), // Optional immutable version number
+  statusBeforeArchive: candidateStatusEnum("status_before_archive"),
   archived: boolean("archived").default(false).notNull(),
   archivedAt: timestamp("archived_at"),
   archivedBy: uuid("archived_by").references(() => users.id),

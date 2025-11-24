@@ -369,7 +369,8 @@ export class CandidateRepository extends BaseRepository {
     }
 
     const currentStatus = candidate.status;
-
+    const statusBeforeArchive = (candidate as any).statusBeforeArchive as string | null | undefined;
+    
     // Define valid transitions
     const validTransitions: Record<string, string[]> = {
       'draft': ['active', 'on_hold', 'canceled', 'archived'],
@@ -435,16 +436,18 @@ export class CandidateRepository extends BaseRepository {
         updateData.archived = true;
         updateData.archivedAt = new Date();
         updateData.archivedBy = currentUserId;
+        updateData.statusBeforeArchive = statusBeforeArchive ?? currentStatus;
         break;
-
+        
       case 'active':
         if (currentStatus === 'archived') {
           // Restoring from archived
           updateData.archived = false;
           updateData.archivedAt = null;
           updateData.archivedBy = null;
+          updateData.statusBeforeArchive = null;
         }
-        if (currentStatus === 'canceled') {
+        if (currentStatus === 'canceled' || (currentStatus === 'archived' && statusBeforeArchive === 'canceled')) {
           // Restore previously canceled tasks back to default status
           const reopened = await this.db
             .update(candidateTasks)

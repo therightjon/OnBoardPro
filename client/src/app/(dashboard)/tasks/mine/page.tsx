@@ -11,7 +11,7 @@ import { useCommentStats } from "@/features/comments/api";
 import { Switch } from "@/shared/components/ui/switch";
 import { Label } from "@/shared/components/ui/label";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Filter, Calendar, Clock, AlertTriangle, MessageSquare } from "lucide-react";
+import { Search, Filter, Calendar, Clock, AlertTriangle } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
 import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
@@ -20,8 +20,11 @@ import { Link } from "wouter";
 import type { CandidateTask, Candidate } from "@shared/schemas";
 import { mergeUserPreferences, type UserPreferencesDTO } from "@shared/preferences";
 import { PaginationControls } from "@/shared/components/pagination-controls";
+import { SortableTableHeader } from "@/shared/components/sortable-table-header";
+import { useSortableTable } from "@/shared/hooks/use-sortable-table";
 
 const PAGE_SIZE = 5;
+type TaskSortKey = "task" | "candidate" | "priority" | "status" | "dueAt";
 
 export default function MyTasksPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -126,10 +129,81 @@ export default function MyTasksPage() {
     });
   }, [myTasks, searchTerm, statusFilter, priorityFilter]);
 
+  const sortableColumns = useMemo<
+    Record<
+      TaskSortKey,
+      {
+        getValue?: (task: CandidateTask) => string | number | boolean | Date | null | undefined;
+        compare?: (a: CandidateTask, b: CandidateTask, direction: "asc" | "desc") => number;
+      }
+    >
+  >(() => {
+    const priorityRank: Record<string, number> = {
+      critical: 0,
+      high: 1,
+      medium: 2,
+      low: 3,
+    };
+
+    const statusRank: Record<string, number> = {
+      todo: 0,
+      in_progress: 1,
+      blocked: 2,
+      done: 3,
+      canceled: 4,
+    };
+
+    return {
+      task: {
+        getValue: (task: CandidateTask) => task.title || "",
+      },
+      candidate: {
+        getValue: (task: CandidateTask) => getCandidateName(task),
+      },
+      priority: {
+        compare: (a: CandidateTask, b: CandidateTask, direction: "asc" | "desc") => {
+          const aRank = priorityRank[a.priority] ?? Number.MAX_SAFE_INTEGER;
+          const bRank = priorityRank[b.priority] ?? Number.MAX_SAFE_INTEGER;
+          if (aRank === bRank) return 0;
+          return direction === "asc" ? aRank - bRank : bRank - aRank;
+        },
+      },
+      status: {
+        compare: (a: CandidateTask, b: CandidateTask, direction: "asc" | "desc") => {
+          const aRank = statusRank[a.status] ?? Number.MAX_SAFE_INTEGER;
+          const bRank = statusRank[b.status] ?? Number.MAX_SAFE_INTEGER;
+          if (aRank === bRank) return 0;
+          return direction === "asc" ? aRank - bRank : bRank - aRank;
+        },
+      },
+      dueAt: {
+        compare: (a: CandidateTask, b: CandidateTask, direction: "asc" | "desc") => {
+          const aDate = a.dueAt ? new Date(a.dueAt).getTime() : null;
+          const bDate = b.dueAt ? new Date(b.dueAt).getTime() : null;
+
+          const aMissing = aDate === null;
+          const bMissing = bDate === null;
+
+          if (aMissing && bMissing) return 0;
+          if (aMissing) return 1;
+          if (bMissing) return -1;
+          if (aDate === bDate) return 0;
+
+          return direction === "asc" ? aDate - bDate : bDate - aDate;
+        },
+      },
+    };
+  }, [candidates, getCandidateName]);
+
+  const { sortedRows: sortedTasks, sortState, toggleSort } = useSortableTable<CandidateTask, TaskSortKey>({
+    rows: filteredTasks,
+    columns: sortableColumns,
+  });
+
   const pageSize = PAGE_SIZE;
-  const totalTasks = filteredTasks.length;
+  const totalTasks = sortedTasks.length;
   const totalPages = totalTasks > 0 ? Math.ceil(totalTasks / pageSize) : 1;
-  const paginatedTasks = filteredTasks.slice(
+  const paginatedTasks = sortedTasks.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
@@ -137,6 +211,10 @@ export default function MyTasksPage() {
   useEffect(() => {
     setCurrentPage((prev) => Math.min(prev, totalPages));
   }, [totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortState]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -159,7 +237,7 @@ export default function MyTasksPage() {
 
   // No edit/update handlers needed; comments open via modal per-row.
 
-  const getCandidateName = (task: any) => {
+  function getCandidateName(task: any) {
     // Use candidate info from task response (guaranteed by backend INNER JOIN)
     if (task.candidate) {
       return `${task.candidate.firstName} ${task.candidate.lastName}`;
@@ -167,7 +245,7 @@ export default function MyTasksPage() {
     // Fallback to candidates query
     const candidate = candidates.find((c: Candidate) => c.id === task.candidateId);
     return candidate ? `${candidate.firstName} ${candidate.lastName}` : `Task ${task.id.slice(0, 8)}...`;
-  };
+  }
 
   const getCandidateStatusForTask = (task: any): string => {
     // Prefer embedded candidate status when present
@@ -391,11 +469,41 @@ export default function MyTasksPage() {
             <Table className="min-w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[140px]">Task</TableHead>
-                  <TableHead className="min-w-[120px]">Candidate</TableHead>
-                  <TableHead className="min-w-[80px] hidden sm:table-cell">Priority</TableHead>
-                  <TableHead className="min-w-[100px]">Status</TableHead>
-                  <TableHead className="min-w-[100px] hidden md:table-cell">Due Date</TableHead>
+                  <SortableTableHeader
+                    columnKey="task"
+                    label="Task"
+                    direction={sortState.key === "task" ? sortState.direction : null}
+                    onSort={toggleSort}
+                    className="min-w-[500px] max-w-[500px]"
+                  />
+                  <SortableTableHeader
+                    columnKey="candidate"
+                    label="Candidate"
+                    direction={sortState.key === "candidate" ? sortState.direction : null}
+                    onSort={toggleSort}
+                    className="min-w-[120px]"
+                  />
+                  <SortableTableHeader
+                    columnKey="priority"
+                    label="Priority"
+                    direction={sortState.key === "priority" ? sortState.direction : null}
+                    onSort={toggleSort}
+                    className="min-w-[80px] hidden sm:table-cell"
+                  />
+                  <SortableTableHeader
+                    columnKey="status"
+                    label="Status"
+                    direction={sortState.key === "status" ? sortState.direction : null}
+                    onSort={toggleSort}
+                    className="min-w-[100px]"
+                  />
+                  <SortableTableHeader
+                    columnKey="dueAt"
+                    label="Due Date"
+                    direction={sortState.key === "dueAt" ? sortState.direction : null}
+                    onSort={toggleSort}
+                    className="min-w-[100px] hidden md:table-cell"
+                  />
                   <TableHead className="min-w-[80px] w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -419,11 +527,21 @@ export default function MyTasksPage() {
                     }`}
                     data-testid={`row-my-task-${task.id}`}
                   >
-                    <TableCell className="p-2 xs:p-3 sm:p-4">
+                    <TableCell className="p-2 xs:p-3 sm:p-4 w-[240px] max-w-[320px]">
                       <div>
-                        <div className="font-medium text-sm sm:text-base break-words">{task.title}</div>
+                        <div
+                          className="font-medium text-sm sm:text-base break-words"
+                          style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+                        >
+                          {task.title}
+                        </div>
                         {task.description && (
-                          <div className="text-xs sm:text-sm text-muted-foreground mt-1 break-words">{task.description}</div>
+                          <div
+                            className="text-xs sm:text-sm text-muted-foreground mt-1 break-words"
+                            style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+                          >
+                            {task.description}
+                          </div>
                         )}
                         {/* Show priority on mobile when priority column is hidden */}
                         <div className="sm:hidden mt-1">

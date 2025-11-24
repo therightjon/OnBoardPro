@@ -113,8 +113,19 @@ export class CandidateService {
       return undefined;
     }
 
+    // Preserve prior status when archiving to enable restore workflows
+    const nextData = { ...data } as any;
+    const isArchiving = data.archived === true || data.status === 'archived';
+    const isRestoring = data.archived === false || data.status === 'active';
+    if (isArchiving && existingCandidate) {
+      nextData.statusBeforeArchive = (existingCandidate as any).statusBeforeArchive ?? existingCandidate.status;
+    }
+    if (isRestoring) {
+      nextData.statusBeforeArchive = null;
+    }
+
     // Update the candidate
-    const updatedCandidate = await this.candidateRepo.updateCandidate(id, data);
+    const updatedCandidate = await this.candidateRepo.updateCandidate(id, nextData);
     if (!updatedCandidate) {
       return undefined;
     }
@@ -144,6 +155,63 @@ export class CandidateService {
     }
 
     return updatedCandidate;
+  }
+
+  /**
+   * Update candidate lifecycle status using repository state machine
+   * and publish status change events.
+   */
+  async updateCandidateStatus(input: {
+    id: string;
+    newStatus: string;
+    actorId: string;
+    closeOpenTasks?: boolean;
+    authContext?: AuthorizationContext;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+    code?: string;
+    remainingTasks?: any[];
+    cascaded?: {
+      closedTasks: number;
+      affectedCandidateStatus: string;
+      reopenedTasks?: number;
+    };
+    candidate?: Candidate;
+  }> {
+    const { id, newStatus, actorId, closeOpenTasks = false, authContext } = input;
+    const existing = await this.candidateRepo.getCandidate(id, authContext);
+    if (!existing) {
+      return { success: false, error: "Candidate not found", code: "CANDIDATE_NOT_FOUND" };
+    }
+
+    const result = await this.candidateRepo.updateCandidateStatus(
+      id,
+      newStatus,
+      actorId,
+      closeOpenTasks
+    );
+
+    if (!result.success) {
+      return result;
+    }
+
+    const updated = await this.candidateRepo.getCandidate(id, authContext);
+    if (!updated) {
+      return { success: false, error: "Candidate not found after update", code: "CANDIDATE_NOT_FOUND" };
+    }
+
+    if (existing.status !== updated.status) {
+      await eventBus.publish(candidateStatusChanged(id, {
+        previousStatus: existing.status,
+        newStatus: updated.status,
+        reason: undefined
+      }, {
+        actorId
+      }));
+    }
+
+    return { ...result, candidate: updated };
   }
 
   /**

@@ -450,6 +450,43 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
   }
 });
 
+// PATCH /api/candidates/:id/status - Update candidate status via state machine
+router.patch("/candidates/:id/status", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  try {
+    const statusSchema = z.object({
+      status: z.enum(["draft", "active", "on_hold", "completed", "canceled", "archived"]),
+      closeOpenTasks: z.boolean().optional()
+    });
+    const parsed = statusSchema.parse(req.body ?? {});
+
+    const candidateService = getCandidateService();
+    const authContext = authorizationService.buildContext(req.user);
+    const result = await candidateService.updateCandidateStatus({
+      id: req.params.id,
+      newStatus: parsed.status,
+      actorId: req.user!.id,
+      closeOpenTasks: parsed.closeOpenTasks,
+      authContext
+    });
+
+    if (!result.success || !result.candidate) {
+      const status = result.code === "CANDIDATE_NOT_FOUND" ? 404 : 400;
+      return res.status(status).json({
+        message: result.error || "Unable to update status",
+        code: result.code,
+        remainingTasks: result.remainingTasks
+      });
+    }
+
+    res.json({ ...result.candidate, cascaded: result.cascaded });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid status payload", errors: error.errors });
+    }
+    next(error);
+  }
+});
+
 // DELETE /api/candidates/:id - Archive candidate (soft delete)
 router.delete("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
@@ -484,27 +521,81 @@ router.delete("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_s
 // POST /api/candidates/:id/restore - Restore archived candidate
 router.post("/candidates/:id/restore", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
+    const restoreSchema = z.object({
+      reset: z.boolean().optional(),
+      offerLetterIssuedAt: z.coerce.date().optional(),
+      offerLetterAcceptedAt: z.coerce.date().optional().nullable(),
+      anticipatedStartDate: z.coerce.date().optional(),
+    }).superRefine((data, ctx) => {
+      if (data.reset) {
+        if (!data.offerLetterIssuedAt) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["offerLetterIssuedAt"], message: "LOO issued date is required" });
+        }
+        if (!data.anticipatedStartDate) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["anticipatedStartDate"], message: "Anticipated start date is required" });
+        }
+      }
+
+      if (data.offerLetterAcceptedAt && data.offerLetterIssuedAt && data.offerLetterAcceptedAt < data.offerLetterIssuedAt) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["offerLetterAcceptedAt"], message: "LOO accepted date cannot be before issued date" });
+      }
+      if (data.anticipatedStartDate && data.offerLetterIssuedAt && data.anticipatedStartDate < data.offerLetterIssuedAt) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["anticipatedStartDate"], message: "Anticipated start date cannot be before LOO issued date" });
+      }
+      if (data.anticipatedStartDate && data.offerLetterAcceptedAt && data.anticipatedStartDate < data.offerLetterAcceptedAt) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["anticipatedStartDate"], message: "Anticipated start date cannot be before LOO accepted date" });
+      }
+    });
+
+    const payload = restoreSchema.parse(req.body ?? {});
     const candidateService = getCandidateService();
     const authContext = authorizationService.buildContext(req.user);
 
-    // Restore using service
-    const candidate = await candidateService.updateCandidate({
-      id: req.params.id,
-      data: {
-        archived: false,
-        archivedAt: null,
-        archivedBy: null,
-        status: 'active' as const
-      },
-      actorId: req.user?.id,
-      authContext
-    });
-
+    const candidate = await candidateService.getCandidate(req.params.id, authContext);
     if (!candidate) {
       return res.status(404).json({ message: "Candidate not found" });
     }
 
-    // Return the full candidate with joined data
+    const wasCanceledBeforeArchive =
+      (candidate as any).statusBeforeArchive === 'canceled' ||
+      (candidate.archived && candidate.status === 'canceled');
+
+    if (wasCanceledBeforeArchive && !payload.reset) {
+      return res.status(400).json({
+        code: "RESET_REQUIRED",
+        message: "This candidate can’t be restored without resetting onboarding dates."
+      });
+    }
+
+    if (wasCanceledBeforeArchive && payload.reset) {
+      await candidateService.updateCandidate({
+        id: req.params.id,
+        data: {
+          offerLetterIssuedAt: payload.offerLetterIssuedAt!,
+          offerLetterAcceptedAt: payload.offerLetterAcceptedAt ?? null,
+          anticipatedStartDate: payload.anticipatedStartDate!,
+        },
+        actorId: req.user?.id,
+        authContext
+      });
+
+      await storage.resetCandidateTasksForReactivation(req.params.id);
+    }
+
+    const statusResult = await candidateService.updateCandidateStatus({
+      id: req.params.id,
+      newStatus: 'active',
+      actorId: req.user!.id,
+      authContext
+    });
+
+    if (!statusResult.success || !statusResult.candidate) {
+      const status = statusResult.code === "CANDIDATE_NOT_FOUND" ? 404 : 400;
+      return res.status(status).json({ message: statusResult.error || "Unable to restore candidate", code: statusResult.code });
+    }
+
+    await storage.recomputeCandidateDueDates(req.params.id);
+
     const fullCandidate = await candidateService.getCandidate(req.params.id, authContext);
     res.json(fullCandidate);
   } catch (error) {

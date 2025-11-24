@@ -254,6 +254,7 @@ export interface IStorage {
   getCandidate(id: string, auth?: AuthorizationContext): Promise<Candidate | undefined>;
   createCandidate(candidate: InsertCandidate): Promise<Candidate>;
   updateCandidate(id: string, data: Partial<Candidate>): Promise<Candidate | undefined>;
+  resetCandidateTasksForReactivation(candidateId: string): Promise<number>;
   
   // Tasks
   getCandidateTasks(filters?: any, auth?: AuthorizationContext): Promise<CandidateTask[]>;
@@ -1113,6 +1114,28 @@ export class DatabaseStorage implements IStorage {
       .where(eq(candidates.id, id))
       .returning();
     return candidate || undefined;
+  }
+
+  /**
+   * Reset all non-archived candidate tasks to a fresh state for reactivation.
+   * Clears completion/cancellation markers and due dates so anchors can be recomputed.
+   */
+  async resetCandidateTasksForReactivation(candidateId: string): Promise<number> {
+    const now = new Date();
+    const reset = await this.db
+      .update(candidateTasks)
+      .set({
+        status: 'todo',
+        completedAt: null,
+        cancelReason: null,
+        dueAt: null,
+        pendingAnchor: true,
+        updatedAt: now
+      })
+      .where(and(eq(candidateTasks.candidateId, candidateId), eq(candidateTasks.archived, false)))
+      .returning({ id: candidateTasks.id });
+
+    return reset.length;
   }
 
   async getCandidateTasks(filters?: any, auth?: AuthorizationContext): Promise<any[]> {
