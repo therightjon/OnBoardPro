@@ -1,27 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/shared/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { NotificationItem } from "@/features/notifications/components/NotificationItem";
-import type { NotificationRecord, NotificationsResponse } from "@/features/notifications/types";
+import type { NotificationRecord } from "@/features/notifications/types";
 import { fetchNotifications, markNotificationRead, markAllNotificationsRead } from "@/features/notifications/api";
 import { mapNotificationToDisplay } from "@/features/notifications/utils";
 import { NOTIFICATIONS_LIST_QUERY_KEY, NOTIFICATIONS_DROPDOWN_QUERY_KEY } from "@/features/notifications/constants";
 import { getNotificationFilter, NOTIFICATION_FILTERS, type NotificationFilterKey } from "@/features/notifications/filters";
+import { PaginationControls } from "@/shared/components/pagination-controls";
+
+const PAGE_SIZE = 5;
 
 export default function NotificationsPage() {
   const [filter, setFilter] = useState<NotificationFilterKey>("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
   const currentFilter = getNotificationFilter(filter);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
+
   const notificationsQuery = useInfiniteQuery({
-    queryKey: [...NOTIFICATIONS_LIST_QUERY_KEY, filter],
+    queryKey: [...NOTIFICATIONS_LIST_QUERY_KEY, filter, PAGE_SIZE],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => fetchNotifications({
-      limit: 20,
+      limit: PAGE_SIZE,
       cursor: pageParam ?? undefined,
       unreadOnly: currentFilter.unreadOnly,
       types: currentFilter.types
@@ -31,6 +39,7 @@ export default function NotificationsPage() {
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     refetchInterval: 20_000,
+    keepPreviousData: true,
   });
 
   const markReadMutation = useMutation({
@@ -53,10 +62,34 @@ export default function NotificationsPage() {
     }
   });
 
-  const notifications = notificationsQuery.data?.pages.flatMap((page: NotificationsResponse) => page.items) ?? [];
-  const isLoading = notificationsQuery.isLoading;
-  const isFetchingNext = notificationsQuery.isFetchingNextPage;
-  const hasNext = notificationsQuery.hasNextPage;
+  const {
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isFetching
+  } = notificationsQuery;
+
+  const pages = notificationsQuery.data?.pages ?? [];
+  const loadedPagesCount = pages.length;
+  const totalCount = pages[0]?.totalCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil((totalCount || 0) / PAGE_SIZE));
+  const currentPageData = pages[currentPage - 1];
+  const notifications = currentPageData?.items ?? [];
+  const isPageLoading = isLoading || (isFetchingNextPage && !currentPageData);
+
+  useEffect(() => {
+    if (!hasNextPage) return;
+    if (currentPage <= loadedPagesCount) return;
+    if (isFetchingNextPage) return;
+    void fetchNextPage();
+  }, [currentPage, loadedPagesCount, hasNextPage, fetchNextPage, isFetchingNextPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages || 1);
+    }
+  }, [currentPage, totalPages]);
 
   const handleSelect = (notification: NotificationRecord) => {
     const display = mapNotificationToDisplay(notification);
@@ -99,7 +132,7 @@ export default function NotificationsPage() {
       </div>
 
       <div className="mt-6 space-y-3">
-        {isLoading ? (
+        {isPageLoading ? (
           <p className="text-sm text-muted-foreground">Loading notifications…</p>
         ) : notifications.length === 0 ? (
           <p className="text-sm text-muted-foreground">No notifications found for this filter.</p>
@@ -114,17 +147,21 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      {hasNext && (
-        <div className="mt-6 flex justify-center">
-          <Button
-            variant="outline"
-            onClick={() => notificationsQuery.fetchNextPage()}
-            disabled={isFetchingNext}
-          >
-            {isFetchingNext ? "Loading…" : "Load more"}
-          </Button>
-        </div>
-      )}
+      <div className="mt-6">
+        <PaginationControls
+          page={currentPage}
+          pageSize={PAGE_SIZE}
+          totalCount={totalCount}
+          totalPages={totalPages}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+          }}
+          className="justify-center md:justify-end"
+        />
+        {isFetching && !isLoading && (
+          <p className="mt-2 text-center text-xs text-muted-foreground md:text-right">Updating…</p>
+        )}
+      </div>
     </div>
   );
 }

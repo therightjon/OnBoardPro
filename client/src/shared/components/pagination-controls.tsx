@@ -32,31 +32,42 @@ export function PaginationControls({
   const canGoPrevious = page > 1;
   const canGoNext = page < computedPages;
 
-  const visiblePages: Array<number | "ellipsis-left" | "ellipsis-right"> = [];
-
-  if (computedPages <= 7) {
-    for (let i = 1; i <= computedPages; i += 1) {
-      visiblePages.push(i);
-    }
-  } else {
-    visiblePages.push(1);
-    if (page > 4) {
-      visiblePages.push("ellipsis-left");
+  const visiblePages: Array<number | "ellipsis"> = (() => {
+    if (computedPages <= 5) {
+      return Array.from({ length: computedPages }, (_, idx) => idx + 1);
     }
 
-    const start = Math.max(2, page - 1);
-    const end = Math.min(computedPages - 1, page + 1);
+    const pagesToShow = new Set<number>([1, computedPages]);
 
-    for (let i = start; i <= end; i += 1) {
-      visiblePages.push(i);
+    if (page <= 2) {
+      pagesToShow.add(2);
+      pagesToShow.add(3);
+    } else if (page >= computedPages - 1) {
+      pagesToShow.add(computedPages - 1);
+      pagesToShow.add(computedPages - 2);
+    } else {
+      pagesToShow.add(page - 1);
+      pagesToShow.add(page);
+      pagesToShow.add(page + 1);
     }
 
-    if (page < computedPages - 3) {
-      visiblePages.push("ellipsis-right");
+    const sortedPages = Array.from(pagesToShow)
+      .filter((num) => num >= 1 && num <= computedPages)
+      .sort((a, b) => a - b);
+
+    const withEllipsis: Array<number | "ellipsis"> = [];
+
+    for (let i = 0; i < sortedPages.length; i += 1) {
+      const current = sortedPages[i];
+      const prev = sortedPages[i - 1];
+      if (prev && current - prev > 1) {
+        withEllipsis.push("ellipsis");
+      }
+      withEllipsis.push(current);
     }
 
-    visiblePages.push(computedPages);
-  }
+    return withEllipsis;
+  })();
 
   const changePage = (nextPage: number) => {
     onPageChange(Math.max(1, Math.min(nextPage, computedPages)));

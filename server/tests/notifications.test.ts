@@ -116,7 +116,7 @@ test("listNotificationsHandler passes parsed params to storage and returns respo
   const storage = {
     async getNotifications(args: any) {
       calls.push(args);
-      return { items: [], nextCursor: undefined, unreadCount: 3 };
+      return { items: [], nextCursor: undefined, unreadCount: 3, totalCount: 9 };
     },
   };
 
@@ -140,7 +140,7 @@ test("listNotificationsHandler passes parsed params to storage and returns respo
     unreadOnly: true,
     types: ["mention", "comment.created"],
   });
-  assert.deepEqual(jsonPayload, { items: [], nextCursor: undefined, unreadCount: 3 });
+  assert.deepEqual(jsonPayload, { items: [], nextCursor: undefined, unreadCount: 3, totalCount: 9 });
 });
 
 test("markNotificationReadHandler returns 400 when body invalid", async () => {

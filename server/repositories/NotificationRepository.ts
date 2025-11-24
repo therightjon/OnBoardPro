@@ -43,32 +43,40 @@ export class NotificationRepository extends BaseRepository {
     cursor?: string;
     unreadOnly?: boolean;
     types?: string[]
-  }): Promise<{ items: Notification[]; nextCursor?: string; unreadCount: number }> {
+  }): Promise<{ items: Notification[]; nextCursor?: string; unreadCount: number; totalCount: number }> {
     const { userId, limit = 20, cursor, unreadOnly = false, types } = params;
     const cursorObj = this.decodeCursor(cursor);
 
-    let whereClause = eq(notifications.userId, userId);
+    const baseCondition = eq(notifications.userId, userId);
+    const appliedConditions = [baseCondition];
 
     const unreadCondition = unreadOnly ? eq(notifications.isRead, false) : undefined;
     if (unreadCondition) {
-      whereClause = and(whereClause, unreadCondition)!;
+      appliedConditions.push(unreadCondition);
     }
 
     const typesCondition = types && types.length > 0 ? inArray(notifications.type, types) : undefined;
     if (typesCondition) {
-      whereClause = and(whereClause, typesCondition)!;
+      appliedConditions.push(typesCondition);
     }
 
-    if (cursorObj) {
-      const cursorCondition = or(
-        lt(notifications.createdAt, cursorObj.createdAt),
-        and(
-          eq(notifications.createdAt, cursorObj.createdAt),
-          lt(notifications.id, cursorObj.id)
+    const baseWhere = appliedConditions.reduce((acc, condition) => acc ? and(acc, condition)! : condition)!;
+    const cursorCondition = cursorObj
+      ? or(
+          lt(notifications.createdAt, cursorObj.createdAt),
+          and(
+            eq(notifications.createdAt, cursorObj.createdAt),
+            lt(notifications.id, cursorObj.id)
+          )
         )
-      );
-      whereClause = and(whereClause, cursorCondition)!;
-    }
+      : undefined;
+
+    const whereClause = cursorCondition ? and(baseWhere, cursorCondition)! : baseWhere;
+
+    const totalResult = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(notifications)
+      .where(baseWhere);
 
     const rows = await this.db
       .select()
@@ -88,8 +96,9 @@ export class NotificationRepository extends BaseRepository {
       .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
 
     const unreadCount = unreadResult[0]?.count ?? 0;
+    const totalCount = totalResult[0]?.count ?? 0;
 
-    return { items: items as Notification[], nextCursor, unreadCount };
+    return { items: items as Notification[], nextCursor, unreadCount, totalCount };
   }
 
   /**
