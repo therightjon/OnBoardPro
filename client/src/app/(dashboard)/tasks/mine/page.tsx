@@ -504,7 +504,7 @@ export default function MyTasksPage() {
                     onSort={toggleSort}
                     className="min-w-[100px] hidden md:table-cell"
                   />
-                  <TableHead className="min-w-[80px] w-[80px]">Actions</TableHead>
+                  <TableHead className="min-w-[80px] w-[80px] text-center">Comments</TableHead>
                 </TableRow>
               </TableHeader>
             <TableBody>
@@ -619,7 +619,7 @@ export default function MyTasksPage() {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="p-2 xs:p-3 sm:p-4">
+                    <TableCell className="p-2 xs:p-3 sm:p-4 text-center">
                       <TaskCommentsAction
                         candidateId={task.candidateId}
                         taskId={task.id}
