@@ -11,6 +11,8 @@ import { Users, Plus, Edit, Archive, RotateCcw, Search } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest, queryClient, parseJsonSafe } from "@/lib/queryClient";
 import { useToast } from "@/shared/hooks/use-toast";
+import { useSortableTable } from "@/shared/hooks/use-sortable-table";
+import { SortableTableHeader } from "@/shared/components/sortable-table-header";
 import { insertDivisionSchema } from "@shared/schemas";
 
 // UI Components
@@ -27,6 +29,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 // Schema
 const divisionSchema = insertDivisionSchema.pick({ name: true, departmentId: true });
 type DivisionForm = z.infer<typeof divisionSchema>;
+
+type DivisionSortKey = "name" | "department" | "status" | "createdAt";
 
 // Helper to detect archived status
 function isEntityArchived(entity: any): boolean {
@@ -99,6 +103,19 @@ export function DivisionsSection() {
     const dept = (departments as any[]).find((d) => d.id === departmentId);
     return dept?.name || "Unknown";
   };
+
+  // Sortable columns configuration
+  const sortableColumns = useMemo(() => ({
+    name: { key: "name" as const, getValue: (div: any) => div.name?.toLowerCase() || "" },
+    department: { key: "department" as const, getValue: (div: any) => getDepartmentName(div.departmentId).toLowerCase() },
+    status: { key: "status" as const, getValue: (div: any) => (isEntityArchived(div) ? "archived" : "active") },
+    createdAt: { key: "createdAt" as const, getValue: (div: any) => new Date(div.createdAt).getTime() },
+  }), [departments]);
+
+  const { sortedRows: displayDivisions, sortState, toggleSort } = useSortableTable<any, DivisionSortKey>({
+    rows: filteredDivisions,
+    columns: sortableColumns,
+  });
 
   // Mutations
   const createMutation = useMutation({
@@ -342,15 +359,35 @@ export function DivisionsSection() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
+                    <SortableTableHeader
+                      label="Name"
+                      sortKey="name"
+                      sortState={sortState}
+                      onToggleSort={toggleSort}
+                    />
+                    <SortableTableHeader
+                      label="Department"
+                      sortKey="department"
+                      sortState={sortState}
+                      onToggleSort={toggleSort}
+                    />
+                    <SortableTableHeader
+                      label="Status"
+                      sortKey="status"
+                      sortState={sortState}
+                      onToggleSort={toggleSort}
+                    />
+                    <SortableTableHeader
+                      label="Created"
+                      sortKey="createdAt"
+                      sortState={sortState}
+                      onToggleSort={toggleSort}
+                    />
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredDivisions.map((div) => (
+                  {displayDivisions.map((div) => (
                     <TableRow key={div.id} data-testid={`row-division-${div.id}`}>
                       <TableCell className="font-medium">{div.name}</TableCell>
                       <TableCell>{getDepartmentName(div.departmentId)}</TableCell>
@@ -399,7 +436,7 @@ export function DivisionsSection() {
 
             {/* Mobile Cards */}
             <div className="space-y-3 p-4 md:hidden">
-              {filteredDivisions.map((div) => (
+              {displayDivisions.map((div) => (
                 <div key={div.id} className="p-4 border rounded-lg" data-testid={`card-division-${div.id}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">

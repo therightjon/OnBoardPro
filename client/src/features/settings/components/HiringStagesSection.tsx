@@ -2,7 +2,7 @@
  * HiringStagesSection - Manage hiring workflow stages
  * System-level setting for configuring the hiring pipeline
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +12,8 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/shared/hooks/use-toast";
 import { insertHiringStageSchema } from "@shared/schemas";
+import { useSortableTable } from "@/shared/hooks/use-sortable-table";
+import { SortableTableHeader } from "@/shared/components/sortable-table-header";
 
 // UI Components
 import { SettingsSection } from "@/shared/components/settings/SettingsSection";
@@ -32,6 +34,8 @@ const hiringStageSchema = insertHiringStageSchema.pick({
   isActive: true,
 });
 type HiringStageForm = z.infer<typeof hiringStageSchema>;
+
+type HiringStageSortKey = "name" | "orderIndex" | "status";
 
 export function HiringStagesSection() {
   const { user } = useAuth();
@@ -56,6 +60,18 @@ export function HiringStagesSection() {
       const res = await apiRequest("GET", "/api/hiring-stages");
       return res.json();
     },
+  });
+
+  // Sortable columns configuration
+  const sortableColumns = useMemo(() => ({
+    name: { key: "name" as const, getValue: (stage: any) => stage.name?.toLowerCase() || "" },
+    orderIndex: { key: "orderIndex" as const, getValue: (stage: any) => stage.orderIndex },
+    status: { key: "status" as const, getValue: (stage: any) => (stage.isActive ? "active" : "inactive") },
+  }), []);
+
+  const { sortedRows: displayStages, sortState, toggleSort } = useSortableTable<any, HiringStageSortKey>({
+    rows: hiringStages as any[],
+    columns: sortableColumns,
   });
 
   // Mutations
@@ -225,15 +241,30 @@ export function HiringStagesSection() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <SortableTableHeader
+                      label="Name"
+                      sortKey="name"
+                      sortState={sortState}
+                      onToggleSort={toggleSort}
+                    />
                     <TableHead>Description</TableHead>
-                    <TableHead>Order</TableHead>
-                    <TableHead>Status</TableHead>
+                    <SortableTableHeader
+                      label="Order"
+                      sortKey="orderIndex"
+                      sortState={sortState}
+                      onToggleSort={toggleSort}
+                    />
+                    <SortableTableHeader
+                      label="Status"
+                      sortKey="status"
+                      sortState={sortState}
+                      onToggleSort={toggleSort}
+                    />
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(hiringStages as any[]).map((stage) => (
+                  {displayStages.map((stage) => (
                     <TableRow key={stage.id} data-testid={`row-hiring-stage-${stage.id}`}>
                       <TableCell className="font-medium">{stage.name}</TableCell>
                       <TableCell className="text-muted-foreground">{stage.description || "—"}</TableCell>
@@ -266,7 +297,7 @@ export function HiringStagesSection() {
 
             {/* Mobile Cards */}
             <div className="space-y-3 md:hidden">
-              {(hiringStages as any[]).map((stage) => (
+              {displayStages.map((stage) => (
                 <div key={stage.id} className="p-4 border rounded-lg">
                   <div className="flex items-start justify-between gap-2">
                     <div>

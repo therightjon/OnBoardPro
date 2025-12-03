@@ -19,6 +19,8 @@ import {
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/shared/hooks/use-toast";
+import { useSortableTable } from "@/shared/hooks/use-sortable-table";
+import { SortableTableHeader } from "@/shared/components/sortable-table-header";
 
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
@@ -72,6 +74,8 @@ type InviteForm = z.infer<typeof inviteSchema>;
 // ============================================================================
 
 const USERS_PAGE_SIZE = 5;
+
+type UserSortKey = "name" | "email" | "role" | "status" | "department" | "division" | "lastLogin";
 
 const inviteRoleOptions = [
   { value: "system_admin", label: "System Admin" },
@@ -235,9 +239,41 @@ export function UsersSection() {
     return result;
   }, [users, userSearchTerm, userStatusFilter, userRoleFilter]);
 
-  const totalUsers = filteredUsers.length;
+  const sortableColumns = useMemo<Record<UserSortKey, { getValue?: (row: any) => string | number | boolean | Date | null | undefined }>>(
+    () => ({
+      name: {
+        getValue: (u: any) => `${u.firstName || ""} ${u.lastName || ""}`.trim().toLowerCase(),
+      },
+      email: {
+        getValue: (u: any) => u.email || "",
+      },
+      role: {
+        getValue: (u: any) => u.role || "",
+      },
+      status: {
+        getValue: (u: any) => u.status || "",
+      },
+      department: {
+        getValue: (u: any) => u.department?.name || "",
+      },
+      division: {
+        getValue: (u: any) => u.division?.name || "",
+      },
+      lastLogin: {
+        getValue: (u: any) => u.lastLoginAt ? new Date(u.lastLoginAt) : null,
+      },
+    }),
+    []
+  );
+
+  const { sortedRows: sortedUsers, sortState, toggleSort } = useSortableTable<any, UserSortKey>({
+    rows: filteredUsers,
+    columns: sortableColumns,
+  });
+
+  const totalUsers = sortedUsers.length;
   const userTotalPages = Math.ceil(totalUsers / userPageSize);
-  const paginatedUsers = filteredUsers.slice(
+  const paginatedUsers = sortedUsers.slice(
     (userCurrentPage - 1) * userPageSize,
     userCurrentPage * userPageSize
   );
@@ -250,6 +286,10 @@ export function UsersSection() {
   useEffect(() => {
     setUserCurrentPage((prev) => Math.min(prev, userTotalPages || 1));
   }, [userTotalPages]);
+
+  useEffect(() => {
+    setUserCurrentPage(1);
+  }, [sortState]);
 
   // Users available for task reassignment
   const reassignableUsers = useMemo(() => {
@@ -793,13 +833,48 @@ export function UsersSection() {
               <Table className="min-w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Division</TableHead>
-                    <TableHead>Last Login</TableHead>
+                    <SortableTableHeader
+                      columnKey="name"
+                      label="Name"
+                      direction={sortState.key === "name" ? sortState.direction : null}
+                      onSort={toggleSort}
+                    />
+                    <SortableTableHeader
+                      columnKey="email"
+                      label="Email"
+                      direction={sortState.key === "email" ? sortState.direction : null}
+                      onSort={toggleSort}
+                    />
+                    <SortableTableHeader
+                      columnKey="role"
+                      label="Role"
+                      direction={sortState.key === "role" ? sortState.direction : null}
+                      onSort={toggleSort}
+                    />
+                    <SortableTableHeader
+                      columnKey="status"
+                      label="Status"
+                      direction={sortState.key === "status" ? sortState.direction : null}
+                      onSort={toggleSort}
+                    />
+                    <SortableTableHeader
+                      columnKey="department"
+                      label="Department"
+                      direction={sortState.key === "department" ? sortState.direction : null}
+                      onSort={toggleSort}
+                    />
+                    <SortableTableHeader
+                      columnKey="division"
+                      label="Division"
+                      direction={sortState.key === "division" ? sortState.direction : null}
+                      onSort={toggleSort}
+                    />
+                    <SortableTableHeader
+                      columnKey="lastLogin"
+                      label="Last Login"
+                      direction={sortState.key === "lastLogin" ? sortState.direction : null}
+                      onSort={toggleSort}
+                    />
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -810,7 +885,7 @@ export function UsersSection() {
                         <div className="animate-pulse">Loading users...</div>
                       </TableCell>
                     </TableRow>
-                  ) : filteredUsers.length === 0 ? (
+                  ) : sortedUsers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         {(users as any[]).length === 0
@@ -900,7 +975,7 @@ export function UsersSection() {
               <Card>
                 <CardContent className="p-4 text-center text-muted-foreground text-sm">Loading users...</CardContent>
               </Card>
-            ) : filteredUsers.length === 0 ? (
+            ) : sortedUsers.length === 0 ? (
               <Card>
                 <CardContent className="p-4 text-center text-muted-foreground text-sm">
                   {(users as any[]).length === 0

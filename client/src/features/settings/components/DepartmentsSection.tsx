@@ -11,6 +11,8 @@ import { Building, Users, Plus, Edit, Archive, RotateCcw, Search } from "lucide-
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest, queryClient, parseJsonSafe } from "@/lib/queryClient";
 import { useToast } from "@/shared/hooks/use-toast";
+import { useSortableTable, type SortDirection } from "@/shared/hooks/use-sortable-table";
+import { SortableTableHeader } from "@/shared/components/sortable-table-header";
 import { insertDepartmentSchema, insertDivisionSchema } from "@shared/schemas";
 
 // UI Components
@@ -30,6 +32,8 @@ const divisionSchema = insertDivisionSchema.pick({ name: true, departmentId: tru
 
 type DepartmentForm = z.infer<typeof departmentSchema>;
 type DivisionForm = z.infer<typeof divisionSchema>;
+
+type DepartmentSortKey = "name" | "status" | "createdAt";
 
 // Helper to detect archived status across different data shapes
 function isEntityArchived(entity: any): boolean {
@@ -53,6 +57,8 @@ interface DepartmentTableProps {
   isError: boolean;
   searchTerm: string;
   archiveFilter: string;
+  sortState: { key: DepartmentSortKey | null; direction: SortDirection };
+  toggleSort: (key: DepartmentSortKey) => void;
   onEdit: (dept: any) => void;
   onArchive: (dept: any) => void;
   onRestore: (dept: any) => void;
@@ -65,6 +71,8 @@ function DepartmentTable({
   isError,
   searchTerm,
   archiveFilter,
+  sortState,
+  toggleSort,
   onEdit,
   onArchive,
   onRestore,
@@ -79,6 +87,21 @@ function DepartmentTable({
       return dept.name.toLowerCase().includes(searchTerm.toLowerCase());
     });
   }, [departments, searchTerm, archiveFilter]);
+
+  const sortableColumns = useMemo<Record<DepartmentSortKey, { getValue?: (row: any) => string | number | boolean | Date | null | undefined }>>(() => ({
+    name: { getValue: (dept: any) => dept.name || "" },
+    status: { getValue: (dept: any) => isEntityArchived(dept) ? 0 : 1 },
+    createdAt: { getValue: (dept: any) => dept.createdAt ? new Date(dept.createdAt) : null },
+  }), []);
+
+  const { sortedRows: sortedDepts } = useSortableTable<any, DepartmentSortKey>({
+    rows: filtered,
+    columns: sortableColumns,
+    initialState: sortState.key ? { key: sortState.key, direction: sortState.direction } : undefined,
+  });
+
+  // Use sorted data for rendering
+  const displayDepts = sortState.key ? sortedDepts : filtered;
 
   if (isError) {
     return (
@@ -112,14 +135,29 @@ function DepartmentTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
+              <SortableTableHeader
+                columnKey="name"
+                label="Name"
+                direction={sortState.key === "name" ? sortState.direction : null}
+                onSort={toggleSort}
+              />
+              <SortableTableHeader
+                columnKey="status"
+                label="Status"
+                direction={sortState.key === "status" ? sortState.direction : null}
+                onSort={toggleSort}
+              />
+              <SortableTableHeader
+                columnKey="createdAt"
+                label="Created"
+                direction={sortState.key === "createdAt" ? sortState.direction : null}
+                onSort={toggleSort}
+              />
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((dept) => (
+            {displayDepts.map((dept) => (
               <TableRow key={dept.id} data-testid={`row-department-${dept.id}`}>
                 <TableCell className="font-medium">{dept.name}</TableCell>
                 <TableCell>
@@ -167,7 +205,7 @@ function DepartmentTable({
 
       {/* Mobile Cards */}
       <div className="space-y-3 p-4 md:hidden">
-        {filtered.map((dept) => (
+        {displayDepts.map((dept) => (
           <div key={dept.id} className="p-4 border rounded-lg" data-testid={`card-department-${dept.id}`}>
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
@@ -220,6 +258,15 @@ export function DepartmentsSection() {
   const [restoringDepartment, setRestoringDepartment] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [archiveFilter, setArchiveFilter] = useState("active");
+  const [sortState, setSortState] = useState<{ key: DepartmentSortKey | null; direction: SortDirection }>({ key: null, direction: null });
+
+  const toggleSort = (key: DepartmentSortKey) => {
+    setSortState((prev) => {
+      if (prev.key !== key) return { key, direction: "asc" };
+      if (prev.direction === "asc") return { key, direction: "desc" };
+      return { key: null, direction: null };
+    });
+  };
 
   // Form
   const form = useForm<DepartmentForm>({
@@ -417,6 +464,8 @@ export function DepartmentsSection() {
           isError={isError}
           searchTerm={searchTerm}
           archiveFilter={archiveFilter}
+          sortState={sortState}
+          toggleSort={toggleSort}
           onEdit={handleEditDepartment}
           onArchive={setArchivingDepartment}
           onRestore={setRestoringDepartment}
