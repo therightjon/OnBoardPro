@@ -39,17 +39,24 @@ export function decryptSecret(stored?: string | null): string | undefined {
     return undefined;
   }
 
-  const [, , saltB64, ivB64, cipherB64, tagB64] = stored.split(":");
-  const salt = Buffer.from(saltB64, "base64");
-  const iv = Buffer.from(ivB64, "base64");
-  const ciphertext = Buffer.from(cipherB64, "base64");
-  const tag = Buffer.from(tagB64, "base64");
+  try {
+    const [, , saltB64, ivB64, cipherB64, tagB64] = stored.split(":");
+    const salt = Buffer.from(saltB64, "base64");
+    const iv = Buffer.from(ivB64, "base64");
+    const ciphertext = Buffer.from(cipherB64, "base64");
+    const tag = Buffer.from(tagB64, "base64");
 
-  const key = scryptSync(passphrase, salt, 32);
-  const decipher = createDecipheriv("aes-256-gcm", key, iv);
-  decipher.setAuthTag(tag);
-  const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
-  return plain;
+    const key = scryptSync(passphrase, salt, 32);
+    const decipher = createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(tag);
+    const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+    return plain;
+  } catch (error) {
+    // Decryption failed - likely due to key mismatch (e.g., SESSION_SECRET changed)
+    // Return undefined to indicate the secret is not available and needs to be re-entered
+    console.warn("Failed to decrypt secret - encryption key may have changed. Password needs to be re-entered.");
+    return undefined;
+  }
 }
 
 export function maskValue(s?: string): string | undefined {
