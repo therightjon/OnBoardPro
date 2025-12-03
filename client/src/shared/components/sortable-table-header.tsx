@@ -40,9 +40,9 @@ export function SortableTableHeader<K extends string>({
       <button
         type="button"
         onClick={() => onSort?.(columnKey)}
-        className="flex w-full items-center gap-2 text-left font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="inline-flex items-center gap-1.5 text-left font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <span className="flex-1">{label}</span>
+        <span>{label}</span>
         <span className="text-muted-foreground">{icon}</span>
       </button>
     </TableHead>
