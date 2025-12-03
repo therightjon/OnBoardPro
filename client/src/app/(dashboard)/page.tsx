@@ -26,6 +26,7 @@ import { ReactNode, useMemo, useState } from "react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
 import { resolveCandidateStatus } from "@/features/candidates/utils/status";
+import { useToast } from "@/shared/hooks/use-toast";
 import { 
   AlertDialog,
   AlertDialogContent,
@@ -37,6 +38,7 @@ import {
 } from "@/shared/components/ui/alert-dialog";
 import { format, formatDistanceToNow } from "date-fns";
 import type { CandidateTask, CandidateType } from "@shared/schemas";
+import { downloadDashboardReport, formatReportDate } from "@/lib/export-utils";
 
 type DivisionOverviewItem = {
   divisionId: string;
@@ -305,6 +307,7 @@ const divisionIconConfigs = [
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
   const canViewDivisionOverview = user ? [
     "system_admin",
     "hr_staff",
@@ -459,6 +462,50 @@ export default function Dashboard() {
     return [...entries, ...placeholders];
   }, [divisionOverview, divisionOverviewLoading, canViewDivisionOverview]);
 
+  const handleExportReport = () => {
+    try {
+      const reportData = {
+        metrics: {
+          activeCandidates,
+          tasksDue7Days: tasksDue,
+          overdueTasks,
+          completionRate
+        },
+        upcomingStarts: upcomingStarts.map((candidate: any) => ({
+          name: `${candidate.firstName} ${candidate.lastName}`,
+          type: getCandidateTypeName(candidate.candidateTypeId),
+          startDate: formatReportDate(candidate.startDate),
+          status: resolveCandidateStatus(candidate).label
+        })),
+        urgentTasks: urgentTasks.map(({ task, dueDate }: { task: TaskWithCandidate; dueDate: Date | null }) => ({
+          title: task.title,
+          candidateName: [task.candidate?.firstName, task.candidate?.lastName].filter(Boolean).join(" ") || "Unknown",
+          dueDate: formatReportDate(dueDate),
+          priority: task.priority || "normal",
+          status: "Overdue"
+        })),
+        divisionOverview: divisionOverview.map((div) => ({
+          division: div.divisionName,
+          department: div.departmentName,
+          activeCandidates: div.activeCandidateCount
+        }))
+      };
+      
+      downloadDashboardReport(reportData);
+      
+      toast({
+        title: "Report exported",
+        description: "Your dashboard report has been downloaded as a CSV file."
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: "Unable to generate the report. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
       {/* Page Header */}
@@ -468,7 +515,13 @@ export default function Dashboard() {
           <p className="text-sm sm:text-base text-muted-foreground">{greetingMessage}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 xs:gap-3">
-          <Button variant="secondary" size="sm" className="min-h-[44px] px-3 xs:px-4" data-testid="button-export-report">
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            className="min-h-[44px] px-3 xs:px-4" 
+            data-testid="button-export-report"
+            onClick={handleExportReport}
+          >
             <Download className="w-4 h-4 xs:mr-2" />
             <span className="hidden xs:inline">Export Report</span>
           </Button>
@@ -830,7 +883,7 @@ export default function Dashboard() {
                         }
                         metaLeft={
                           item.kind === "data" ? (
-                            <span className="text-muted-foreground">Active candidates</span>
+                            <span className="text-muted-foreground">Active Candidates</span>
                           ) : (
                             <span className="text-muted-foreground">No active candidates yet</span>
                           )
