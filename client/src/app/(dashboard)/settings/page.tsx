@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 // Personal Settings Components
-import { ThemeSettings, NotificationsCard } from "@/features/settings";
+import { ThemeSettings, NotificationsCard, UserPreferencesCard } from "@/features/settings";
 
 // System Settings Components
 import { 
@@ -54,6 +54,7 @@ function PersonalSettingsTab() {
   return (
     <div className="space-y-6">
       <ThemeSettings />
+      <UserPreferencesCard />
       <NotificationsCard />
     </div>
   );

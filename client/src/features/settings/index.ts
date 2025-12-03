@@ -6,6 +6,7 @@
 // Personal Settings Components
 export { ThemeSettings } from "./components/ThemeSettings";
 export { NotificationsCard } from "./components/NotificationsCard";
+export { UserPreferencesCard } from "./components/UserPreferencesCard";
 
 // System Settings Components  
 export { DepartmentsSection } from "./components/DepartmentsSection";

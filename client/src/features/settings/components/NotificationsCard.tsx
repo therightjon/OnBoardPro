@@ -16,12 +16,10 @@ import {
   DIGEST_FREQUENCIES,
   EVENT_SUBSCRIPTION_LABELS,
   EVENT_SUBSCRIPTION_KEYS,
-  USER_PREFERENCES_DEFAULTS,
   mergeUserPreferences,
   type UserPreferencesDTO,
 } from "@shared/preferences";
 import { useToast } from "@/shared/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 
 const PREFERENCE_QUERY_KEY = "/api/me/preferences" as const;
 
@@ -56,7 +54,6 @@ export function NotificationsCard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [localPreferences, setLocalPreferences] = useState<UserPreferencesDTO>(() => mergeUserPreferences());
-  const [activeTab, setActiveTab] = useState<"notifications" | "user">("notifications");
 
   const queryKey = useMemo(() => [PREFERENCE_QUERY_KEY, user?.id], [user?.id]);
   const disabledControls = useMemo(() => createDisabledControlSet(user?.role), [user?.role]);
@@ -138,10 +135,6 @@ export function NotificationsCard() {
     updatePreferencesMutation.mutate(updates);
   };
 
-  const handleTaskToggle = (key: "mytasksShowArchived" | "mytasksShowCanceled" | "mytasksShowCompleted", value: boolean) => {
-    handlePreferenceChange({ [key]: value } as Pick<UserPreferencesDTO, typeof key>);
-  };
-
   const handleNotificationToggle = (key: "notifyInApp" | "notifyEmail", value: boolean) => {
     handlePreferenceChange({ [key]: value } as Pick<UserPreferencesDTO, typeof key>);
   };
@@ -179,10 +172,10 @@ export function NotificationsCard() {
         <div>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Bell className="h-5 w-5" />
-            Notifications & Preferences
+            Notifications
           </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
-            Configure task visibility, notification channels, digests, quiet hours, and per-event subscriptions.
+            Configure notification channels, digests, quiet hours, and per-event subscriptions.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -219,53 +212,45 @@ export function NotificationsCard() {
             Loading preferences…
           </div>
         ) : (
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) => setActiveTab(value as typeof activeTab)}
-            className="space-y-6"
-          >
-            <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:inline-flex sm:gap-2">
-              <TabsTrigger value="notifications">Notifications</TabsTrigger>
-              <TabsTrigger value="user">User Preferences</TabsTrigger>
-            </TabsList>
-            <TabsContent value="notifications" className="space-y-8">
-              <section className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase text-muted-foreground">Notification channels</h3>
-                  <p className="text-sm text-muted-foreground">Decide where you would like to receive updates.</p>
-                </div>
-                <div className="space-y-3">
-                  {(
-                    [
-                      {
-                        key: "notifyInApp" as const,
-                        title: "In-app notifications",
-                        description: "Show alerts in the notification center.",
-                      },
-                      {
-                        key: "notifyEmail" as const,
-                        title: "Email alerts",
-                        description: "Send notifications to your inbox.",
-                      },
-                    ]
-                  ).map(({ key, title, description }) => (
-                    <div className="flex items-center justify-between gap-4" key={key}>
-                      <div>
-                        <Label className="font-medium">{title}</Label>
-                        <p className="text-sm text-muted-foreground">{description}</p>
-                      </div>
-                      <Switch
-                        checked={!!localPreferences[key]}
-                        onCheckedChange={(checked) => handleNotificationToggle(key, !!checked)}
-                        disabled={disableAllControls || disabledControls.has(key)}
-                      />
+          <div className="space-y-8">
+            <section className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold uppercase text-muted-foreground">Notification channels</h3>
+                <p className="text-sm text-muted-foreground">Decide where you would like to receive updates.</p>
+              </div>
+              <div className="space-y-3">
+                {(
+                  [
+                    {
+                      key: "notifyInApp" as const,
+                      title: "In-app notifications",
+                      description: "Show alerts in the notification center.",
+                    },
+                    {
+                      key: "notifyEmail" as const,
+                      title: "Email alerts",
+                      description: "Send notifications to your inbox.",
+                    },
+                  ]
+                ).map(({ key, title, description }) => (
+                  <div className="flex items-center justify-between gap-4" key={key}>
+                    <div>
+                      <Label className="font-medium">{title}</Label>
+                      <p className="text-sm text-muted-foreground">{description}</p>
                     </div>
-                  ))}
-                </div>
-              </section>
+                    <Switch
+                      checked={!!localPreferences[key]}
+                      onCheckedChange={(checked) => handleNotificationToggle(key, !!checked)}
+                      disabled={disableAllControls || disabledControls.has(key)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
 
-              <section className="grid gap-6 lg:grid-cols-2">
-                <div className="space-y-3">
+            <section className="space-y-6">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
+                <div className="flex-1 space-y-2">
                   <div>
                     <h3 className="text-sm font-semibold uppercase text-muted-foreground">Digest frequency</h3>
                     <p className="text-sm text-muted-foreground">Control how often you receive summary emails.</p>
@@ -275,7 +260,7 @@ export function NotificationsCard() {
                     onValueChange={handleDigestChange}
                     disabled={disableAllControls || disabledControls.has("digestFrequency")}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-48">
                       <SelectValue placeholder="Select frequency" />
                     </SelectTrigger>
                     <SelectContent>
@@ -288,17 +273,18 @@ export function NotificationsCard() {
                   </Select>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold uppercase text-muted-foreground">Quiet hours</h3>
-                    <Clock className="h-4 w-4 text-muted-foreground" />
+                <div className="flex-1 space-y-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold uppercase text-muted-foreground">Quiet hours</h3>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Mute notifications during this window.
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Optional window during which notifications are muted. Crossing midnight is supported.
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="quiet-start">Start</Label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
                       <Input
                         id="quiet-start"
                         type="time"
@@ -306,10 +292,11 @@ export function NotificationsCard() {
                         value={localPreferences.quietHoursStart ?? ""}
                         onChange={(event) => handleQuietHoursChange("quietHoursStart", event.target.value)}
                         disabled={disableAllControls || disabledControls.has("quietHoursStart")}
+                        aria-label="Quiet hours start"
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="quiet-end">End</Label>
+                    <span className="text-sm text-muted-foreground">to</span>
+                    <div className="flex-1">
                       <Input
                         id="quiet-end"
                         type="time"
@@ -317,76 +304,43 @@ export function NotificationsCard() {
                         value={localPreferences.quietHoursEnd ?? ""}
                         onChange={(event) => handleQuietHoursChange("quietHoursEnd", event.target.value)}
                         disabled={disableAllControls || disabledControls.has("quietHoursEnd")}
+                        aria-label="Quiet hours end"
                       />
                     </div>
                   </div>
                 </div>
-              </section>
+              </div>
+            </section>
 
-              <section className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase text-muted-foreground">Per-event subscriptions</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Control which updates trigger notifications. Uncheck to mute specific events.
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {EVENT_SUBSCRIPTION_KEYS.map((key) => (
-                    <label
-                      key={key}
-                      className="flex cursor-pointer items-start gap-3 rounded-md border border-border/70 p-3 transition hover:border-border"
-                    >
-                      <Checkbox
-                        checked={localPreferences.eventSubscriptions[key] ?? true}
-                        onCheckedChange={(checked) => handleEventSubscriptionToggle(key, !!checked)}
-                        disabled={disableAllControls || disabledControls.has("eventSubscriptions")}
-                      />
-                      <span>
-                        <span className="block font-medium">{EVENT_SUBSCRIPTION_LABELS[key]}</span>
-                        <span className="block text-sm text-muted-foreground">
-                          {EVENT_DESCRIPTIONS[key] ?? "Receive alerts related to this activity."}
-                        </span>
+            <section className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold uppercase text-muted-foreground">Per-event subscriptions</h3>
+                <p className="text-sm text-muted-foreground">
+                  Control which updates trigger notifications. Uncheck to mute specific events.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {EVENT_SUBSCRIPTION_KEYS.map((key) => (
+                  <label
+                    key={key}
+                    className="flex cursor-pointer items-start gap-3 rounded-md border border-border/70 p-3 transition hover:border-border"
+                  >
+                    <Checkbox
+                      checked={localPreferences.eventSubscriptions[key] ?? true}
+                      onCheckedChange={(checked) => handleEventSubscriptionToggle(key, !!checked)}
+                      disabled={disableAllControls || disabledControls.has("eventSubscriptions")}
+                    />
+                    <span>
+                      <span className="block font-medium">{EVENT_SUBSCRIPTION_LABELS[key]}</span>
+                      <span className="block text-sm text-muted-foreground">
+                        {EVENT_DESCRIPTIONS[key] ?? "Receive alerts related to this activity."}
                       </span>
-                    </label>
-                  ))}
-                </div>
-              </section>
-            </TabsContent>
-
-            <TabsContent value="user" className="space-y-8">
-              <section className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase text-muted-foreground">My Tasks visibility</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Choose which tasks appear in your My Tasks list by default.
-                  </p>
-                </div>
-                <div className="space-y-3">
-                  {["Archived", "Canceled", "Completed"].map((label, index) => {
-                    const key = ["mytasksShowArchived", "mytasksShowCanceled", "mytasksShowCompleted"][index] as
-                      | "mytasksShowArchived"
-                      | "mytasksShowCanceled"
-                      | "mytasksShowCompleted";
-                    return (
-                      <div className="flex items-center justify-between gap-4" key={key}>
-                        <div>
-                          <Label className="font-medium">Show {label.toLowerCase()} tasks</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Include {label.toLowerCase()} tasks by default in My Tasks.
-                          </p>
-                        </div>
-                        <Switch
-                          checked={!!localPreferences[key]}
-                          onCheckedChange={(checked) => handleTaskToggle(key, !!checked)}
-                          disabled={disableAllControls || disabledControls.has(key)}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            </TabsContent>
-          </Tabs>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          </div>
         )}
       </CardContent>
     </Card>
