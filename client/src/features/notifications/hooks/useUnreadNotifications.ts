@@ -22,11 +22,21 @@ export function useUnreadNotifications(options: UseUnreadNotificationsOptions = 
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     staleTime: 0,
+    // Add retry with exponential backoff to handle transient network issues
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    // Don't throw on network errors - just return stale data if available
+    throwOnError: false,
   });
 
   useEffect(() => {
     if (query.error) {
-      console.warn("Failed to load unread notifications count", query.error);
+      // Only log once per error instance, not on every refetch failure
+      const isNetworkError = query.error instanceof TypeError && 
+        (query.error.message === 'Failed to fetch' || query.error.message.includes('NetworkError'));
+      if (!isNetworkError) {
+        console.warn("Failed to load unread notifications count", query.error);
+      }
     }
   }, [query.error]);
 

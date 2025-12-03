@@ -10,7 +10,7 @@ import { TaskCommentsButton } from "@/features/comments/components/task-comments
 import { useCommentStats } from "@/features/comments/api";
 import { Switch } from "@/shared/components/ui/switch";
 import { Label } from "@/shared/components/ui/label";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, Filter, Calendar, Clock, AlertTriangle } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
@@ -129,6 +129,16 @@ export default function MyTasksPage() {
     });
   }, [myTasks, searchTerm, statusFilter, priorityFilter]);
 
+  const getCandidateName = useCallback((task: any) => {
+    // Use candidate info from task response (guaranteed by backend INNER JOIN)
+    if (task.candidate) {
+      return `${task.candidate.firstName} ${task.candidate.lastName}`;
+    }
+    // Fallback to candidates query
+    const candidate = candidates.find((c: Candidate) => c.id === task.candidateId);
+    return candidate ? `${candidate.firstName} ${candidate.lastName}` : `Task ${task.id.slice(0, 8)}...`;
+  }, [candidates]);
+
   const sortableColumns = useMemo<
     Record<
       TaskSortKey,
@@ -236,16 +246,6 @@ export default function MyTasksPage() {
   };
 
   // No edit/update handlers needed; comments open via modal per-row.
-
-  function getCandidateName(task: any) {
-    // Use candidate info from task response (guaranteed by backend INNER JOIN)
-    if (task.candidate) {
-      return `${task.candidate.firstName} ${task.candidate.lastName}`;
-    }
-    // Fallback to candidates query
-    const candidate = candidates.find((c: Candidate) => c.id === task.candidateId);
-    return candidate ? `${candidate.firstName} ${candidate.lastName}` : `Task ${task.id.slice(0, 8)}...`;
-  }
 
   const getCandidateStatusForTask = (task: any): string => {
     // Prefer embedded candidate status when present
