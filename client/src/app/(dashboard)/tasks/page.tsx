@@ -23,6 +23,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search, Edit, Archive, RotateCcw, BookOpen, Filter } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/shared/hooks/use-toast";
+import { useSortableTable } from "@/shared/hooks/use-sortable-table";
+import { SortableTableHeader } from "@/shared/components/sortable-table-header";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -31,6 +33,8 @@ import { RouteGuard } from "@/shared/components/route-guard";
 import { PaginationControls } from "@/shared/components/pagination-controls";
 
 const PAGE_SIZE = 5;
+
+type TaskDefSortKey = "name" | "status" | "createdAt";
 
 const taskDefinitionSchema = insertTaskDefinitionSchema.pick({
   name: true,
@@ -124,10 +128,30 @@ export default function TasksPage() {
     });
   }, [taskDefinitions, archiveFilter, searchTerm]);
 
+  const sortableColumns = useMemo<Record<TaskDefSortKey, { getValue?: (row: TaskDefinition) => string | number | boolean | Date | null | undefined }>>(
+    () => ({
+      name: {
+        getValue: (taskDef: TaskDefinition) => taskDef.name || "",
+      },
+      status: {
+        getValue: (taskDef: TaskDefinition) => (taskDef.archived ? 0 : 1),
+      },
+      createdAt: {
+        getValue: (taskDef: TaskDefinition) => taskDef.createdAt ? new Date(taskDef.createdAt) : null,
+      },
+    }),
+    []
+  );
+
+  const { sortedRows: sortedTaskDefinitions, sortState, toggleSort } = useSortableTable<TaskDefinition, TaskDefSortKey>({
+    rows: filteredTaskDefinitions,
+    columns: sortableColumns,
+  });
+
   const pageSize = PAGE_SIZE;
-  const totalTaskDefinitions = filteredTaskDefinitions.length;
+  const totalTaskDefinitions = sortedTaskDefinitions.length;
   const totalPages = totalTaskDefinitions > 0 ? Math.ceil(totalTaskDefinitions / pageSize) : 1;
-  const paginatedTaskDefinitions = filteredTaskDefinitions.slice(
+  const paginatedTaskDefinitions = sortedTaskDefinitions.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
@@ -135,6 +159,10 @@ export default function TasksPage() {
   useEffect(() => {
     setCurrentPage((prev) => Math.min(prev, totalPages));
   }, [totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortState]);
 
   const archiveTaskDefMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -329,15 +357,33 @@ export default function TasksPage() {
             <Table className="min-w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[120px]" data-testid="header-name">Name</TableHead>
-                <TableHead className="min-w-[200px] max-w-[300px]" data-testid="header-description">Description</TableHead>
-                <TableHead className="min-w-[80px] hidden sm:table-cell" data-testid="header-status">Status</TableHead>
-                <TableHead className="min-w-[100px] hidden md:table-cell" data-testid="header-created">Created</TableHead>
+                <SortableTableHeader
+                  columnKey="name"
+                  label="Name"
+                  direction={sortState.key === "name" ? sortState.direction : null}
+                  onSort={toggleSort}
+                  className="min-w-[120px]"
+                />
+                <TableHead className="min-w-[200px] max-w-[300px]">Description</TableHead>
+                <SortableTableHeader
+                  columnKey="status"
+                  label="Status"
+                  direction={sortState.key === "status" ? sortState.direction : null}
+                  onSort={toggleSort}
+                  className="min-w-[80px] hidden sm:table-cell"
+                />
+                <SortableTableHeader
+                  columnKey="createdAt"
+                  label="Created"
+                  direction={sortState.key === "createdAt" ? sortState.direction : null}
+                  onSort={toggleSort}
+                  className="min-w-[100px] hidden md:table-cell"
+                />
                 <TableHead className="min-w-[100px] w-[100px]" data-testid="header-actions">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTaskDefinitions.length === 0 ? (
+              {sortedTaskDefinitions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                     {taskDefinitions.length === 0 
@@ -418,7 +464,7 @@ export default function TasksPage() {
 
       {/* Task Definitions (Mobile Cards) */}
       <div className="space-y-3 md:hidden">
-        {filteredTaskDefinitions.length === 0 ? (
+        {sortedTaskDefinitions.length === 0 ? (
           <Card>
             <CardContent className="p-4 text-center text-muted-foreground text-sm">
               {taskDefinitions.length === 0 
