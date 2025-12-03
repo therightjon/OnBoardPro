@@ -14,6 +14,8 @@ import { Plus, Search, Filter, Edit, Eye, Settings, ClipboardList, Trash2 } from
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/shared/hooks/use-toast";
+import { useSortableTable } from "@/shared/hooks/use-sortable-table";
+import { SortableTableHeader } from "@/shared/components/sortable-table-header";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,6 +28,8 @@ import type { Template, CandidateType } from "@shared/schemas";
 import { PaginationControls } from "@/shared/components/pagination-controls";
 
 const PAGE_SIZE = 5;
+
+type TemplateSortKey = "name" | "candidateType" | "status" | "createdAt" | "updatedAt";
 
 const templateSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -137,10 +141,41 @@ export default function TemplatesPage() {
     });
   }, [templates, searchTerm, typeFilter]);
 
+  const getCandidateTypeName = (candidateTypeId: string) => {
+    const type = candidateTypes.find((t: any) => t.id === candidateTypeId);
+    return type?.name || "Unknown";
+  };
+
+  const sortableColumns = useMemo<Record<TemplateSortKey, { getValue?: (row: Template) => string | number | boolean | Date | null | undefined }>>(
+    () => ({
+      name: {
+        getValue: (template: Template) => template.name || "",
+      },
+      candidateType: {
+        getValue: (template: Template) => getCandidateTypeName(template.candidateTypeId),
+      },
+      status: {
+        getValue: (template: Template) => (template.isActive ? 1 : 0),
+      },
+      createdAt: {
+        getValue: (template: Template) => template.createdAt ? new Date(template.createdAt) : null,
+      },
+      updatedAt: {
+        getValue: (template: Template) => template.updatedAt ? new Date(template.updatedAt) : null,
+      },
+    }),
+    [candidateTypes]
+  );
+
+  const { sortedRows: sortedTemplates, sortState, toggleSort } = useSortableTable<Template, TemplateSortKey>({
+    rows: filteredTemplates,
+    columns: sortableColumns,
+  });
+
   const pageSize = PAGE_SIZE;
-  const totalTemplates = filteredTemplates.length;
+  const totalTemplates = sortedTemplates.length;
   const totalPages = totalTemplates > 0 ? Math.ceil(totalTemplates / pageSize) : 1;
-  const paginatedTemplates = filteredTemplates.slice(
+  const paginatedTemplates = sortedTemplates.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
@@ -149,10 +184,9 @@ export default function TemplatesPage() {
     setCurrentPage((prev) => Math.min(prev, totalPages));
   }, [totalPages]);
 
-  const getCandidateTypeName = (candidateTypeId: string) => {
-    const type = candidateTypes.find((t: any) => t.id === candidateTypeId);
-    return type?.name || "Unknown";
-  };
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortState]);
 
   const onSubmit = (data: TemplateForm) => {
     // Convert "none" values back to null/empty for the API
@@ -347,16 +381,41 @@ export default function TemplatesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Candidate Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Last Modified</TableHead>
+                <SortableTableHeader
+                  columnKey="name"
+                  label="Name"
+                  direction={sortState.key === "name" ? sortState.direction : null}
+                  onSort={toggleSort}
+                />
+                <SortableTableHeader
+                  columnKey="candidateType"
+                  label="Candidate Type"
+                  direction={sortState.key === "candidateType" ? sortState.direction : null}
+                  onSort={toggleSort}
+                />
+                <SortableTableHeader
+                  columnKey="status"
+                  label="Status"
+                  direction={sortState.key === "status" ? sortState.direction : null}
+                  onSort={toggleSort}
+                />
+                <SortableTableHeader
+                  columnKey="createdAt"
+                  label="Created"
+                  direction={sortState.key === "createdAt" ? sortState.direction : null}
+                  onSort={toggleSort}
+                />
+                <SortableTableHeader
+                  columnKey="updatedAt"
+                  label="Last Modified"
+                  direction={sortState.key === "updatedAt" ? sortState.direction : null}
+                  onSort={toggleSort}
+                />
                 <TableHead className="w-[150px] text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTemplates.length === 0 ? (
+              {sortedTemplates.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     {templates.length === 0 ? "No templates found. Create your first template to get started." : "No templates found matching your criteria"}
@@ -445,7 +504,7 @@ export default function TemplatesPage() {
 
       {/* Templates (Mobile Cards) */}
       <div className="space-y-3 md:hidden">
-        {filteredTemplates.length === 0 ? (
+        {sortedTemplates.length === 0 ? (
           <Card>
             <CardContent className="p-4 text-center text-muted-foreground text-sm">
               {templates.length === 0 ? "No templates found. Create your first template to get started." : "No templates found matching your criteria"}
