@@ -1,0 +1,373 @@
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Check, Clock, FileText, Mail, UserCheck, Briefcase, Send, ThumbsUp, ThumbsDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Badge } from "@/shared/components/ui/badge";
+import { Button } from "@/shared/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
+import { format } from "date-fns";
+import {
+  getHiringPhase,
+  HIRING_PHASE_LABELS,
+  HIRING_PHASE_VARIANTS,
+  type HiringPhase,
+} from "../utils/hiring-phase";
+import { LooDateDialog } from "./loo-date-dialog";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/shared/hooks/use-toast";
+
+/**
+ * Steps for the hiring progress stepper
+ */
+const HIRING_STEPS: { id: HiringPhase; label: string }[] = [
+  { id: "loi_issued", label: HIRING_PHASE_LABELS.loi_issued },
+  { id: "offer_pending", label: HIRING_PHASE_LABELS.offer_pending },
+  { id: "pre_hire", label: HIRING_PHASE_LABELS.pre_hire },
+  { id: "onboarding", label: HIRING_PHASE_LABELS.onboarding },
+];
+
+interface HiringProgressProps {
+  candidate: {
+    id: string;
+    letterOfIntentDate: string | Date | null;
+    offerLetterIssuedAt: string | Date | null;
+    offerLetterAcceptedAt: string | Date | null;
+    templateAppliedAt: string | Date | null;
+  };
+  className?: string;
+}
+
+interface StepIconProps {
+  phase: HiringPhase;
+  isComplete: boolean;
+  isCurrent: boolean;
+}
+
+function StepIcon({ phase, isComplete, isCurrent }: StepIconProps) {
+  const iconClass = cn(
+    "h-5 w-5",
+    isComplete && "text-white",
+    isCurrent && "text-primary",
+    !isComplete && !isCurrent && "text-muted-foreground"
+  );
+
+  if (isComplete) {
+    return <Check className={iconClass} />;
+  }
+
+  switch (phase) {
+    case "loi_issued":
+      return <FileText className={iconClass} />;
+    case "offer_pending":
+      return <Mail className={iconClass} />;
+    case "pre_hire":
+      return <UserCheck className={iconClass} />;
+    case "onboarding":
+      return <Briefcase className={iconClass} />;
+    default:
+      return <Clock className={iconClass} />;
+  }
+}
+
+function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return "—";
+  const d = typeof date === "string" ? new Date(date) : date;
+  return format(d, "MMM d, yyyy");
+}
+
+export function HiringProgress({
+  candidate,
+  className,
+}: HiringProgressProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isLooDialogOpen, setIsLooDialogOpen] = useState(false);
+  const [looDialogType, setLooDialogType] = useState<"issued" | "accepted">("issued");
+  const [isDeclineDialogOpen, setIsDeclineDialogOpen] = useState(false);
+
+  // Mutation for declining the offer
+  const declineMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("PATCH", `/api/candidates/${candidate.id}`, {
+        status: "offer_declined",
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Offer Declined",
+        description: "The candidate's offer has been marked as declined.",
+      });
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ["/api/candidates", candidate.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
+      setIsDeclineDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to decline offer",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const phaseInfo = getHiringPhase(candidate);
+  const currentPhaseIndex = HIRING_STEPS.findIndex(
+    (step) => step.id === phaseInfo.phase
+  );
+
+  // Determine step status for each phase
+  const getStepStatus = (stepIndex: number) => {
+    if (stepIndex < currentPhaseIndex) return "complete";
+    if (stepIndex === currentPhaseIndex) return "current";
+    return "upcoming";
+  };
+
+  // Get the date for each step
+  const getStepDate = (stepId: HiringPhase): string | null => {
+    switch (stepId) {
+      case "loi_issued":
+        return candidate.letterOfIntentDate
+          ? formatDate(candidate.letterOfIntentDate)
+          : null;
+      case "offer_pending":
+        return candidate.offerLetterIssuedAt
+          ? formatDate(candidate.offerLetterIssuedAt)
+          : null;
+      case "pre_hire":
+        return candidate.offerLetterAcceptedAt
+          ? formatDate(candidate.offerLetterAcceptedAt)
+          : null;
+      case "onboarding":
+        return candidate.templateAppliedAt
+          ? formatDate(candidate.templateAppliedAt)
+          : null;
+      default:
+        return null;
+    }
+  };
+
+  // Determine if the primary action button should be shown and what it should do
+  const getPrimaryAction = () => {
+    // If LOO has not been issued, show "Send LOO" button
+    if (!candidate.offerLetterIssuedAt) {
+      return {
+        label: "Send LOO",
+        icon: Send,
+        onClick: () => {
+          setLooDialogType("issued");
+          setIsLooDialogOpen(true);
+        },
+      };
+    }
+    // If LOO is issued but not accepted, show "LOO Accepted" button
+    if (!candidate.offerLetterAcceptedAt) {
+      return {
+        label: "LOO Accepted",
+        icon: ThumbsUp,
+        onClick: () => {
+          setLooDialogType("accepted");
+          setIsLooDialogOpen(true);
+        },
+      };
+    }
+    // Both dates are set, no action needed
+    return null;
+  };
+
+  const primaryAction = getPrimaryAction();
+
+  return (
+    <Card className={className}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-medium">Hiring Progress</CardTitle>
+          <Badge variant={HIRING_PHASE_VARIANTS[phaseInfo.phase]}>{phaseInfo.label}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {/* Progress Steps */}
+        <div className="relative">
+          {/* Connecting Line */}
+          <div className="absolute left-[18px] top-[24px] h-[calc(100%-48px)] w-0.5 bg-muted" />
+          
+          {/* Progress Line (filled portion) */}
+          <div
+            className="absolute left-[18px] top-[24px] w-0.5 bg-primary transition-all duration-500"
+            style={{
+              height: `calc(${(currentPhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${currentPhaseIndex === 0 ? 0 : 24}px)`,
+            }}
+          />
+
+          {/* Steps */}
+          <div className="relative space-y-6">
+            {HIRING_STEPS.map((step, index) => {
+              const status = getStepStatus(index);
+              const stepDate = getStepDate(step.id);
+              const isOnboardingStep = step.id === "onboarding";
+
+              return (
+                <div key={step.id} className="flex gap-4">
+                  {/* Step Circle */}
+                  <div
+                    className={cn(
+                      "relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                      status === "complete" && "border-primary bg-primary",
+                      status === "current" && "border-primary bg-background",
+                      status === "upcoming" && "border-muted bg-background"
+                    )}
+                  >
+                    <StepIcon
+                      phase={step.id}
+                      isComplete={status === "complete"}
+                      isCurrent={status === "current"}
+                    />
+                  </div>
+
+                  {/* Step Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between min-h-9">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "font-medium",
+                            status === "complete" && "text-foreground",
+                            status === "current" && "text-primary",
+                            status === "upcoming" && "text-muted-foreground"
+                          )}
+                        >
+                          {/* Show "Offer Accepted" instead of "Offer Pending" once LOO is accepted */}
+                          {step.id === "offer_pending" && candidate.offerLetterAcceptedAt
+                            ? "Offer Accepted"
+                            : step.label}
+                        </span>
+                        {status === "current" && (
+                          <Badge variant="outline" className="text-xs">
+                            Current
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {/* Action buttons on the Onboarding row */}
+                      {isOnboardingStep && primaryAction && (
+                        <div className="flex gap-2">
+                          {/* Show LOO Declined button when LOO is issued but not accepted */}
+                          {candidate.offerLetterIssuedAt && !candidate.offerLetterAcceptedAt && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsDeclineDialogOpen(true)}
+                              className="gap-1.5 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              data-testid="button-hiring-progress-loo-declined"
+                            >
+                              <ThumbsDown className="h-3.5 w-3.5" />
+                              LOO Declined
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            onClick={primaryAction.onClick}
+                            className="gap-1.5"
+                            data-testid={`button-hiring-progress-${candidate.offerLetterIssuedAt ? 'loo-accepted' : 'send-loo'}`}
+                          >
+                            <primaryAction.icon className="h-3.5 w-3.5" />
+                            {primaryAction.label}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {stepDate && (
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {stepDate}
+                      </p>
+                    )}
+
+                    {isOnboardingStep && status === "upcoming" && !candidate.templateAppliedAt && (
+                      <p className="mt-0.5 text-xs text-muted-foreground italic">
+                        Template will be applied when offer is accepted
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Template Status Note */}
+        {candidate.templateAppliedAt && (
+          <div className="mt-4 rounded-md bg-muted/50 p-3">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Onboarding Active</span>
+              {" · "}
+              Template applied on {formatDate(candidate.templateAppliedAt)}
+            </p>
+          </div>
+        )}
+
+        {/* LOO Date Dialog */}
+        <LooDateDialog
+          candidateId={candidate.id}
+          type={looDialogType}
+          letterOfIntentDate={candidate.letterOfIntentDate}
+          offerLetterIssuedAt={candidate.offerLetterIssuedAt}
+          open={isLooDialogOpen}
+          onOpenChange={setIsLooDialogOpen}
+        />
+
+        {/* LOO Declined Confirmation Dialog */}
+        <AlertDialog open={isDeclineDialogOpen} onOpenChange={setIsDeclineDialogOpen}>
+          <AlertDialogContent data-testid="dialog-loo-declined">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Offer Declined</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to mark this offer as declined? This will change the candidate's status to "Offer Declined" and stop any further hiring progress.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-decline">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => declineMutation.mutate()}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                data-testid="button-confirm-decline"
+              >
+                {declineMutation.isPending ? "Declining..." : "Confirm Decline"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Compact version of the hiring progress for use in lists or smaller spaces
+ */
+export function HiringProgressBadge({
+  candidate,
+}: Pick<HiringProgressProps, "candidate">) {
+  const phaseInfo = getHiringPhase(candidate);
+  
+  return (
+    <Badge variant={HIRING_PHASE_VARIANTS[phaseInfo.phase]} className="gap-1">
+      {phaseInfo.phase === "loi_issued" && <FileText className="h-3 w-3" />}
+      {phaseInfo.phase === "offer_pending" && <Mail className="h-3 w-3" />}
+      {phaseInfo.phase === "pre_hire" && <UserCheck className="h-3 w-3" />}
+      {phaseInfo.phase === "onboarding" && <Briefcase className="h-3 w-3" />}
+      {phaseInfo.label}
+    </Badge>
+  );
+}

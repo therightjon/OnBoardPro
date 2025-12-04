@@ -34,6 +34,7 @@ import { authorizationService } from "../services/authorization";
 import { eventBus, candidateCreated, candidateStatusChanged, candidateStageChanged, taskCreated, taskAssigned, commentCreated } from "../events";
 import { getCandidateService, getTaskService } from "../services/service-factory";
 import { CandidateValidationError } from "../services/candidates/candidate.service";
+import { shouldAutoApplyTemplate } from "../utils/hiring-phase.utils";
 
 const router = Router();
 
@@ -281,12 +282,28 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
       }
     }
 
+    // NEW: Validate required fields for deferred template application flow
+    if (!req.body.letterOfIntentDate) {
+      return res.status(400).json({ message: "Letter of Intent date is required" });
+    }
+    if (!req.body.templateId) {
+      return res.status(400).json({ message: "Template is required" });
+    }
+
     // Validate input
     const validatedData = insertCandidateSchema.parse(req.body);
+    
+    // NEW: Set up candidate with deferred template application
+    // Template is selected (templateAppliedFromId) but not yet applied (templateAppliedAt = null)
+    // Template will be expanded when LOO is accepted
     const candidateData = {
       ...validatedData,
       status: "active" as const,
-      primaryOwnerId: req.user!.id
+      primaryOwnerId: req.user!.id,
+      // Store templateId as selected template (deferred application)
+      templateAppliedFromId: req.body.templateId,
+      templateLocked: true, // Lock template selection - cannot be changed after creation
+      templateAppliedAt: null, // NULL indicates template is selected but not yet applied
     };
 
     // Use service for business logic (duplicate checking, event publishing)
@@ -421,6 +438,61 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
       await storage.recomputeCandidateDueDates(fullCandidate.id);
     }
 
+    // Integration concerns: Auto-apply template when LOO is accepted (deferred template application)
+    // Check if LOO acceptance is being set and template should be auto-applied
+    console.log('Checking LOO acceptance auto-apply:', {
+      previousOfferLetterAcceptedAt: previousCandidate.offerLetterAcceptedAt,
+      newOfferLetterAcceptedAt: updateData.offerLetterAcceptedAt,
+      templateAppliedFromId: previousCandidate.templateAppliedFromId,
+      templateAppliedAt: previousCandidate.templateAppliedAt,
+    });
+    const shouldApplyTemplate = shouldAutoApplyTemplate(
+      previousCandidate,
+      updateData.offerLetterAcceptedAt
+    );
+    console.log('shouldApplyTemplate result:', shouldApplyTemplate);
+    
+    let templateExpansionResult = null;
+    if (shouldApplyTemplate && fullCandidate.templateAppliedFromId) {
+      try {
+        console.log('Auto-applying deferred template on LOO acceptance:', { 
+          candidateId: fullCandidate.id, 
+          templateId: fullCandidate.templateAppliedFromId 
+        });
+        
+        templateExpansionResult = await storage.expandTemplate(
+          fullCandidate.templateAppliedFromId,
+          fullCandidate.id,
+          req.user!.id
+        );
+        
+        // Publish taskCreated events for all tasks created from template
+        await Promise.all(
+          templateExpansionResult.createdTasks.map((task) =>
+            eventBus.publish(taskCreated(task.id, {
+              candidateId: task.candidateId,
+              title: task.title,
+              assigneeUserId: task.assigneeUserId,
+              assigneeRole: task.assigneeKind === 'role' ? task.assigneeRole : null,
+              dueAt: task.dueAt,
+              isRequired: false,
+              fromTemplate: true
+            }, {
+              actorId: req.user?.id
+            }))
+          )
+        );
+        
+        console.log('Template auto-applied successfully:', { 
+          taskCount: templateExpansionResult.createdCount 
+        });
+      } catch (templateError: any) {
+        console.error('Failed to auto-apply template on LOO acceptance:', templateError);
+        // Don't fail the whole request - the LOO acceptance was recorded
+        // User can manually apply template later if needed
+      }
+    }
+
     // Integration concerns: Emit owner changed notification
     if (previousCandidate.primaryOwnerId !== fullCandidate.primaryOwnerId) {
       await emitOwnerChanged({
@@ -453,7 +525,25 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
       }
     }
 
-    res.json(fullCandidate);
+    // If template was auto-applied, refetch to get updated data
+    let responseCandidate = fullCandidate;
+    if (templateExpansionResult) {
+      const refreshed = await candidateService.getCandidate(req.params.id, authContext);
+      if (refreshed) {
+        responseCandidate = refreshed;
+      }
+    }
+
+    // Include template expansion info in response if it occurred
+    const response = templateExpansionResult 
+      ? { 
+          ...responseCandidate, 
+          templateAutoApplied: true, 
+          tasksCreated: templateExpansionResult.createdCount 
+        }
+      : responseCandidate;
+
+    res.json(response);
   } catch (error) {
     next(error);
   }
@@ -463,7 +553,7 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
 router.patch("/candidates/:id/status", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
     const statusSchema = z.object({
-      status: z.enum(["draft", "active", "on_hold", "completed", "canceled", "archived"]),
+      status: z.enum(["draft", "active", "on_hold", "completed", "canceled", "offer_declined", "archived"]),
       closeOpenTasks: z.boolean().optional()
     });
     const parsed = statusSchema.parse(req.body ?? {});

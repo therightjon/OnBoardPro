@@ -24,6 +24,7 @@ import { CommentsTab } from "@/features/comments/components/comments-tab";
 import { EditCandidateDialog } from "@/features/candidates/components/edit-candidate-dialog";
 import { ArchiveCandidateDialog } from "@/features/candidates/components/archive-candidate-dialog";
 import { candidateStatusBadgeClass, isCandidateFullyOnboarded, resolveCandidateStatus, summarizeCandidateTasks, type ResolvedCandidateStatus } from "@/features/candidates/utils/status";
+import { HiringProgress } from "@/features/candidates/components/hiring-progress";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
@@ -341,7 +342,7 @@ export default function CandidateDetailPage() {
   const taskSummary = summarizeCandidateTasks(allTasksFlat);
   const hasAnyTasks = allTasksFlat.length > 0;
 
-  // Automatically set status to completed when onboarding is complete (excluding canceled/archived)
+  // Automatically set status to completed when onboarding is complete (excluding canceled/archived/offer_declined)
   useEffect(() => {
     // no-op on server / ensure candidate exists
     if (!candidate) return;
@@ -349,7 +350,7 @@ export default function CandidateDetailPage() {
     // Only auto-complete when every task is actually done (no canceled) and status isn't already terminal
     const shouldAutoComplete = taskSummary.allDone;
     if (!shouldAutoComplete) return;
-    if (!status || status === 'completed' || status === 'canceled' || status === 'archived') return;
+    if (!status || status === 'completed' || status === 'canceled' || status === 'offer_declined' || status === 'archived') return;
     // Fire-and-forget status update; ignore errors here and let manual update handle it
     (async () => {
       try {
@@ -374,26 +375,6 @@ export default function CandidateDetailPage() {
   const anchorDate = looAnchor ?? (candidate as any)?.anticipatedStartDate ?? null;
   const daysSinceLoo = daysSince(looAnchor);
   const anchorDateLabel = formatUtcDate(anchorDate);
-  const employmentDates = [
-    {
-      key: "anticipatedStartDate",
-      label: "Anticipated Start",
-      value: formatUtcDate((candidate as any)?.anticipatedStartDate),
-      testId: "text-candidate-start-date",
-    },
-    {
-      key: "offerLetterIssuedAt",
-      label: "LOO Issued",
-      value: formatUtcDate((candidate as any)?.offerLetterIssuedAt),
-      testId: "text-loo-issued",
-    },
-    {
-      key: "offerLetterAcceptedAt",
-      label: "LOO Accepted",
-      value: formatUtcDate((candidate as any)?.offerLetterAcceptedAt),
-      testId: "text-loo-accepted",
-    },
-  ];
 
   const candidateId = (candidate as any)?.id || id;
   const resolvedStatus = resolveCandidateStatus(candidate as any);
@@ -410,9 +391,11 @@ export default function CandidateDetailPage() {
     ? (currentStageName === "Not set" ? "Archived" : `${currentStageName} (Archived)`)
     : resolvedStatus.isCanceled
       ? (currentStageName === "Not set" ? "Canceled" : `${currentStageName} (Canceled)`)
-      : fullyOnboarded
-        ? "Fully Onboarded!"
-        : currentStageName;
+      : resolvedStatus.isOfferDeclined
+        ? (currentStageName === "Not set" ? "Offer Declined" : `${currentStageName} (Offer Declined)`)
+        : fullyOnboarded
+          ? "Fully Onboarded!"
+          : currentStageName;
   const stageClassName = fullyOnboarded
     ? "text-xs xs:text-sm font-bold text-green-700 dark:text-green-400 break-words"
     : "text-xs xs:text-sm text-muted-foreground break-words";
@@ -696,6 +679,10 @@ export default function CandidateDetailPage() {
           { value: 'archived', label: 'Archived', destructive: true },
           { value: 'active', label: 'Restore to Active' }
         ],
+        'offer_declined': [
+          { value: 'archived', label: 'Archived', destructive: true },
+          { value: 'active', label: 'Restore to Active' }
+        ],
         'archived': [
           { value: 'active', label: 'Restore to Active' }
         ]
@@ -937,6 +924,16 @@ export default function CandidateDetailPage() {
               );
             }
 
+            if (resolvedStatus.isOfferDeclined) {
+              return (
+                <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg">
+                  <p className="text-2xl font-bold text-orange-700 dark:text-orange-300 text-center" data-testid="text-offer-declined">
+                    Offer Declined
+                  </p>
+                </div>
+              );
+            }
+
             return fullyOnboarded ? (
               <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
                 <p className="text-2xl font-bold text-green-700 dark:text-green-400 text-center" data-testid="text-onboarding-complete">
@@ -966,23 +963,61 @@ export default function CandidateDetailPage() {
             <div className="space-y-3 xs:space-y-4">
               <h3 className="text-sm xs:text-base sm:text-lg font-semibold text-foreground border-b pb-2">Employment</h3>
               <dl className="space-y-2 xs:space-y-3">
-                <div className="flex items-start space-x-3">
-                  <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <div className="min-w-0 w-full">
-                    <dt className="text-xs xs:text-sm font-medium">Employment Dates</dt>
-                    <dd className="text-xs xs:text-sm text-muted-foreground">
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4" data-testid="employment-date-list">
-                        {employmentDates.map(({ key, label, value, testId }) => (
-                          <div key={key} className="min-w-[150px]">
-                            <div className="text-xs xs:text-sm font-medium text-foreground">{label}</div>
-                            <div className="text-xs xs:text-sm text-muted-foreground" data-testid={testId}>{value}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </dd>
+                {/* Row 1: LOI Date | LOO Issued */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-start space-x-3">
+                    <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <dt className="text-xs xs:text-sm font-medium">LOI Date</dt>
+                      <dd className="text-xs xs:text-sm text-muted-foreground" data-testid="text-loi-date">{formatUtcDate((candidate as any)?.letterOfIntentDate)}</dd>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <dt className="text-xs xs:text-sm font-medium">LOO Issued</dt>
+                      <dd className="text-xs xs:text-sm text-muted-foreground" data-testid="text-loo-issued">{formatUtcDate((candidate as any)?.offerLetterIssuedAt)}</dd>
+                    </div>
                   </div>
                 </div>
 
+                {/* Row 2: LOO Accepted | Anticipated Start */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-start space-x-3">
+                    <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <dt className="text-xs xs:text-sm font-medium">LOO Accepted</dt>
+                      <dd className="text-xs xs:text-sm text-muted-foreground" data-testid="text-loo-accepted">{formatUtcDate((candidate as any)?.offerLetterAcceptedAt)}</dd>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <dt className="text-xs xs:text-sm font-medium">Anticipated Start</dt>
+                      <dd className="text-xs xs:text-sm text-muted-foreground" data-testid="text-candidate-start-date">{formatUtcDate((candidate as any)?.anticipatedStartDate)}</dd>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 3: Candidate Type | Faculty Rank */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-start space-x-3">
+                    <Building className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <dt className="text-xs xs:text-sm font-medium">Candidate Type</dt>
+                      <dd className="text-xs xs:text-sm text-muted-foreground">{(candidate as any).candidateType?.name || "Not set"}</dd>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <User className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <dt className="text-xs xs:text-sm font-medium">Faculty Rank</dt>
+                      <dd className="text-xs xs:text-sm text-muted-foreground">{(candidate as any).facultyRank?.name || "N/A"}</dd>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 4: Anchor in Use */}
                 <div className="flex items-start space-x-3">
                   <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                   <div className="min-w-0">
@@ -1001,24 +1036,6 @@ export default function CandidateDetailPage() {
                     </dd>
                   </div>
                 </div>
-
-                <div className="flex items-start space-x-3">
-                  <Building className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <div className="min-w-0">
-                    <dt className="text-xs xs:text-sm font-medium">Candidate Type</dt>
-                    <dd className="text-xs xs:text-sm text-muted-foreground">{(candidate as any).candidateType?.name || "Not set"}</dd>
-                  </div>
-                </div>
-
-                {(candidate as any).facultyRank && (
-                  <div className="flex items-start space-x-3">
-                    <User className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                    <div className="min-w-0">
-                      <dt className="text-xs xs:text-sm font-medium">Faculty Rank</dt>
-                      <dd className="text-xs xs:text-sm text-muted-foreground">{(candidate as any).facultyRank.name}</dd>
-                    </div>
-                  </div>
-                )}
               </dl>
             </div>
 
@@ -1125,6 +1142,17 @@ export default function CandidateDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Hiring Progress */}
+      <HiringProgress
+        candidate={{
+          id: (candidate as any).id,
+          letterOfIntentDate: (candidate as any).letterOfIntentDate,
+          offerLetterIssuedAt: (candidate as any).offerLetterIssuedAt,
+          offerLetterAcceptedAt: (candidate as any).offerLetterAcceptedAt,
+          templateAppliedAt: (candidate as any).templateAppliedAt,
+        }}
+      />
+
       {/* Tasks and Timeline Tabs */}
       <Card>
         <CardContent className="p-3 xs:p-4 sm:p-6">
@@ -1174,6 +1202,11 @@ export default function CandidateDetailPage() {
                         <Button variant="outline" className="min-h-[44px]">
                           Apply Template
                         </Button>
+                      </div>
+                    ) : !(candidate as any).templateAppliedAt ? (
+                      <div className="text-center py-6 xs:py-8">
+                        <p className="text-sm text-muted-foreground">Tasks will be generated once the Letter of Offer is accepted.</p>
+                        <p className="text-xs text-muted-foreground mt-2">Use the "LOO Accepted" button in Hiring Progress to record acceptance.</p>
                       </div>
                     ) : (
                       <p className="text-center text-muted-foreground py-6 xs:py-8 text-sm">No tasks found for this candidate</p>

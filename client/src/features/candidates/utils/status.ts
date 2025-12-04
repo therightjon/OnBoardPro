@@ -4,6 +4,7 @@ export type CandidateLifecycleStatus =
   | "on_hold"
   | "completed"
   | "canceled"
+  | "offer_declined"
   | "archived";
 
 export type ResolvedCandidateStatusKey = CandidateLifecycleStatus | "unknown";
@@ -22,6 +23,7 @@ export type ResolvedCandidateStatus = {
   badgeClass: string;
   isArchived: boolean;
   isCanceled: boolean;
+  isOfferDeclined: boolean;
   isCompleted: boolean;
 };
 
@@ -32,6 +34,7 @@ export type CandidateTaskLike = {
 export const CANDIDATE_STATUS_PRIORITY: CandidateLifecycleStatus[] = [
   "archived",
   "canceled",
+  "offer_declined",
   "completed",
   "on_hold",
   "active",
@@ -41,6 +44,7 @@ export const CANDIDATE_STATUS_PRIORITY: CandidateLifecycleStatus[] = [
 const STATUS_LABELS: Record<ResolvedCandidateStatusKey, string> = {
   archived: "Archived",
   canceled: "Canceled",
+  offer_declined: "Offer Declined",
   completed: "Completed",
   on_hold: "On Hold",
   active: "Active",
@@ -54,6 +58,7 @@ const STATUS_BADGE_CLASSES: Record<ResolvedCandidateStatusKey, string> = {
   completed: "bg-chart-5/10 text-chart-5",
   on_hold: "bg-chart-4/10 text-chart-4",
   canceled: "bg-destructive/10 text-destructive",
+  offer_declined: "bg-destructive/10 text-destructive",
   archived: "bg-muted text-muted-foreground",
   unknown: "bg-muted text-muted-foreground"
 };
@@ -64,6 +69,7 @@ const STATUS_TONES: Record<ResolvedCandidateStatusKey, CandidateStatusTone> = {
   completed: "success",
   on_hold: "warning",
   canceled: "danger",
+  offer_declined: "danger",
   archived: "muted",
   unknown: "muted"
 };
@@ -89,15 +95,17 @@ export function resolveCandidateStatus(
       ? "archived"
       : normalized === "canceled"
         ? "canceled"
-        : normalized === "completed"
-          ? "completed"
-        : normalized === "on_hold"
-          ? "on_hold"
-          : normalized === "active"
-            ? "active"
-              : normalized === "draft"
-                ? "draft"
-                : "unknown";
+        : normalized === "offer_declined"
+          ? "offer_declined"
+          : normalized === "completed"
+            ? "completed"
+          : normalized === "on_hold"
+            ? "on_hold"
+            : normalized === "active"
+              ? "active"
+                : normalized === "draft"
+                  ? "draft"
+                  : "unknown";
 
   return {
     status: resolved,
@@ -106,6 +114,7 @@ export function resolveCandidateStatus(
     tone: STATUS_TONES[resolved],
     isArchived: resolved === "archived",
     isCanceled: resolved === "canceled",
+    isOfferDeclined: resolved === "offer_declined",
     isCompleted: resolved === "completed"
   };
 }

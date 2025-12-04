@@ -18,6 +18,7 @@ import {
   facultyRanks,
   hiringStages,
   templateStages,
+  templates,
   taskDefinitions,
   type Candidate,
   type InsertCandidate,
@@ -103,6 +104,7 @@ export class CandidateRepository extends BaseRepository {
         firstName: candidates.firstName,
         lastName: candidates.lastName,
         email: candidates.email,
+        letterOfIntentDate: candidates.letterOfIntentDate,
         offerLetterIssuedAt: candidates.offerLetterIssuedAt,
         offerLetterAcceptedAt: candidates.offerLetterAcceptedAt,
         anticipatedStartDate: candidates.anticipatedStartDate,
@@ -116,7 +118,8 @@ export class CandidateRepository extends BaseRepository {
         templateAppliedFromId: candidates.templateAppliedFromId,
         templateAppliedAt: candidates.templateAppliedAt,
         templateLocked: candidates.templateLocked,
-        templateNameSnapshot: candidates.templateNameSnapshot,
+        // Use snapshot if available, otherwise get from templates table (for deferred template)
+        templateNameSnapshot: sql<string>`COALESCE(${candidates.templateNameSnapshot}, ${templates.name})`,
         templateVersion: candidates.templateVersion,
         archived: candidates.archived,
         archivedAt: candidates.archivedAt,
@@ -159,6 +162,7 @@ export class CandidateRepository extends BaseRepository {
       })
       .from(candidates)
       .leftJoin(hiringStages, eq(candidates.currentStageId, hiringStages.id))
+      .leftJoin(templates, eq(candidates.templateAppliedFromId, templates.id))
       .leftJoin(currentTemplateStage, and(
         eq(currentTemplateStage.templateId, candidates.templateAppliedFromId),
         eq(currentTemplateStage.stageId, candidates.currentStageId),
@@ -194,6 +198,7 @@ export class CandidateRepository extends BaseRepository {
         divisionId: candidates.divisionId,
         managerId: candidates.managerId,
         facultyRankId: candidates.facultyRankId,
+        letterOfIntentDate: candidates.letterOfIntentDate,
         offerLetterIssuedAt: candidates.offerLetterIssuedAt,
         offerLetterAcceptedAt: candidates.offerLetterAcceptedAt,
         anticipatedStartDate: candidates.anticipatedStartDate,
@@ -247,7 +252,8 @@ export class CandidateRepository extends BaseRepository {
           id: facultyRanks.id,
           name: facultyRanks.name
         },
-        templateNameSnapshot: candidates.templateNameSnapshot,
+        // Use snapshot if available, otherwise get from templates table (for deferred template)
+        templateNameSnapshot: sql<string>`COALESCE(${candidates.templateNameSnapshot}, ${templates.name})`,
         templateVersion: candidates.templateVersion,
         currentStage: {
           id: hiringStages.id,
@@ -265,6 +271,7 @@ export class CandidateRepository extends BaseRepository {
       .leftJoin(primaryOwner, eq(candidates.primaryOwnerId, primaryOwner.id))
       .leftJoin(facultyRanks, eq(candidates.facultyRankId, facultyRanks.id))
       .leftJoin(hiringStages, eq(candidates.currentStageId, hiringStages.id))
+      .leftJoin(templates, eq(candidates.templateAppliedFromId, templates.id))
       .leftJoin(currentTemplateStage, and(
         eq(currentTemplateStage.templateId, candidates.templateAppliedFromId),
         eq(currentTemplateStage.stageId, candidates.currentStageId),
@@ -378,6 +385,7 @@ export class CandidateRepository extends BaseRepository {
       'on_hold': ['active', 'canceled', 'archived'],
       'completed': ['archived'],
       'canceled': ['archived', 'active'], // Can restore canceled to active
+      'offer_declined': ['archived', 'active'], // Can restore offer_declined to active
       'archived': ['active'] // Can only restore to active
     };
 
@@ -447,7 +455,8 @@ export class CandidateRepository extends BaseRepository {
           updateData.archivedBy = null;
           updateData.statusBeforeArchive = null;
         }
-        if (currentStatus === 'canceled' || (currentStatus === 'archived' && statusBeforeArchive === 'canceled')) {
+        if (currentStatus === 'canceled' || currentStatus === 'offer_declined' || 
+            (currentStatus === 'archived' && (statusBeforeArchive === 'canceled' || statusBeforeArchive === 'offer_declined'))) {
           // Restore previously canceled tasks back to default status
           const reopened = await this.db
             .update(candidateTasks)

@@ -911,6 +911,7 @@ export class DatabaseStorage implements IStorage {
         divisionId: candidates.divisionId,
         managerId: candidates.managerId,
         facultyRankId: candidates.facultyRankId,
+        letterOfIntentDate: candidates.letterOfIntentDate,
         offerLetterIssuedAt: candidates.offerLetterIssuedAt,
         offerLetterAcceptedAt: candidates.offerLetterAcceptedAt,
         anticipatedStartDate: candidates.anticipatedStartDate,
@@ -2347,7 +2348,9 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Candidate not found");
     }
 
-    if (candidate.templateLocked) {
+    // Check if template was already applied (not just locked for selection)
+    // templateLocked means selection is locked, templateAppliedAt means tasks were generated
+    if (candidate.templateAppliedAt) {
       throw new Error("Candidate already has a template applied");
     }
 
@@ -3182,6 +3185,7 @@ export class DatabaseStorage implements IStorage {
       'on_hold': ['active', 'canceled', 'archived'],
       'completed': ['archived'],
       'canceled': ['archived', 'active'], // Can restore canceled to active
+      'offer_declined': ['archived', 'active'], // Can restore offer_declined to active
       'archived': ['active'] // Can only restore to active
     };
 
@@ -3249,7 +3253,7 @@ export class DatabaseStorage implements IStorage {
           updateData.archivedAt = null;
           updateData.archivedBy = null;
         }
-        if (currentStatus === 'canceled') {
+        if (currentStatus === 'canceled' || currentStatus === 'offer_declined') {
           // Restore previously canceled tasks back to default status
           const reopened = await this.db
             .update(candidateTasks)

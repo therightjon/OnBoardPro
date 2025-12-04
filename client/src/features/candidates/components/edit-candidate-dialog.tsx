@@ -87,8 +87,17 @@ interface EditCandidateDialogProps {
 }
 
 // Helper to parse ISO date string to Date object
+// For date-only strings (YYYY-MM-DD), parse as local midnight to avoid timezone offset display issues
 const parseDate = (dateStr: string | null | undefined): Date | undefined => {
   if (!dateStr) return undefined;
+  // Check if it's a date-only string (YYYY-MM-DD)
+  const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (dateOnlyRegex.test(dateStr)) {
+    // Parse as local date (year, month-1, day) to avoid UTC offset issues
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+  // For full ISO strings, parse normally
   const date = new Date(dateStr);
   return isNaN(date.getTime()) ? undefined : date;
 };

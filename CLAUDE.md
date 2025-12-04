@@ -97,3 +97,6 @@ Core entities include users, candidates, templates, tasks, and hiring stages wit
 
 **Testing:**
 - No specific test framework mentioned - check for existing test setup before adding tests
+
+## Maintain Consistency
+- Reuse existing components, hooks, forms, and utilities. Only extend them when needed, never replace or invent new patterns unless no suitable option exists. Maintain full consistency with the current system.

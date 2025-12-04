@@ -168,7 +168,9 @@ export class TemplateExpansionService {
       throw new Error("Candidate not found");
     }
 
-    if (candidate.templateLocked) {
+    // Check if template was already applied (not just locked for selection)
+    // templateLocked means selection is locked, templateAppliedAt means tasks were generated
+    if (candidate.templateAppliedAt) {
       throw new Error("Candidate already has a template applied");
     }
 

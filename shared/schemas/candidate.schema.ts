@@ -10,7 +10,8 @@ import {
   uniqueIndex,
   jsonb,
   primaryKey,
-  index
+  index,
+  date
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -24,6 +25,7 @@ export const candidateStatusEnum = pgEnum("candidate_status", [
   "on_hold", 
   "completed", 
   "canceled",
+  "offer_declined",
   "archived"
 ]);
 
@@ -96,9 +98,11 @@ export const candidates = pgTable("candidates", {
   divisionId: uuid("division_id"),
   managerId: uuid("manager_id"),
   facultyRankId: uuid("faculty_rank_id"),
+  // Hiring milestone dates
+  letterOfIntentDate: date("letter_of_intent_date"), // Required at creation, immutable
   offerLetterIssuedAt: timestamp("offer_letter_issued_at"),
   offerLetterAcceptedAt: timestamp("offer_letter_accepted_at"),
-  anticipatedStartDate: timestamp("anticipated_start_date"),
+  anticipatedStartDate: timestamp("anticipated_start_date"), // Optional at creation, required before onboarding
   status: candidateStatusEnum("status").default("active").notNull(),
   primaryOwnerId: uuid("primary_owner_id").references(() => users.id),
   linkedUserId: uuid("linked_user_id").references(() => users.id),
@@ -248,9 +252,15 @@ export const candidateFollowersRelations = relations(candidateFollowers, ({ one 
 
 // Zod schemas
 export const insertCandidateSchema = createInsertSchema(candidates).extend({
-  offerLetterIssuedAt: z.coerce.date(),
+  // Letter of Intent date - required at creation, immutable
+  letterOfIntentDate: z.coerce.date(),
+  // LOO dates - optional at creation
+  offerLetterIssuedAt: z.coerce.date().optional().nullable(),
   offerLetterAcceptedAt: z.coerce.date().optional().nullable(),
-  anticipatedStartDate: z.coerce.date(),
+  // Anticipated start date - optional at creation, can be set when LOO is accepted
+  anticipatedStartDate: z.coerce.date().optional().nullable(),
+  // Template ID - required at creation but expansion is deferred until LOO accepted
+  templateAppliedFromId: z.string().uuid().optional().nullable(),
 });
 export const insertDepartmentSchema = createInsertSchema(departments);
 export const insertDivisionSchema = createInsertSchema(divisions);

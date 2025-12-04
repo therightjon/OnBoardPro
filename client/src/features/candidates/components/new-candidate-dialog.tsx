@@ -35,47 +35,55 @@ const newCandidateSchema = z.object({
   divisionId: z.string().optional(),
   managerId: z.string().optional(),
   facultyRankId: z.string().optional(),
-  offerLetterIssuedAt: z.date({
-    required_error: "LOO issued date is required",
+  // NEW: Letter of Intent date is required at creation (immutable after)
+  letterOfIntentDate: z.date({
+    required_error: "Letter of Intent date is required",
   }),
+  // LOO dates are now optional at creation
+  offerLetterIssuedAt: z.date().optional(),
   offerLetterAcceptedAt: z.date().optional(),
-  anticipatedStartDate: z.date({
-    required_error: "Anticipated start date is required",
-  }).refine((date) => date >= new Date(new Date().setHours(0, 0, 0, 0)), {
-    message: "Anticipated start date must be today or in the future",
-  }),
+  // Anticipated start date is now optional at creation
+  anticipatedStartDate: z.date().optional(),
+  // Template is required but will be applied later when LOO is accepted
   templateId: z.string().min(1, "Template is required"),
 }).superRefine((data, ctx) => {
-  const today = new Date(new Date().setHours(0, 0, 0, 0));
+  // Cascading date validation: LOI → LOO Issued → LOO Accepted → Anticipated Start
 
-  if (data.offerLetterAcceptedAt && data.offerLetterAcceptedAt < data.offerLetterIssuedAt) {
+  // LOO issued must be on or after LOI date
+  if (data.offerLetterIssuedAt && data.letterOfIntentDate && data.offerLetterIssuedAt < data.letterOfIntentDate) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ["offerLetterAcceptedAt"],
-      message: "LOO accepted date cannot be before the issued date",
-    });
-  }
-  if (data.offerLetterAcceptedAt && data.offerLetterAcceptedAt < today) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["offerLetterAcceptedAt"],
-      message: "LOO accepted date cannot be in the past",
+      path: ["offerLetterIssuedAt"],
+      message: "LOO issued date cannot be before the LOI date",
     });
   }
 
-  if (data.anticipatedStartDate < data.offerLetterIssuedAt) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["anticipatedStartDate"],
-      message: "Anticipated start date cannot be before the LOO issued date",
-    });
+  // LOO accepted: cascade from LOO Issued if set, otherwise from LOI Date
+  if (data.offerLetterAcceptedAt) {
+    const minDate = data.offerLetterIssuedAt || data.letterOfIntentDate;
+    if (minDate && data.offerLetterAcceptedAt < minDate) {
+      const fieldName = data.offerLetterIssuedAt ? "LOO issued" : "LOI";
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["offerLetterAcceptedAt"],
+        message: `LOO accepted date cannot be before the ${fieldName} date`,
+      });
+    }
   }
-  if (data.offerLetterAcceptedAt && data.anticipatedStartDate < data.offerLetterAcceptedAt) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["anticipatedStartDate"],
-      message: "Anticipated start date cannot be before the LOO accepted date",
-    });
+
+  // Anticipated start: cascade from LOO Accepted → LOO Issued → LOI Date
+  if (data.anticipatedStartDate) {
+    const minDate = data.offerLetterAcceptedAt || data.offerLetterIssuedAt || data.letterOfIntentDate;
+    if (minDate && data.anticipatedStartDate < minDate) {
+      let fieldName = "LOI";
+      if (data.offerLetterAcceptedAt) fieldName = "LOO accepted";
+      else if (data.offerLetterIssuedAt) fieldName = "LOO issued";
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["anticipatedStartDate"],
+        message: `Anticipated start date cannot be before the ${fieldName} date`,
+      });
+    }
   }
 });
 
@@ -110,9 +118,10 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
       divisionId: user?.divisionId || "",
       managerId: "",
       facultyRankId: "",
-      offerLetterIssuedAt: undefined,
+      letterOfIntentDate: undefined, // NEW: Required
+      offerLetterIssuedAt: undefined, // Now optional
       offerLetterAcceptedAt: undefined,
-      anticipatedStartDate: undefined,
+      anticipatedStartDate: undefined, // Now optional
       templateId: "",
     },
   });
@@ -121,6 +130,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
   const selectedCandidateTypeId = form.watch("candidateTypeId");
   const selectedTemplateId = form.watch("templateId");
   const selectedAnticipatedStart = form.watch("anticipatedStartDate");
+  const selectedLetterOfIntentDate = form.watch("letterOfIntentDate");
   const selectedOfferLetterIssued = form.watch("offerLetterIssuedAt");
   const selectedOfferLetterAccepted = form.watch("offerLetterAcceptedAt");
 
@@ -256,7 +266,8 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
     mutationFn: async (data: NewCandidateForm) => {
       setIsCreating(true);
       
-      // Create candidate
+      // Create candidate with selected template (deferred application)
+      // Template will be applied automatically when LOO is accepted
       const candidateData = {
         salutation: data.salutation,
         firstName: data.firstName,
@@ -267,9 +278,15 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
         divisionId: data.divisionId === "none" ? null : data.divisionId || null,
         managerId: data.managerId === "none" ? null : data.managerId || null,
         facultyRankId: data.facultyRankId || null,
-        offerLetterIssuedAt: format(data.offerLetterIssuedAt, "yyyy-MM-dd"),
+        // NEW: Letter of Intent date is required
+        letterOfIntentDate: format(data.letterOfIntentDate, "yyyy-MM-dd"),
+        // LOO dates are optional at creation
+        offerLetterIssuedAt: data.offerLetterIssuedAt ? format(data.offerLetterIssuedAt, "yyyy-MM-dd") : null,
         offerLetterAcceptedAt: data.offerLetterAcceptedAt ? format(data.offerLetterAcceptedAt, "yyyy-MM-dd") : null,
-        anticipatedStartDate: format(data.anticipatedStartDate, "yyyy-MM-dd"),
+        // Anticipated start date is optional at creation
+        anticipatedStartDate: data.anticipatedStartDate ? format(data.anticipatedStartDate, "yyyy-MM-dd") : null,
+        // Template is required - will be stored as selected but not applied until LOO accepted
+        templateId: data.templateId,
       };
 
       const candidateRes = await apiRequest("POST", "/api/candidates", candidateData);
@@ -279,22 +296,9 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
         throw new Error(candidate.message || "Failed to create candidate");
       }
 
-      // Apply template
-      const templateRes = await apiRequest("POST", `/api/candidates/${candidate.id}/apply-template`, {
-        template_id: data.templateId,
-      });
-
-      if (!templateRes.ok) {
-        // If template application fails, delete the candidate to prevent orphaned records
-        try {
-          await apiRequest("DELETE", `/api/candidates/${candidate.id}`);
-        } catch (deleteError) {
-          console.error("Failed to rollback candidate creation:", deleteError);
-        }
-        
-        const error = await templateRes.json();
-        throw new Error(error.message || "Failed to apply template");
-      }
+      // NOTE: Template application is now deferred until LOO is accepted
+      // No need to call apply-template separately - it happens automatically
+      // when offerLetterAcceptedAt is set via PATCH
 
       return candidate;
     },
@@ -302,9 +306,15 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
       queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
       queryClient.invalidateQueries({ queryKey: ["/api/candidates", candidate.id] });
       
+      // Determine success message based on whether template was applied
+      const hasLOOAccepted = !!candidate.offerLetterAcceptedAt;
+      const description = hasLOOAccepted 
+        ? "Candidate created and tasks generated"
+        : "Candidate created. Tasks will be generated when LOO is accepted.";
+      
       toast({
         title: "Success",
-        description: "Candidate created and tasks generated",
+        description,
       });
 
       onOpenChange(false);
@@ -537,15 +547,16 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
 
               {/* Right Column */}
               <div className="flex flex-col gap-4">
+                {/* NEW: Letter of Intent Date - required at creation */}
                 <FormField
                   control={form.control}
-                  name="offerLetterIssuedAt"
+                  name="letterOfIntentDate"
                   render={({ field }: { field: any }) => {
                     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
                     return (
                       <FormItem>
-                        <FormLabel>LOO Issued Date *</FormLabel>
+                        <FormLabel>Letter of Intent Date *</FormLabel>
                         <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                           <PopoverTrigger asChild>
                             <FormControl>
@@ -555,7 +566,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                                   "w-full pl-3 text-left font-normal",
                                   !field.value && "text-muted-foreground"
                                 )}
-                                data-testid="button-loo-issued-date"
+                                data-testid="button-loi-date"
                               >
                                 {field.value ? (
                                   format(field.value, "PPP")
@@ -586,14 +597,91 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
 
                 <FormField
                   control={form.control}
+                  name="offerLetterIssuedAt"
+                  render={({ field }: { field: any }) => {
+                    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+                    const loiDate = selectedLetterOfIntentDate ? new Date(selectedLetterOfIntentDate) : null;
+                    if (loiDate) {
+                      loiDate.setHours(0, 0, 0, 0);
+                    }
+
+                    return (
+                      <FormItem>
+                        <FormLabel>LOO Issued Date (Optional)</FormLabel>
+                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                                data-testid="button-loo-issued-date"
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(date) => {
+                                field.onChange(date);
+                                setIsCalendarOpen(false);
+                              }}
+                              disabled={(date) => {
+                                // LOO issued must be on or after LOI date
+                                if (loiDate && date < loiDate) {
+                                  return true;
+                                }
+                                return false;
+                              }}
+                              initialFocus
+                            />
+                            {field.value && (
+                              <div className="flex justify-end p-3 pt-0">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    field.onChange(undefined);
+                                    // Also clear LOO accepted since it depends on LOO issued
+                                    form.setValue("offerLetterAcceptedAt", undefined);
+                                    setIsCalendarOpen(false);
+                                  }}
+                                >
+                                  Clear
+                                </Button>
+                              </div>
+                            )}
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
+
+                <FormField
+                  control={form.control}
                   name="offerLetterAcceptedAt"
                   render={({ field }: { field: any }) => {
                     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-                    const today = new Date(new Date().setHours(0, 0, 0, 0));
+                    // Cascade: LOO Accepted >= LOO Issued >= LOI Date
+                    const loiDate = selectedLetterOfIntentDate ? new Date(selectedLetterOfIntentDate) : null;
                     const issuedDate = selectedOfferLetterIssued ? new Date(selectedOfferLetterIssued) : null;
-                    if (issuedDate) {
-                      issuedDate.setHours(0, 0, 0, 0);
-                    }
+                    if (loiDate) loiDate.setHours(0, 0, 0, 0);
+                    if (issuedDate) issuedDate.setHours(0, 0, 0, 0);
+                    // Use LOO Issued if set, otherwise fall back to LOI Date
+                    const minDate = issuedDate || loiDate;
 
                     return (
                       <FormItem>
@@ -627,10 +715,8 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                                 setIsCalendarOpen(false);
                               }}
                               disabled={(date) => {
-                                if (date < today) {
-                                  return true;
-                                }
-                                if (issuedDate && date < issuedDate) {
+                                // Must be on or after the previous date in the cascade
+                                if (minDate && date < minDate) {
                                   return true;
                                 }
                                 return false;
@@ -665,19 +751,19 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                   name="anticipatedStartDate"
                   render={({ field }: { field: any }) => {
                     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-                    const today = new Date(new Date().setHours(0, 0, 0, 0));
+                    // Cascade: Anticipated Start >= LOO Accepted >= LOO Issued >= LOI Date
+                    const loiDate = selectedLetterOfIntentDate ? new Date(selectedLetterOfIntentDate) : null;
                     const issuedDate = selectedOfferLetterIssued ? new Date(selectedOfferLetterIssued) : null;
                     const acceptedDate = selectedOfferLetterAccepted ? new Date(selectedOfferLetterAccepted) : null;
-                    if (issuedDate) {
-                      issuedDate.setHours(0, 0, 0, 0);
-                    }
-                    if (acceptedDate) {
-                      acceptedDate.setHours(0, 0, 0, 0);
-                    }
+                    if (loiDate) loiDate.setHours(0, 0, 0, 0);
+                    if (issuedDate) issuedDate.setHours(0, 0, 0, 0);
+                    if (acceptedDate) acceptedDate.setHours(0, 0, 0, 0);
+                    // Use the latest date in the cascade that's set
+                    const minDate = acceptedDate || issuedDate || loiDate;
                     
                     return (
                       <FormItem>
-                        <FormLabel>Anticipated Start Date *</FormLabel>
+                        <FormLabel>Anticipated Start Date (Optional)</FormLabel>
                         <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                           <PopoverTrigger asChild>
                             <FormControl>
@@ -707,19 +793,29 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                                 setIsCalendarOpen(false);
                               }}
                               disabled={(date) => {
-                                if (date < today) {
-                                  return true;
-                                }
-                                if (issuedDate && date < issuedDate) {
-                                  return true;
-                                }
-                                if (acceptedDate && date < acceptedDate) {
+                                // Must be on or after the previous date in the cascade
+                                if (minDate && date < minDate) {
                                   return true;
                                 }
                                 return false;
                               }}
                               initialFocus
                             />
+                            {field.value && (
+                              <div className="flex justify-end p-3 pt-0">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    field.onChange(undefined);
+                                    setIsCalendarOpen(false);
+                                  }}
+                                >
+                                  Clear
+                                </Button>
+                              </div>
+                            )}
                           </PopoverContent>
                         </Popover>
                         <FormMessage />
@@ -759,6 +855,15 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                      {/* Info about deferred template application */}
+                      {selectedTemplateId && !selectedOfferLetterAccepted && (
+                        <div className="flex items-start gap-2 p-2 text-xs text-muted-foreground bg-muted/50 rounded-md mt-2">
+                          <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                          <span>
+                            Tasks will be generated when the Letter of Offer is accepted.
+                          </span>
+                        </div>
+                      )}
                     </FormItem>
                   )}
                 />
