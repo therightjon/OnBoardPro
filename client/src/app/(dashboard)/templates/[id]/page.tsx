@@ -1738,6 +1738,16 @@ function AddStageForm({
     e.preventDefault();
     if (!selectedStageId || selectedTaskIds.length === 0) return;
 
+    // Validate fixed_date requires a date value
+    if (dueRuleType === 'fixed_date' && (!dueRuleValue || (typeof dueRuleValue === 'string' && dueRuleValue.trim() === ''))) {
+      toast({
+        title: "Date required",
+        description: "Please select a date when using Fixed Date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Race-condition guard: exclude tasks that have been added since dialog opened
     const existingIds = new Set(templateTasks.map(t => t.taskDefId));
     const uniqueTaskIds = selectedTaskIds.filter(id => !existingIds.has(id));
@@ -1805,7 +1815,9 @@ function AddStageForm({
     );
   };
 
-  const isFormValid = selectedStageId && selectedTaskIds.some(id => !existingTaskDefIds.has(id));
+  // Form is valid when: stage is selected, at least one new task is selected, and fixed_date has a date value
+  const hasValidDueRuleValue = dueRuleType !== 'fixed_date' || (dueRuleValue && typeof dueRuleValue === 'string' && dueRuleValue.trim() !== '');
+  const isFormValid = selectedStageId && selectedTaskIds.some(id => !existingTaskDefIds.has(id)) && hasValidDueRuleValue;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
