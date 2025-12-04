@@ -5,7 +5,6 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -20,16 +19,7 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-const registerSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  passwordHash: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["system_admin", "hr_staff", "department_admin", "division_leader", "manager", "candidate"]),
-});
-
 type LoginForm = z.infer<typeof loginSchema>;
-type RegisterForm = z.infer<typeof registerSchema>;
 
 // Active Directory / LDAP login schema mirrors local login UX
 const adLoginSchema = z.object({
@@ -39,9 +29,8 @@ const adLoginSchema = z.object({
 type AdLoginForm = z.infer<typeof adLoginSchema>;
 
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation } = useAuth();
+  const { user, loginMutation } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("login");
   const [activeProvider, setActiveProvider] = useState<string>("local");
 
   // Load enabled providers (public endpoint). Fallback to ["local"] if not available
@@ -97,17 +86,6 @@ export default function AuthPage() {
     defaultValues: {
       email: "",
       password: "",
-    },
-  });
-
-  const registerForm = useForm<RegisterForm>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      email: "",
-      firstName: "",
-      lastName: "",
-      passwordHash: "",
-      role: "candidate",
     },
   });
 
@@ -254,10 +232,6 @@ export default function AuthPage() {
     loginMutation.mutate(data);
   };
 
-  const onRegister = (data: RegisterForm) => {
-    registerMutation.mutate(data);
-  };
-
   return (
     <div className="min-h-screen bg-background flex flex-col lg:flex-row">
       {/* Forms Section */}
@@ -271,154 +245,33 @@ export default function AuthPage() {
             <p className="text-sm sm:text-base text-muted-foreground">Hiring & Onboarding Management</p>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login" data-testid="tab-login">Sign In</TabsTrigger>
-              <TabsTrigger value="register" data-testid="tab-register">Sign Up</TabsTrigger>
-            </TabsList>
+          {showProviderTabs ? (
+            <Tabs value={activeProvider} onValueChange={setActiveProvider} className="w-full">
+              <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${providers.length}, minmax(0, 1fr))` }}>
+                {providers.map((p) => {
+                  const meta = providerMetadata[p as keyof typeof providerMetadata] ?? {
+                    label: p,
+                    Icon: Mail,
+                  };
+                  const Icon = meta.Icon;
+                  return (
+                    <TabsTrigger key={p} value={p} data-testid={`tab-provider-${p}`} className="flex items-center gap-2">
+                      <Icon className="h-4 w-4" />
+                      <span>{meta.label}</span>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
 
-            <TabsContent value="login">
-              {showProviderTabs ? (
-                <Tabs value={activeProvider} onValueChange={setActiveProvider} className="w-full">
-                  <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${providers.length}, minmax(0, 1fr))` }}>
-                    {providers.map((p) => {
-                      const meta = providerMetadata[p as keyof typeof providerMetadata] ?? {
-                        label: p,
-                        Icon: Mail,
-                      };
-                      const Icon = meta.Icon;
-                      return (
-                        <TabsTrigger key={p} value={p} data-testid={`tab-provider-${p}`} className="flex items-center gap-2">
-                          <Icon className="h-4 w-4" />
-                          <span>{meta.label}</span>
-                        </TabsTrigger>
-                      );
-                    })}
-                  </TabsList>
-
-                  {providers.map((p) => (
-                    <TabsContent key={p} value={p}>
-                      {renderProviderCard(p)}
-                    </TabsContent>
-                  ))}
-                </Tabs>
-              ) : (
-                <div>{renderProviderCard(activeProvider)}</div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="register">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Create account</CardTitle>
-                  <CardDescription>
-                    Sign up for a new account to get started
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="register-email">Email</Label>
-                      <Input
-                        id="register-email"
-                        type="email"
-                        placeholder="Enter your email"
-                        data-testid="input-register-email"
-                        {...registerForm.register("email")}
-                      />
-                      {registerForm.formState.errors.email && (
-                        <p className="text-sm text-destructive">
-                          {registerForm.formState.errors.email.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="register-firstName">First Name</Label>
-                      <Input
-                        id="register-firstName"
-                        type="text"
-                        placeholder="Enter your first name"
-                        data-testid="input-register-firstName"
-                        {...registerForm.register("firstName")}
-                      />
-                      {registerForm.formState.errors.firstName && (
-                        <p className="text-sm text-destructive">
-                          {registerForm.formState.errors.firstName.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="register-lastName">Last Name</Label>
-                      <Input
-                        id="register-lastName"
-                        type="text"
-                        placeholder="Enter your last name"
-                        data-testid="input-register-lastName"
-                        {...registerForm.register("lastName")}
-                      />
-                      {registerForm.formState.errors.lastName && (
-                        <p className="text-sm text-destructive">
-                          {registerForm.formState.errors.lastName.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="register-password">Password</Label>
-                      <Input
-                        id="register-password"
-                        type="password"
-                        placeholder="Create a password"
-                        data-testid="input-register-password"
-                        {...registerForm.register("passwordHash")}
-                      />
-                      {registerForm.formState.errors.passwordHash && (
-                        <p className="text-sm text-destructive">
-                          {registerForm.formState.errors.passwordHash.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="register-role">Role</Label>
-                      <Select
-                        value={registerForm.watch("role")}
-                        onValueChange={(value) => registerForm.setValue("role", value as any)}
-                      >
-                        <SelectTrigger data-testid="select-role">
-                          <SelectValue placeholder="Select your role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="candidate">Candidate</SelectItem>
-                          <SelectItem value="manager">Manager</SelectItem>
-                          <SelectItem value="division_leader">Division Leader</SelectItem>
-                          <SelectItem value="department_admin">Department Admin</SelectItem>
-                          <SelectItem value="hr_staff">HR Staff</SelectItem>
-                          <SelectItem value="system_admin">System Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {registerForm.formState.errors.role && (
-                        <p className="text-sm text-destructive">
-                          {registerForm.formState.errors.role.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={registerMutation.isPending}
-                      data-testid="button-register"
-                    >
-                      {registerMutation.isPending ? "Creating account..." : "Create Account"}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+              {providers.map((p) => (
+                <TabsContent key={p} value={p}>
+                  {renderProviderCard(p)}
+                </TabsContent>
+              ))}
+            </Tabs>
+          ) : (
+            <div>{renderProviderCard(activeProvider)}</div>
+          )}
         </div>
       </div>
 
