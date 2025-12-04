@@ -346,6 +346,11 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
       'primaryOwnerId',
       'linkedUserId'
     ]);
+    const dateFields = new Set([
+      'offerLetterIssuedAt',
+      'offerLetterAcceptedAt',
+      'anticipatedStartDate'
+    ]);
 
     // Check for attempts to change immutable fields
     for (const field of immutableFields) {
@@ -360,7 +365,11 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
     const updateData: any = {};
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
-        const value = req.body[field];
+        let value = req.body[field];
+        // Coerce date strings to Date objects for timestamp fields
+        if (dateFields.has(field) && value !== null) {
+          value = value ? new Date(value) : null;
+        }
         updateData[field] = nullableIdFields.has(field) && value === '' ? null : value;
       }
     }
