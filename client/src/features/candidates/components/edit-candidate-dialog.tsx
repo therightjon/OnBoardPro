@@ -27,15 +27,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import { Calendar } from "@/shared/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { useToast } from "@/shared/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { DatePicker, parseAsLocalDate, formatDateForApi } from "@/shared/components/inputs/DatePicker";
 
 // Validation schema for editable fields including employment dates
 const editCandidateSchema = insertCandidateSchema.pick({
@@ -86,22 +82,6 @@ interface EditCandidateDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Helper to parse ISO date string to Date object
-// For date-only strings (YYYY-MM-DD), parse as local midnight to avoid timezone offset display issues
-const parseDate = (dateStr: string | null | undefined): Date | undefined => {
-  if (!dateStr) return undefined;
-  // Check if it's a date-only string (YYYY-MM-DD)
-  const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (dateOnlyRegex.test(dateStr)) {
-    // Parse as local date (year, month-1, day) to avoid UTC offset issues
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day);
-  }
-  // For full ISO strings, parse normally
-  const date = new Date(dateStr);
-  return isNaN(date.getTime()) ? undefined : date;
-};
-
 export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandidateDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -118,9 +98,9 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
       divisionId: candidate?.divisionId ?? undefined,
       managerId: candidate?.managerId ?? undefined,
       facultyRankId: candidate?.facultyRankId ?? undefined,
-      offerLetterIssuedAt: parseDate(candidate?.offerLetterIssuedAt),
-      offerLetterAcceptedAt: parseDate(candidate?.offerLetterAcceptedAt),
-      anticipatedStartDate: parseDate(candidate?.anticipatedStartDate),
+      offerLetterIssuedAt: parseAsLocalDate(candidate?.offerLetterIssuedAt) ?? undefined,
+      offerLetterAcceptedAt: parseAsLocalDate(candidate?.offerLetterAcceptedAt) ?? undefined,
+      anticipatedStartDate: parseAsLocalDate(candidate?.anticipatedStartDate) ?? undefined,
     },
   });
 
@@ -204,9 +184,9 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
       managerId: data.managerId || undefined,
       facultyRankId: data.facultyRankId || undefined,
       // Format dates as ISO strings for the API
-      offerLetterIssuedAt: data.offerLetterIssuedAt ? format(data.offerLetterIssuedAt, "yyyy-MM-dd") : null,
-      offerLetterAcceptedAt: data.offerLetterAcceptedAt ? format(data.offerLetterAcceptedAt, "yyyy-MM-dd") : null,
-      anticipatedStartDate: data.anticipatedStartDate ? format(data.anticipatedStartDate, "yyyy-MM-dd") : null,
+      offerLetterIssuedAt: formatDateForApi(data.offerLetterIssuedAt),
+      offerLetterAcceptedAt: formatDateForApi(data.offerLetterAcceptedAt),
+      anticipatedStartDate: formatDateForApi(data.anticipatedStartDate),
     };
     updateMutation.mutate(payload);
   };
@@ -467,130 +447,43 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                 <FormField
                   control={form.control}
                   name="offerLetterIssuedAt"
-                  render={({ field }: { field: any }) => {
-                    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-                    return (
-                      <FormItem>
-                        <FormLabel>LOO Issued Date</FormLabel>
-                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                                data-testid="button-edit-loo-issued-date"
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={(date) => {
-                                field.onChange(date);
-                                setIsCalendarOpen(false);
-                              }}
-                              initialFocus
-                            />
-                            {field.value && (
-                              <div className="flex justify-end p-3 pt-0">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    field.onChange(null);
-                                    setIsCalendarOpen(false);
-                                  }}
-                                >
-                                  Clear
-                                </Button>
-                              </div>
-                            )}
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
+                  render={({ field }: { field: any }) => (
+                    <FormItem>
+                      <FormLabel>LOO Issued Date</FormLabel>
+                      <FormControl>
+                        <DatePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Pick a date"
+                          showClear
+                          onClear={() => field.onChange(null)}
+                          testId="button-edit-loo-issued-date"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
 
                 <FormField
                   control={form.control}
                   name="offerLetterAcceptedAt"
                   render={({ field }: { field: any }) => {
-                    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-                    const issuedDate = selectedOfferLetterIssued ? new Date(selectedOfferLetterIssued) : null;
-                    if (issuedDate) {
-                      issuedDate.setHours(0, 0, 0, 0);
-                    }
+                    const issuedDate = parseAsLocalDate(selectedOfferLetterIssued);
                     return (
                       <FormItem>
                         <FormLabel>LOO Accepted Date</FormLabel>
-                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                                data-testid="button-edit-loo-accepted-date"
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={(date) => {
-                                field.onChange(date);
-                                setIsCalendarOpen(false);
-                              }}
-                              disabled={(date) => {
-                                // Cannot be before LOO issued date
-                                if (issuedDate && date < issuedDate) {
-                                  return true;
-                                }
-                                return false;
-                              }}
-                              initialFocus
-                            />
-                            {field.value && (
-                              <div className="flex justify-end p-3 pt-0">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    field.onChange(null);
-                                    setIsCalendarOpen(false);
-                                  }}
-                                >
-                                  Clear
-                                </Button>
-                              </div>
-                            )}
-                          </PopoverContent>
-                        </Popover>
+                        <FormControl>
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Pick a date"
+                            disabled={(date) => !!(issuedDate && date < issuedDate)}
+                            showClear
+                            onClear={() => field.onChange(null)}
+                            testId="button-edit-loo-accepted-date"
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     );
@@ -601,76 +494,26 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                   control={form.control}
                   name="anticipatedStartDate"
                   render={({ field }: { field: any }) => {
-                    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-                    const issuedDate = selectedOfferLetterIssued ? new Date(selectedOfferLetterIssued) : null;
-                    const acceptedDate = selectedOfferLetterAccepted ? new Date(selectedOfferLetterAccepted) : null;
-                    if (issuedDate) {
-                      issuedDate.setHours(0, 0, 0, 0);
-                    }
-                    if (acceptedDate) {
-                      acceptedDate.setHours(0, 0, 0, 0);
-                    }
+                    const issuedDate = parseAsLocalDate(selectedOfferLetterIssued);
+                    const acceptedDate = parseAsLocalDate(selectedOfferLetterAccepted);
                     return (
                       <FormItem>
                         <FormLabel>Anticipated Start Date</FormLabel>
-                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                                data-testid="button-edit-anticipated-start-date"
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={(date) => {
-                                field.onChange(date);
-                                setIsCalendarOpen(false);
-                              }}
-                              disabled={(date) => {
-                                // Cannot be before LOO issued date
-                                if (issuedDate && date < issuedDate) {
-                                  return true;
-                                }
-                                // Cannot be before LOO accepted date (if set)
-                                if (acceptedDate && date < acceptedDate) {
-                                  return true;
-                                }
-                                return false;
-                              }}
-                              initialFocus
-                            />
-                            {field.value && (
-                              <div className="flex justify-end p-3 pt-0">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    field.onChange(null);
-                                    setIsCalendarOpen(false);
-                                  }}
-                                >
-                                  Clear
-                                </Button>
-                              </div>
-                            )}
-                          </PopoverContent>
-                        </Popover>
+                        <FormControl>
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Pick a date"
+                            disabled={(date) => {
+                              if (issuedDate && date < issuedDate) return true;
+                              if (acceptedDate && date < acceptedDate) return true;
+                              return false;
+                            }}
+                            showClear
+                            onClear={() => field.onChange(null)}
+                            testId="button-edit-anticipated-start-date"
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     );

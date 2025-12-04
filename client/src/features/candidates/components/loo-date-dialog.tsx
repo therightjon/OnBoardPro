@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,34 +9,11 @@ import {
   DialogTitle,
 } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
-import { Calendar } from "@/shared/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { useToast } from "@/shared/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { DatePicker, parseAsLocalDate, formatDateForApi } from "@/shared/components/inputs/DatePicker";
 
 type LooDateType = "issued" | "accepted";
-
-// Helper to parse date string as local date (avoids UTC timezone issues)
-const parseAsLocalDate = (dateStr: string | Date | null | undefined): Date | null => {
-  if (!dateStr) return null;
-  if (dateStr instanceof Date) {
-    const d = new Date(dateStr);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }
-  // For date-only strings (YYYY-MM-DD), parse as local date
-  const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (dateOnlyRegex.test(dateStr)) {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day);
-  }
-  // For full ISO strings, parse and normalize to local midnight
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return null;
-  d.setHours(0, 0, 0, 0);
-  return d;
-};
 
 interface LooDateDialogProps {
   candidateId: string;
@@ -87,7 +62,6 @@ export function LooDateDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const config = CONFIG[type];
 
@@ -98,7 +72,7 @@ export function LooDateDialog({
   const updateMutation = useMutation({
     mutationFn: async (date: Date) => {
       const payload = {
-        [config.field]: format(date, "yyyy-MM-dd"),
+        [config.field]: formatDateForApi(date),
       };
       const response = await apiRequest("PATCH", `/api/candidates/${candidateId}`, payload);
       return response.json();
@@ -171,33 +145,13 @@ export function LooDateDialog({
 
         <div className="py-4">
           <label className="text-sm font-medium mb-2 block">{config.label}</label>
-          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !selectedDate && "text-muted-foreground"
-                )}
-                data-testid={`button-select-loo-${type}-date`}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? format(selectedDate, "PPP") : "Select a date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => {
-                  setSelectedDate(date);
-                  setIsCalendarOpen(false);
-                }}
-                disabled={isDateDisabled}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
+          <DatePicker
+            value={selectedDate}
+            onChange={setSelectedDate}
+            placeholder="Select a date"
+            disabled={isDateDisabled}
+            testId={`button-select-loo-${type}-date`}
+          />
 
           {type === "accepted" && (
             <p className="text-xs text-muted-foreground mt-2">
