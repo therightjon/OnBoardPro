@@ -1,4 +1,4 @@
-import { and, eq, gt, lt, lte, ne, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, lt, lte, ne, sql } from "drizzle-orm";
 import { db } from "../../db/connection";
 import { candidateTasks, candidates, notificationKeys } from "@shared/schemas";
 import { storage } from "../../db/storage";
@@ -297,12 +297,14 @@ export async function findOverdueTasks(limit: number): Promise<ScanTaskRow[]> {
   const rows = await db
     .select({ id: candidateTasks.id, dueAt: candidateTasks.dueAt })
     .from(candidateTasks)
+    .innerJoin(candidates, eq(candidateTasks.candidateId, candidates.id))
     .where(and(
       sql`${candidateTasks.dueAt} IS NOT NULL`,
       lt(candidateTasks.dueAt, now),
       eq(candidateTasks.archived, false),
       ne(candidateTasks.status, 'done'),
-      ne(candidateTasks.status, 'canceled')
+      ne(candidateTasks.status, 'canceled'),
+      inArray(candidates.status, ['active', 'on_hold'])
     ))
     .orderBy(candidateTasks.dueAt)
     .limit(limit);
@@ -315,13 +317,15 @@ export async function findDueSoonTasks(limit: number): Promise<ScanTaskRow[]> {
   const rows = await db
     .select({ id: candidateTasks.id, dueAt: candidateTasks.dueAt })
     .from(candidateTasks)
+    .innerJoin(candidates, eq(candidateTasks.candidateId, candidates.id))
     .where(and(
       sql`${candidateTasks.dueAt} IS NOT NULL`,
       gt(candidateTasks.dueAt, now),
       lte(candidateTasks.dueAt, windowEnd),
       eq(candidateTasks.archived, false),
       ne(candidateTasks.status, 'done'),
-      ne(candidateTasks.status, 'canceled')
+      ne(candidateTasks.status, 'canceled'),
+      inArray(candidates.status, ['active', 'on_hold'])
     ))
     .orderBy(candidateTasks.dueAt)
     .limit(limit);
