@@ -20,6 +20,7 @@ type Props = {
   onOpenChange?: (open: boolean) => void;
   onError?: (error: Error) => void;
   labelClassName?: string;
+  size?: 'default' | 'sm';
   'data-testid'?: string;
 };
 
@@ -37,6 +38,7 @@ export function AutoSelectCombobox({
   onOpenChange,
   onError,
   labelClassName,
+  size = 'default',
   'data-testid': testId
 }: Props) {
   const [open, setOpen] = React.useState(false);
@@ -122,7 +124,8 @@ export function AutoSelectCombobox({
           <button
             type="button"
             className={cn(
-              'inline-flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px]',
+              'inline-flex w-full items-center justify-between rounded-md border bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+              size === 'sm' ? 'px-2 py-1 min-h-[28px]' : 'px-3 py-2 min-h-[44px]',
               !selected && 'text-muted-foreground'
             )}
             disabled={disabled}

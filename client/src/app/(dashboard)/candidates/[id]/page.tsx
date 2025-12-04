@@ -1262,10 +1262,11 @@ export default function CandidateDetailPage() {
                                             {getAssigneeDisplayName(task)}
                                           </span>
                                         ) : (
-                                          <div className="w-[190px] xs:w-[220px]">
+                                          <div className="w-[170px] xs:w-[200px]">
                                             <AutoSelectCombobox
                                               label="Assignee"
                                               labelClassName="sr-only"
+                                              size="sm"
                                               value={(pendingAssignees[task.id] ?? task.assignee?.id ?? task.assigneeUserId ?? 'none') as string}
                                               onChange={(id, item) => {
                                                 const normalized = id === 'none' ? null : id;
