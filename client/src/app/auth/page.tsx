@@ -278,9 +278,9 @@ export default function AuthPage() {
       {/* Hero Section - Hidden on mobile, shown on desktop */}
       <div className="hidden lg:flex lg:flex-1 bg-primary text-primary-foreground p-8 items-center justify-center">
         <div className="max-w-md text-center space-y-6">
-          <h2 className="text-2xl xl:text-3xl font-bold">Streamline Your Hiring Process</h2>
+          <h2 className="text-2xl xl:text-3xl font-bold">Streamline The Hiring Process</h2>
           <p className="text-base xl:text-lg text-primary-foreground/90">
-            Manage candidates, track tasks, and automate onboarding workflows with our comprehensive platform.
+            Manage candidates, track tasks, and automate onboarding workflows with this comprehensive platform.
           </p>
           
           <div className="space-y-4 text-left">
