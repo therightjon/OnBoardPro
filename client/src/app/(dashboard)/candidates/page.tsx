@@ -373,10 +373,11 @@ const formatLooAge = (isoDate?: string | null) => {
       </Card>
 
       {/* Desktop Table */}
-      <Card className="hidden md:block">
+      <Card className="hidden md:block overflow-hidden">
         <CardContent className="p-0">
-          <Table>
-            <caption className="sr-only">Candidates table with sorting and filtering capabilities</caption>
+          <div className="overflow-x-auto">
+            <Table>
+              <caption className="sr-only">Candidates table with sorting and filtering capabilities</caption>
             <TableHeader>
               <TableRow>
                 <TableHead>
@@ -535,7 +536,7 @@ const formatLooAge = (isoDate?: string | null) => {
                               variant="ghost"
                               size="sm"
                               onClick={() => setArchiveDialogCandidate(candidate)}
-                              className={`focus-visible ${candidate.archived ? "text-green-600 hover:text-green-700" : "text-destructive hover:text-destructive"}`}
+                              className={`focus-visible ${candidate.archived ? "text-green-600 hover:text-green-700 dark:text-emerald-400 dark:hover:text-emerald-300" : "text-destructive hover:text-destructive"}`}
                               data-testid={`button-${candidate.archived ? 'restore' : 'archive'}-candidate-${candidate.id}`}
                             >
                               {candidate.archived ? (
@@ -553,6 +554,7 @@ const formatLooAge = (isoDate?: string | null) => {
               )}
             </TableBody>
           </Table>
+          </div>
           {totalCandidates > pageSize && (
             <div className="border-t border-border/60 px-4 py-3">
               <PaginationControls
@@ -568,7 +570,7 @@ const formatLooAge = (isoDate?: string | null) => {
       </Card>
 
       {/* Mobile Cards */}
-      <div className="md:hidden">
+      <div className="space-y-3 md:hidden">
         {filteredAndSortedCandidates.length === 0 ? (
           <Card>
             <CardContent className="p-4 xs:p-6 text-center">
@@ -677,7 +679,7 @@ const formatLooAge = (isoDate?: string | null) => {
                         variant="ghost"
                         size="sm"
                         onClick={() => setArchiveDialogCandidate(candidate)}
-                        className={`min-h-[44px] focus-visible ${candidate.archived ? "text-green-600 hover:text-green-700" : "text-destructive hover:text-destructive"}`}
+                        className={`min-h-[44px] focus-visible ${candidate.archived ? "text-green-600 hover:text-green-700 dark:text-emerald-400 dark:hover:text-emerald-300" : "text-destructive hover:text-destructive"}`}
                         data-testid={`button-${candidate.archived ? 'restore' : 'archive'}-candidate-${candidate.id}`}
                         aria-label={candidate.archived ? "Restore candidate" : "Archive candidate"}
                       >

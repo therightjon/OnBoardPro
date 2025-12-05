@@ -398,7 +398,7 @@ export default function CandidateDetailPage() {
           ? "Fully Onboarded!"
           : currentStageName;
   const stageClassName = fullyOnboarded
-    ? "text-xs xs:text-sm font-bold text-green-700 dark:text-green-400 break-words"
+    ? "text-xs xs:text-sm font-bold text-green-700 dark:text-emerald-300 break-words"
     : "text-xs xs:text-sm text-muted-foreground break-words";
 
   const getAssigneeDisplayName = (task: any) => {
@@ -936,8 +936,8 @@ export default function CandidateDetailPage() {
             }
 
             return fullyOnboarded ? (
-              <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                <p className="text-2xl font-bold text-green-700 dark:text-green-400 text-center" data-testid="text-onboarding-complete">
+              <div className="mt-4 p-4 bg-green-50 dark:bg-emerald-950 border border-green-200 dark:border-emerald-700 rounded-lg">
+                <p className="text-2xl font-bold text-green-700 dark:text-emerald-300 text-center" data-testid="text-onboarding-complete">
                   Onboarding Complete!
                 </p>
               </div>
@@ -1410,7 +1410,7 @@ export default function CandidateDetailPage() {
                     <Clock className="w-4 h-4" />
                     <span>Stage Timeline</span>
                     {fullyOnboarded && (
-                      <span className="font-bold text-green-700 dark:text-green-400" data-testid="text-fully-onboarded-timeline">Fully Onboarded!</span>
+                      <span className="font-bold text-green-700 dark:text-emerald-300" data-testid="text-fully-onboarded-timeline">Fully Onboarded!</span>
                     )}
                     {(candidate as any).isBlockedByPriorStage && (candidate as any).blockerSummary?.earliestPriorStage && (
                       <span className="ml-auto inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/30" data-testid="pill-stage-blocked">
@@ -1671,8 +1671,8 @@ function CandidatePipelineEstimate({ candidateId, status }: { candidateId: strin
 
   if (!estimate || estimate.remainingTasks === 0) {
     return (
-      <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
-        <div className="text-sm font-medium text-green-800 dark:text-green-200">
+      <div className="mt-4 p-3 bg-green-50 dark:bg-emerald-950 rounded-lg border border-green-200 dark:border-emerald-700">
+        <div className="text-sm font-medium text-green-800 dark:text-emerald-300">
           🎉 All tasks completed!
         </div>
       </div>

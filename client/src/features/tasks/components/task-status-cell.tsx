@@ -128,7 +128,7 @@ export function TaskStatusCell({
       case 'todo': return 'text-muted-foreground';
       case 'in_progress': return 'text-blue-600 dark:text-blue-400';
       case 'blocked': return 'text-red-600 dark:text-red-400';
-      case 'done': return 'text-green-600 dark:text-green-400';
+      case 'done': return 'text-green-600 dark:text-emerald-300';
       case 'canceled': return 'text-gray-500 dark:text-gray-400';
       default: return 'text-muted-foreground';
     }

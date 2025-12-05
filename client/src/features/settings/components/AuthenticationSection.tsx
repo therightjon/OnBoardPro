@@ -66,7 +66,7 @@ export function AuthenticationProvidersSection() {
     if (!provider.configured) {
       return <Badge variant="destructive">Not Configured</Badge>;
     } else if (provider.effectiveEnabled) {
-      return <Badge className="bg-green-600">Active</Badge>;
+      return <Badge className="bg-green-600 dark:bg-emerald-600">Active</Badge>;
     } else {
       return <Badge variant="secondary">Disabled</Badge>;
     }

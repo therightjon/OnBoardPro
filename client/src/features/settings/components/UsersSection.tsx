@@ -941,7 +941,7 @@ export function UsersSection() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-green-600"
+                                className="text-green-600 dark:text-emerald-400"
                                 onClick={() => handleEnableUser(u)}
                                 data-testid={`button-enable-user-${u.id}`}
                               >

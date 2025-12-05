@@ -463,10 +463,10 @@ export default function MyTasksPage() {
       </Card>
 
       {/* Tasks Table (Desktop) */}
-      <Card className="hidden md:block">
+      <Card className="hidden md:block overflow-hidden">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table className="min-w-full">
+            <Table>
               <TableHeader>
                 <TableRow>
                   <SortableTableHeader
@@ -474,7 +474,7 @@ export default function MyTasksPage() {
                     label="Task"
                     direction={sortState.key === "task" ? sortState.direction : null}
                     onSort={toggleSort}
-                    className="min-w-[500px] max-w-[500px]"
+                    className="min-w-[200px]"
                   />
                   <SortableTableHeader
                     columnKey="candidate"
@@ -672,21 +672,50 @@ export default function MyTasksPage() {
                         <Link href={`/candidates/${task.candidateId}`} className="text-primary hover:underline break-words">
                           {getCandidateName(task)}
                         </Link>
+                        {/* Show candidate status badge if not active/on_hold */}
+                        {(task as any).candidate?.status && !['active', 'on_hold'].includes((task as any).candidate.status) && (
+                          <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground mt-1 block w-fit">
+                            {(task as any).candidate.status === 'archived' && '(Archived)'}
+                            {(task as any).candidate.status === 'canceled' && '(Canceled)'}
+                            {(task as any).candidate.status === 'completed' && '(Completed)'}
+                          </Badge>
+                        )}
+                        {/* Show on hold status */}
+                        {(task as any).candidate?.status === 'on_hold' && (
+                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 mt-1 block w-fit">
+                            On Hold
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Priority</span>
-                      <div className={`${getPriorityColor(task.priority)} capitalize`}>{task.priority}</div>
+                      <div className={`flex items-center gap-1 ${getPriorityColor(task.priority)} capitalize`}>
+                        {getPriorityIcon(task.priority)}
+                        {task.priority}
+                      </div>
                     </div>
-                    <div className="col-span-2">
+                    <div>
+                      <span className="text-muted-foreground">Status</span>
+                      <div className="mt-0.5">
+                        <TaskStatusCell
+                          taskId={task.id}
+                          candidateId={task.candidateId}
+                          value={task.status}
+                          disabled={!isTaskStatusEditable(task)}
+                          colorStyle="filled"
+                        />
+                      </div>
+                    </div>
+                    <div>
                       <span className="text-muted-foreground">Due</span>
                       <div className={`mt-0.5 ${isOverdue(task.dueAt) && task.status !== "done" ? "text-destructive font-medium" : ""}`}>
                         {task.dueAt ? new Date(task.dueAt).toLocaleDateString() : "-"}
                         {isOverdue(task.dueAt) && task.status !== "done" && (
-                          <span className="ml-2 text-xs">Overdue</span>
+                          <span className="block text-[10px]">Overdue</span>
                         )}
                         {isDueSoon(task.dueAt) && task.status !== "done" && !isOverdue(task.dueAt) && (
-                          <span className="ml-2 text-xs text-chart-3">Due Soon</span>
+                          <span className="block text-[10px] text-chart-3">Due Soon</span>
                         )}
                       </div>
                     </div>
