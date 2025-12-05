@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { invalidateMyTasks } from "@/lib/query-invalidate";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -21,8 +21,9 @@ import { useCommentStats } from "@/features/comments/api";
 import { TaskCommentsButton } from "@/features/comments/components/task-comments-button";
 import { TaskCommentsModal } from "@/features/comments/components/task-comments-modal";
 import { CommentsTab } from "@/features/comments/components/comments-tab";
-import { EditCandidateDialog } from "@/features/candidates/components/edit-candidate-dialog";
-import { ArchiveCandidateDialog } from "@/features/candidates/components/archive-candidate-dialog";
+// Lazy load heavy dialogs to reduce initial bundle size
+const EditCandidateDialog = lazy(() => import("@/features/candidates/components/edit-candidate-dialog").then(m => ({ default: m.EditCandidateDialog })));
+const ArchiveCandidateDialog = lazy(() => import("@/features/candidates/components/archive-candidate-dialog").then(m => ({ default: m.ArchiveCandidateDialog })));
 import { candidateStatusBadgeClass, isCandidateFullyOnboarded, resolveCandidateStatus, summarizeCandidateTasks, type ResolvedCandidateStatus } from "@/features/candidates/utils/status";
 import { HiringProgress } from "@/features/candidates/components/hiring-progress";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -1587,19 +1588,27 @@ export default function CandidateDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
-      <EditCandidateDialog
-        candidate={candidate}
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-      />
+      {/* Edit Dialog - lazy loaded */}
+      {isEditDialogOpen && (
+        <Suspense fallback={null}>
+          <EditCandidateDialog
+            candidate={candidate}
+            open={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+          />
+        </Suspense>
+      )}
 
-      {/* Archive/Restore Dialog */}
-      <ArchiveCandidateDialog
-        candidate={candidate}
-        open={isArchiveDialogOpen}
-        onOpenChange={setIsArchiveDialogOpen}
-      />
+      {/* Archive/Restore Dialog - lazy loaded */}
+      {isArchiveDialogOpen && (
+        <Suspense fallback={null}>
+          <ArchiveCandidateDialog
+            candidate={candidate}
+            open={isArchiveDialogOpen}
+            onOpenChange={setIsArchiveDialogOpen}
+          />
+        </Suspense>
+      )}
       {openTaskComments && (
         <TaskCommentsModal
           open={!!openTaskComments}

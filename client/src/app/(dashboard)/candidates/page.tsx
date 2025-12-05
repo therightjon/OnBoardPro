@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -19,8 +19,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import { NewCandidateDialog } from "@/features/candidates/components/new-candidate-dialog";
-import { ArchiveCandidateDialog } from "@/features/candidates/components/archive-candidate-dialog";
+// Lazy load heavy dialogs to reduce initial bundle size
+const NewCandidateDialog = lazy(() => import("@/features/candidates/components/new-candidate-dialog").then(m => ({ default: m.NewCandidateDialog })));
+const ArchiveCandidateDialog = lazy(() => import("@/features/candidates/components/archive-candidate-dialog").then(m => ({ default: m.ArchiveCandidateDialog })));
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { candidateStatusBadgeClass, resolveCandidateStatus } from "@/features/candidates/utils/status";
@@ -708,18 +709,27 @@ const formatLooAge = (isoDate?: string | null) => {
         )}
       </div>
       
-      <NewCandidateDialog
-        open={isNewCandidateDialogOpen}
-        onOpenChange={setIsNewCandidateDialogOpen}
-      />
+      {/* Only render dialogs when open to avoid loading their dependencies */}
+      {isNewCandidateDialogOpen && (
+        <Suspense fallback={null}>
+          <NewCandidateDialog
+            open={isNewCandidateDialogOpen}
+            onOpenChange={setIsNewCandidateDialogOpen}
+          />
+        </Suspense>
+      )}
       
-      <ArchiveCandidateDialog
-        candidate={archiveDialogCandidate}
-        open={!!archiveDialogCandidate}
-        onOpenChange={(open) => {
-          if (!open) setArchiveDialogCandidate(null);
-        }}
-      />
+      {archiveDialogCandidate && (
+        <Suspense fallback={null}>
+          <ArchiveCandidateDialog
+            candidate={archiveDialogCandidate}
+            open={!!archiveDialogCandidate}
+            onOpenChange={(open) => {
+              if (!open) setArchiveDialogCandidate(null);
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* No-permission notice if new candidate requested via URL */}
       <AlertDialog open={showNoPermission} onOpenChange={setShowNoPermission}>
