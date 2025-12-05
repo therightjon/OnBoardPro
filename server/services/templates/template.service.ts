@@ -5,7 +5,7 @@
  * Handles template CRUD, cloning, and application to candidates
  */
 
-import type { InsertTemplate, Template } from "@shared/schemas";
+import type { InsertTemplate, InsertTemplateStage, InsertTemplateTask, Template, TemplateStage, TemplateTask } from "@shared/schemas";
 import type { TemplateRepository } from "../../repositories/templates/TemplateRepository";
 import type { TemplateStageRepository } from "../../repositories/templates/TemplateStageRepository";
 import type { TemplateTaskRepository } from "../../repositories/templates/TemplateTaskRepository";
@@ -228,5 +228,121 @@ export class TemplateService {
       data: { isActive: false },
       actorId
     });
+  }
+
+  // ============================================================================
+  // Template Task Methods
+  // ============================================================================
+
+  /**
+   * Get all tasks for a template (non-archived)
+   */
+  async getTemplateTasks(templateId: string): Promise<TemplateTask[]> {
+    return this.taskRepo.getTemplateTasks(templateId);
+  }
+
+  /**
+   * Get a single template task by ID
+   */
+  async getTemplateTask(id: string): Promise<TemplateTask | undefined> {
+    return this.taskRepo.getTemplateTask(id);
+  }
+
+  /**
+   * Create a new template task
+   * Auto-resolves templateStageId from stageId if provided
+   */
+  async createTemplateTask(input: InsertTemplateTask): Promise<TemplateTask> {
+    return this.taskRepo.createTemplateTask(input);
+  }
+
+  /**
+   * Update a template task
+   * Auto-resolves templateStageId if stageId is changed
+   */
+  async updateTemplateTask(id: string, data: Partial<TemplateTask>): Promise<TemplateTask | undefined> {
+    return this.taskRepo.updateTemplateTask(id, data);
+  }
+
+  /**
+   * Archive (delete) a template task
+   * Hard deletes to allow DB trigger to auto-remove empty stages
+   */
+  async archiveTemplateTask(id: string): Promise<void> {
+    return this.taskRepo.archiveTemplateTask(id);
+  }
+
+  // ============================================================================
+  // Template Stage Methods
+  // ============================================================================
+
+  /**
+   * Get all stages for a template (active only, ordered by orderIndex)
+   */
+  async getTemplateStages(templateId: string): Promise<TemplateStage[]> {
+    return this.stageRepo.getTemplateStages(templateId);
+  }
+
+  /**
+   * Get a single template stage by ID
+   */
+  async getTemplateStage(id: string): Promise<TemplateStage | undefined> {
+    return this.stageRepo.getTemplateStage(id);
+  }
+
+  /**
+   * Create a new template stage (upsert if same stageId exists)
+   * Auto-activates the template on first stage creation
+   */
+  async createTemplateStage(input: InsertTemplateStage): Promise<TemplateStage> {
+    return this.stageRepo.createTemplateStage(input);
+  }
+
+  /**
+   * Update a template stage
+   */
+  async updateTemplateStage(id: string, data: Partial<TemplateStage>): Promise<TemplateStage | undefined> {
+    return this.stageRepo.updateTemplateStage(id, data);
+  }
+
+  /**
+   * Delete a template stage (soft delete - marks as inactive)
+   */
+  async deleteTemplateStage(id: string): Promise<void> {
+    return this.stageRepo.deleteTemplateStage(id);
+  }
+
+  /**
+   * Reorder template stages
+   * @param templateId - The template containing the stages
+   * @param stageIdsInOrder - Array of stage IDs in the desired order
+   */
+  async reorderTemplateStages(templateId: string, stageIdsInOrder: string[]): Promise<void> {
+    return this.stageRepo.reorderTemplateStages(templateId, stageIdsInOrder);
+  }
+
+  // ============================================================================
+  // Template Readiness & Estimation
+  // ============================================================================
+
+  /**
+   * Get template readiness information (stage and task counts)
+   */
+  async getTemplateReadiness(id: string): Promise<{
+    active_stage_count: number;
+    active_task_count: number;
+    assigned_task_count: number;
+  }> {
+    return this.templateRepo.getTemplateReadiness(id);
+  }
+
+  /**
+   * Estimate template completion time based on tasks
+   */
+  async estimateTemplate(id: string): Promise<{
+    totalDays: number;
+    taskCount: number;
+  }> {
+    return this.templateRepo.estimateTemplate(id);
   }
 }

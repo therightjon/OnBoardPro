@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { storage } from "../db/storage";
 import { getNotificationService, getCommentService } from "../services/service-factory";
 import { requireAuth } from "../middleware/authorization";
 

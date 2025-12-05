@@ -6,10 +6,11 @@
  * and publishes domain events
  */
 
-import type { InsertCandidate, Candidate } from "@shared/schemas";
+import type { InsertCandidate, Candidate, CandidateTemplateStage } from "@shared/schemas";
 import type { CandidateRepository } from "../../repositories/candidates/CandidateRepository";
 import type { CandidateTaskRepository } from "../../repositories/candidates/CandidateTaskRepository";
 import type { CandidateFollowerRepository } from "../../repositories/candidates/CandidateFollowerRepository";
+import type { CandidateStageRepository } from "../../repositories/candidates/CandidateStageRepository";
 import type { TemplateRepository } from "../../repositories/templates/TemplateRepository";
 import type { AuthorizationContext } from "../../repositories/base/types";
 import { eventBus, candidateCreated, candidateStageChanged, candidateStatusChanged, templateApplied } from "../../events";
@@ -49,6 +50,7 @@ export class CandidateService {
     private candidateRepo: CandidateRepository,
     private taskRepo: CandidateTaskRepository,
     private followerRepo: CandidateFollowerRepository,
+    private stageRepo: CandidateStageRepository,
     private templateRepo: TemplateRepository
   ) {}
 
@@ -264,5 +266,52 @@ export class CandidateService {
    */
   async getFollowers(candidateId: string): Promise<any[]> {
     return this.followerRepo.getCandidateFollowers(candidateId);
+  }
+
+  // ============================================================================
+  // Candidate Stage Methods
+  // ============================================================================
+
+  /**
+   * Get template stages snapshot for a candidate
+   * Returns the candidate's specific template stage configuration at the time the template was applied
+   */
+  async getCandidateTemplateStages(candidateId: string): Promise<CandidateTemplateStage[]> {
+    return this.stageRepo.getCandidateTemplateStages(candidateId);
+  }
+
+  /**
+   * Get stage history for a candidate
+   * Returns a chronological history of all stage transitions
+   */
+  async getCandidateStageHistory(candidateId: string): Promise<any[]> {
+    return this.stageRepo.getCandidateStageHistory(candidateId);
+  }
+
+  // ============================================================================
+  // Candidate Lifecycle / Task Management Methods
+  // ============================================================================
+
+  /**
+   * Reset all non-archived tasks for a candidate to their initial state
+   * Called when reactivating a candidate from archived/completed status
+   * 
+   * @param candidateId - Candidate ID
+   * @returns Number of tasks that were reset
+   */
+  async resetCandidateTasksForReactivation(candidateId: string): Promise<number> {
+    return this.taskRepo.resetCandidateTasksForReactivation(candidateId);
+  }
+
+  /**
+   * Resolve candidate.self role assignments to actual user assignments
+   * Called when a candidate is linked to a user account
+   * 
+   * @param candidateId - Candidate ID
+   * @param userId - User ID to assign tasks to
+   * @returns Array of tasks that were updated
+   */
+  async resolveCandidateSelfAssignments(candidateId: string, userId: string): Promise<any[]> {
+    return this.taskRepo.resolveCandidateSelfAssignments(candidateId, userId);
   }
 }

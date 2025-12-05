@@ -1,11 +1,10 @@
 import { Router } from "express";
 import { z } from "zod";
-import { storage } from "../db/storage";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { appRoleEnum } from "@shared/schemas";
 import { generateInviteToken, getInviteBaseUrl, sendInviteEmail } from "../utils/invitation.utils";
 import { logAuthorizationFailure } from "../utils/authorization.utils";
-import { getInvitationService } from "../services/service-factory";
+import { getInvitationService, getAuthProviderService } from "../services/service-factory";
 
 const router = Router();
 
@@ -21,11 +20,12 @@ const inviteRequestSchema = z.object({
 
 // Helper function to check if a provider is configured
 async function checkProviderConfiguration(providerId: string): Promise<boolean> {
+  const authProviderService = getAuthProviderService();
   switch (providerId) {
     case 'local':
       return true; // Local is always configured
     case 'ldap':
-      return await storage.getLdapConfigured();
+      return await authProviderService.getLdapConfigured();
     case 'google':
       return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
     case 'azuread':
@@ -43,6 +43,7 @@ function maskId(s?: string): string | undefined {
 
 // Helper function to get provider details
 async function getProviderDetails(providerId: string) {
+  const authProviderService = getAuthProviderService();
   switch (providerId) {
     case 'local':
       return {
@@ -51,7 +52,7 @@ async function getProviderDetails(providerId: string) {
         notes: 'Built-in password authentication'
       };
     case 'ldap': {
-      const cfg = await storage.getLdapSettings();
+      const cfg = await authProviderService.getLdapSettings();
       return {
         clientIdMasked: maskId(cfg.bindDn),
         callbackUrl: cfg.url,
@@ -182,7 +183,8 @@ router.get("/invitations/accept", async (req: any, res, next) => {
 // GET /api/auth/providers - List all authentication providers
 router.get("/auth/providers", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const dbProviders = await storage.getAllAuthProviders();
+    const authProviderService = getAuthProviderService();
+    const dbProviders = await authProviderService.getAllAuthProviders();
     const providerInfos = await Promise.all(dbProviders.map(async (dbProvider) => {
       const configured = await checkProviderConfiguration(dbProvider.id);
       const details = await getProviderDetails(dbProvider.id);
@@ -227,7 +229,8 @@ router.patch("/auth/providers/:id", requireAuth, requireRole(["system_admin", "h
 
     // Don't allow disabling local provider if it's the only enabled AND configured one
     if (id === 'local' && !enabled) {
-      const allProviders = await storage.getAllAuthProviders();
+      const authProviderService = getAuthProviderService();
+      const allProviders = await authProviderService.getAllAuthProviders();
       const otherViableProviders = allProviders.filter(p =>
         p.id !== 'local' &&
         p.enabled &&
@@ -241,7 +244,8 @@ router.patch("/auth/providers/:id", requireAuth, requireRole(["system_admin", "h
       }
     }
 
-    const updatedProvider = await storage.updateAuthProvider(id, { enabled });
+    const authProviderServiceForUpdate = getAuthProviderService();
+    const updatedProvider = await authProviderServiceForUpdate.updateAuthProvider(id, { enabled });
 
     if (!updatedProvider) {
       return res.status(404).json({ message: "Provider not found" });
@@ -272,8 +276,9 @@ router.patch("/auth/providers/:id", requireAuth, requireRole(["system_admin", "h
 // GET /api/auth/ldap - Get LDAP settings
 router.get("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const cfg = await storage.getLdapSettings();
-    const configured = await storage.getLdapConfigured();
+    const authProviderService = getAuthProviderService();
+    const cfg = await authProviderService.getLdapSettings();
+    const configured = await authProviderService.getLdapConfigured();
     const warnings: string[] = [];
     if (cfg.url && !cfg.url.startsWith('ldaps://') && !cfg.startTls) {
       warnings.push('LDAP requires LDAPS (ldaps://) or StartTLS for security');
@@ -308,7 +313,8 @@ router.put("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]),
     const patch = req.body || {};
     // Normalize boolean
     if (patch.startTls !== undefined) patch.startTls = !!patch.startTls;
-    const updated = await storage.setLdapSettings(patch);
+    const authProviderService = getAuthProviderService();
+    const updated = await authProviderService.setLdapSettings(patch);
     // Reinitialize providers to apply changes immediately
     try {
       const { initializeAuthProviders } = await import('../features/auth/services');
@@ -328,7 +334,8 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
   const start = Date.now();
   try {
     const override = req.body || {};
-    const current = await storage.getLdapSettings();
+    const authProviderService = getAuthProviderService();
+    const current = await authProviderService.getLdapSettings();
     const cfg = { ...current, ...override };
 
     if (!cfg.url || !cfg.bindDn || !cfg.bindPassword || !cfg.baseDn) {

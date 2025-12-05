@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { storage } from "../db/storage";
+import { storage } from "../db/storage"; // Keep for estimateTemplate only
 import { requireAuth, requireRole } from "../middleware/authorization";
 import {
   insertTemplateSchema,
@@ -8,13 +8,14 @@ import {
 } from "@shared/schemas";
 import { logAuthorizationFailure } from "../utils/authorization.utils";
 import { eventBus, templateCreated, templateUpdated, templateCloned } from "../events";
-import { getTemplateService } from "../services/service-factory";
+import { getTemplateService, getReferenceDataService } from "../services/service-factory";
 
 const router = Router();
 
 // Helper function for template access control
 async function fetchTemplateWithAccess(req: any, res: any, templateId: string, action: string) {
-  const template = await storage.getTemplate(templateId);
+  const templateService = getTemplateService();
+  const template = await templateService.getTemplate(templateId);
   if (!template) {
     await logAuthorizationFailure({ req, resource: "template", resourceId: templateId, action, reason: "not_found" });
     res.status(404).json({ message: "Template not found" });
@@ -125,8 +126,8 @@ router.get("/templates/:id/readiness", requireAuth, requireRole(["system_admin",
     // Use service to check readiness
     const readinessCheck = await templateService.checkTemplateReadiness(req.params.id);
 
-    // Get detailed readiness info from storage for backward compatibility
-    const readinessDetails = await storage.getTemplateReadiness(req.params.id);
+    // Get detailed readiness info from service for backward compatibility
+    const readinessDetails = await templateService.getTemplateReadiness(req.params.id);
 
     res.json({ ...readinessDetails, ...readinessCheck });
   } catch (error) {
@@ -206,7 +207,8 @@ router.get("/templates/:id/template-tasks", requireAuth, requireRole(["system_ad
       return res.status(400).json({ message: "Invalid template ID" });
     }
     if (!(await fetchTemplateWithAccess(req, res, templateId, "template-tasks:list"))) return;
-    const tasks = await storage.getTemplateTasks(templateId);
+    const templateService = getTemplateService();
+    const tasks = await templateService.getTemplateTasks(templateId);
     res.json(tasks);
   } catch (error) {
     next(error);
@@ -225,7 +227,8 @@ router.post("/templates/:id/template-tasks", requireAuth, requireRole(["system_a
     }
 
     // Check if stage exists for this template
-    const templateStages = await storage.getTemplateStages(req.params.id);
+    const templateService = getTemplateService();
+    const templateStages = await templateService.getTemplateStages(req.params.id);
     const templateStage = templateStages.find(ts => ts.stageId === req.body.stageId && ts.isActive);
 
     if (!templateStage) {
@@ -265,7 +268,7 @@ router.post("/templates/:id/template-tasks", requireAuth, requireRole(["system_a
       return res.status(400).json({ message: 'defaultAssigneeRole must be candidate.self when kind is role' });
     }
 
-    const templateTask = await storage.createTemplateTask({
+    const templateTask = await templateService.createTemplateTask({
       templateId: req.params.id,
       taskDefId: req.body.taskDefId,
       stageId: req.body.stageId,
@@ -329,7 +332,8 @@ router.patch("/template-tasks/:id", requireAuth, requireRole(["system_admin", "h
       cleanedData.fixedDate = null;
     }
 
-    const task = await storage.updateTemplateTask(req.params.id, cleanedData);
+    const templateService = getTemplateService();
+    const task = await templateService.updateTemplateTask(req.params.id, cleanedData);
     if (!task) {
       await logAuthorizationFailure({ req, resource: "template", resourceId: null, action: "template-tasks:update", reason: "not_found" });
       return res.status(404).json({ message: "Template task not found" });
@@ -342,22 +346,23 @@ router.patch("/template-tasks/:id", requireAuth, requireRole(["system_admin", "h
 
 router.delete("/template-tasks/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
+    const templateService = getTemplateService();
     // Get template task details before deletion to check if it was the last in its stage
-    const taskToDelete = await storage.getTemplateTask(req.params.id);
+    const taskToDelete = await templateService.getTemplateTask(req.params.id);
     if (!taskToDelete) {
       await logAuthorizationFailure({ req, resource: "template", resourceId: null, action: "template-tasks:delete", reason: "not_found" });
       return res.status(404).json({ message: "Template task not found" });
     }
 
     // Check if this is the last task in its stage
-    const allTasks = await storage.getTemplateTasks(taskToDelete.templateId);
+    const allTasks = await templateService.getTemplateTasks(taskToDelete.templateId);
     const tasksInStage = allTasks.filter(t => t.stageId === taskToDelete.stageId);
     const isLastTaskInStage = tasksInStage.length === 1;
 
     let removedStage = null;
     if (isLastTaskInStage) {
       // Get stage info before it gets deleted by the trigger
-      const templateStages = await storage.getTemplateStages(taskToDelete.templateId);
+      const templateStages = await templateService.getTemplateStages(taskToDelete.templateId);
       const stageToRemove = templateStages.find(s => s.stageId === taskToDelete.stageId);
       if (stageToRemove) {
         removedStage = { stageId: stageToRemove.stageId };
@@ -365,7 +370,7 @@ router.delete("/template-tasks/:id", requireAuth, requireRole(["system_admin", "
     }
 
     // Delete the task (trigger will auto-remove stage if it was the last task)
-    await storage.archiveTemplateTask(req.params.id);
+    await templateService.archiveTemplateTask(req.params.id);
 
     // Return result with optional removed stage info
     const result = {
@@ -387,7 +392,8 @@ router.get("/templates/:id/template-stages", requireAuth, requireRole(["system_a
       return res.status(400).json({ message: "Invalid template ID" });
     }
     if (!(await fetchTemplateWithAccess(req, res, templateId, "template-stages:list"))) return;
-    const stages = await storage.getTemplateStages(templateId);
+    const templateService = getTemplateService();
+    const stages = await templateService.getTemplateStages(templateId);
     res.json(stages);
   } catch (error) {
     next(error);
@@ -406,7 +412,8 @@ router.post("/templates/:id/template-stages", requireAuth, requireRole(["system_
       : phaseInput === 'pre_hire' ? 'pre_hire'
       : 'pre_hire';
 
-    const templateStage = await storage.createTemplateStage({
+    const templateService = getTemplateService();
+    const templateStage = await templateService.createTemplateStage({
       templateId: req.params.id,
       stageId: req.body.stageId,
       orderIndex: req.body.orderIndex || 0,
@@ -421,7 +428,8 @@ router.post("/templates/:id/template-stages", requireAuth, requireRole(["system_
 
 router.patch("/template-stages/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const stage = await storage.updateTemplateStage(req.params.id, req.body);
+    const templateService = getTemplateService();
+    const stage = await templateService.updateTemplateStage(req.params.id, req.body);
     if (!stage) {
       await logAuthorizationFailure({ req, resource: "template", resourceId: null, action: "template-stages:update", reason: "not_found" });
       return res.status(404).json({ message: "Template stage not found" });
@@ -434,12 +442,13 @@ router.patch("/template-stages/:id", requireAuth, requireRole(["system_admin", "
 
 router.delete("/template-stages/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const stage = await storage.getTemplateStage(req.params.id);
+    const templateService = getTemplateService();
+    const stage = await templateService.getTemplateStage(req.params.id);
     if (!stage) {
       await logAuthorizationFailure({ req, resource: "template", resourceId: null, action: "template-stages:delete", reason: "not_found" });
       return res.status(404).json({ message: "Template stage not found" });
     }
-    await storage.deleteTemplateStage(req.params.id);
+    await templateService.deleteTemplateStage(req.params.id);
     res.sendStatus(204);
   } catch (error) {
     next(error);
@@ -457,7 +466,8 @@ router.patch("/templates/:id/stages/reorder", requireAuth, requireRole(["system_
     }
 
     if (!(await fetchTemplateWithAccess(req, res, templateId, "template-stages:reorder"))) return;
-    await storage.reorderTemplateStages(templateId, stageIdsInOrder);
+    const templateService = getTemplateService();
+    await templateService.reorderTemplateStages(templateId, stageIdsInOrder);
     res.json({ ok: true });
   } catch (error: any) {
     if (error.message?.includes("stage count mismatch") || error.message?.includes("Invalid stage")) {
@@ -482,14 +492,16 @@ router.post("/templates/:id/stages/create-with-task", requireAuth, requireRole([
     }
 
     // Validate that the stage exists and is active
-    const hiringStages = await storage.getHiringStages();
+    const referenceDataService = getReferenceDataService();
+    const hiringStages = await referenceDataService.getHiringStages();
     const validStage = hiringStages.find(hs => hs.id === stageId && hs.isActive);
     if (!validStage) {
       return res.status(400).json({ message: "Invalid or inactive stage" });
     }
 
     // Get existing template stages to compute next order index
-    const templateStages = await storage.getTemplateStages(templateId);
+    const templateService = getTemplateService();
+    const templateStages = await templateService.getTemplateStages(templateId);
     const maxOrderIndex = Math.max(0, ...templateStages.map(ts => ts.orderIndex || 0));
 
     // Create the template stage (will upsert if exists)
@@ -497,7 +509,7 @@ router.post("/templates/:id/stages/create-with-task", requireAuth, requireRole([
       : phase === 'pre_hire' ? 'pre_hire'
       : 'pre_hire';
 
-    const templateStage = await storage.createTemplateStage({
+    const templateStage = await templateService.createTemplateStage({
       templateId,
       stageId,
       orderIndex: maxOrderIndex + 1,
@@ -538,7 +550,7 @@ router.post("/templates/:id/stages/create-with-task", requireAuth, requireRole([
         fixedDate = null;
       }
 
-      const templateTask = await storage.createTemplateTask({
+      const templateTask = await templateService.createTemplateTask({
         templateId,
         taskDefId,
         stageId,

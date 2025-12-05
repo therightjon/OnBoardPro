@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { storage } from "../db/storage";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { hasAnyRole, logAuthorizationFailure } from "../utils/authorization.utils";
+import { authorizationService } from "../services/authorization";
 import {
   buildPreferenceResponse,
   pickPreferencesForRole,
@@ -87,7 +87,7 @@ router.get("/users/managers", requireAuth, requireRole(["system_admin", "hr_staf
     }
 
     if (!hasAnyRole(req.user, ["system_admin", "hr_staff"])) {
-      const authContext = storage.buildAuthorizationContext(req.user);
+      const authContext = authorizationService.buildContext(req.user);
       const departmentScoped = typeof departmentId === "string" && authContext.departmentIds.has(departmentId);
       const divisionScoped = typeof divisionId === "string" ? authContext.divisionIds.has(divisionId as string) : true;
       if (hasAnyRole(req.user, ["department_admin", "manager"]) && !departmentScoped) {
@@ -194,7 +194,7 @@ router.get("/users/assignable", requireAuth, async (req, res, next) => {
     if (search) filters.search = search as string;
 
     if (!hasAnyRole(req.user, ["system_admin", "hr_staff"])) {
-      const authContext = storage.buildAuthorizationContext(req.user);
+      const authContext = authorizationService.buildContext(req.user);
 
       if (hasAnyRole(req.user, ["department_admin", "manager"])) {
         if (departmentId) {

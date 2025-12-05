@@ -192,4 +192,12 @@ export class TaskService {
     await this.taskRepo.deleteCandidateTask(id);
     // TODO: Publish taskDeleted event
   }
+
+  /**
+   * Get dashboard tasks for KPI calculations
+   * Returns tasks from active/on_hold candidates
+   */
+  async getDashboardTasks(): Promise<any[]> {
+    return this.taskRepo.getDashboardTasks();
+  }
 }

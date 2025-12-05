@@ -41,7 +41,9 @@ import { SearchRepository } from "../repositories/SearchRepository";
 // Import services
 import { CandidateService } from "./candidates/candidate.service";
 import { TaskService } from "./tasks/task.service";
+import { TaskDueDateService } from "./tasks/task-due-date.service";
 import { TemplateService } from "./templates/template.service";
+import { TemplateExpansionService } from "./templates/template-expansion.service";
 import { UserService } from "./users/user.service";
 import { InvitationService } from "./users/invitation.service";
 import { OrganizationService } from "./organization/organization.service";
@@ -49,6 +51,8 @@ import { ReferenceDataService } from "./reference/reference-data.service";
 import { NotificationService } from "./shared/notification.service";
 import { CommentService } from "./shared/comment.service";
 import { SearchService } from "./shared/search.service";
+import { SystemSettingsService } from "./settings/system-settings.service";
+import { AuthProviderService } from "./auth/auth-provider.service";
 
 /**
  * Service factory class
@@ -89,7 +93,9 @@ class ServiceFactory {
   // Service instances (singletons)
   private candidateServiceInstance: CandidateService | null = null;
   private taskServiceInstance: TaskService | null = null;
+  private taskDueDateServiceInstance: TaskDueDateService | null = null;
   private templateServiceInstance: TemplateService | null = null;
+  private templateExpansionServiceInstance: TemplateExpansionService | null = null;
   private userServiceInstance: UserService | null = null;
   private invitationServiceInstance: InvitationService | null = null;
   private organizationServiceInstance: OrganizationService | null = null;
@@ -97,6 +103,8 @@ class ServiceFactory {
   private notificationServiceInstance: NotificationService | null = null;
   private commentServiceInstance: CommentService | null = null;
   private searchServiceInstance: SearchService | null = null;
+  private systemSettingsServiceInstance: SystemSettingsService | null = null;
+  private authProviderServiceInstance: AuthProviderService | null = null;
 
   constructor() {
     // Initialize repositories - Candidates
@@ -140,6 +148,7 @@ class ServiceFactory {
         this.candidateRepo,
         this.candidateTaskRepo,
         this.candidateFollowerRepo,
+        this.candidateStageRepo,
         this.templateRepo
       );
     }
@@ -159,6 +168,20 @@ class ServiceFactory {
   }
 
   /**
+   * Get TaskDueDateService instance
+   */
+  getTaskDueDateService(): TaskDueDateService {
+    if (!this.taskDueDateServiceInstance) {
+      this.taskDueDateServiceInstance = new TaskDueDateService(
+        db,
+        this.candidateRepo,
+        this.candidateTaskRepo
+      );
+    }
+    return this.taskDueDateServiceInstance;
+  }
+
+  /**
    * Get TemplateService instance
    */
   getTemplateService(): TemplateService {
@@ -170,6 +193,26 @@ class ServiceFactory {
       );
     }
     return this.templateServiceInstance;
+  }
+
+  /**
+   * Get TemplateExpansionService instance
+   */
+  getTemplateExpansionService(): TemplateExpansionService {
+    if (!this.templateExpansionServiceInstance) {
+      this.templateExpansionServiceInstance = new TemplateExpansionService(
+        db,
+        pool,
+        this.templateRepo,
+        this.templateStageRepo,
+        this.templateTaskRepo,
+        this.candidateRepo,
+        this.candidateTaskRepo,
+        this.taskDefinitionRepo,
+        this.referenceDataRepo
+      );
+    }
+    return this.templateExpansionServiceInstance;
   }
 
   /**
@@ -260,6 +303,26 @@ class ServiceFactory {
   }
 
   /**
+   * Get SystemSettingsService instance
+   */
+  getSystemSettingsService(): SystemSettingsService {
+    if (!this.systemSettingsServiceInstance) {
+      this.systemSettingsServiceInstance = new SystemSettingsService(db);
+    }
+    return this.systemSettingsServiceInstance;
+  }
+
+  /**
+   * Get AuthProviderService instance
+   */
+  getAuthProviderService(): AuthProviderService {
+    if (!this.authProviderServiceInstance) {
+      this.authProviderServiceInstance = new AuthProviderService(db);
+    }
+    return this.authProviderServiceInstance;
+  }
+
+  /**
    * Get all services
    * Useful for initializing everything at once
    */
@@ -268,13 +331,17 @@ class ServiceFactory {
       candidate: this.getCandidateService(),
       task: this.getTaskService(),
       template: this.getTemplateService(),
+      templateExpansion: this.getTemplateExpansionService(),
+      taskDueDate: this.getTaskDueDateService(),
       user: this.getUserService(),
       invitation: this.getInvitationService(),
       organization: this.getOrganizationService(),
       referenceData: this.getReferenceDataService(),
       notification: this.getNotificationService(),
       comment: this.getCommentService(),
-      search: this.getSearchService()
+      search: this.getSearchService(),
+      systemSettings: this.getSystemSettingsService(),
+      authProvider: this.getAuthProviderService()
     };
   }
 }
@@ -285,7 +352,9 @@ export const serviceFactory = new ServiceFactory();
 // Export individual service getters for convenience
 export const getCandidateService = () => serviceFactory.getCandidateService();
 export const getTaskService = () => serviceFactory.getTaskService();
+export const getTaskDueDateService = () => serviceFactory.getTaskDueDateService();
 export const getTemplateService = () => serviceFactory.getTemplateService();
+export const getTemplateExpansionService = () => serviceFactory.getTemplateExpansionService();
 export const getUserService = () => serviceFactory.getUserService();
 export const getInvitationService = () => serviceFactory.getInvitationService();
 export const getOrganizationService = () => serviceFactory.getOrganizationService();
@@ -293,3 +362,5 @@ export const getReferenceDataService = () => serviceFactory.getReferenceDataServ
 export const getNotificationService = () => serviceFactory.getNotificationService();
 export const getCommentService = () => serviceFactory.getCommentService();
 export const getSearchService = () => serviceFactory.getSearchService();
+export const getSystemSettingsService = () => serviceFactory.getSystemSettingsService();
+export const getAuthProviderService = () => serviceFactory.getAuthProviderService();

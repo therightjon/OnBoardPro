@@ -2,7 +2,6 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { sensitiveRateLimiter } from "../middleware/rate-limiter";
-import { storage } from "../db/storage";
 import { db } from "../db/connection";
 import { insertCandidateSchema } from "@shared/schemas";
 import {
@@ -32,7 +31,7 @@ import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helper
 import { emitOwnerChanged } from "../features/notifications/owner-change";
 import { authorizationService } from "../services/authorization";
 import { eventBus, candidateCreated, candidateStatusChanged, candidateStageChanged, taskCreated, taskAssigned, commentCreated } from "../events";
-import { getCandidateService, getTaskService, getCommentService, getReferenceDataService } from "../services/service-factory";
+import { getCandidateService, getTaskService, getCommentService, getReferenceDataService, getTemplateExpansionService, getTaskDueDateService } from "../services/service-factory";
 import { CandidateValidationError } from "../services/candidates/candidate.service";
 import { shouldAutoApplyTemplate } from "../utils/hiring-phase.utils";
 
@@ -436,7 +435,8 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
     });
 
     if (anchorChanged) {
-      await storage.recomputeCandidateDueDates(fullCandidate.id);
+      const taskDueDateService = getTaskDueDateService();
+      await taskDueDateService.recomputeCandidateDueDates(fullCandidate.id);
     }
 
     // Integration concerns: Auto-apply template when LOO is accepted (deferred template application)
@@ -461,7 +461,7 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
           templateId: fullCandidate.templateAppliedFromId 
         });
         
-        templateExpansionResult = await storage.expandTemplate(
+        templateExpansionResult = await getTemplateExpansionService().expandTemplate(
           fullCandidate.templateAppliedFromId,
           fullCandidate.id,
           req.user!.id
@@ -506,7 +506,7 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
 
     // Integration concerns: Resolve self-assignments when linkedUserId changes
     if (previousCandidate.linkedUserId !== fullCandidate.linkedUserId && fullCandidate.linkedUserId) {
-      const resolvedTasks = await storage.resolveCandidateSelfAssignments(fullCandidate.id, fullCandidate.linkedUserId);
+      const resolvedTasks = await candidateService.resolveCandidateSelfAssignments(fullCandidate.id, fullCandidate.linkedUserId);
       if (resolvedTasks.length > 0) {
         for (const task of resolvedTasks) {
           // Publish taskAssigned event for self-assignment resolution
@@ -679,7 +679,7 @@ router.post("/candidates/:id/restore", requireAuth, requireRole(["system_admin",
         authContext
       });
 
-      await storage.resetCandidateTasksForReactivation(req.params.id);
+      await candidateService.resetCandidateTasksForReactivation(req.params.id);
     }
 
     const statusResult = await candidateService.updateCandidateStatus({
@@ -694,7 +694,8 @@ router.post("/candidates/:id/restore", requireAuth, requireRole(["system_admin",
       return res.status(status).json({ message: statusResult.error || "Unable to restore candidate", code: statusResult.code });
     }
 
-    await storage.recomputeCandidateDueDates(req.params.id);
+    const taskDueDateService = getTaskDueDateService();
+    await taskDueDateService.recomputeCandidateDueDates(req.params.id);
 
     const fullCandidate = await candidateService.getCandidate(req.params.id, authContext);
     res.json(fullCandidate);
@@ -726,7 +727,8 @@ router.get("/candidates/:id/stages", requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     if (!(await fetchCandidateWithAccess(req, res, id, "candidate:stages:list"))) return;
-    const stages = await storage.getCandidateTemplateStages(id);
+    const candidateService = getCandidateService();
+    const stages = await candidateService.getCandidateTemplateStages(id);
 
     // Return empty array if no snapshots found instead of throwing
     if (!stages || stages.length === 0) {
@@ -747,7 +749,8 @@ router.get("/candidates/:id/stage-history", requireAuth, async (req, res, next) 
   try {
     const { id } = req.params;
     if (!(await fetchCandidateWithAccess(req, res, id, "candidate:stage-history:list"))) return;
-    const history = await storage.getCandidateStageHistory(id);
+    const candidateService = getCandidateService();
+    const history = await candidateService.getCandidateStageHistory(id);
     res.json({ history });
   } catch (error) {
     next(error);
@@ -821,7 +824,8 @@ router.post("/candidates/:id/apply-template", requireAuth, requireRole(["system_
 
     if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:apply-template"))) return;
 
-    const expansion = await storage.expandTemplate(template_id, req.params.id, req.user!.id);
+    const templateExpansionService = getTemplateExpansionService();
+    const expansion = await templateExpansionService.expandTemplate(template_id, req.params.id, req.user!.id);
 
     try {
       // Publish taskCreated events for all tasks created from template
@@ -859,8 +863,10 @@ router.post("/candidates/:id/apply-template", requireAuth, requireRole(["system_
 router.post("/candidates/:id/recompute-due-dates", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
     const candidateId = req.params.id;
-    const result = await storage.recomputeCandidateDueDates(candidateId);
-    const candidate = await storage.getCandidate(candidateId);
+    const taskDueDateService = getTaskDueDateService();
+    const result = await taskDueDateService.recomputeCandidateDueDates(candidateId);
+    const candidateService = getCandidateService();
+    const candidate = await candidateService.getCandidate(candidateId);
     res.json({ updated: result.updated, candidate });
   } catch (error) {
     next(error);

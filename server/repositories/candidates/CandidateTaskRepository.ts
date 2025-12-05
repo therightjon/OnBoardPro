@@ -378,4 +378,31 @@ export class CandidateTaskRepository extends BaseRepository {
 
     return rows;
   }
+
+  /**
+   * Reset all non-archived candidate tasks to a fresh state for reactivation.
+   * Clears completion/cancellation markers and due dates so anchors can be recomputed.
+   * 
+   * This is called when a candidate is being reactivated after being archived/completed.
+   *
+   * @param candidateId - Candidate ID
+   * @returns Number of tasks that were reset
+   */
+  async resetCandidateTasksForReactivation(candidateId: string): Promise<number> {
+    const now = new Date();
+    const reset = await this.db
+      .update(candidateTasks)
+      .set({
+        status: 'todo',
+        completedAt: null,
+        cancelReason: null,
+        dueAt: null,
+        pendingAnchor: true,
+        updatedAt: now
+      })
+      .where(and(eq(candidateTasks.candidateId, candidateId), eq(candidateTasks.archived, false)))
+      .returning({ id: candidateTasks.id });
+
+    return reset.length;
+  }
 }

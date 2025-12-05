@@ -3,7 +3,6 @@ import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { sensitiveRateLimiter } from "../middleware/rate-limiter";
-import { storage } from "../db/storage";
 import { db } from "../db/connection";
 import { insertCandidateTaskSchema } from "@shared/schemas";
 import {
@@ -32,7 +31,7 @@ import {
 import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helpers";
 import { authorizationService } from "../services/authorization";
 import { eventBus, candidateStageChanged, taskCreated, taskAssigned, taskStatusChanged, taskCompleted, commentCreated } from "../events";
-import { getTaskService, getCommentService, getUserService, getReferenceDataService } from "../services/service-factory";
+import { getTaskService, getCommentService, getUserService, getReferenceDataService, getCandidateService } from "../services/service-factory";
 
 const router = Router();
 
@@ -63,7 +62,8 @@ router.get("/tasks", sensitiveRateLimiter, requireAuth, async (req, res, next) =
 
     const filters: any = {};
     if (candidateId) {
-      const candidate = await storage.getCandidate(candidateId as string, authContext);
+      const candidateService = getCandidateService();
+      const candidate = await candidateService.getCandidate(candidateId as string, authContext);
       if (!candidate) {
         await logAuthorizationFailure({ req, resource: "candidate", resourceId: candidateId as string, action: "tasks:list", reason: "scope_mismatch" });
         return res.status(403).json({ message: "Insufficient permissions" });
@@ -140,7 +140,8 @@ router.get("/tasks/dashboard", requireAuth, async (req, res, next) => {
       await logAuthorizationFailure({ req, resource: "general", action: "tasks:dashboard", reason: "role_mismatch" });
       return res.status(403).json({ message: "Insufficient permissions" });
     }
-    const tasks = await storage.getDashboardTasks();
+    const taskService = getTaskService();
+    const tasks = await taskService.getDashboardTasks();
     res.json(tasks);
   } catch (error) {
     next(error);
@@ -333,7 +334,8 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
     // Get updated candidate data if stage advanced
     let updatedCandidate = null;
     if (advancement?.advanced) {
-      updatedCandidate = await storage.getCandidate(existingTask.candidateId);
+      const candidateService = getCandidateService();
+      updatedCandidate = await candidateService.getCandidate(existingTask.candidateId);
       try {
         // Publish candidateStageChanged event
         await eventBus.publish(candidateStageChanged(existingTask.candidateId, {

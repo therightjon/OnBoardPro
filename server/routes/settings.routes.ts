@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../middleware/authorization";
-import { storage } from "../db/storage";
+import { getSystemSettingsService } from "../services/service-factory";
 import { getSmtpSettings, updateSmtpSettings, sendTestEmail } from "../features/email/smtp-settings.service";
 import { logAuthorizationFailure } from "../utils/authorization.utils";
 
@@ -9,7 +9,8 @@ const router = Router();
 // System settings endpoints (hr_staff, system_admin)
 router.get("/system-settings", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const settings = await storage.getSystemSettings();
+    const systemSettingsService = getSystemSettingsService();
+    const settings = await systemSettingsService.getSystemSettings();
     res.json(settings);
   } catch (error) {
     next(error);
@@ -19,7 +20,8 @@ router.get("/system-settings", requireAuth, requireRole(["system_admin", "hr_sta
 router.patch("/system-settings", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
     const { auto_regress_on_prior_open } = req.body ?? {};
-    const updated = await storage.setSystemSettings({ auto_regress_on_prior_open });
+    const systemSettingsService = getSystemSettingsService();
+    const updated = await systemSettingsService.setSystemSettings({ auto_regress_on_prior_open });
     res.json(updated);
   } catch (error) {
     next(error);
