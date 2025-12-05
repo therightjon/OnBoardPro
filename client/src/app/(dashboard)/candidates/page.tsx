@@ -485,18 +485,18 @@ const formatLooAge = (isoDate?: string | null) => {
                             </Badge>
                           )}
                           {pendingAnchorCount > 0 && (
-                              <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50" title="Tasks waiting for required dates">
+                              <Badge variant="outline" className="text-xs text-amber-600 dark:text-amber-400 border-amber-400 dark:border-amber-600" title="Tasks waiting for required dates">
                                 {pendingAnchorCount} pending
                               </Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Link href={`/candidates/${candidate.id}`} className="text-primary hover:underline break-words">
+                        <Link href={`/candidates/${candidate.id}`} className="text-muted-foreground hover:text-foreground hover:underline break-words">
                           {candidate.email}
                         </Link>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-muted-foreground">
                         {candidateTypes.find((type) => type.id === candidate.candidateTypeId)?.name || "Unknown"}
                       </TableCell>
                       <TableCell>
@@ -506,7 +506,7 @@ const formatLooAge = (isoDate?: string | null) => {
                       </TableCell>
                       <TableCell data-testid={`cell-stage-${candidate.id}`}>
                         <div className="flex flex-col">
-                          <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 whitespace-nowrap">
+                          <Badge variant="outline" className="whitespace-nowrap bg-secondary">
                             {candidate.currentStage?.name || "Not Started"}
                           </Badge>
                           <span className="text-xs text-muted-foreground capitalize mt-1">{phaseText}</span>
@@ -515,13 +515,13 @@ const formatLooAge = (isoDate?: string | null) => {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden xl:table-cell">
+                      <TableCell className="hidden xl:table-cell text-muted-foreground">
                         {looAgeLabel}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">
+                      <TableCell className="hidden lg:table-cell text-muted-foreground">
                         {candidate.anticipatedStartDate ? new Date(candidate.anticipatedStartDate).toLocaleDateString() : "-"}
                       </TableCell>
-                      <TableCell className="hidden xl:table-cell">
+                      <TableCell className="hidden xl:table-cell text-muted-foreground">
                         {new Date(candidate.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
@@ -603,7 +603,7 @@ const formatLooAge = (isoDate?: string | null) => {
                           </Badge>
                         )}
                         {pendingCount > 0 && (
-                          <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50">
+                          <Badge variant="outline" className="text-xs text-amber-600 dark:text-amber-400 border-amber-400 dark:border-amber-600">
                             {pendingCount} pending
                           </Badge>
                         )}
@@ -631,7 +631,7 @@ const formatLooAge = (isoDate?: string | null) => {
                         <div className="col-span-2">
                           <dt className="text-muted-foreground">Stage</dt>
                           <dd>
-                            <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs whitespace-nowrap">
+                            <Badge variant="outline" className="text-xs whitespace-nowrap bg-secondary">
                               {candidate.currentStage?.name || "Not Started"}
                             </Badge>
                             <span className="block text-[10px] text-muted-foreground mt-1 capitalize">

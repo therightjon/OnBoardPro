@@ -53,14 +53,14 @@ const STATUS_LABELS: Record<ResolvedCandidateStatusKey, string> = {
 };
 
 const STATUS_BADGE_CLASSES: Record<ResolvedCandidateStatusKey, string> = {
-  active: "bg-accent/10 text-accent",
-  draft: "bg-chart-3/10 text-chart-3",
-  completed: "bg-chart-5/10 text-chart-5",
-  on_hold: "bg-chart-4/10 text-chart-4",
-  canceled: "bg-destructive/10 text-destructive",
-  offer_declined: "bg-destructive/10 text-destructive",
-  archived: "bg-muted text-muted-foreground",
-  unknown: "bg-muted text-muted-foreground"
+  active: "bg-primary text-primary-foreground",
+  draft: "bg-secondary text-secondary-foreground",
+  completed: "bg-primary text-primary-foreground",
+  on_hold: "bg-amber-500 dark:bg-amber-600 text-white",
+  canceled: "bg-destructive text-destructive-foreground",
+  offer_declined: "bg-destructive text-destructive-foreground",
+  archived: "bg-secondary text-secondary-foreground",
+  unknown: "bg-secondary text-secondary-foreground"
 };
 
 const STATUS_TONES: Record<ResolvedCandidateStatusKey, CandidateStatusTone> = {
