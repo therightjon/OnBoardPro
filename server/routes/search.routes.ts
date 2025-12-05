@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { storage } from "../db/storage";
-import { getSearchService } from "../services/service-factory";
+import { getSearchService, getDashboardService } from "../services/service-factory";
+import { authorizationService } from "../services/authorization";
 import { requireAuth } from "../middleware/authorization";
 import { appRoleEnum } from "@shared/schemas";
 import { reportAuthorizationFailure } from "../observability/authMetrics";
@@ -120,8 +120,9 @@ router.get("/dashboard/divisions", requireAuth, async (req, res, next) => {
     }
     const limitParam = typeof req.query.limit === "string" ? parseInt(req.query.limit, 10) : NaN;
     const limit = Number.isFinite(limitParam) ? limitParam : 4;
-    const authContext = storage.buildAuthorizationContext(req.user);
-    const stats = await storage.getDivisionActiveCandidateCounts(limit, authContext);
+    const authContext = authorizationService.buildContext(req.user);
+    const dashboardService = getDashboardService();
+    const stats = await dashboardService.getDivisionActiveCandidateCounts(limit, authContext);
     res.json(stats);
   } catch (error) {
     next(error);
@@ -137,8 +138,9 @@ router.get("/dashboard/recent-activity", requireAuth, async (req, res, next) => 
     }
     const limitParam = typeof req.query.limit === "string" ? parseInt(req.query.limit, 10) : NaN;
     const limit = Number.isFinite(limitParam) ? limitParam : 5;
-    const authContext = storage.buildAuthorizationContext(req.user);
-    const events = await storage.getRecentActivityEvents(limit, authContext);
+    const authContext = authorizationService.buildContext(req.user);
+    const dashboardService = getDashboardService();
+    const events = await dashboardService.getRecentActivityEvents(limit, authContext);
     res.json(events);
   } catch (error) {
     next(error);

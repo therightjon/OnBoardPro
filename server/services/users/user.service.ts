@@ -8,8 +8,9 @@
  * - User preferences management
  */
 
-import type { User, InsertUser, UserRole } from "@shared/schemas";
+import type { User, InsertUser, UserRole, UserIdentity, InsertUserIdentity } from "@shared/schemas";
 import type { UserRepository } from "../../repositories/users/UserRepository";
+import type { UserIdentityRepository } from "../../repositories/users/UserIdentityRepository";
 import type { AuthorizationContext } from "../authorization/policy-types";
 import { eventBus, userCreated, userRoleChanged } from "../../events";
 
@@ -57,7 +58,8 @@ export interface GetUsersFilters {
  */
 export class UserService {
   constructor(
-    private userRepo: UserRepository
+    private userRepo: UserRepository,
+    private userIdentityRepo?: UserIdentityRepository
   ) {}
 
   /**
@@ -168,6 +170,13 @@ export class UserService {
   }
 
   /**
+   * Add roles to user (without replacing existing)
+   */
+  async addUserRoles(userId: string, roles: string[]): Promise<any> {
+    return this.userRepo.addUserRoles(userId, roles);
+  }
+
+  /**
    * Disable user
    * Business rule: Reassign open tasks if specified
    */
@@ -205,6 +214,13 @@ export class UserService {
    */
   async getUserByEmail(email: string): Promise<User | undefined> {
     return this.userRepo.getUserByEmail(email);
+  }
+
+  /**
+   * Get user by username
+   */
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return this.userRepo.getUserByUsername(username);
   }
 
   /**
@@ -258,5 +274,98 @@ export class UserService {
       return repo.upsertUserPreferences(userId, preferences);
     }
     return undefined;
+  }
+
+  // ============================================
+  // User Identity Methods
+  // ============================================
+
+  /**
+   * Get user identity by provider and external ID
+   */
+  async getUserIdentityByProvider(provider: string, externalId: string): Promise<UserIdentity | undefined> {
+    if (!this.userIdentityRepo) {
+      throw new Error("UserIdentityRepository not configured");
+    }
+    return this.userIdentityRepo.getUserIdentityByProvider(provider, externalId);
+  }
+
+  /**
+   * Get all identities for a user
+   */
+  async getUserIdentities(userId: string): Promise<UserIdentity[]> {
+    if (!this.userIdentityRepo) {
+      throw new Error("UserIdentityRepository not configured");
+    }
+    return this.userIdentityRepo.getUserIdentities(userId);
+  }
+
+  /**
+   * Create a user identity
+   */
+  async createUserIdentity(data: InsertUserIdentity): Promise<UserIdentity> {
+    if (!this.userIdentityRepo) {
+      throw new Error("UserIdentityRepository not configured");
+    }
+    return this.userIdentityRepo.createUserIdentity(data);
+  }
+
+  /**
+   * Update a user identity
+   */
+  async updateUserIdentity(id: string, data: Partial<UserIdentity>): Promise<UserIdentity | undefined> {
+    if (!this.userIdentityRepo) {
+      throw new Error("UserIdentityRepository not configured");
+    }
+    return this.userIdentityRepo.updateUserIdentity(id, data);
+  }
+
+  /**
+   * Delete a user identity
+   */
+  async deleteUserIdentity(id: string): Promise<void> {
+    if (!this.userIdentityRepo) {
+      throw new Error("UserIdentityRepository not configured");
+    }
+    return this.userIdentityRepo.deleteUserIdentity(id);
+  }
+
+  // ============================================
+  // Authorization Scope Methods
+  // ============================================
+
+  /**
+   * Get user roles
+   */
+  async getUserRoles(userId: string): Promise<UserRole[]> {
+    return this.userRepo.getUserRoles(userId);
+  }
+
+  /**
+   * Get user department scope IDs
+   */
+  async getUserDepartmentScopeIds(userId: string): Promise<string[]> {
+    return this.userRepo.getUserDepartmentScopeIds(userId);
+  }
+
+  /**
+   * Get user division scope IDs
+   */
+  async getUserDivisionScopeIds(userId: string): Promise<string[]> {
+    return this.userRepo.getUserDivisionScopeIds(userId);
+  }
+
+  /**
+   * Get manager candidate scope IDs
+   */
+  async getManagerCandidateScopeIds(managerId: string): Promise<string[]> {
+    return this.userRepo.getManagerCandidateScopeIds(managerId);
+  }
+
+  /**
+   * Update last login timestamp
+   */
+  async updateLastLogin(userId: string): Promise<void> {
+    return this.userRepo.updateLastLogin(userId);
   }
 }

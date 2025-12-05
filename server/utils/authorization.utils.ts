@@ -1,9 +1,9 @@
 import type { Express } from "express";
 import { sql } from "drizzle-orm";
 import { appRoleEnum } from "@shared/schemas";
-import { storage } from "../db/storage";
 import { db } from "../db/connection";
 import { reportAuthorizationFailure } from "../observability/authMetrics";
+import { getAuthorizationService, getCandidateService, getTaskService, getTemplateService } from "../services/service-factory";
 
 type AppRole = (typeof appRoleEnum.enumValues)[number];
 
@@ -155,8 +155,10 @@ export async function logAuthorizationFailure(params: {
  * @returns The candidate object if found and authorized, null otherwise
  */
 export async function fetchCandidateWithAccess(req: any, res: any, candidateId: string, action: string) {
-  const authContext = storage.buildAuthorizationContext(req.user);
-  const candidate = await storage.getCandidate(candidateId, authContext);
+  const authorizationService = getAuthorizationService();
+  const candidateService = getCandidateService();
+  const authContext = authorizationService.buildContext(req.user);
+  const candidate = await candidateService.getCandidate(candidateId, authContext);
   if (!candidate) {
     await logAuthorizationFailure({ req, resource: "candidate", resourceId: candidateId, action, reason: "not_found_or_scope" });
     res.status(404).json({ message: "Candidate not found" });
@@ -174,13 +176,16 @@ export async function fetchCandidateWithAccess(req: any, res: any, candidateId: 
  * @returns Object containing task and candidate if found and authorized, null otherwise
  */
 export async function fetchTaskWithAccess(req: any, res: any, taskId: string, action: string) {
-  const authContext = storage.buildAuthorizationContext(req.user);
-  const task = await storage.getCandidateTask(taskId);
+  const authorizationService = getAuthorizationService();
+  const candidateService = getCandidateService();
+  const taskService = getTaskService();
+  const authContext = authorizationService.buildContext(req.user);
+  const task = await taskService.getTask(taskId);
   if (!task) {
     res.status(404).json({ message: "Task not found" });
     return null;
   }
-  const candidate = await storage.getCandidate(task.candidateId, authContext);
+  const candidate = await candidateService.getCandidate(task.candidateId, authContext);
   if (!candidate) {
     await logAuthorizationFailure({ req, resource: "task", resourceId: taskId, action, reason: "candidate_not_found_or_scope" });
     res.status(404).json({ message: "Candidate not found" });
@@ -198,7 +203,8 @@ export async function fetchTaskWithAccess(req: any, res: any, taskId: string, ac
  * @returns The template object if found, null otherwise
  */
 export async function fetchTemplateWithAccess(req: any, res: any, templateId: string, action: string) {
-  const template = await storage.getTemplate(templateId);
+  const templateService = getTemplateService();
+  const template = await templateService.getTemplate(templateId);
   if (!template) {
     await logAuthorizationFailure({ req, resource: "template", resourceId: templateId, action, reason: "not_found" });
     res.status(404).json({ message: "Template not found" });

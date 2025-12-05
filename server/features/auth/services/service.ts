@@ -1,8 +1,8 @@
 // Core authentication service for provider-agnostic sign-in flow
 
-import { storage } from "../../../db/storage";
 import type { User, InsertUser, UserIdentity, InsertUserIdentity, Invitation } from "@shared/schemas";
 import type { UserProfile } from "./providers";
+import { getUserService, getInvitationService } from "../../../services/service-factory";
 
 export interface SignInResult {
   success: boolean;
@@ -51,7 +51,8 @@ export class AuthService {
         await this.upsertUserIdentity(existingUser.id, provider, profile);
         
         // Return updated user
-        const updatedUser = await storage.getUser(existingUser.id);
+        const userService = getUserService();
+        const updatedUser = await userService.getUser(existingUser.id);
         return { 
           success: true, 
           user: updatedUser!,
@@ -91,12 +92,15 @@ export class AuthService {
         await this.upsertUserIdentity(newUser.id, provider, identityProfile);
 
         if (invitation.roles?.length) {
-          await storage.addUserRoles(newUser.id, invitation.roles);
+          const userService = getUserService();
+          await userService.addUserRoles(newUser.id, invitation.roles);
         }
 
-        await storage.consumeInvitation(invitation.id);
+        const invitationService = getInvitationService();
+        await invitationService.consumeInvitation(invitation.id);
 
-        const hydratedUser = await storage.getUser(newUser.id);
+        const userService = getUserService();
+        const hydratedUser = await userService.getUser(newUser.id);
 
         return { 
           success: true, 
@@ -125,16 +129,17 @@ export class AuthService {
     normalizedEmail: string, 
     normalizedUsername?: string
   ): Promise<User | undefined> {
+    const userService = getUserService();
     
     // Try to find by provider identity first
-    const identity = await storage.getUserIdentityByProvider(provider, profile.externalId);
+    const identity = await userService.getUserIdentityByProvider(provider, profile.externalId);
     if (identity) {
-      return await storage.getUser(identity.userId);
+      return await userService.getUser(identity.userId);
     }
     
     // Try to find by username if provided and unique
     if (normalizedUsername) {
-      const userByUsername = await storage.getUserByUsername(normalizedUsername);
+      const userByUsername = await userService.getUserByUsername(normalizedUsername);
       if (userByUsername) {
         return userByUsername;
       }
@@ -142,7 +147,7 @@ export class AuthService {
     
     // Try to find by verified email (careful with email-based linking)
     if (profile.emailVerified && normalizedEmail) {
-      const userByEmail = await storage.getUserByEmail(normalizedEmail);
+      const userByEmail = await userService.getUserByEmail(normalizedEmail);
       if (userByEmail && userByEmail.emailVerified) {
         return userByEmail;
       }
@@ -155,6 +160,7 @@ export class AuthService {
    * Update existing user with latest provider information
    */
   private async updateExistingUser(user: User, profile: UserProfile): Promise<void> {
+    const userService = getUserService();
     const updateData: Partial<User> = {
       lastLoginAt: new Date()
     };
@@ -184,7 +190,7 @@ export class AuthService {
       updateData.authProvider = 'local'; // Keep as local if already set
     }
     
-    await storage.updateUser(user.id, updateData);
+    await userService.updateUser({ id: user.id, data: updateData });
   }
   
   /**
@@ -218,7 +224,8 @@ export class AuthService {
       lastLoginAt: new Date()
     };
     
-    return await storage.createUser(userData);
+    const userService = getUserService();
+    return await userService.createUser({ data: userData });
   }
 
   private invitationMatches(
@@ -259,9 +266,10 @@ export class AuthService {
     inviteToken?: string | null;
   }): Promise<Invitation | null> {
     const now = new Date();
+    const invitationService = getInvitationService();
 
     if (params.inviteToken) {
-      const invitation = await storage.getInvitationByToken(params.inviteToken);
+      const invitation = await invitationService.getInvitationByToken(params.inviteToken);
       if (!invitation || invitation.status !== 'pending') {
         return null;
       }
@@ -281,7 +289,7 @@ export class AuthService {
     if (params.normalizedUsername) identifiers.add(params.normalizedUsername);
 
     for (const identifier of identifiers) {
-      const invitation = await storage.findValidPendingInviteForIdentifier(identifier);
+      const invitation = await invitationService.findValidPendingInvite(identifier);
       if (!invitation) {
         continue;
       }
@@ -307,11 +315,12 @@ export class AuthService {
    * Create or update user identity record
    */
   private async upsertUserIdentity(userId: string, provider: string, profile: UserProfile): Promise<void> {
-    const existingIdentity = await storage.getUserIdentityByProvider(provider, profile.externalId);
+    const userService = getUserService();
+    const existingIdentity = await userService.getUserIdentityByProvider(provider, profile.externalId);
     
     if (existingIdentity) {
       // Update existing identity
-      await storage.updateUserIdentity(existingIdentity.id, {
+      await userService.updateUserIdentity(existingIdentity.id, {
         email: profile.email,
         username: profile.username
       });
@@ -325,7 +334,7 @@ export class AuthService {
         username: profile.username
       };
       
-      await storage.createUserIdentity(identityData);
+      await userService.createUserIdentity(identityData);
     }
   }
   
@@ -333,26 +342,28 @@ export class AuthService {
    * Get linked identities for a user
    */
   async getUserIdentities(userId: string): Promise<UserIdentity[]> {
-    return await storage.getUserIdentities(userId);
+    const userService = getUserService();
+    return await userService.getUserIdentities(userId);
   }
   
   /**
    * Unlink a provider identity (admin action)
    */
   async unlinkProviderIdentity(userId: string, provider: string, externalId: string): Promise<boolean> {
-    const identity = await storage.getUserIdentityByProvider(provider, externalId);
+    const userService = getUserService();
+    const identity = await userService.getUserIdentityByProvider(provider, externalId);
     
     if (!identity || identity.userId !== userId) {
       return false;
     }
     
     // Don't allow unlinking the primary identity
-    const user = await storage.getUser(userId);
+    const user = await userService.getUser(userId);
     if (user && user.authProvider === provider && user.externalId === externalId) {
       return false; // Cannot unlink primary identity
     }
     
-    await storage.deleteUserIdentity(identity.id);
+    await userService.deleteUserIdentity(identity.id);
     return true;
   }
 }

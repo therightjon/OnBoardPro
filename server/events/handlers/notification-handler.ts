@@ -119,13 +119,16 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
       mentionedUserKeys
     } = event.payload;
 
-    // Import notification utilities
+    // Import notification utilities and services
     const {
       resolveMentionedUsers,
       createNotifications
     } = await import("../../features/notifications/services");
     const { buildCommentSnippet } = await import("../../utils/notification.utils");
-    const { storage } = await import("../../db/storage");
+    const { getCandidateService, getTaskService } = await import("../../services/service-factory");
+
+    const candidateService = getCandidateService();
+    const taskService = getTaskService();
 
     // Resolve mentioned users
     const mentionedUsers = mentionedUserKeys.length > 0
@@ -137,10 +140,10 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
 
     // Get watchers based on entity type
     if (entityType === 'candidate') {
-      const candidate = await storage.getCandidate(entityId);
+      const candidate = await candidateService.getCandidate(entityId);
       if (candidate) {
         // Get candidate followers
-        const followers = await storage.getCandidateFollowers(entityId);
+        const followers = await candidateService.getFollowers(entityId);
         followers.forEach(f => watcherIds.add(f.userId));
 
         // Add manager as watcher
@@ -149,7 +152,7 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
         }
       }
     } else if (entityType === 'task') {
-      const task = await storage.getCandidateTask(entityId);
+      const task = await taskService.getTask(entityId);
       if (task && task.assigneeKind === 'user' && task.assigneeUserId) {
         watcherIds.add(task.assigneeUserId);
       }
@@ -169,15 +172,15 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
 
     if (entityType === 'candidate') {
       contextCandidateId = entityId;
-      const candidate = await storage.getCandidate(entityId);
+      const candidate = await candidateService.getCandidate(entityId);
       if (candidate) {
         candidateName = `${candidate.firstName} ${candidate.lastName}`;
       }
     } else if (entityType === 'task') {
-      const task = await storage.getCandidateTask(entityId);
+      const task = await taskService.getTask(entityId);
       if (task) {
         contextCandidateId = task.candidateId;
-        const candidate = await storage.getCandidate(task.candidateId);
+        const candidate = await candidateService.getCandidate(task.candidateId);
         if (candidate) {
           candidateName = `${candidate.firstName} ${candidate.lastName}`;
         }

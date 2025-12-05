@@ -1,6 +1,6 @@
 import type { Express } from "express";
-import { storage } from "../db/storage";
 import { createNotifications } from "../features/notifications/services";
+import { getCandidateService, getTaskService, getUserService } from "../services/service-factory";
 
 const COMMENT_SNIPPET_LIMIT = 240;
 
@@ -34,9 +34,10 @@ export function buildCommentSnippet(body: string, limit = COMMENT_SNIPPET_LIMIT)
  * @returns Object containing the candidate and set of watcher user IDs
  */
 export async function gatherCandidateNotificationContext(candidateId: string) {
+  const candidateService = getCandidateService();
   const [candidate, followers] = await Promise.all([
-    storage.getCandidate(candidateId),
-    storage.getCandidateFollowers(candidateId)
+    candidateService.getCandidate(candidateId),
+    candidateService.getFollowers(candidateId)
   ]);
 
   const watcherIds = new Set<string>();
@@ -56,7 +57,8 @@ export async function gatherCandidateNotificationContext(candidateId: string) {
  * @returns Array of unique assignee user IDs
  */
 export async function gatherCandidateAssigneeIds(candidateId: string): Promise<string[]> {
-  const tasks = await storage.getCandidateTasks({ candidateId });
+  const taskService = getTaskService();
+  const tasks = await taskService.getTasks({ candidateId });
   const ids = new Set<string>();
   for (const task of tasks) {
     if (task.assigneeKind === 'user' && task.assigneeUserId && task.status !== 'done' && task.status !== 'canceled') {
@@ -78,7 +80,9 @@ export async function notifyTaskAssignees(task: any, actor: Express.User, reason
     return;
   }
 
-  const candidate = await storage.getCandidate(task.candidateId);
+  const candidateService = getCandidateService();
+  const userService = getUserService();
+  const candidate = await candidateService.getCandidate(task.candidateId);
   const actorName = buildActorLabel(actor);
   const payload = {
     actor: { id: actor.id, name: actorName },
@@ -99,7 +103,7 @@ export async function notifyTaskAssignees(task: any, actor: Express.User, reason
   // Determine recipient visibility: candidates receive external notifications
   // while staff/internal users receive internal notifications.
   try {
-    const recipient = await storage.getUser(task.assigneeUserId);
+    const recipient = await userService.getUser(task.assigneeUserId);
     const visibility = recipient?.role === 'candidate' ? 'external' : 'internal';
     await createNotifications({
       type: "task.assigned",

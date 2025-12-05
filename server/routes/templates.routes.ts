@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { z } from "zod";
-import { storage } from "../db/storage"; // Keep for estimateTemplate only
 import { requireAuth, requireRole } from "../middleware/authorization";
 import {
   insertTemplateSchema,
@@ -8,7 +7,7 @@ import {
 } from "@shared/schemas";
 import { logAuthorizationFailure } from "../utils/authorization.utils";
 import { eventBus, templateCreated, templateUpdated, templateCloned } from "../events";
-import { getTemplateService, getReferenceDataService } from "../services/service-factory";
+import { getTemplateService, getTemplateEstimationService, getReferenceDataService } from "../services/service-factory";
 
 const router = Router();
 
@@ -187,7 +186,8 @@ router.get("/templates/:id/estimate", requireAuth, requireRole(["system_admin", 
     const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:estimate");
     if (!template) return;
     const { looDate, startDate, candidateId, businessDays } = req.query;
-    const estimate = await storage.estimateTemplate(req.params.id, {
+    const templateEstimationService = getTemplateEstimationService();
+    const estimate = await templateEstimationService.estimateTemplate(req.params.id, {
       looDate: looDate as string | undefined,
       startDate: startDate as string | undefined,
       candidateId: candidateId as string | undefined,

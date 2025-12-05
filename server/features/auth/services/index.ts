@@ -3,7 +3,7 @@
 import { authConfig, validateLdapConfig } from "./config";
 import { AuthProviderRegistry, LocalAuthProvider, LdapAuthProvider } from "./providers";
 import { authService } from "./service";
-import { storage } from "../../../db/storage";
+import { getAuthProviderService } from "../../../services/service-factory";
 
 // Initialize the authentication provider registry
 export const providerRegistry = new AuthProviderRegistry();
@@ -14,7 +14,8 @@ export async function initializeAuthProviders() {
   
   try {
     // Get database provider settings
-    const dbProviders = await storage.getAllAuthProviders();
+    const authProviderService = getAuthProviderService();
+    const dbProviders = await authProviderService.getAllAuthProviders();
     const dbProviderMap = new Map(dbProviders.map(p => [p.id, p.enabled]));
     
     console.log(`Enabled providers: ${authConfig.enabledProviders.join(", ")}`);
@@ -38,7 +39,7 @@ export async function initializeAuthProviders() {
     const ldapEnabled = dbProviderMap.get('ldap') ?? false;
     if (ldapEnabled) {
       try {
-        const ldapCfg = await storage.getLdapSettings();
+        const ldapCfg = await authProviderService.getLdapSettings();
         const ldapErrors = validateLdapConfig({ enabled: true, ...ldapCfg } as any);
         if (ldapErrors.length > 0) throw new Error(`LDAP configuration errors: ${ldapErrors.join(", ")}`);
 

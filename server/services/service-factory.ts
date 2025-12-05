@@ -44,6 +44,7 @@ import { TaskService } from "./tasks/task.service";
 import { TaskDueDateService } from "./tasks/task-due-date.service";
 import { TemplateService } from "./templates/template.service";
 import { TemplateExpansionService } from "./templates/template-expansion.service";
+import { TemplateEstimationService } from "./templates/template-estimation.service";
 import { UserService } from "./users/user.service";
 import { InvitationService } from "./users/invitation.service";
 import { OrganizationService } from "./organization/organization.service";
@@ -53,6 +54,8 @@ import { CommentService } from "./shared/comment.service";
 import { SearchService } from "./shared/search.service";
 import { SystemSettingsService } from "./settings/system-settings.service";
 import { AuthProviderService } from "./auth/auth-provider.service";
+import { DashboardService } from "./dashboard/dashboard.service";
+import { AuthorizationService } from "./authorization/AuthorizationService";
 
 /**
  * Service factory class
@@ -96,6 +99,7 @@ class ServiceFactory {
   private taskDueDateServiceInstance: TaskDueDateService | null = null;
   private templateServiceInstance: TemplateService | null = null;
   private templateExpansionServiceInstance: TemplateExpansionService | null = null;
+  private templateEstimationServiceInstance: TemplateEstimationService | null = null;
   private userServiceInstance: UserService | null = null;
   private invitationServiceInstance: InvitationService | null = null;
   private organizationServiceInstance: OrganizationService | null = null;
@@ -105,6 +109,8 @@ class ServiceFactory {
   private searchServiceInstance: SearchService | null = null;
   private systemSettingsServiceInstance: SystemSettingsService | null = null;
   private authProviderServiceInstance: AuthProviderService | null = null;
+  private dashboardServiceInstance: DashboardService | null = null;
+  private authorizationServiceInstance: AuthorizationService | null = null;
 
   constructor() {
     // Initialize repositories - Candidates
@@ -216,12 +222,26 @@ class ServiceFactory {
   }
 
   /**
+   * Get TemplateEstimationService instance
+   */
+  getTemplateEstimationService(): TemplateEstimationService {
+    if (!this.templateEstimationServiceInstance) {
+      this.templateEstimationServiceInstance = new TemplateEstimationService(
+        db,
+        this.candidateRepo
+      );
+    }
+    return this.templateEstimationServiceInstance;
+  }
+
+  /**
    * Get UserService instance
    */
   getUserService(): UserService {
     if (!this.userServiceInstance) {
       this.userServiceInstance = new UserService(
-        this.userRepo
+        this.userRepo,
+        this.userIdentityRepo
       );
     }
     return this.userServiceInstance;
@@ -332,6 +352,7 @@ class ServiceFactory {
       task: this.getTaskService(),
       template: this.getTemplateService(),
       templateExpansion: this.getTemplateExpansionService(),
+      templateEstimation: this.getTemplateEstimationService(),
       taskDueDate: this.getTaskDueDateService(),
       user: this.getUserService(),
       invitation: this.getInvitationService(),
@@ -341,8 +362,30 @@ class ServiceFactory {
       comment: this.getCommentService(),
       search: this.getSearchService(),
       systemSettings: this.getSystemSettingsService(),
-      authProvider: this.getAuthProviderService()
+      authProvider: this.getAuthProviderService(),
+      dashboard: this.getDashboardService(),
+      authorization: this.getAuthorizationService()
     };
+  }
+
+  /**
+   * Get DashboardService instance
+   */
+  getDashboardService(): DashboardService {
+    if (!this.dashboardServiceInstance) {
+      this.dashboardServiceInstance = new DashboardService(db);
+    }
+    return this.dashboardServiceInstance;
+  }
+
+  /**
+   * Get AuthorizationService instance
+   */
+  getAuthorizationService(): AuthorizationService {
+    if (!this.authorizationServiceInstance) {
+      this.authorizationServiceInstance = new AuthorizationService();
+    }
+    return this.authorizationServiceInstance;
   }
 }
 
@@ -355,6 +398,7 @@ export const getTaskService = () => serviceFactory.getTaskService();
 export const getTaskDueDateService = () => serviceFactory.getTaskDueDateService();
 export const getTemplateService = () => serviceFactory.getTemplateService();
 export const getTemplateExpansionService = () => serviceFactory.getTemplateExpansionService();
+export const getTemplateEstimationService = () => serviceFactory.getTemplateEstimationService();
 export const getUserService = () => serviceFactory.getUserService();
 export const getInvitationService = () => serviceFactory.getInvitationService();
 export const getOrganizationService = () => serviceFactory.getOrganizationService();
@@ -364,3 +408,5 @@ export const getCommentService = () => serviceFactory.getCommentService();
 export const getSearchService = () => serviceFactory.getSearchService();
 export const getSystemSettingsService = () => serviceFactory.getSystemSettingsService();
 export const getAuthProviderService = () => serviceFactory.getAuthProviderService();
+export const getDashboardService = () => serviceFactory.getDashboardService();
+export const getAuthorizationService = () => serviceFactory.getAuthorizationService();

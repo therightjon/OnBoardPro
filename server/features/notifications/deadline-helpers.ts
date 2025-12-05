@@ -1,7 +1,7 @@
 import { and, eq, gt, inArray, lt, lte, ne, sql } from "drizzle-orm";
 import { db } from "../../db/connection";
 import { candidateTasks, candidates, notificationKeys } from "@shared/schemas";
-import { storage } from "../../db/storage";
+import { getCandidateService } from "../../services/service-factory";
 import { createNotifications } from "./services/notify";
 import type { Candidate } from "@shared/schemas";
 
@@ -49,12 +49,13 @@ async function loadTask(taskId: string) {
   }
 
   const task = rows[0];
-  const candidate = await storage.getCandidate(task.candidateId);
+  const candidateService = getCandidateService();
+  const candidate = await candidateService.getCandidate(task.candidateId);
   if (!candidate) {
     return null;
   }
 
-  const followers = await storage.getCandidateFollowers(task.candidateId);
+  const followers = await candidateService.getFollowers(task.candidateId);
   const watcherIds = new Set<string>();
   if (candidate.primaryOwnerId) {
     watcherIds.add(candidate.primaryOwnerId);

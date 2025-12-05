@@ -5,7 +5,7 @@ import session from "express-session";
 import { scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import bcrypt from "bcrypt";
-import { storage } from "../../../db/storage";
+import { getUserService } from "../../../services/service-factory";
 import { User as SelectUser } from "@shared/schemas";
 import { z } from "zod";
 import connectPg from "connect-pg-simple";
@@ -42,11 +42,12 @@ const PostgresSessionStore = connectPg(session);
 const scryptAsync = promisify(scrypt);
 
 async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
+  const userService = getUserService();
   const [roles, departmentScopes, divisionScopes, managedCandidateIds] = await Promise.all([
-    storage.getUserRoles(user.id),
-    storage.getUserDepartmentScopeIds(user.id),
-    storage.getUserDivisionScopeIds(user.id),
-    storage.getManagerCandidateScopeIds(user.id)
+    userService.getUserRoles(user.id),
+    userService.getUserDepartmentScopeIds(user.id),
+    userService.getUserDivisionScopeIds(user.id),
+    userService.getManagerCandidateScopeIds(user.id)
   ]);
 
   const mergedRoles = Array.from(new Set([user.role, ...roles.map((r) => r.role)]));
@@ -141,7 +142,8 @@ export async function setupAuth(app: Express) {
       { usernameField: 'email' },
       async (email, password, done) => {
         try {
-          const user = await storage.getUserByEmail(email);
+          const userService = getUserService();
+          const user = await userService.getUserByEmail(email);
           if (!user || user.status !== 'active' || !user.passwordHash || !(await comparePasswords(password, user.passwordHash))) {
             return done(null, false);
           }
@@ -157,7 +159,8 @@ export async function setupAuth(app: Express) {
   passport.serializeUser((user, done) => done(null, user.id));
   passport.deserializeUser(async (id: string, done) => {
     try {
-      const user = await storage.getUser(id);
+      const userService = getUserService();
+      const user = await userService.getUser(id);
       if (!user) {
         return done(null, false);
       }
@@ -178,7 +181,8 @@ export async function setupAuth(app: Express) {
     try {
       // Track last login time
       if (req.user && req.user.id) {
-        await storage.updateLastLogin(req.user.id);
+        const userService = getUserService();
+        await userService.updateLastLogin(req.user.id);
       }
       res.status(200).json(req.user);
     } catch (error) {
@@ -307,7 +311,8 @@ export async function setupAuth(app: Express) {
       }
 
       // Check if this external ID is already linked to another user
-      const existingIdentity = await storage.getUserIdentityByProvider(provider, authResult.user!.externalId);
+      const userService = getUserService();
+      const existingIdentity = await userService.getUserIdentityByProvider(provider, authResult.user!.externalId);
       if (existingIdentity && existingIdentity.userId !== req.user!.id) {
         return res.status(400).json({ 
           message: "This account is already linked to another user" 
@@ -316,12 +321,12 @@ export async function setupAuth(app: Express) {
 
       // Create or update the identity link
       if (existingIdentity) {
-        await storage.updateUserIdentity(existingIdentity.id, {
+        await userService.updateUserIdentity(existingIdentity.id, {
           email: authResult.user!.email,
           username: authResult.user!.username
         });
       } else {
-        await storage.createUserIdentity({
+        await userService.createUserIdentity({
           userId: req.user!.id,
           provider,
           externalId: authResult.user!.externalId,
