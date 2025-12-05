@@ -62,13 +62,12 @@ export function TaskStatusCell({
       // If server reports prior-stage block, treat as soft success: keep optimistic state and refresh
       if (err?.code === 'BLOCKED_BY_PRIOR_STAGE') {
         toast.message('Task updated. Candidate remains blocked by prior-stage tasks.');
-      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'tasks'] });
-      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId] });
-      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'stage-history'] });
-      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }] });
-      qc.invalidateQueries({ queryKey: ['/api/tasks/mine'] });
-      return;
-    }
+        // Only refetch data we didn't update optimistically
+        qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'stage-history'] });
+        qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }] });
+        qc.invalidateQueries({ queryKey: ['/api/tasks/mine'] });
+        return;
+      }
       // Otherwise revert optimistic update and show error
       if (ctx?.previous) qc.setQueryData(ctx.taskKey, ctx.previous);
       toast.error((err as Error).message);
@@ -92,13 +91,15 @@ export function TaskStatusCell({
         );
       }
       
-      // Invalidate all related queries to refresh stage and task data
-      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'tasks'] });
-      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId] });
+      // Mark caches as stale but don't refetch immediately (we already set the data above)
+      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'tasks'], refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId], refetchType: 'none' });
+      // List page will refetch when navigated to
+      qc.invalidateQueries({ queryKey: ['/api/candidates'], refetchType: 'none' });
+      
+      // Only refetch these - they need fresh server data
       qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'stage-history'] });
       qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }] });
-      qc.invalidateQueries({ queryKey: ['/api/candidates'] });
-      // Also refresh My Tasks so assignee view stays in sync
       qc.invalidateQueries({ queryKey: ['/api/tasks/mine'] });
       
       // Show appropriate success messages

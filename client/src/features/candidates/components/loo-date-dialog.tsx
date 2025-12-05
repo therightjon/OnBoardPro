@@ -12,6 +12,7 @@ import { Button } from "@/shared/components/ui/button";
 import { useToast } from "@/shared/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { DatePicker, parseAsLocalDate, formatDateForApi } from "@/shared/components/inputs/DatePicker";
+import { AlertCircle } from "lucide-react";
 
 type LooDateType = "issued" | "accepted";
 
@@ -62,6 +63,7 @@ export function LooDateDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
 
   const config = CONFIG[type];
 
@@ -71,9 +73,13 @@ export function LooDateDialog({
 
   const updateMutation = useMutation({
     mutationFn: async (date: Date) => {
-      const payload = {
+      const payload: Record<string, string | null> = {
         [config.field]: formatDateForApi(date),
       };
+      // Include start date if provided (only for accepted type)
+      if (type === "accepted" && startDate) {
+        payload.anticipatedStartDate = formatDateForApi(startDate);
+      }
       const response = await apiRequest("PATCH", `/api/candidates/${candidateId}`, payload);
       return response.json();
     },
@@ -90,6 +96,7 @@ export function LooDateDialog({
 
       // Reset state and close
       setSelectedDate(undefined);
+      setStartDate(undefined);
       onOpenChange(false);
       onSuccess?.();
     },
@@ -111,6 +118,7 @@ export function LooDateDialog({
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setSelectedDate(undefined);
+      setStartDate(undefined);
     }
     onOpenChange(newOpen);
   };
@@ -135,6 +143,16 @@ export function LooDateDialog({
     return false;
   };
 
+  // Start date must be on or after the accepted date
+  const isStartDateDisabled = (date: Date): boolean => {
+    if (!selectedDate) return false;
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const acceptedNormalized = new Date(selectedDate);
+    acceptedNormalized.setHours(0, 0, 0, 0);
+    return d < acceptedNormalized;
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[400px] max-h-min" data-testid={`dialog-loo-${type}`}>
@@ -143,20 +161,45 @@ export function LooDateDialog({
           <DialogDescription>{config.description}</DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
-          <label className="text-sm font-medium mb-2 block">{config.label}</label>
-          <DatePicker
-            value={selectedDate}
-            onChange={setSelectedDate}
-            placeholder="Select a date"
-            disabled={isDateDisabled}
-            testId={`button-select-loo-${type}-date`}
-          />
+        <div className="py-4 space-y-4">
+          <div>
+            <label className="text-sm font-medium mb-2 block">{config.label}</label>
+            <DatePicker
+              value={selectedDate}
+              onChange={setSelectedDate}
+              placeholder="Select a date"
+              disabled={isDateDisabled}
+              testId={`button-select-loo-${type}-date`}
+            />
+          </div>
 
           {type === "accepted" && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Setting this date will trigger template expansion and generate onboarding tasks.
-            </p>
+            <>
+              <div className="border-t pt-4">
+                <div className="flex items-start gap-2 mb-2">
+                  <label className="text-sm font-medium">Anticipated Start Date</label>
+                  <span className="text-xs text-muted-foreground">(optional)</span>
+                </div>
+                {!startDate && (
+                  <div className="flex items-start gap-2 p-2 mb-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md">
+                    <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Strongly recommended. The start date is used to calculate due dates for onboarding tasks.
+                    </p>
+                  </div>
+                )}
+                <DatePicker
+                  value={startDate}
+                  onChange={setStartDate}
+                  placeholder="Select start date"
+                  disabled={isStartDateDisabled}
+                  testId="button-select-start-date"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Setting the LOO Accepted date will trigger template expansion and generate onboarding tasks.
+              </p>
+            </>
           )}
         </div>
 
