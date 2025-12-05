@@ -1,4 +1,4 @@
-export const DIGEST_FREQUENCIES = ["immediate", "hourly", "daily", "weekly"] as const;
+export const DIGEST_FREQUENCIES = ["immediate", "hourly", "daily"] as const;
 export type DigestFrequency = typeof DIGEST_FREQUENCIES[number];
 
 export const EVENT_SUBSCRIPTION_KEYS = [

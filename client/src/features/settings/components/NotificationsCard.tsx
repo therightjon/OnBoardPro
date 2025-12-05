@@ -47,7 +47,6 @@ const digestLabels: Record<(typeof DIGEST_FREQUENCIES)[number], string> = {
   immediate: "Immediate",
   hourly: "Hourly",
   daily: "Daily",
-  weekly: "Weekly",
 };
 
 export function NotificationsCard() {
