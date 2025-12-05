@@ -108,9 +108,10 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
   const selectedOfferLetterIssued = form.watch("offerLetterIssuedAt");
   const selectedOfferLetterAccepted = form.watch("offerLetterAcceptedAt");
 
-  // Load departments
+  // Load departments - only when dialog is open
   const { data: departments = [] } = useQuery({
     queryKey: ["/api/departments"],
+    enabled: open,
   });
 
   // Load divisions filtered by selected department (server-side filtering)
@@ -123,7 +124,7 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
       if (!response.ok) throw new Error('Failed to fetch divisions');
       return response.json();
     },
-    enabled: !!selectedDepartmentId,
+    enabled: open && !!selectedDepartmentId,
   });
 
   // Load managers filtered by department and division
@@ -142,12 +143,13 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
       if (!response.ok) throw new Error('Failed to fetch managers');
       return response.json();
     },
-    enabled: !!selectedDepartmentId,
+    enabled: open && !!selectedDepartmentId,
   });
 
-  // Load faculty ranks
+  // Load faculty ranks - only when dialog is open
   const { data: facultyRanks = [] } = useQuery({
     queryKey: ["/api/faculty-ranks"],
+    enabled: open,
   });
 
   const updateMutation = useMutation({

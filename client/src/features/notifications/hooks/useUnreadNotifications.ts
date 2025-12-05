@@ -5,7 +5,8 @@ import { fetchNotifications } from "../api";
 import { formatUnreadCount } from "../utils";
 
 export const UNREAD_COUNT_QUERY_KEY = ["notifications", "unread-count"] as const;
-const REFRESH_INTERVAL_MS = 20_000;
+// Reduced from 20s to 60s to decrease network requests while still providing timely updates
+const REFRESH_INTERVAL_MS = 60_000;
 
 export interface UseUnreadNotificationsOptions {
   resetOnNavigate?: boolean;

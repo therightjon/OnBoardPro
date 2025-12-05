@@ -134,31 +134,35 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
   const selectedOfferLetterIssued = form.watch("offerLetterIssuedAt");
   const selectedOfferLetterAccepted = form.watch("offerLetterAcceptedAt");
 
-  // Fetch reference data
+  // Fetch reference data - only when dialog is open to avoid unnecessary requests
   const { data: candidateTypes = [] } = useQuery<CandidateType[]>({
     queryKey: ["/api/candidate-types"],
+    enabled: open,
   });
-
 
   const { data: templates = [] } = useQuery<Template[]>({
     queryKey: ["/api/templates"],
+    enabled: open,
   });
 
   const { data: templateTasks = [] } = useQuery<TemplateTask[]>({
     queryKey: ["/api/templates", selectedTemplateId, "template-tasks"],
-    enabled: !!selectedTemplateId,
+    enabled: open && !!selectedTemplateId,
   });
 
   const { data: taskDefinitions = [] } = useQuery<TaskDefinition[]>({
     queryKey: ["/api/task-definitions"],
+    enabled: open,
   });
 
   const { data: hiringStages = [] } = useQuery<HiringStage[]>({
     queryKey: ["/api/hiring-stages"],
+    enabled: open,
   });
 
   const { data: facultyRanks = [] } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ["/api/faculty-ranks"],
+    enabled: open,
     staleTime: 60_000,
   });
 
