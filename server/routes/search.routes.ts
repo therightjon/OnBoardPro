@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { storage } from "../db/storage";
+import { getSearchService } from "../services/service-factory";
 import { requireAuth } from "../middleware/authorization";
 import { appRoleEnum } from "@shared/schemas";
 import { reportAuthorizationFailure } from "../observability/authMetrics";
@@ -155,7 +156,8 @@ router.get("/search/departments", requireAuth, async (req, res, next) => {
     const query = typeof q === 'string' ? q : '';
 
     console.log('Searching departments with query:', query);
-    const results = await storage.searchDepartments(query);
+    const searchService = getSearchService();
+    const results = await searchService.searchDepartments(query);
     console.log('Department search results:', results.length, 'items');
     res.json({ items: results, query });
   } catch (error) {
@@ -174,7 +176,8 @@ router.get("/search/divisions", requireAuth, async (req, res, next) => {
     const query = typeof q === 'string' ? q : '';
 
     console.log('Searching divisions with query:', query, 'departmentId:', departmentId);
-    const results = await storage.searchDivisions(query, typeof departmentId === 'string' ? departmentId : undefined);
+    const searchService = getSearchService();
+    const results = await searchService.searchDivisions(query, typeof departmentId === 'string' ? departmentId : undefined);
     console.log('Division search results:', results.length, 'items');
     res.json({ items: results, query });
   } catch (error) {
@@ -195,7 +198,8 @@ router.get("/search/users", requireAuth, async (req, res, next) => {
   const divisionId = typeof req.query.divisionId === 'string' ? req.query.divisionId : undefined;
 
   console.log('Searching users with query:', q, 'role:', role, 'departmentId:', departmentId, 'divisionId:', divisionId);
-  const results = await storage.searchUsers(q, {
+  const searchService = getSearchService();
+  const results = await searchService.searchUsers(q, {
     role: role || undefined,
     departmentId,
     divisionId

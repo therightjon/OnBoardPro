@@ -16,7 +16,7 @@ import {
   type UserPreferencesDTO
 } from "@shared/schemas";
 import { eventBus, userCreated, userRoleChanged } from "../events";
-import { getUserService } from "../services/service-factory";
+import { getUserService, getInvitationService } from "../services/service-factory";
 import { UserValidationError } from "../services/users/user.service";
 
 const router = Router();
@@ -145,7 +145,8 @@ router.get("/users", requireAuth, requireRole(["system_admin", "hr_staff"]), asy
       divisionId: filters.divisionId,
       search: filters.search,
     };
-    const invites = await storage.getPendingInvitationsForUsersList(inviteFilters);
+    const invitationService = getInvitationService();
+    const invites = await invitationService.getPendingInvitations(inviteFilters);
 
     const inviteAsUsers = invites.map((inv: any) => ({
       id: `invite:${inv.id}`,

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../middleware/authorization";
-import { storage } from "../db/storage";
+import { getOrganizationService } from "../services/service-factory";
 import { insertDepartmentSchema, insertDivisionSchema } from "@shared/schemas";
 import { z } from "zod";
 
@@ -15,7 +15,8 @@ const router = Router();
 router.get("/departments", requireAuth, async (req, res, next) => {
   try {
     const includeArchived = req.query.includeArchived === 'true';
-    const departments = await storage.getDepartments(includeArchived);
+    const orgService = getOrganizationService();
+    const departments = await orgService.getDepartments(includeArchived);
     res.json(departments);
   } catch (error) {
     next(error);
@@ -29,7 +30,8 @@ router.get("/departments", requireAuth, async (req, res, next) => {
 router.post("/departments", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
     const validatedData = insertDepartmentSchema.parse(req.body);
-    const department = await storage.createDepartment(validatedData);
+    const orgService = getOrganizationService();
+    const department = await orgService.createDepartment(validatedData);
     res.status(201).json(department);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -47,7 +49,8 @@ router.patch("/departments/:id", requireAuth, requireRole(["system_admin", "hr_s
   try {
     const { id } = req.params;
     const validatedData = insertDepartmentSchema.partial().parse(req.body);
-    const department = await storage.updateDepartment(id, validatedData);
+    const orgService = getOrganizationService();
+    const department = await orgService.updateDepartment(id, validatedData);
 
     if (!department) {
       return res.status(404).json({ message: "Department not found" });
@@ -69,7 +72,8 @@ router.patch("/departments/:id", requireAuth, requireRole(["system_admin", "hr_s
 router.delete("/departments/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const department = await storage.updateDepartment(id, { archived: true, updatedAt: new Date() });
+    const orgService = getOrganizationService();
+    const department = await orgService.archiveDepartment(id);
 
     if (!department) {
       return res.status(404).json({ message: "Department not found" });
@@ -88,7 +92,8 @@ router.delete("/departments/:id", requireAuth, requireRole(["system_admin", "hr_
 router.post("/departments/:id/restore", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const department = await storage.updateDepartment(id, { archived: false, updatedAt: new Date() });
+    const orgService = getOrganizationService();
+    const department = await orgService.restoreDepartment(id);
     if (!department) {
       return res.status(404).json({ message: "Department not found" });
     }
@@ -109,10 +114,11 @@ router.get("/divisions", requireAuth, requireRole(["system_admin", "hr_staff", "
   try {
     const { departmentId, q, limit = 20, offset = 0 } = req.query;
     const includeArchived = req.query.includeArchived === 'true';
+    const orgService = getOrganizationService();
 
     // If departmentId is provided, use the specific method with search/pagination
     if (departmentId) {
-      const divisions = await storage.getDivisionsByDepartment(
+      const divisions = await orgService.getDivisionsByDepartment(
         departmentId as string,
         q as string,
         parseInt(limit as string),
@@ -121,7 +127,7 @@ router.get("/divisions", requireAuth, requireRole(["system_admin", "hr_staff", "
       res.json(divisions);
     } else {
       // If no departmentId, fetch all divisions (for settings page) honoring includeArchived
-      const divisions = await storage.getDivisions(undefined, includeArchived);
+      const divisions = await orgService.getDivisions(undefined, includeArchived);
       res.json(divisions);
     }
   } catch (error) {
@@ -136,7 +142,8 @@ router.get("/divisions", requireAuth, requireRole(["system_admin", "hr_staff", "
 router.post("/divisions", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
     const validatedData = insertDivisionSchema.parse(req.body);
-    const division = await storage.createDivision(validatedData);
+    const orgService = getOrganizationService();
+    const division = await orgService.createDivision(validatedData);
     res.status(201).json(division);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -154,7 +161,8 @@ router.patch("/divisions/:id", requireAuth, requireRole(["system_admin", "hr_sta
   try {
     const { id } = req.params;
     const validatedData = insertDivisionSchema.partial().parse(req.body);
-    const division = await storage.updateDivision(id, validatedData);
+    const orgService = getOrganizationService();
+    const division = await orgService.updateDivision(id, validatedData);
 
     if (!division) {
       return res.status(404).json({ message: "Division not found" });
@@ -176,7 +184,8 @@ router.patch("/divisions/:id", requireAuth, requireRole(["system_admin", "hr_sta
 router.delete("/divisions/:id", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const division = await storage.updateDivision(id, { archived: true, updatedAt: new Date() });
+    const orgService = getOrganizationService();
+    const division = await orgService.archiveDivision(id);
 
     if (!division) {
       return res.status(404).json({ message: "Division not found" });
@@ -195,7 +204,8 @@ router.delete("/divisions/:id", requireAuth, requireRole(["system_admin", "hr_st
 router.post("/divisions/:id/restore", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const division = await storage.updateDivision(id, { archived: false, updatedAt: new Date() });
+    const orgService = getOrganizationService();
+    const division = await orgService.restoreDivision(id);
     if (!division) {
       return res.status(404).json({ message: "Division not found" });
     }

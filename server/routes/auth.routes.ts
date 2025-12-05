@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from "../middleware/authorization";
 import { appRoleEnum } from "@shared/schemas";
 import { generateInviteToken, getInviteBaseUrl, sendInviteEmail } from "../utils/invitation.utils";
 import { logAuthorizationFailure } from "../utils/authorization.utils";
+import { getInvitationService } from "../services/service-factory";
 
 const router = Router();
 
@@ -104,11 +105,11 @@ router.post(
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       const token = generateInviteToken();
 
-      const invitation = await storage.createInvitation({
+      const invitationService = getInvitationService();
+      const { invitation } = await invitationService.createInvitation({
         email: normalizedEmail,
         roles: rolesInput,
         invitedBy: req.user!.id,
-        token,
         expiresAt,
         departmentId: parsed.departmentId,
         divisionId: parsed.divisionId,
@@ -144,7 +145,8 @@ router.get("/invitations/accept", async (req: any, res, next) => {
       return res.status(400).json({ message: "Invite token is required" });
     }
 
-    const invitation = await storage.getInvitationByToken(token);
+    const invitationService = getInvitationService();
+    const invitation = await invitationService.getInvitationByToken(token);
 
     if (!invitation || invitation.status !== "pending") {
       return res.status(410).json({ message: "Invite is invalid or expired" });

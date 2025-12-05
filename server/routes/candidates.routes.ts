@@ -32,7 +32,7 @@ import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helper
 import { emitOwnerChanged } from "../features/notifications/owner-change";
 import { authorizationService } from "../services/authorization";
 import { eventBus, candidateCreated, candidateStatusChanged, candidateStageChanged, taskCreated, taskAssigned, commentCreated } from "../events";
-import { getCandidateService, getTaskService } from "../services/service-factory";
+import { getCandidateService, getTaskService, getCommentService, getReferenceDataService } from "../services/service-factory";
 import { CandidateValidationError } from "../services/candidates/candidate.service";
 import { shouldAutoApplyTemplate } from "../utils/hiring-phase.utils";
 
@@ -273,7 +273,8 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
     }
 
     // Faculty rank validation for faculty candidate types
-    const candidateTypes = await storage.getCandidateTypes();
+    const refDataService = getReferenceDataService();
+    const candidateTypes = await refDataService.getCandidateTypes();
     const candidateType = candidateTypes.find(type => type.id === req.body.candidateTypeId);
 
     if (candidateType && (candidateType.name === 'Faculty' || candidateType.name === 'Faculty Clinical')) {
@@ -759,7 +760,8 @@ router.get("/candidates/:id/comments", sensitiveRateLimiter, requireAuth, async 
     if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:comments:list"))) return;
     const visibility = (req.query.visibility as string) || 'all';
     const cursor = req.query.cursor as string | undefined;
-    const data = await storage.getCandidateComments({ candidateId: req.params.id, visibility: visibility as any, role: req.user.role, cursor });
+    const commentService = getCommentService();
+    const data = await commentService.getCandidateComments({ candidateId: req.params.id, visibility: visibility as any, role: req.user.role, cursor });
     res.json(data);
   } catch (error) { next(error); }
 });
@@ -770,7 +772,8 @@ router.post("/candidates/:id/comments", sensitiveRateLimiter, requireAuth, async
     if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:comments:create"))) return;
     const { body, visibility, parentId } = req.body || {};
     if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
-    const created = await storage.createComment({ entityType: 'candidate', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
+    const commentService = getCommentService();
+    const created = await commentService.createComment({ entityType: 'candidate', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
 
     // Publish domain event
     const mentionKeys = extractMentionKeys(body);
@@ -798,7 +801,8 @@ router.post("/candidates/:id/comments", sensitiveRateLimiter, requireAuth, async
 router.get("/candidates/:id/comment-stats", sensitiveRateLimiter, requireAuth, async (req: any, res, next) => {
   try {
     if (!(await fetchCandidateWithAccess(req, res, req.params.id, "candidate:comments:stats"))) return;
-    const stats = await storage.getCommentStats({ candidateId: req.params.id, role: req.user.role });
+    const commentService = getCommentService();
+    const stats = await commentService.getCommentStats({ candidateId: req.params.id, role: req.user.role });
     res.json(stats);
   } catch (error) { next(error); }
 });

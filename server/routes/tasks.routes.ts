@@ -32,7 +32,7 @@ import {
 import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helpers";
 import { authorizationService } from "../services/authorization";
 import { eventBus, candidateStageChanged, taskCreated, taskAssigned, taskStatusChanged, taskCompleted, commentCreated } from "../events";
-import { getTaskService } from "../services/service-factory";
+import { getTaskService, getCommentService, getUserService, getReferenceDataService } from "../services/service-factory";
 
 const router = Router();
 
@@ -95,7 +95,8 @@ router.get("/tasks/mine", sensitiveRateLimiter, requireAuth, async (req, res, ne
     const userId = req.user!.id;
 
     // Get user preferences to use as defaults
-    const preferences = await storage.getUserPreferences(userId);
+    const userService = getUserService();
+    const preferences = await userService.getUserPreferences(userId);
     const defaultShowArchived = preferences?.mytasksShowArchived ?? false;
     const defaultShowCanceled = preferences?.mytasksShowCanceled ?? false;
     const defaultShowCompleted = preferences?.mytasksShowCompleted ?? false;
@@ -199,7 +200,8 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
 
     // If save_as_definition flag is set, create a task definition first
     if (body.save_as_definition && body.title && !body.taskDefId) {
-      const taskDef = await storage.createTaskDefinition({
+      const refDataService = getReferenceDataService();
+      const taskDef = await refDataService.createTaskDefinition({
         name: body.title,
         description: body.description || null,
         archived: false,
@@ -402,7 +404,8 @@ router.get("/tasks/:id/comments", sensitiveRateLimiter, requireAuth, async (req:
     if (!access) return;
     const visibility = (req.query.visibility as string) || 'all';
     const cursor = req.query.cursor as string | undefined;
-    const data = await storage.getTaskComments({ taskId: req.params.id, visibility: visibility as any, role: req.user.role, cursor });
+    const commentService = getCommentService();
+    const data = await commentService.getTaskComments({ taskId: req.params.id, visibility: visibility as any, role: req.user.role, cursor });
     res.json(data);
   } catch (error) { next(error); }
 });
@@ -414,7 +417,8 @@ router.post("/tasks/:id/comments", sensitiveRateLimiter, requireAuth, async (req
     if (!access) return;
     const { body, visibility, parentId } = req.body || {};
     if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
-    const created = await storage.createComment({ entityType: 'task', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
+    const commentService = getCommentService();
+    const created = await commentService.createComment({ entityType: 'task', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
 
     // Publish domain event
     const mentionKeys = extractMentionKeys(body);

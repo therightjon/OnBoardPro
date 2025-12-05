@@ -7,50 +7,128 @@
 
 import { db, pool } from "../db/connection";
 
-// Import repositories
+// Import repositories - Candidates
 import { CandidateRepository } from "../repositories/candidates/CandidateRepository";
 import { CandidateTaskRepository } from "../repositories/candidates/CandidateTaskRepository";
 import { CandidateFollowerRepository } from "../repositories/candidates/CandidateFollowerRepository";
+import { CandidateStageRepository } from "../repositories/candidates/CandidateStageRepository";
+
+// Import repositories - Templates
 import { TemplateRepository } from "../repositories/templates/TemplateRepository";
 import { TemplateStageRepository } from "../repositories/templates/TemplateStageRepository";
 import { TemplateTaskRepository } from "../repositories/templates/TemplateTaskRepository";
+
+// Import repositories - Users
 import { UserRepository } from "../repositories/users/UserRepository";
+import { UserIdentityRepository } from "../repositories/users/UserIdentityRepository";
+import { UserPreferencesRepository } from "../repositories/users/UserPreferencesRepository";
+import { InvitationRepository } from "../repositories/users/InvitationRepository";
+
+// Import repositories - Organizational
+import { DepartmentRepository } from "../repositories/organizational/DepartmentRepository";
+import { DivisionRepository } from "../repositories/organizational/DivisionRepository";
+
+// Import repositories - Reference Data
+import { ReferenceDataRepository } from "../repositories/reference/ReferenceDataRepository";
+import { HiringStageRepository } from "../repositories/reference/HiringStageRepository";
+import { TaskDefinitionRepository } from "../repositories/reference/TaskDefinitionRepository";
+
+// Import repositories - Shared
+import { NotificationRepository } from "../repositories/NotificationRepository";
+import { CommentRepository } from "../repositories/CommentRepository";
+import { SearchRepository } from "../repositories/SearchRepository";
 
 // Import services
 import { CandidateService } from "./candidates/candidate.service";
 import { TaskService } from "./tasks/task.service";
 import { TemplateService } from "./templates/template.service";
 import { UserService } from "./users/user.service";
+import { InvitationService } from "./users/invitation.service";
+import { OrganizationService } from "./organization/organization.service";
+import { ReferenceDataService } from "./reference/reference-data.service";
+import { NotificationService } from "./shared/notification.service";
+import { CommentService } from "./shared/comment.service";
+import { SearchService } from "./shared/search.service";
 
 /**
  * Service factory class
  * Instantiates services with their required dependencies
  */
 class ServiceFactory {
-  // Repository instances (singletons)
+  // Repository instances (singletons) - Candidates
   private candidateRepo: CandidateRepository;
   private candidateTaskRepo: CandidateTaskRepository;
   private candidateFollowerRepo: CandidateFollowerRepository;
+  private candidateStageRepo: CandidateStageRepository;
+
+  // Repository instances (singletons) - Templates
   private templateRepo: TemplateRepository;
   private templateStageRepo: TemplateStageRepository;
   private templateTaskRepo: TemplateTaskRepository;
+
+  // Repository instances (singletons) - Users
   private userRepo: UserRepository;
+  private userIdentityRepo: UserIdentityRepository;
+  private userPreferencesRepo: UserPreferencesRepository;
+  private invitationRepo: InvitationRepository;
+
+  // Repository instances (singletons) - Organizational
+  private departmentRepo: DepartmentRepository;
+  private divisionRepo: DivisionRepository;
+
+  // Repository instances (singletons) - Reference Data
+  private referenceDataRepo: ReferenceDataRepository;
+  private hiringStageRepo: HiringStageRepository;
+  private taskDefinitionRepo: TaskDefinitionRepository;
+
+  // Repository instances (singletons) - Shared
+  private notificationRepo: NotificationRepository;
+  private commentRepo: CommentRepository;
+  private searchRepo: SearchRepository;
 
   // Service instances (singletons)
   private candidateServiceInstance: CandidateService | null = null;
   private taskServiceInstance: TaskService | null = null;
   private templateServiceInstance: TemplateService | null = null;
   private userServiceInstance: UserService | null = null;
+  private invitationServiceInstance: InvitationService | null = null;
+  private organizationServiceInstance: OrganizationService | null = null;
+  private referenceDataServiceInstance: ReferenceDataService | null = null;
+  private notificationServiceInstance: NotificationService | null = null;
+  private commentServiceInstance: CommentService | null = null;
+  private searchServiceInstance: SearchService | null = null;
 
   constructor() {
-    // Initialize repositories
+    // Initialize repositories - Candidates
     this.candidateRepo = new CandidateRepository(db, pool);
     this.candidateTaskRepo = new CandidateTaskRepository(db, pool);
     this.candidateFollowerRepo = new CandidateFollowerRepository(db, pool);
+    this.candidateStageRepo = new CandidateStageRepository(db, pool);
+
+    // Initialize repositories - Templates
     this.templateRepo = new TemplateRepository(db, pool);
     this.templateStageRepo = new TemplateStageRepository(db, pool);
     this.templateTaskRepo = new TemplateTaskRepository(db, pool);
+
+    // Initialize repositories - Users
     this.userRepo = new UserRepository(db, pool);
+    this.userIdentityRepo = new UserIdentityRepository(db, pool);
+    this.userPreferencesRepo = new UserPreferencesRepository(db, pool);
+    this.invitationRepo = new InvitationRepository(db, pool);
+
+    // Initialize repositories - Organizational
+    this.departmentRepo = new DepartmentRepository(db, pool);
+    this.divisionRepo = new DivisionRepository(db, pool);
+
+    // Initialize repositories - Reference Data
+    this.referenceDataRepo = new ReferenceDataRepository(db, pool);
+    this.hiringStageRepo = new HiringStageRepository(db, pool);
+    this.taskDefinitionRepo = new TaskDefinitionRepository(db, pool);
+
+    // Initialize repositories - Shared
+    this.notificationRepo = new NotificationRepository(db, pool);
+    this.commentRepo = new CommentRepository(db, pool);
+    this.searchRepo = new SearchRepository(db, pool);
   }
 
   /**
@@ -107,6 +185,81 @@ class ServiceFactory {
   }
 
   /**
+   * Get InvitationService instance
+   */
+  getInvitationService(): InvitationService {
+    if (!this.invitationServiceInstance) {
+      this.invitationServiceInstance = new InvitationService(
+        this.invitationRepo
+      );
+    }
+    return this.invitationServiceInstance;
+  }
+
+  /**
+   * Get OrganizationService instance
+   */
+  getOrganizationService(): OrganizationService {
+    if (!this.organizationServiceInstance) {
+      this.organizationServiceInstance = new OrganizationService(
+        this.departmentRepo,
+        this.divisionRepo
+      );
+    }
+    return this.organizationServiceInstance;
+  }
+
+  /**
+   * Get ReferenceDataService instance
+   */
+  getReferenceDataService(): ReferenceDataService {
+    if (!this.referenceDataServiceInstance) {
+      this.referenceDataServiceInstance = new ReferenceDataService(
+        this.referenceDataRepo,
+        this.hiringStageRepo,
+        this.taskDefinitionRepo
+      );
+    }
+    return this.referenceDataServiceInstance;
+  }
+
+  /**
+   * Get NotificationService instance
+   */
+  getNotificationService(): NotificationService {
+    if (!this.notificationServiceInstance) {
+      this.notificationServiceInstance = new NotificationService(
+        this.notificationRepo
+      );
+    }
+    return this.notificationServiceInstance;
+  }
+
+  /**
+   * Get CommentService instance
+   */
+  getCommentService(): CommentService {
+    if (!this.commentServiceInstance) {
+      this.commentServiceInstance = new CommentService(
+        this.commentRepo
+      );
+    }
+    return this.commentServiceInstance;
+  }
+
+  /**
+   * Get SearchService instance
+   */
+  getSearchService(): SearchService {
+    if (!this.searchServiceInstance) {
+      this.searchServiceInstance = new SearchService(
+        this.searchRepo
+      );
+    }
+    return this.searchServiceInstance;
+  }
+
+  /**
    * Get all services
    * Useful for initializing everything at once
    */
@@ -115,7 +268,13 @@ class ServiceFactory {
       candidate: this.getCandidateService(),
       task: this.getTaskService(),
       template: this.getTemplateService(),
-      user: this.getUserService()
+      user: this.getUserService(),
+      invitation: this.getInvitationService(),
+      organization: this.getOrganizationService(),
+      referenceData: this.getReferenceDataService(),
+      notification: this.getNotificationService(),
+      comment: this.getCommentService(),
+      search: this.getSearchService()
     };
   }
 }
@@ -128,3 +287,9 @@ export const getCandidateService = () => serviceFactory.getCandidateService();
 export const getTaskService = () => serviceFactory.getTaskService();
 export const getTemplateService = () => serviceFactory.getTemplateService();
 export const getUserService = () => serviceFactory.getUserService();
+export const getInvitationService = () => serviceFactory.getInvitationService();
+export const getOrganizationService = () => serviceFactory.getOrganizationService();
+export const getReferenceDataService = () => serviceFactory.getReferenceDataService();
+export const getNotificationService = () => serviceFactory.getNotificationService();
+export const getCommentService = () => serviceFactory.getCommentService();
+export const getSearchService = () => serviceFactory.getSearchService();
