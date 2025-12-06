@@ -1152,6 +1152,7 @@ export default function CandidateDetailPage() {
           offerLetterAcceptedAt: (candidate as any).offerLetterAcceptedAt,
           templateAppliedAt: (candidate as any).templateAppliedAt,
         }}
+        isFullyOnboarded={fullyOnboarded}
       />
 
       {/* Tasks and Timeline Tabs */}

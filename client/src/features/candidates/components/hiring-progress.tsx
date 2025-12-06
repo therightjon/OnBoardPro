@@ -29,7 +29,9 @@ import { useToast } from "@/shared/hooks/use-toast";
 /**
  * Steps for the hiring progress stepper
  */
-const HIRING_STEPS: { id: HiringPhase; label: string }[] = [
+type HiringStepId = HiringPhase | "completed";
+
+const HIRING_STEPS: { id: HiringStepId; label: string }[] = [
   { id: "loi_issued", label: HIRING_PHASE_LABELS.loi_issued },
   { id: "offer_pending", label: HIRING_PHASE_LABELS.offer_pending },
   { id: "pre_hire", label: HIRING_PHASE_LABELS.pre_hire },
@@ -44,6 +46,8 @@ interface HiringProgressProps {
     offerLetterAcceptedAt: string | Date | null;
     templateAppliedAt: string | Date | null;
   };
+  /** When true, shows the candidate as fully onboarded (all tasks completed) */
+  isFullyOnboarded?: boolean;
   className?: string;
 }
 
@@ -87,6 +91,7 @@ function formatDate(date: string | Date | null | undefined): string {
 
 export function HiringProgress({
   candidate,
+  isFullyOnboarded = false,
   className,
 }: HiringProgressProps) {
   const { toast } = useToast();
@@ -123,14 +128,17 @@ export function HiringProgress({
   });
 
   const phaseInfo = getHiringPhase(candidate);
-  const currentPhaseIndex = HIRING_STEPS.findIndex(
-    (step) => step.id === phaseInfo.phase
-  );
+  
+  // When fully onboarded, all steps are complete
+  const effectivePhaseIndex = isFullyOnboarded
+    ? HIRING_STEPS.length // All steps complete
+    : HIRING_STEPS.findIndex((step) => step.id === phaseInfo.phase);
 
   // Determine step status for each phase
   const getStepStatus = (stepIndex: number) => {
-    if (stepIndex < currentPhaseIndex) return "complete";
-    if (stepIndex === currentPhaseIndex) return "current";
+    if (isFullyOnboarded) return "complete"; // All steps complete when fully onboarded
+    if (stepIndex < effectivePhaseIndex) return "complete";
+    if (stepIndex === effectivePhaseIndex) return "current";
     return "upcoming";
   };
 
@@ -193,7 +201,11 @@ export function HiringProgress({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-medium">Hiring Progress</CardTitle>
-          <Badge variant={HIRING_PHASE_VARIANTS[phaseInfo.phase]}>{phaseInfo.label}</Badge>
+          {isFullyOnboarded ? (
+            <Badge variant="default" className="bg-green-600 hover:bg-green-600">Fully Onboarded</Badge>
+          ) : (
+            <Badge variant={HIRING_PHASE_VARIANTS[phaseInfo.phase]}>{phaseInfo.label}</Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -206,7 +218,9 @@ export function HiringProgress({
           <div
             className="absolute left-[18px] top-[24px] w-0.5 bg-primary transition-all duration-500"
             style={{
-              height: `calc(${(currentPhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${currentPhaseIndex === 0 ? 0 : 24}px)`,
+              height: isFullyOnboarded 
+                ? "calc(100% - 24px)" // Full line when fully onboarded
+                : `calc(${(effectivePhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${effectivePhaseIndex === 0 ? 0 : 24}px)`,
             }}
           />
 
@@ -308,9 +322,19 @@ export function HiringProgress({
 
         {/* Template Status Note */}
         {candidate.templateAppliedAt && (
-          <div className="mt-4 rounded-md bg-muted/50 p-3">
+          <div className={cn(
+            "mt-4 rounded-md p-3",
+            isFullyOnboarded 
+              ? "bg-green-50 dark:bg-emerald-950 border border-green-200 dark:border-emerald-700" 
+              : "bg-muted/50"
+          )}>
             <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">Onboarding Active</span>
+              <span className={cn(
+                "font-medium",
+                isFullyOnboarded ? "text-green-700 dark:text-emerald-300" : "text-foreground"
+              )}>
+                {isFullyOnboarded ? "Onboarding Complete!" : "Onboarding Active"}
+              </span>
               {" · "}
               Template applied on {formatDate(candidate.templateAppliedAt)}
             </p>
