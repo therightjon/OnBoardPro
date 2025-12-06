@@ -40,6 +40,19 @@ import { format, formatDistanceToNow } from "date-fns";
 import type { CandidateTask, CandidateType } from "@shared/schemas";
 import { downloadDashboardReport, formatReportDate } from "@/lib/export-utils";
 
+type DashboardMetric = {
+  current: number;
+  change: number;
+  changePercent: number;
+};
+
+type DashboardMetrics = {
+  activeCandidates: DashboardMetric;
+  tasksDue: DashboardMetric;
+  overdueTasks: DashboardMetric;
+  completionRate: DashboardMetric;
+};
+
 type DivisionOverviewItem = {
   divisionId: string;
   divisionName: string;
@@ -359,6 +372,16 @@ export default function Dashboard() {
     }
   });
 
+  const { data: dashboardMetrics } = useQuery<DashboardMetrics>({
+    queryKey: ["/api/dashboard/metrics", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/metrics', { credentials: 'include' });
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json();
+    }
+  });
+
   const getCandidateTypeName = (candidateTypeId?: string) => {
     const match = candidateTypes.find((type) => type.id === candidateTypeId);
     return match?.name ?? "Role TBD";
@@ -396,22 +419,60 @@ export default function Dashboard() {
   }, [candidates]);
 
   // Calculate metrics
-  const activeCandidates = candidates.filter((c: any) => c.status === "active").length;
-  const tasksDue = tasks.filter((t: CandidateTask) => {
+  const activeCandidates = dashboardMetrics?.activeCandidates.current ?? candidates.filter((c: any) => c.status === "active").length;
+  const tasksDue = dashboardMetrics?.tasksDue.current ?? tasks.filter((t: CandidateTask) => {
     const dueDate = parseDueDate(t.dueAt);
     if (!dueDate) return false;
     const sevenDaysFromNow = new Date();
     sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
     return dueDate <= sevenDaysFromNow && t.status !== "done";
   }).length;
-  const overdueTasks = tasks.filter((t: CandidateTask) => {
+  const overdueTasks = dashboardMetrics?.overdueTasks.current ?? tasks.filter((t: CandidateTask) => {
     const dueDate = parseDueDate(t.dueAt);
     if (!dueDate) return false;
     return dueDate < new Date() && t.status !== "done";
   }).length;
-  const completedTasks = tasks.filter((t: CandidateTask) => t.status === "done").length;
-  const totalTasks = tasks.length;
-  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const completionRate = dashboardMetrics?.completionRate.current ?? (() => {
+    const completedCandidates = candidates.filter((c: any) => c.status === "completed").length;
+    const totalCandidates = candidates.filter((c: any) => c.status !== "draft" && c.status !== "canceled").length;
+    return totalCandidates > 0 ? Math.round((completedCandidates / totalCandidates) * 100) : 0;
+  })();
+
+  // Format change indicators
+  const formatChange = (metric?: DashboardMetric) => {
+    if (!metric) return { text: "", className: "text-muted-foreground", label: "" };
+    const sign = metric.changePercent > 0 ? "+" : "";
+    const className = metric.changePercent > 0 
+      ? "text-accent" 
+      : metric.changePercent < 0 
+        ? "text-destructive" 
+        : "text-muted-foreground";
+    return { 
+      text: `${sign}${metric.changePercent}%`, 
+      className,
+      label: metric.changePercent === metric.change ? "from last period" : "from last month"
+    };
+  };
+
+  const formatTaskChange = (metric?: DashboardMetric) => {
+    if (!metric) return { text: "", className: "text-muted-foreground", label: "" };
+    const sign = metric.change > 0 ? "+" : "";
+    const className = metric.change > 0 
+      ? "text-chart-3" 
+      : metric.change < 0 
+        ? "text-accent" 
+        : "text-muted-foreground";
+    return { 
+      text: `${sign}${metric.change}`, 
+      className,
+      label: "from last week"
+    };
+  };
+
+  const activeCandidatesChange = formatChange(dashboardMetrics?.activeCandidates);
+  const tasksDueChange = formatTaskChange(dashboardMetrics?.tasksDue);
+  const overdueTasksChange = formatTaskChange(dashboardMetrics?.overdueTasks);
+  const completionRateChange = formatChange(dashboardMetrics?.completionRate);
 
   const urgentTasks = useMemo(() => {
     const now = new Date();
@@ -564,8 +625,8 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
-              <span className="text-accent">+8.2%</span>
-              <span className="text-muted-foreground ml-2">from last month</span>
+              <span className={activeCandidatesChange.className}>{activeCandidatesChange.text}</span>
+              <span className="text-muted-foreground ml-2">{activeCandidatesChange.label}</span>
             </div>
           </CardContent>
         </Card>
@@ -582,8 +643,8 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
-              <span className="text-chart-3">-3.1%</span>
-              <span className="text-muted-foreground ml-2">from last week</span>
+              <span className={tasksDueChange.className}>{tasksDueChange.text}</span>
+              <span className="text-muted-foreground ml-2">{tasksDueChange.label}</span>
             </div>
           </CardContent>
         </Card>
@@ -600,8 +661,8 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
-              <span className="text-destructive">+1</span>
-              <span className="text-muted-foreground ml-2">new this week</span>
+              <span className={overdueTasksChange.className}>{overdueTasksChange.text}</span>
+              <span className="text-muted-foreground ml-2">{overdueTasksChange.label}</span>
             </div>
           </CardContent>
         </Card>
@@ -618,8 +679,8 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
-              <span className="text-accent">+5.3%</span>
-              <span className="text-muted-foreground ml-2">from last month</span>
+              <span className={completionRateChange.className}>{completionRateChange.text}</span>
+              <span className="text-muted-foreground ml-2">{completionRateChange.label}</span>
             </div>
           </CardContent>
         </Card>

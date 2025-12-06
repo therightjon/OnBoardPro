@@ -111,6 +111,17 @@ async function logAuthorizationFailure(params: {
 }
 
 // Dashboard routes
+router.get("/dashboard/metrics", requireAuth, async (req, res, next) => {
+  try {
+    const authContext = authorizationService.buildContext(req.user);
+    const dashboardService = getDashboardService();
+    const metrics = await dashboardService.getDashboardMetrics(authContext);
+    res.json(metrics);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get("/dashboard/divisions", requireAuth, async (req, res, next) => {
   try {
     const allowedRoles: AppRole[] = ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"];
