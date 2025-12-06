@@ -9,7 +9,7 @@
  * historical data integrity.
  */
 
-import { eq, and, ilike, inArray, or, sql } from "drizzle-orm";
+import { eq, and, ilike, inArray, or, isNull, sql } from "drizzle-orm";
 import {
   divisions,
   users,
@@ -172,14 +172,18 @@ export class DivisionRepository extends BaseRepository {
 
     let whereConditions = [
       eq(users.active, true),
-      inArray(users.role, allowedRoles as any[])
+      inArray(users.role, allowedRoles as any[]),
+      eq(users.departmentId, departmentId)
     ];
 
-    // Add department/division filtering
+    // Add division filtering - include both division-specific AND department-level managers
     if (divisionId) {
-      whereConditions.push(eq(users.divisionId, divisionId));
-    } else {
-      whereConditions.push(eq(users.departmentId, departmentId));
+      whereConditions.push(
+        or(
+          eq(users.divisionId, divisionId),
+          isNull(users.divisionId)
+        )!
+      );
     }
 
     // Add search filtering

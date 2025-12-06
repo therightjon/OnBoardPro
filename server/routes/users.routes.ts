@@ -16,7 +16,7 @@ import {
   type UserPreferencesDTO
 } from "@shared/schemas";
 import { eventBus, userCreated, userRoleChanged } from "../events";
-import { getUserService, getInvitationService } from "../services/service-factory";
+import { getUserService, getInvitationService, getOrganizationService } from "../services/service-factory";
 import { UserValidationError } from "../services/users/user.service";
 
 const router = Router();
@@ -100,8 +100,8 @@ router.get("/users/managers", requireAuth, requireRole(["system_admin", "hr_staf
       }
     }
 
-    const userService = getUserService();
-    const managers = await userService.getManagersByDepartment(
+    const organizationService = getOrganizationService();
+    const managers = await organizationService.getManagersByDepartment(
       departmentId as string,
       divisionId as string,
       q as string,

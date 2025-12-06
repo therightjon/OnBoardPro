@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { insertCandidateSchema } from "@shared/schemas";
 import {
   Dialog,
   DialogContent,
@@ -34,16 +33,16 @@ import { apiRequest } from "@/lib/queryClient";
 import { DatePicker, parseAsLocalDate, formatDateForApi } from "@/shared/components/inputs/DatePicker";
 
 // Validation schema for editable fields including employment dates
-const editCandidateSchema = insertCandidateSchema.pick({
-  salutation: true,
-  firstName: true,
-  lastName: true,
-  email: true,
-  departmentId: true,
-  divisionId: true,
-  managerId: true,
-  facultyRankId: true,
-}).extend({
+// Defined manually to avoid circular dependency issues with insertCandidateSchema
+const editCandidateSchema = z.object({
+  salutation: z.enum(["Mr.", "Ms.", "Mrs.", "Dr.", "Prof.", "Mx.", "Other"]),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  departmentId: z.string().min(1, "Department is required"),
+  divisionId: z.string().optional().nullable(),
+  managerId: z.string().optional().nullable(),
+  facultyRankId: z.string().optional().nullable(),
   offerLetterIssuedAt: z.date().optional().nullable(),
   offerLetterAcceptedAt: z.date().optional().nullable(),
   anticipatedStartDate: z.date().optional().nullable(),
@@ -107,6 +106,9 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
   // Watch date fields for cross-field validation display
   const selectedOfferLetterIssued = form.watch("offerLetterIssuedAt");
   const selectedOfferLetterAccepted = form.watch("offerLetterAcceptedAt");
+  
+  // Watch divisionId to trigger manager query updates
+  const selectedDivisionId = form.watch("divisionId");
 
   // Load departments - only when dialog is open
   const { data: departments = [] } = useQuery({
@@ -129,14 +131,13 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
 
   // Load managers filtered by department and division
   const { data: managers = [] } = useQuery({
-    queryKey: ["/api/users/managers", { departmentId: selectedDepartmentId, divisionId: form.watch('divisionId') }],
+    queryKey: ["/api/users/managers", { departmentId: selectedDepartmentId, divisionId: selectedDivisionId }],
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
       const params = new URLSearchParams();
       params.set('departmentId', selectedDepartmentId);
-      const divisionId = form.watch('divisionId');
-      if (divisionId && divisionId !== 'none') {
-        params.set('divisionId', divisionId);
+      if (selectedDivisionId && selectedDivisionId !== 'none') {
+        params.set('divisionId', selectedDivisionId);
       }
       params.set('limit', '20');
       const response = await fetch(`/api/users/managers?${params}`);
@@ -232,7 +233,7 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                   render={({ field }: { field: any }) => (
                     <FormItem>
                       <FormLabel>Salutation</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-salutation">
                             <SelectValue placeholder="Select salutation" />
@@ -311,7 +312,7 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                           field.onChange(value);
                           handleDepartmentChange(value);
                         }}
-                        defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger 
@@ -346,7 +347,7 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                           // Clear manager selection when division changes
                           form.setValue("managerId", undefined);
                         }} 
-                        defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger 
@@ -381,7 +382,7 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                   render={({ field }: { field: any }) => (
                     <FormItem>
                       <FormLabel>Manager (Optional)</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger 
                             data-testid="select-manager"
@@ -415,9 +416,9 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                     control={form.control}
                     name="facultyRankId"
                     render={({ field }: { field: any }) => (
-                      <FormItem>
-                        <FormLabel>Faculty Rank</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormItem>
+                      <FormLabel>Faculty Rank</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-faculty-rank">
                               <SelectValue placeholder="Select faculty rank" />
