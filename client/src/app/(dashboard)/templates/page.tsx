@@ -338,14 +338,12 @@ export default function TemplatesPage() {
 
       {/* Filters */}
       <Card>
-        <CardHeader className="p-3 xs:p-4 sm:p-6">
-          <CardTitle className="flex items-center text-base xs:text-lg">
-            <Filter className="w-4 h-4 mr-2" />
-            Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 xs:p-4 sm:p-6 pt-0">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <CardContent className="p-3 xs:p-4 sm:p-4">
+          <div className="flex items-center gap-2 mb-3 text-sm font-medium text-muted-foreground">
+            <Filter className="w-4 h-4" />
+            <span>Filters</span>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />

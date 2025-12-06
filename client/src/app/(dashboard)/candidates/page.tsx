@@ -52,6 +52,8 @@ export default function CandidatesPage() {
   const [sortBy, setSortBy] = useState<string>("createdAt");
   const [sortOrder, setSortOrder] = useState<string>("desc");
   const [showArchived, setShowArchived] = useState(false);
+  const [showCanceled, setShowCanceled] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isNewCandidateDialogOpen, setIsNewCandidateDialogOpen] = useState(false);
   const [archiveDialogCandidate, setArchiveDialogCandidate] = useState<any>(null);
@@ -116,7 +118,7 @@ const formatLooAge = (isoDate?: string | null) => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, typeFilter, stageFilter, phaseFilter, showArchived]);
+  }, [searchTerm, statusFilter, typeFilter, stageFilter, phaseFilter, showArchived, showCanceled, showCompleted]);
 
   const filteredAndSortedCandidates = useMemo(() => {
     return candidates
@@ -136,7 +138,18 @@ const formatLooAge = (isoDate?: string | null) => {
         (phaseFilter === "pre_hire" && openPrehireTasks > 0) ||
         (phaseFilter === "onboarding" && openOnboardingTasks > 0);
       
-      return matchesSearch && matchesStatus && matchesType && matchesStage && matchesPhase;
+      // Filter out canceled and completed unless explicitly shown via toggles
+      // BUT if status filter explicitly selects them, show them regardless
+      const matchesCanceled = 
+        statusFilter === "canceled" || // Explicitly selected in dropdown
+        showCanceled || // Toggle is on
+        candidate.status !== "canceled"; // Not canceled
+      const matchesCompleted = 
+        statusFilter === "completed" || // Explicitly selected in dropdown
+        showCompleted || // Toggle is on
+        candidate.status !== "completed"; // Not completed
+      
+      return matchesSearch && matchesStatus && matchesType && matchesStage && matchesPhase && matchesCanceled && matchesCompleted;
     })
     .sort((a, b) => {
       let aValue: any, bValue: any;
@@ -179,7 +192,7 @@ const formatLooAge = (isoDate?: string | null) => {
       if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
-  }, [candidates, searchTerm, statusFilter, typeFilter, stageFilter, phaseFilter, sortBy, sortOrder]);
+  }, [candidates, searchTerm, statusFilter, typeFilter, stageFilter, phaseFilter, sortBy, sortOrder, showCanceled, showCompleted]);
 
   const pageSize = PAGE_SIZE;
   const totalCandidates = filteredAndSortedCandidates.length;
@@ -277,14 +290,12 @@ const formatLooAge = (isoDate?: string | null) => {
 
       {/* Filters */}
       <Card>
-        <CardHeader className="p-3 xs:p-4 sm:p-6">
-          <CardTitle className="flex items-center text-base xs:text-lg">
-            <Filter className="w-4 h-4 mr-2" />
-            Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 xs:p-4 sm:p-6 pt-0">
-          <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-4">
+        <CardContent className="p-3 xs:p-4 sm:p-4">
+          <div className="flex items-center gap-2 mb-3 text-sm font-medium text-muted-foreground">
+            <Filter className="w-4 h-4" />
+            <span>Filters</span>
+          </div>
+          <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-3">
             {/* Search - Full width on mobile */}
             <div className="w-full sm:flex-1 sm:min-w-[200px]">
               <div className="relative">
@@ -354,17 +365,41 @@ const formatLooAge = (isoDate?: string | null) => {
                   <SelectItem value="onboarding">Onboarding Tasks</SelectItem>
                 </SelectContent>
               </Select>
-
-              {/* Archive Toggle (match My Tasks style) */}
-              <div className="flex items-center space-x-2 min-h-[44px] xs:col-span-2 sm:col-span-1">
+            </div>
+            
+            {/* Toggle Switches */}
+            <div className="flex flex-col xs:flex-row flex-wrap gap-3 xs:gap-4">
+              <div className="flex items-center space-x-2">
                 <Switch 
                   id="show-archived"
                   checked={showArchived}
                   onCheckedChange={setShowArchived}
                   data-testid="switch-show-archived"
                 />
-                <Label htmlFor="show-archived" className="text-xs xs:text-sm font-medium">
+                <Label htmlFor="show-archived" className="text-sm font-medium">
                   Show Archived
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="show-canceled"
+                  checked={showCanceled}
+                  onCheckedChange={setShowCanceled}
+                  data-testid="switch-show-canceled"
+                />
+                <Label htmlFor="show-canceled" className="text-sm font-medium">
+                  Show Canceled
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="show-completed"
+                  checked={showCompleted}
+                  onCheckedChange={setShowCompleted}
+                  data-testid="switch-show-completed"
+                />
+                <Label htmlFor="show-completed" className="text-sm font-medium">
+                  Show Completed
                 </Label>
               </div>
             </div>
