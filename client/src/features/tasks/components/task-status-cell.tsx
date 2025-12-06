@@ -101,6 +101,7 @@ export function TaskStatusCell({
       qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'stage-history'] });
       qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }] });
       qc.invalidateQueries({ queryKey: ['/api/tasks/mine'] });
+      qc.invalidateQueries({ queryKey: ['/api/dashboard/metrics'] });
       
       // Show appropriate success messages
       if (data.advancement?.advanced) {

@@ -383,7 +383,7 @@ export function DepartmentsSection() {
                 New Department
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-min">
               <DialogHeader>
                 <DialogTitle>
                   {editingDepartment ? "Edit Department" : "Create Department"}

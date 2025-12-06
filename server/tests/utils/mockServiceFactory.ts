@@ -204,6 +204,44 @@ export class MockServiceFactory {
   }
 
   // ==========================================================================
+  // Legacy Async Methods (for backward compatibility with old tests)
+  // These wrap the synchronous upsert methods so tests can use await
+  // ==========================================================================
+
+  async createUser(record: User): Promise<User> {
+    this.upsertUser(record);
+    return { ...record };
+  }
+
+  async createDepartment(record: Department): Promise<Department> {
+    this.upsertDepartment(record);
+    return { ...record };
+  }
+
+  async createDivision(record: Division): Promise<Division> {
+    this.upsertDivision(record);
+    return { ...record };
+  }
+
+  async addUserRole(userId: string, role: string): Promise<void> {
+    const existing = this.data.userRoles.get(userId) ?? new Set();
+    existing.add(role);
+    this.data.userRoles.set(userId, existing);
+  }
+
+  async addUserDepartmentScope(userId: string, departmentId: string): Promise<void> {
+    const existing = this.data.userDepartmentScopes.get(userId) ?? new Set();
+    existing.add(departmentId);
+    this.data.userDepartmentScopes.set(userId, existing);
+  }
+
+  async addUserDivisionScope(userId: string, divisionId: string): Promise<void> {
+    const existing = this.data.userDivisionScopes.get(userId) ?? new Set();
+    existing.add(divisionId);
+    this.data.userDivisionScopes.set(userId, existing);
+  }
+
+  // ==========================================================================
   // Authorization Context Builder
   // ==========================================================================
 
@@ -564,8 +602,33 @@ export class MockServiceFactory {
   }
 
   getTaskService(): any {
+    const self = this;
     return {
       getTask: (id: string) => this.getCandidateTask(id),
+      getTasks: async (filters: any, authContext?: any) => {
+        let tasks = Array.from(self.data.candidateTasks.values());
+        
+        // Apply filters
+        if (filters?.assigneeId) {
+          tasks = tasks.filter(t => t.assigneeUserId === filters.assigneeId);
+        }
+        if (filters?.candidateId) {
+          tasks = tasks.filter(t => t.candidateId === filters.candidateId);
+        }
+        if (filters?.status) {
+          tasks = tasks.filter(t => t.status === filters.status);
+        }
+        
+        // Apply authorization context filtering
+        if (authContext && !authContext.privileged) {
+          tasks = tasks.filter((task) => {
+            const candidate = self.data.candidates.get(task.candidateId);
+            return candidate ? self.isCandidateVisible(candidate, authContext) : false;
+          });
+        }
+        
+        return tasks.map(t => ({ ...t }));
+      },
       getTasksForCandidate: (candidateId: string) => 
         Promise.resolve(Array.from(this.data.candidateTasks.values()).filter(t => t.candidateId === candidateId)),
       createTask: async (input: { data: any; actorId?: string }) => {

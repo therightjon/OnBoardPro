@@ -216,7 +216,7 @@ export function DivisionsSection() {
                 New Division
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-min">
               <DialogHeader>
                 <DialogTitle>
                   {editingDivision ? "Edit Division" : "Create Division"}

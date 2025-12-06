@@ -457,9 +457,9 @@ export async function seedAuthorizationFixtures(storage: MockServiceFactory): Pr
     templateNameSnapshot: "Faculty Onboarding"
   });
 
-  await storage.createCandidate(candidateAlpha);
-  await storage.createCandidate(candidateBeta);
-  await storage.createCandidate(managedCandidate);
+  storage.upsertCandidate(candidateAlpha);
+  storage.upsertCandidate(candidateBeta);
+  storage.upsertCandidate(managedCandidate);
 
   const tasks: CandidateTask[] = [
     makeTask({
@@ -498,10 +498,10 @@ export async function seedAuthorizationFixtures(storage: MockServiceFactory): Pr
   ];
 
   for (const task of tasks) {
-    await storage.createCandidateTask(task);
+    storage.upsertCandidateTask(task);
   }
 
-  storage.addFollower({ candidateId: candidateAlpha.id, userId: ids.users.hrStaff, createdAt: now } as any);
+  storage.addFollower(candidateAlpha.id, ids.users.hrStaff);
 
   return {
     departments: ids.departments,

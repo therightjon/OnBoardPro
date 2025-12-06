@@ -35,4 +35,5 @@ export function invalidateGlobalData(qc: QueryClient) {
 export function invalidateMyTasks(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: ['/api/tasks/mine'] });
   qc.invalidateQueries({ queryKey: ['/api/tasks'] });
+  qc.invalidateQueries({ queryKey: ['/api/dashboard/metrics'] });
 }

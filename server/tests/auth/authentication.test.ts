@@ -47,7 +47,7 @@ describe("Authentication - Password Hashing", () => {
 
     // Create user with bcrypt password
     const userId = IDS.users.activeUser;
-    await storage.createUser({
+    storage.upsertUser({
       id: userId,
       email: "bcrypt@example.com",
       firstName: "Bcrypt",

@@ -23,31 +23,22 @@ function createMockDb(): MockDb {
 
   const mockDb: MockDb = {
     _stages: stages,
-    select: (fields?: any) => ({
-      from: (table: any) => ({
-        where: (condition: any) => {
-          // Simple mock: return all non-archived stages
-          const results = Array.from(stages.values()).filter(s => !s.archived);
-          return Promise.resolve(results);
-        },
-        orderBy: (order: any) => {
-          const results = Array.from(stages.values()).filter(s => !s.archived);
-          return Promise.resolve(results.sort((a, b) => a.name.localeCompare(b.name)));
-        }
-      }),
-      from(table: any) {
-        if (arguments.length === 1) {
-          return this.from(table);
-        }
-        // Handle select with specific fields
-        return {
+    select: (fields?: any) => {
+      const selectObj = {
+        from: (table: any) => ({
           where: (condition: any) => {
+            // Simple mock: return all non-archived stages
             const results = Array.from(stages.values()).filter(s => !s.archived);
             return Promise.resolve(results);
+          },
+          orderBy: (order: any) => {
+            const results = Array.from(stages.values()).filter(s => !s.archived);
+            return Promise.resolve(results.sort((a, b) => a.name.localeCompare(b.name)));
           }
-        };
-      }
-    }),
+        })
+      };
+      return selectObj;
+    },
     insert: (table: any) => ({
       values: (values: HiringStage) => ({
         returning: () => {
