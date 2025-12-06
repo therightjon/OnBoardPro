@@ -29,7 +29,9 @@ import { useToast } from "@/shared/hooks/use-toast";
 /**
  * Steps for the hiring progress stepper
  */
-const HIRING_STEPS: { id: HiringPhase; label: string }[] = [
+type HiringStepId = HiringPhase | "completed";
+
+const HIRING_STEPS: { id: HiringStepId; label: string }[] = [
   { id: "loi_issued", label: HIRING_PHASE_LABELS.loi_issued },
   { id: "offer_pending", label: HIRING_PHASE_LABELS.offer_pending },
   { id: "pre_hire", label: HIRING_PHASE_LABELS.pre_hire },
@@ -44,6 +46,10 @@ interface HiringProgressProps {
     offerLetterAcceptedAt: string | Date | null;
     templateAppliedAt: string | Date | null;
   };
+  /** The current stage phase from the candidate's workflow (pre_hire or onboarding) */
+  currentStagePhase?: "pre_hire" | "onboarding" | null;
+  /** When true, shows the candidate as fully onboarded (all tasks completed) */
+  isFullyOnboarded?: boolean;
   className?: string;
 }
 
@@ -87,6 +93,8 @@ function formatDate(date: string | Date | null | undefined): string {
 
 export function HiringProgress({
   candidate,
+  currentStagePhase,
+  isFullyOnboarded = false,
   className,
 }: HiringProgressProps) {
   const { toast } = useToast();
@@ -123,14 +131,23 @@ export function HiringProgress({
   });
 
   const phaseInfo = getHiringPhase(candidate);
-  const currentPhaseIndex = HIRING_STEPS.findIndex(
-    (step) => step.id === phaseInfo.phase
-  );
+  
+  // Override the phase if currentStagePhase indicates onboarding and template is applied
+  const effectivePhase: HiringPhase = 
+    candidate.templateAppliedAt && currentStagePhase === "onboarding" 
+      ? "onboarding" 
+      : phaseInfo.phase;
+  
+  // When fully onboarded, all steps are complete
+  const effectivePhaseIndex = isFullyOnboarded
+    ? HIRING_STEPS.length // All steps complete
+    : HIRING_STEPS.findIndex((step) => step.id === effectivePhase);
 
   // Determine step status for each phase
   const getStepStatus = (stepIndex: number) => {
-    if (stepIndex < currentPhaseIndex) return "complete";
-    if (stepIndex === currentPhaseIndex) return "current";
+    if (isFullyOnboarded) return "complete"; // All steps complete when fully onboarded
+    if (stepIndex < effectivePhaseIndex) return "complete";
+    if (stepIndex === effectivePhaseIndex) return "current";
     return "upcoming";
   };
 
@@ -193,20 +210,32 @@ export function HiringProgress({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-medium">Hiring Progress</CardTitle>
-          <Badge variant={HIRING_PHASE_VARIANTS[phaseInfo.phase]}>{phaseInfo.label}</Badge>
+          {isFullyOnboarded ? (
+            <Badge variant="default" className="bg-green-600 hover:bg-green-600">Fully Onboarded</Badge>
+          ) : (
+            <Badge variant={HIRING_PHASE_VARIANTS[effectivePhase]}>{HIRING_PHASE_LABELS[effectivePhase]}</Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent>
         {/* Progress Steps */}
         <div className="relative">
-          {/* Connecting Line */}
-          <div className="absolute left-[18px] top-[24px] h-[calc(100%-48px)] w-0.5 bg-muted" />
+          {/* Connecting Line (background) */}
+          <div className={cn(
+            "absolute left-[18px] top-[24px] w-0.5 bg-muted",
+            isFullyOnboarded ? "h-[calc(100%-24px)]" : "h-[calc(100%-48px)]"
+          )} />
           
           {/* Progress Line (filled portion) */}
           <div
-            className="absolute left-[18px] top-[24px] w-0.5 bg-primary transition-all duration-500"
+            className={cn(
+              "absolute left-[18px] top-[24px] w-0.5 transition-all duration-500",
+              isFullyOnboarded ? "bg-green-600" : "bg-primary"
+            )}
             style={{
-              height: `calc(${(currentPhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${currentPhaseIndex === 0 ? 0 : 24}px)`,
+              height: isFullyOnboarded 
+                ? "calc(100% - 40px)" // Full line to completion note when fully onboarded
+                : `calc(${(effectivePhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${effectivePhaseIndex === 0 ? 0 : 50}px)`,
             }}
           />
 
@@ -214,7 +243,8 @@ export function HiringProgress({
           <div className="relative space-y-6">
             {HIRING_STEPS.map((step, index) => {
               const status = getStepStatus(index);
-              const stepDate = getStepDate(step.id);
+              // Cast to HiringPhase since HIRING_STEPS only contains valid phases (not "completed")
+              const stepDate = getStepDate(step.id as HiringPhase);
               const isOnboardingStep = step.id === "onboarding";
 
               return (
@@ -229,7 +259,7 @@ export function HiringProgress({
                     )}
                   >
                     <StepIcon
-                      phase={step.id}
+                      phase={step.id as HiringPhase}
                       isComplete={status === "complete"}
                       isCurrent={status === "current"}
                     />
@@ -303,14 +333,40 @@ export function HiringProgress({
                 </div>
               );
             })}
+
+            {/* Template Status Note - positioned inside the progress line container when fully onboarded */}
+            {candidate.templateAppliedAt && isFullyOnboarded && (
+              <div className="flex gap-4">
+                {/* Completion Circle */}
+                <div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-green-600 bg-green-600">
+                  <Check className="h-5 w-5 text-white" />
+                </div>
+                {/* Content */}
+                <div className="flex-1 min-w-0 max-w-[200px]">
+                  <div className={cn(
+                    "rounded-md p-3",
+                    "bg-green-50 dark:bg-emerald-950 border border-green-200 dark:border-emerald-700"
+                  )}>
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium text-green-700 dark:text-emerald-300">
+                        Onboarding Complete!
+                      </span>
+                      {" · "}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Template Status Note */}
-        {candidate.templateAppliedAt && (
+        {/* Template Status Note - shown outside progress line when not fully onboarded */}
+        {candidate.templateAppliedAt && !isFullyOnboarded && (
           <div className="mt-4 rounded-md bg-muted/50 p-3">
             <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">Onboarding Active</span>
+              <span className="font-medium text-foreground">
+                Onboarding Active
+              </span>
               {" · "}
               Template applied on {formatDate(candidate.templateAppliedAt)}
             </p>
