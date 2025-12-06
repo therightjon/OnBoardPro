@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { testAgent } from '../utils/testAgent';
-import { InMemoryStorage } from '../utils/inMemoryStorage';
+import { MockServiceFactory } from '../utils/mockServiceFactory';
 
 describe('Health Check API', () => {
   describe('GET /health', () => {
@@ -56,10 +56,10 @@ describe('Health Check API', () => {
 });
 
 describe('Candidates API', () => {
-  let storage: InMemoryStorage;
+  let mockFactory: MockServiceFactory;
 
   beforeEach(() => {
-    storage = new InMemoryStorage();
+    mockFactory = new MockServiceFactory();
   });
 
   describe('POST /api/candidates', () => {
@@ -267,11 +267,11 @@ describe('Tasks API', () => {
  *    - Create test users with various roles
  *    - Create test candidates with stages and tasks
  *
- * 2. Use InMemoryStorage for test isolation:
+ * 2. Use MockServiceFactory for test isolation:
  *    import { seedAuthorizationFixtures } from '../utils/seedAuthorizationFixtures';
  *    beforeEach(() => {
- *      storage = new InMemoryStorage();
- *      seedAuthorizationFixtures(storage);
+ *      mockFactory = new MockServiceFactory();
+ *      seedAuthorizationFixtures(mockFactory);
  *    });
  *
  * 3. Test complete user workflows:

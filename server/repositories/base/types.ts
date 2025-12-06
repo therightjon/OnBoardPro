@@ -32,11 +32,17 @@ export type DivisionActiveCandidateSummary = {
 
 export type TemplateExpansionTask = {
   id: string;
-  stageId?: string | null;
-  title?: string;
+  candidateId: string;
+  assigneeUserId: string | null;
+  assigneeKind: "user" | "role";
+  assigneeRole: string | null;
+  title: string;
+  status: string;
+  dueAt: Date | null;
+  pendingAnchor: boolean;
 };
 
 export type TemplateExpansionResult = {
+  createdCount: number;
   createdTasks: TemplateExpansionTask[];
-  createdCount?: number;
 };

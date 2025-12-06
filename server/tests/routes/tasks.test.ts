@@ -31,7 +31,7 @@ async function setupTest(t: any, userId: string) {
   const env = await createAuthTestEnvironment();
   const resetStorage = env.useAsGlobalStorage();
   const fixtures = await seedAuthorizationFixtures(env.storage);
-  const { agent } = await createAuthedAgent({ storage: env.storage, userId });
+  const { agent } = await createAuthedAgent({ mockFactory: env.storage, userId });
 
   t.after(async () => {
     resetStorage();
@@ -59,7 +59,7 @@ describe("Task API - Create Operations", () => {
     const response = await agent
       .post("/api/tasks")
       .send(newTask)
-      .expect(200);
+      .expect(201);
 
     assert.ok(response.body.id, "Response should include task ID");
     assert.equal(response.body.title, "Complete Background Check");
@@ -260,7 +260,7 @@ describe("Task API - Update Operations", () => {
     const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
 
     const response = await agent
-      .put(`/api/tasks/${fixtures.tasks.alphaTask}`)
+      .patch(`/api/tasks/${fixtures.tasks.alphaTask}`)
       .send({ status: "in_progress" })
       .expect(200);
 
@@ -278,7 +278,7 @@ describe("Task API - Update Operations", () => {
     };
 
     const response = await agent
-      .put(`/api/tasks/${fixtures.tasks.alphaTask}`)
+      .patch(`/api/tasks/${fixtures.tasks.alphaTask}`)
       .send(updates)
       .expect(200);
 
@@ -290,7 +290,7 @@ describe("Task API - Update Operations", () => {
     const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
 
     const response = await agent
-      .put(`/api/tasks/${fixtures.tasks.alphaTask}`)
+      .patch(`/api/tasks/${fixtures.tasks.alphaTask}`)
       .send({ assigneeUserId: IDS.users.hrStaff })
       .expect(200);
 
@@ -303,7 +303,7 @@ describe("Task API - Update Operations", () => {
     const newDueDate = new Date("2025-12-31").toISOString();
 
     const response = await agent
-      .put(`/api/tasks/${fixtures.tasks.alphaTask}`)
+      .patch(`/api/tasks/${fixtures.tasks.alphaTask}`)
       .send({ dueDate: newDueDate })
       .expect(200);
 
@@ -322,7 +322,7 @@ describe("Task API - Update Operations", () => {
     assert.ok(task);
 
     const response = await agent
-      .put(`/api/tasks/${fixtures.tasks.alphaTask}`)
+      .patch(`/api/tasks/${fixtures.tasks.alphaTask}`)
       .send({ status: "completed" })
       .expect(200);
 
@@ -333,7 +333,7 @@ describe("Task API - Update Operations", () => {
     const { agent, fixtures } = await setupTest(t, IDS.users.manager);
 
     await agent
-      .put(`/api/tasks/${fixtures.tasks.betaTask}`)
+      .patch(`/api/tasks/${fixtures.tasks.betaTask}`)
       .send({ status: "completed" })
       .expect(404);
   });
@@ -342,7 +342,7 @@ describe("Task API - Update Operations", () => {
     const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
 
     await agent
-      .put(`/api/tasks/${fixtures.tasks.alphaTask}`)
+      .patch(`/api/tasks/${fixtures.tasks.alphaTask}`)
       .send({ status: "invalid_status" })
       .expect(400);
   });
@@ -354,7 +354,7 @@ describe("Task API - Update Operations", () => {
     assert.ok(original);
 
     const response = await agent
-      .put(`/api/tasks/${fixtures.tasks.alphaTask}`)
+      .patch(`/api/tasks/${fixtures.tasks.alphaTask}`)
       .send({ description: "New description" })
       .expect(200);
 
@@ -378,7 +378,7 @@ describe("Task API - Delete Operations", () => {
     const createResponse = await agent
       .post("/api/tasks")
       .send(newTask)
-      .expect(200);
+      .expect(201);
 
     const taskId = createResponse.body.id;
 
@@ -454,7 +454,7 @@ describe("Task API - Deadline Operations", () => {
     const createResponse = await agent
       .post("/api/tasks")
       .send(overdueTask)
-      .expect(200);
+      .expect(201);
 
     const response = await agent
       .get("/api/tasks")
@@ -482,7 +482,7 @@ describe("Task API - Deadline Operations", () => {
     await agent
       .post("/api/tasks")
       .send(upcomingTask)
-      .expect(200);
+      .expect(201);
 
     const response = await agent
       .get("/api/tasks")

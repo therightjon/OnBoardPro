@@ -111,9 +111,9 @@ describe('Advance Stage Service', () => {
  *
  * For full implementation, you should:
  *
- * 1. Use InMemoryStorage for test isolation:
- *    import { InMemoryStorage } from '../utils/inMemoryStorage';
- *    const storage = new InMemoryStorage();
+ * 1. Use MockServiceFactory for test isolation:
+ *    import { MockServiceFactory } from '../utils/mockServiceFactory';
+ *    const mockFactory = new MockServiceFactory();
  *
  * 2. Seed test data in beforeEach:
  *    - Create test users

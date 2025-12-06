@@ -1,7 +1,27 @@
 import type { Request, Response, NextFunction } from "express";
-import type { IStorage } from "../../db/storage";
 
-export async function listNotificationsHandler(storage: Pick<IStorage, "getNotifications">, req: Request, res: Response, next: NextFunction) {
+/**
+ * Interface for notification storage operations used by the handler functions.
+ * This is a minimal interface that allows for easy mocking in tests.
+ */
+export interface NotificationStorageInterface {
+  getNotifications(params: {
+    userId: string;
+    limit?: number;
+    cursor?: string;
+    unreadOnly?: boolean;
+    types?: string[];
+  }): Promise<{
+    items: any[];
+    nextCursor?: string;
+    unreadCount: number;
+    totalCount: number;
+  }>;
+  setNotificationRead(userId: string, notificationId: string, isRead: boolean): Promise<boolean>;
+  markAllNotificationsRead(userId: string): Promise<number>;
+}
+
+export async function listNotificationsHandler(storage: Pick<NotificationStorageInterface, "getNotifications">, req: Request, res: Response, next: NextFunction) {
   try {
     const limitParam = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
     const limit = limitParam && !Number.isNaN(limitParam) ? Math.min(Math.max(limitParam, 1), 100) : 20;
@@ -30,7 +50,7 @@ export async function listNotificationsHandler(storage: Pick<IStorage, "getNotif
   }
 }
 
-export async function markNotificationReadHandler(storage: Pick<IStorage, "setNotificationRead">, req: Request, res: Response, next: NextFunction) {
+export async function markNotificationReadHandler(storage: Pick<NotificationStorageInterface, "setNotificationRead">, req: Request, res: Response, next: NextFunction) {
   try {
     const { isRead } = req.body ?? {};
     if (typeof isRead !== 'boolean') {
@@ -48,7 +68,7 @@ export async function markNotificationReadHandler(storage: Pick<IStorage, "setNo
   }
 }
 
-export async function markAllNotificationsReadHandler(storage: Pick<IStorage, "markAllNotificationsRead">, req: Request, res: Response, next: NextFunction) {
+export async function markAllNotificationsReadHandler(storage: Pick<NotificationStorageInterface, "markAllNotificationsRead">, req: Request, res: Response, next: NextFunction) {
   try {
     const updated = await storage.markAllNotificationsRead(req.user!.id);
     res.json({ updated });

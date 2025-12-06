@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { createAuthTestEnvironment } from "../utils/testEnvironment";
 import { seedAuthorizationFixtures } from "../utils/seedAuthorizationFixtures";
 import { createAuthedAgent } from "../utils/testAgent";
-import type { InMemoryStorage } from "../utils/inMemoryStorage";
+import { setServiceFactoryForTesting, resetServiceFactory } from "../utils/mockServiceFactory";
+import type { MockServiceFactory } from "../utils/mockServiceFactory";
 
 const IDS = {
   users: {
@@ -29,6 +30,9 @@ const IDS = {
   },
   facultyRanks: {
     instructor: "66666666-6666-6666-6666-666666666666"
+  },
+  templates: {
+    onboarding: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
   }
 } as const;
 
@@ -36,7 +40,7 @@ async function setupTest(t: any, userId: string) {
   const env = await createAuthTestEnvironment();
   const resetStorage = env.useAsGlobalStorage();
   const fixtures = await seedAuthorizationFixtures(env.storage);
-  const { agent } = await createAuthedAgent({ storage: env.storage, userId });
+  const { agent } = await createAuthedAgent({ mockFactory: env.storage, userId });
 
   t.after(async () => {
     resetStorage();
@@ -58,13 +62,14 @@ describe("Candidate API - Create Operations", () => {
       divisionId: IDS.divisions.alpha,
       candidateTypeId: IDS.candidateTypes.faculty,
       facultyRankId: IDS.facultyRanks.instructor,
-      currentStatus: "pending_documents"
+      letterOfIntentDate: new Date().toISOString(),
+      templateId: IDS.templates.onboarding
     };
 
     const response = await agent
       .post("/api/candidates")
       .send(newCandidate)
-      .expect(200);
+      .expect(201);
 
     assert.ok(response.body.id, "Response should include candidate ID");
     assert.equal(response.body.firstName, "John");
@@ -87,7 +92,8 @@ describe("Candidate API - Create Operations", () => {
       email: "john.doe@example.com",
       departmentId: "00000000-0000-0000-0000-000000000000", // Invalid department
       candidateTypeId: IDS.candidateTypes.faculty,
-      currentStatus: "pending_documents"
+      letterOfIntentDate: new Date().toISOString(),
+      templateId: IDS.templates.onboarding
     };
 
     await agent
@@ -119,7 +125,8 @@ describe("Candidate API - Create Operations", () => {
       email: "alpha.primary@example.com", // Duplicate email from fixtures
       departmentId: IDS.departments.alpha,
       candidateTypeId: IDS.candidateTypes.faculty,
-      currentStatus: "pending_documents"
+      letterOfIntentDate: new Date().toISOString(),
+      templateId: IDS.templates.onboarding
     };
 
     await agent
@@ -137,7 +144,8 @@ describe("Candidate API - Create Operations", () => {
       email: "john.doe@example.com",
       departmentId: IDS.departments.alpha,
       candidateTypeId: IDS.candidateTypes.faculty,
-      currentStatus: "pending_documents"
+      letterOfIntentDate: new Date().toISOString(),
+      templateId: IDS.templates.onboarding
     };
 
     await agent
@@ -237,7 +245,7 @@ describe("Candidate API - Read Operations", () => {
     const env = await createAuthTestEnvironment();
     const resetStorage = env.useAsGlobalStorage();
     const { agent } = await createAuthedAgent({
-      storage: env.storage,
+      mockFactory: env.storage,
       userId: null // No user
     });
 
@@ -261,7 +269,7 @@ describe("Candidate API - Update Operations", () => {
     };
 
     const response = await agent
-      .put(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
+      .patch(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
       .send(updates)
       .expect(200);
 
@@ -283,7 +291,7 @@ describe("Candidate API - Update Operations", () => {
     };
 
     const response = await agent
-      .put(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
+      .patch(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
       .send(updates)
       .expect(200);
 
@@ -307,7 +315,7 @@ describe("Candidate API - Update Operations", () => {
     };
 
     await agent
-      .put(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
+      .patch(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
       .send(updates)
       .expect(400);
   });
@@ -320,7 +328,7 @@ describe("Candidate API - Update Operations", () => {
     };
 
     await agent
-      .put(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
+      .patch(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
       .send(updates)
       .expect(403);
   });
@@ -333,7 +341,7 @@ describe("Candidate API - Update Operations", () => {
     };
 
     await agent
-      .put(`/api/candidates/${fixtures.candidates.betaCandidate}`)
+      .patch(`/api/candidates/${fixtures.candidates.betaCandidate}`)
       .send(updates)
       .expect(404);
   });
@@ -342,7 +350,7 @@ describe("Candidate API - Update Operations", () => {
     const { agent } = await setupTest(t, IDS.users.hrStaff);
 
     await agent
-      .put("/api/candidates/00000000-0000-0000-0000-000000000000")
+      .patch("/api/candidates/00000000-0000-0000-0000-000000000000")
       .send({ firstName: "Test" })
       .expect(404);
   });
@@ -359,13 +367,14 @@ describe("Candidate API - Delete Operations", () => {
       email: "todelete@example.com",
       departmentId: IDS.departments.alpha,
       candidateTypeId: IDS.candidateTypes.faculty,
-      currentStatus: "pending_documents"
+      letterOfIntentDate: new Date().toISOString(),
+      templateId: IDS.templates.onboarding
     };
 
     const createResponse = await agent
       .post("/api/candidates")
       .send(newCandidate)
-      .expect(200);
+      .expect(201);
 
     const candidateId = createResponse.body.id;
 
@@ -409,19 +418,19 @@ describe("Candidate API - Status Operations", () => {
     const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
 
     const response = await agent
-      .put(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
-      .send({ currentStatus: "active" })
+      .patch(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
+      .send({ status: "active" })
       .expect(200);
 
-    assert.equal(response.body.currentStatus, "active");
+    assert.equal(response.body.status, "active");
   });
 
   test("status update validates against allowed statuses", async (t) => {
     const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
 
     await agent
-      .put(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
-      .send({ currentStatus: "invalid_status" })
+      .patch(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
+      .send({ status: "invalid_status" })
       .expect(400);
   });
 });

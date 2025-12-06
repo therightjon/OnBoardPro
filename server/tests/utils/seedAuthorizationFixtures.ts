@@ -1,4 +1,4 @@
-import { InMemoryStorage } from "./inMemoryStorage";
+import { MockServiceFactory } from "./mockServiceFactory";
 import type { Candidate, CandidateTask, Department, Division, TaskCategory, TaskPriority, TaskDefinition, Template, TemplateStage, TemplateTask, User, AuthProvider } from "@shared/schemas";
 
 export interface SeededAuthorizationFixtures {
@@ -273,7 +273,7 @@ function makeAuthProvider(overrides: Partial<AuthProvider>): AuthProvider {
   } as AuthProvider;
 }
 
-export async function seedAuthorizationFixtures(storage: InMemoryStorage): Promise<SeededAuthorizationFixtures> {
+export async function seedAuthorizationFixtures(storage: MockServiceFactory): Promise<SeededAuthorizationFixtures> {
   storage.reset();
 
   const departments: Department[] = [

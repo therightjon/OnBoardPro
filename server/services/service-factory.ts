@@ -60,57 +60,59 @@ import { AuthorizationService } from "./authorization/AuthorizationService";
 /**
  * Service factory class
  * Instantiates services with their required dependencies
+ * 
+ * Exported for testing purposes - allows subclassing with mock implementations
  */
-class ServiceFactory {
+export class ServiceFactory {
   // Repository instances (singletons) - Candidates
-  private candidateRepo: CandidateRepository;
-  private candidateTaskRepo: CandidateTaskRepository;
-  private candidateFollowerRepo: CandidateFollowerRepository;
-  private candidateStageRepo: CandidateStageRepository;
+  protected candidateRepo: CandidateRepository;
+  protected candidateTaskRepo: CandidateTaskRepository;
+  protected candidateFollowerRepo: CandidateFollowerRepository;
+  protected candidateStageRepo: CandidateStageRepository;
 
   // Repository instances (singletons) - Templates
-  private templateRepo: TemplateRepository;
-  private templateStageRepo: TemplateStageRepository;
-  private templateTaskRepo: TemplateTaskRepository;
+  protected templateRepo: TemplateRepository;
+  protected templateStageRepo: TemplateStageRepository;
+  protected templateTaskRepo: TemplateTaskRepository;
 
   // Repository instances (singletons) - Users
-  private userRepo: UserRepository;
-  private userIdentityRepo: UserIdentityRepository;
-  private userPreferencesRepo: UserPreferencesRepository;
-  private invitationRepo: InvitationRepository;
+  protected userRepo: UserRepository;
+  protected userIdentityRepo: UserIdentityRepository;
+  protected userPreferencesRepo: UserPreferencesRepository;
+  protected invitationRepo: InvitationRepository;
 
   // Repository instances (singletons) - Organizational
-  private departmentRepo: DepartmentRepository;
-  private divisionRepo: DivisionRepository;
+  protected departmentRepo: DepartmentRepository;
+  protected divisionRepo: DivisionRepository;
 
   // Repository instances (singletons) - Reference Data
-  private referenceDataRepo: ReferenceDataRepository;
-  private hiringStageRepo: HiringStageRepository;
-  private taskDefinitionRepo: TaskDefinitionRepository;
+  protected referenceDataRepo: ReferenceDataRepository;
+  protected hiringStageRepo: HiringStageRepository;
+  protected taskDefinitionRepo: TaskDefinitionRepository;
 
   // Repository instances (singletons) - Shared
-  private notificationRepo: NotificationRepository;
-  private commentRepo: CommentRepository;
-  private searchRepo: SearchRepository;
+  protected notificationRepo: NotificationRepository;
+  protected commentRepo: CommentRepository;
+  protected searchRepo: SearchRepository;
 
   // Service instances (singletons)
-  private candidateServiceInstance: CandidateService | null = null;
-  private taskServiceInstance: TaskService | null = null;
-  private taskDueDateServiceInstance: TaskDueDateService | null = null;
-  private templateServiceInstance: TemplateService | null = null;
-  private templateExpansionServiceInstance: TemplateExpansionService | null = null;
-  private templateEstimationServiceInstance: TemplateEstimationService | null = null;
-  private userServiceInstance: UserService | null = null;
-  private invitationServiceInstance: InvitationService | null = null;
-  private organizationServiceInstance: OrganizationService | null = null;
-  private referenceDataServiceInstance: ReferenceDataService | null = null;
-  private notificationServiceInstance: NotificationService | null = null;
-  private commentServiceInstance: CommentService | null = null;
-  private searchServiceInstance: SearchService | null = null;
-  private systemSettingsServiceInstance: SystemSettingsService | null = null;
-  private authProviderServiceInstance: AuthProviderService | null = null;
-  private dashboardServiceInstance: DashboardService | null = null;
-  private authorizationServiceInstance: AuthorizationService | null = null;
+  protected candidateServiceInstance: CandidateService | null = null;
+  protected taskServiceInstance: TaskService | null = null;
+  protected taskDueDateServiceInstance: TaskDueDateService | null = null;
+  protected templateServiceInstance: TemplateService | null = null;
+  protected templateExpansionServiceInstance: TemplateExpansionService | null = null;
+  protected templateEstimationServiceInstance: TemplateEstimationService | null = null;
+  protected userServiceInstance: UserService | null = null;
+  protected invitationServiceInstance: InvitationService | null = null;
+  protected organizationServiceInstance: OrganizationService | null = null;
+  protected referenceDataServiceInstance: ReferenceDataService | null = null;
+  protected notificationServiceInstance: NotificationService | null = null;
+  protected commentServiceInstance: CommentService | null = null;
+  protected searchServiceInstance: SearchService | null = null;
+  protected systemSettingsServiceInstance: SystemSettingsService | null = null;
+  protected authProviderServiceInstance: AuthProviderService | null = null;
+  protected dashboardServiceInstance: DashboardService | null = null;
+  protected authorizationServiceInstance: AuthorizationService | null = null;
 
   constructor() {
     // Initialize repositories - Candidates
@@ -389,24 +391,73 @@ class ServiceFactory {
   }
 }
 
-// Export a singleton instance
-export const serviceFactory = new ServiceFactory();
+/**
+ * Interface for testing - allows duck-typed mock factories
+ */
+export interface IServiceFactory {
+  getCandidateService(): CandidateService;
+  getTaskService(): TaskService;
+  getTaskDueDateService(): TaskDueDateService;
+  getTemplateService(): TemplateService;
+  getTemplateExpansionService(): TemplateExpansionService;
+  getTemplateEstimationService(): TemplateEstimationService;
+  getUserService(): UserService;
+  getInvitationService(): InvitationService;
+  getOrganizationService(): OrganizationService;
+  getReferenceDataService(): ReferenceDataService;
+  getNotificationService(): NotificationService;
+  getCommentService(): CommentService;
+  getSearchService(): SearchService;
+  getSystemSettingsService(): SystemSettingsService;
+  getAuthProviderService(): AuthProviderService;
+  getDashboardService(): DashboardService;
+  getAuthorizationService(): AuthorizationService;
+}
 
-// Export individual service getters for convenience
-export const getCandidateService = () => serviceFactory.getCandidateService();
-export const getTaskService = () => serviceFactory.getTaskService();
-export const getTaskDueDateService = () => serviceFactory.getTaskDueDateService();
-export const getTemplateService = () => serviceFactory.getTemplateService();
-export const getTemplateExpansionService = () => serviceFactory.getTemplateExpansionService();
-export const getTemplateEstimationService = () => serviceFactory.getTemplateEstimationService();
-export const getUserService = () => serviceFactory.getUserService();
-export const getInvitationService = () => serviceFactory.getInvitationService();
-export const getOrganizationService = () => serviceFactory.getOrganizationService();
-export const getReferenceDataService = () => serviceFactory.getReferenceDataService();
-export const getNotificationService = () => serviceFactory.getNotificationService();
-export const getCommentService = () => serviceFactory.getCommentService();
-export const getSearchService = () => serviceFactory.getSearchService();
-export const getSystemSettingsService = () => serviceFactory.getSystemSettingsService();
-export const getAuthProviderService = () => serviceFactory.getAuthProviderService();
-export const getDashboardService = () => serviceFactory.getDashboardService();
-export const getAuthorizationService = () => serviceFactory.getAuthorizationService();
+// Export a singleton instance - mutable for testing
+let activeFactory: IServiceFactory = new ServiceFactory();
+const defaultFactory: ServiceFactory = activeFactory as ServiceFactory;
+
+/**
+ * For testing: Replace the active service factory with a mock
+ * @param mockFactory - The mock service factory to use (can be any object implementing IServiceFactory)
+ */
+export function setServiceFactoryForTesting(mockFactory: IServiceFactory): void {
+  activeFactory = mockFactory;
+}
+
+/**
+ * For testing: Reset to the default (real) service factory
+ */
+export function resetServiceFactory(): void {
+  activeFactory = defaultFactory;
+}
+
+/**
+ * Get the current active service factory (for testing inspection)
+ */
+export function getActiveServiceFactory(): IServiceFactory {
+  return activeFactory;
+}
+
+// Export the default singleton instance (for direct access when needed)
+export const serviceFactory = defaultFactory;
+
+// Export individual service getters for convenience - use activeFactory for testability
+export const getCandidateService = () => activeFactory.getCandidateService();
+export const getTaskService = () => activeFactory.getTaskService();
+export const getTaskDueDateService = () => activeFactory.getTaskDueDateService();
+export const getTemplateService = () => activeFactory.getTemplateService();
+export const getTemplateExpansionService = () => activeFactory.getTemplateExpansionService();
+export const getTemplateEstimationService = () => activeFactory.getTemplateEstimationService();
+export const getUserService = () => activeFactory.getUserService();
+export const getInvitationService = () => activeFactory.getInvitationService();
+export const getOrganizationService = () => activeFactory.getOrganizationService();
+export const getReferenceDataService = () => activeFactory.getReferenceDataService();
+export const getNotificationService = () => activeFactory.getNotificationService();
+export const getCommentService = () => activeFactory.getCommentService();
+export const getSearchService = () => activeFactory.getSearchService();
+export const getSystemSettingsService = () => activeFactory.getSystemSettingsService();
+export const getAuthProviderService = () => activeFactory.getAuthProviderService();
+export const getDashboardService = () => activeFactory.getDashboardService();
+export const getAuthorizationService = () => activeFactory.getAuthorizationService();
