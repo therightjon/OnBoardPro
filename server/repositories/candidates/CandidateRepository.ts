@@ -172,6 +172,7 @@ export class CandidateRepository extends BaseRepository {
       .orderBy(desc(candidates.createdAt));
   }
 
+
   /**
    * Get a single candidate by ID with full details and authorization check
    *
@@ -283,8 +284,30 @@ export class CandidateRepository extends BaseRepository {
 
     // CRITICAL: Authorization check for non-privileged users
     if (auth && !auth.privileged) {
-      const accessible = this.buildCandidateVisibilityChecker(auth);
-      if (!accessible(candidate)) {
+      let isVisible = false;
+
+      // Check department scope
+      if (candidate.departmentId && auth.departmentIds.has(candidate.departmentId)) {
+        isVisible = true;
+      }
+      // Check division scope
+      else if (candidate.divisionId && auth.divisionIds.has(candidate.divisionId)) {
+        isVisible = true;
+      }
+      // Check manager scope
+      else if (auth.roles.has("manager") && candidate.managerId === auth.userId) {
+        isVisible = true;
+      }
+      // Check candidate self-access
+      else if (auth.roles.has("candidate") && candidate.linkedUserId === auth.userId) {
+        isVisible = true;
+      }
+      // Check explicit candidate grants
+      else if (auth.managedCandidateIds.has(candidate.id)) {
+        isVisible = true;
+      }
+
+      if (!isVisible) {
         return undefined;
       }
     }

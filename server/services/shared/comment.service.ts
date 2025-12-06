@@ -123,11 +123,11 @@ export class CommentService {
   /**
    * Get comment statistics for a candidate
    */
-  async getCandidateCommentStats(candidateId: string, role: string): Promise<{
+  async getCommentStats(params: { candidateId: string, role: string }): Promise<{
     profile: CommentStats;
     byTask: Record<string, CommentStats>;
   }> {
-    return this.commentRepo.getCommentStats({ candidateId, role });
+    return this.commentRepo.getCommentStats(params);
   }
 
   /**

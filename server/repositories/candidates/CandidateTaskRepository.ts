@@ -172,14 +172,29 @@ export class CandidateTaskRepository extends BaseRepository {
 
     // CRITICAL: Authorization filtering for non-privileged users
     if (auth && !auth.privileged) {
-      const canSeeCandidate = this.buildCandidateVisibilityChecker(auth);
-      tasks = tasks.filter((task) => canSeeCandidate({
-        id: task.candidate?.id,
-        departmentId: task.candidateDepartmentId,
-        divisionId: task.candidateDivisionId,
-        managerId: task.candidateManagerId,
-        linkedUserId: task.candidateLinkedUserId
-      }));
+      tasks = tasks.filter((task) => {
+        // Check department scope
+        if (task.candidateDepartmentId && auth.departmentIds.has(task.candidateDepartmentId)) {
+          return true;
+        }
+        // Check division scope
+        if (task.candidateDivisionId && auth.divisionIds.has(task.candidateDivisionId)) {
+          return true;
+        }
+        // Check manager scope
+        if (auth.roles.has("manager") && task.candidateManagerId === auth.userId) {
+          return true;
+        }
+        // Check candidate self-access
+        if (auth.roles.has("candidate") && task.candidateLinkedUserId === auth.userId) {
+          return true;
+        }
+        // Check explicit candidate grants
+        if (task.candidate?.id && auth.managedCandidateIds.has(task.candidate.id)) {
+          return true;
+        }
+        return false;
+      });
 
       // Candidates can only see their own assigned tasks
       if (auth.isCandidate && auth.userId) {

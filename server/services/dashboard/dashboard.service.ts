@@ -5,7 +5,7 @@
  * division candidate counts and recent activity events.
  */
 
-import { eq, and, desc, isNotNull, sql, asc } from "drizzle-orm";
+import { eq, and, desc, isNotNull, sql, asc, gte, lte, between } from "drizzle-orm";
 import type { db as DbType } from "../../db/connection";
 import {
   candidates,
@@ -70,7 +70,8 @@ export class DashboardService {
       if (auth.isCandidate && auth.userId) {
         scopeFilters.linkedUserIds = [auth.userId];
       }
-      this.applyScopeFilters(whereConditions, scopeFilters, true);
+      // For division overview, don't require scope - allow empty results instead of blocking
+      this.applyScopeFilters(whereConditions, scopeFilters, false);
     }
 
     const countExpression = sql<number>`count(*)::int`;
@@ -244,6 +245,262 @@ export class DashboardService {
 
     events.sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
     return events.slice(0, effectiveLimit);
+  }
+
+  /**
+   * Get dashboard metrics with historical comparison
+   */
+  async getDashboardMetrics(auth?: AuthorizationContext): Promise<{
+    activeCandidates: { current: number; change: number; changePercent: number };
+    tasksDue: { current: number; change: number; changePercent: number };
+    overdueTasks: { current: number; change: number; changePercent: number };
+    completionRate: { current: number; change: number; changePercent: number };
+  }> {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const sevenDaysFromNow = new Date(now);
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+
+    const buildCandidateScopeConditions = (baseConditions: any[] = []): any[] => {
+      const scopeConditions: any[] = [...baseConditions];
+      if (auth && !auth.privileged) {
+        const scopeFilters: CandidateScopeFilters = {};
+        if (auth.departmentIds.size > 0) {
+          scopeFilters.departmentIds = Array.from(auth.departmentIds);
+        }
+        if (auth.divisionIds.size > 0) {
+          scopeFilters.divisionIds = Array.from(auth.divisionIds);
+        }
+        if (auth.managedCandidateIds.size > 0) {
+          scopeFilters.candidateIds = Array.from(auth.managedCandidateIds);
+        }
+        if (auth.roles.has("manager") && auth.userId) {
+          scopeFilters.managerIds = [auth.userId];
+        }
+        if (auth.isCandidate && auth.userId) {
+          scopeFilters.linkedUserIds = [auth.userId];
+        }
+        this.applyScopeFilters(scopeConditions, scopeFilters, true);
+      }
+      return scopeConditions;
+    };
+
+    // Active candidates - current
+    const activeCandidatesCurrent = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(candidates)
+      .where(and(...buildCandidateScopeConditions([eq(candidates.status, "active"), eq(candidates.archived, false)])));
+
+    // Active candidates - 30 days ago
+    const activeCandidatesHistorical = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(candidates)
+      .where(
+        and(
+          ...buildCandidateScopeConditions([
+            eq(candidates.status, "active"),
+            eq(candidates.archived, false),
+            lte(candidates.createdAt, thirtyDaysAgo)
+          ])
+        )
+      );
+
+    // Completion rate - current
+    const completedCandidatesCurrent = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(candidates)
+      .where(
+        and(
+          ...buildCandidateScopeConditions([
+            eq(candidates.status, "completed"),
+            eq(candidates.archived, false)
+          ])
+        )
+      );
+
+    const totalCandidatesCurrent = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(candidates)
+      .where(
+        and(
+          ...buildCandidateScopeConditions([
+            eq(candidates.archived, false),
+            sql`${candidates.status} NOT IN ('draft', 'canceled')`
+          ])
+        )
+      );
+
+    // Completion rate - 30 days ago
+    const completedCandidatesHistorical = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(candidates)
+      .where(
+        and(
+          ...buildCandidateScopeConditions([
+            eq(candidates.status, "completed"),
+            eq(candidates.archived, false),
+            lte(candidates.updatedAt, thirtyDaysAgo)
+          ])
+        )
+      );
+
+    const totalCandidatesHistorical = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(candidates)
+      .where(
+        and(
+          ...buildCandidateScopeConditions([
+            eq(candidates.archived, false),
+            lte(candidates.createdAt, thirtyDaysAgo),
+            sql`${candidates.status} NOT IN ('draft', 'canceled')`
+          ])
+        )
+      );
+
+    // Tasks - need to join with candidates for scope filtering
+    const buildTaskScopeConditions = (baseConditions: any[] = []): any[] => {
+      const scopeConditions: any[] = [
+        ...baseConditions,
+        eq(candidateTasks.archived, false)
+      ];
+      
+      if (auth && !auth.privileged) {
+        scopeConditions.push(eq(candidates.archived, false));
+        const scopeFilters: CandidateScopeFilters = {};
+        if (auth.departmentIds.size > 0) {
+          scopeFilters.departmentIds = Array.from(auth.departmentIds);
+        }
+        if (auth.divisionIds.size > 0) {
+          scopeFilters.divisionIds = Array.from(auth.divisionIds);
+        }
+        if (auth.managedCandidateIds.size > 0) {
+          scopeFilters.candidateIds = Array.from(auth.managedCandidateIds);
+        }
+        if (auth.roles.has("manager") && auth.userId) {
+          scopeFilters.managerIds = [auth.userId];
+        }
+        if (auth.isCandidate && auth.userId) {
+          scopeFilters.linkedUserIds = [auth.userId];
+        }
+        this.applyScopeFilters(scopeConditions, scopeFilters, true);
+      }
+      return scopeConditions;
+    };
+
+    // Tasks due within 7 days - current
+    const tasksDueCurrent = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(candidateTasks)
+      .innerJoin(candidates, eq(candidateTasks.candidateId, candidates.id))
+      .where(
+        and(
+          ...buildTaskScopeConditions([
+            sql`${candidateTasks.dueAt} IS NOT NULL`,
+            lte(candidateTasks.dueAt, sevenDaysFromNow),
+            sql`${candidateTasks.status} != 'done'`
+          ])
+        )
+      );
+
+    // Tasks due within 7 days - 7 days ago (to compare week-over-week)
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysFromThen = new Date(sevenDaysAgo);
+    sevenDaysFromThen.setDate(sevenDaysFromThen.getDate() + 7);
+
+    const tasksDueHistorical = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(candidateTasks)
+      .innerJoin(candidates, eq(candidateTasks.candidateId, candidates.id))
+      .where(
+        and(
+          ...buildTaskScopeConditions([
+            sql`${candidateTasks.dueAt} IS NOT NULL`,
+            lte(candidateTasks.dueAt, sevenDaysFromThen),
+            lte(candidateTasks.createdAt, sevenDaysAgo),
+            sql`${candidateTasks.status} != 'done'`,
+            sql`(${candidateTasks.completedAt} IS NULL OR ${candidateTasks.completedAt} > ${sevenDaysAgo})`
+          ])
+        )
+      );
+
+    // Overdue tasks - current
+    const overdueTasksCurrent = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(candidateTasks)
+      .innerJoin(candidates, eq(candidateTasks.candidateId, candidates.id))
+      .where(
+        and(
+          ...buildTaskScopeConditions([
+            sql`${candidateTasks.dueAt} IS NOT NULL`,
+            sql`${candidateTasks.dueAt} < ${now}`,
+            sql`${candidateTasks.status} != 'done'`
+          ])
+        )
+      );
+
+    // Overdue tasks - 7 days ago
+    const overdueTasksHistorical = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(candidateTasks)
+      .innerJoin(candidates, eq(candidateTasks.candidateId, candidates.id))
+      .where(
+        and(
+          ...buildTaskScopeConditions([
+            sql`${candidateTasks.dueAt} IS NOT NULL`,
+            sql`${candidateTasks.dueAt} < ${sevenDaysAgo}`,
+            lte(candidateTasks.createdAt, sevenDaysAgo),
+            sql`${candidateTasks.status} != 'done'`,
+            sql`(${candidateTasks.completedAt} IS NULL OR ${candidateTasks.completedAt} > ${sevenDaysAgo})`
+          ])
+        )
+      );
+
+    // Calculate changes
+    const calcChange = (current: number, historical: number) => {
+      const change = current - historical;
+      const changePercent = historical > 0 ? Math.round((change / historical) * 100) : current > 0 ? 100 : 0;
+      return { current, change, changePercent };
+    };
+
+    const activeCandidatesMetric = calcChange(
+      activeCandidatesCurrent[0]?.count ?? 0,
+      activeCandidatesHistorical[0]?.count ?? 0
+    );
+
+    const tasksDueMetric = calcChange(
+      tasksDueCurrent[0]?.count ?? 0,
+      tasksDueHistorical[0]?.count ?? 0
+    );
+
+    const overdueTasksMetric = calcChange(
+      overdueTasksCurrent[0]?.count ?? 0,
+      overdueTasksHistorical[0]?.count ?? 0
+    );
+
+    const completionRateCurrent =
+      (totalCandidatesCurrent[0]?.count ?? 0) > 0
+        ? Math.round(((completedCandidatesCurrent[0]?.count ?? 0) / (totalCandidatesCurrent[0]?.count ?? 1)) * 100)
+        : 0;
+
+    const completionRateHistorical =
+      (totalCandidatesHistorical[0]?.count ?? 0) > 0
+        ? Math.round(((completedCandidatesHistorical[0]?.count ?? 0) / (totalCandidatesHistorical[0]?.count ?? 1)) * 100)
+        : 0;
+
+    const completionRateMetric = {
+      current: completionRateCurrent,
+      change: completionRateCurrent - completionRateHistorical,
+      changePercent: completionRateCurrent - completionRateHistorical
+    };
+
+    return {
+      activeCandidates: activeCandidatesMetric,
+      tasksDue: tasksDueMetric,
+      overdueTasks: overdueTasksMetric,
+      completionRate: completionRateMetric
+    };
   }
 
   /**

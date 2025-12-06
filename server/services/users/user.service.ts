@@ -230,22 +230,6 @@ export class UserService {
     return this.userRepo.getAllUsers(filters);
   }
 
-  /**
-   * Get managers by department
-   */
-  async getManagersByDepartment(
-    departmentId: string,
-    divisionId?: string,
-    search?: string,
-    limit?: number,
-    offset?: number
-  ): Promise<User[]> {
-    const repo: any = this.userRepo as any;
-    if (typeof repo.getManagersByDepartment === "function") {
-      return repo.getManagersByDepartment(departmentId, divisionId, search, limit, offset);
-    }
-    return [];
-  }
 
   /**
    * Get user open task count

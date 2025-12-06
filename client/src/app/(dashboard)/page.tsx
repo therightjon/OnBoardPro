@@ -40,6 +40,19 @@ import { format, formatDistanceToNow } from "date-fns";
 import type { CandidateTask, CandidateType } from "@shared/schemas";
 import { downloadDashboardReport, formatReportDate } from "@/lib/export-utils";
 
+type DashboardMetric = {
+  current: number;
+  change: number;
+  changePercent: number;
+};
+
+type DashboardMetrics = {
+  activeCandidates: DashboardMetric;
+  tasksDue: DashboardMetric;
+  overdueTasks: DashboardMetric;
+  completionRate: DashboardMetric;
+};
+
 type DivisionOverviewItem = {
   divisionId: string;
   divisionName: string;
@@ -315,6 +328,13 @@ export default function Dashboard() {
     "division_leader",
     "manager"
   ].includes(user.role) : false;
+  const canViewRecentActivity = user ? [
+    "system_admin",
+    "hr_staff",
+    "department_admin",
+    "division_leader",
+    "manager"
+  ].includes(user.role) : false;
   const [showNoPermission, setShowNoPermission] = useState(false);
   const { data: candidates = [] } = useQuery<any[]>({
     // Include user id in the key, but fetch base URL explicitly
@@ -341,7 +361,7 @@ export default function Dashboard() {
 
   const { data: recentActivity = [], isLoading: recentActivityLoading, isError: recentActivityError } = useQuery<RecentActivityEvent[]>({
     queryKey: ["/api/dashboard/recent-activity", 4, user?.id],
-    enabled: !!user,
+    enabled: !!user && canViewRecentActivity,
     queryFn: async () => {
       const res = await fetch('/api/dashboard/recent-activity?limit=4', { credentials: 'include' });
       if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
@@ -354,6 +374,20 @@ export default function Dashboard() {
     enabled: !!user && canViewDivisionOverview,
     queryFn: async () => {
       const res = await fetch('/api/dashboard/divisions?limit=4', { credentials: 'include' });
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Division overview fetch failed:', res.status, errorText);
+        throw new Error(`${res.status}: ${res.statusText}`);
+      }
+      return res.json();
+    }
+  });
+
+  const { data: dashboardMetrics } = useQuery<DashboardMetrics>({
+    queryKey: ["/api/dashboard/metrics", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await fetch('/api/dashboard/metrics', { credentials: 'include' });
       if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
       return res.json();
     }
@@ -396,22 +430,60 @@ export default function Dashboard() {
   }, [candidates]);
 
   // Calculate metrics
-  const activeCandidates = candidates.filter((c: any) => c.status === "active").length;
-  const tasksDue = tasks.filter((t: CandidateTask) => {
+  const activeCandidates = dashboardMetrics?.activeCandidates.current ?? candidates.filter((c: any) => c.status === "active").length;
+  const tasksDue = dashboardMetrics?.tasksDue.current ?? tasks.filter((t: CandidateTask) => {
     const dueDate = parseDueDate(t.dueAt);
     if (!dueDate) return false;
     const sevenDaysFromNow = new Date();
     sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
     return dueDate <= sevenDaysFromNow && t.status !== "done";
   }).length;
-  const overdueTasks = tasks.filter((t: CandidateTask) => {
+  const overdueTasks = dashboardMetrics?.overdueTasks.current ?? tasks.filter((t: CandidateTask) => {
     const dueDate = parseDueDate(t.dueAt);
     if (!dueDate) return false;
     return dueDate < new Date() && t.status !== "done";
   }).length;
-  const completedTasks = tasks.filter((t: CandidateTask) => t.status === "done").length;
-  const totalTasks = tasks.length;
-  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const completionRate = dashboardMetrics?.completionRate.current ?? (() => {
+    const completedCandidates = candidates.filter((c: any) => c.status === "completed").length;
+    const totalCandidates = candidates.filter((c: any) => c.status !== "draft" && c.status !== "canceled").length;
+    return totalCandidates > 0 ? Math.round((completedCandidates / totalCandidates) * 100) : 0;
+  })();
+
+  // Format change indicators
+  const formatChange = (metric?: DashboardMetric) => {
+    if (!metric) return { text: "", className: "text-muted-foreground", label: "" };
+    const sign = metric.changePercent > 0 ? "+" : "";
+    const className = metric.changePercent > 0 
+      ? "text-accent" 
+      : metric.changePercent < 0 
+        ? "text-destructive" 
+        : "text-muted-foreground";
+    return { 
+      text: `${sign}${metric.changePercent}%`, 
+      className,
+      label: metric.changePercent === metric.change ? "from last period" : "from last month"
+    };
+  };
+
+  const formatTaskChange = (metric?: DashboardMetric) => {
+    if (!metric) return { text: "", className: "text-muted-foreground", label: "" };
+    const sign = metric.change > 0 ? "+" : "";
+    const className = metric.change > 0 
+      ? "text-chart-3" 
+      : metric.change < 0 
+        ? "text-accent" 
+        : "text-muted-foreground";
+    return { 
+      text: `${sign}${metric.change}`, 
+      className,
+      label: "from last week"
+    };
+  };
+
+  const activeCandidatesChange = formatChange(dashboardMetrics?.activeCandidates);
+  const tasksDueChange = formatTaskChange(dashboardMetrics?.tasksDue);
+  const overdueTasksChange = formatTaskChange(dashboardMetrics?.overdueTasks);
+  const completionRateChange = formatChange(dashboardMetrics?.completionRate);
 
   const urgentTasks = useMemo(() => {
     const now = new Date();
@@ -564,8 +636,8 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
-              <span className="text-accent">+8.2%</span>
-              <span className="text-muted-foreground ml-2">from last month</span>
+              <span className={activeCandidatesChange.className}>{activeCandidatesChange.text}</span>
+              <span className="text-muted-foreground ml-2">{activeCandidatesChange.label}</span>
             </div>
           </CardContent>
         </Card>
@@ -582,8 +654,8 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
-              <span className="text-chart-3">-3.1%</span>
-              <span className="text-muted-foreground ml-2">from last week</span>
+              <span className={tasksDueChange.className}>{tasksDueChange.text}</span>
+              <span className="text-muted-foreground ml-2">{tasksDueChange.label}</span>
             </div>
           </CardContent>
         </Card>
@@ -600,8 +672,8 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
-              <span className="text-destructive">+1</span>
-              <span className="text-muted-foreground ml-2">new this week</span>
+              <span className={overdueTasksChange.className}>{overdueTasksChange.text}</span>
+              <span className="text-muted-foreground ml-2">{overdueTasksChange.label}</span>
             </div>
           </CardContent>
         </Card>
@@ -618,8 +690,8 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
-              <span className="text-accent">+5.3%</span>
-              <span className="text-muted-foreground ml-2">from last month</span>
+              <span className={completionRateChange.className}>{completionRateChange.text}</span>
+              <span className="text-muted-foreground ml-2">{completionRateChange.label}</span>
             </div>
           </CardContent>
         </Card>
@@ -701,19 +773,35 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 max-w-full">
-            {recentActivityLoading ? (
+            {!canViewRecentActivity ? (
+              <div className="flex flex-col items-center justify-center text-center gap-2 py-8 text-muted-foreground h-full">
+                <CircleAlert className="w-8 h-8 text-muted-foreground/70" />
+                <div>
+                  <p className="text-sm font-medium">No recent activity available</p>
+                  <p className="text-xs">Activity tracking is available for managers and administrators</p>
+                </div>
+              </div>
+            ) : recentActivityLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 4 }).map((_, index) => (
                   <DashboardListRowSkeleton key={index} />
                 ))}
               </div>
             ) : recentActivityError ? (
-              <div className="text-sm text-destructive text-center py-6">
-                Unable to load recent activity.
+              <div className="flex flex-col items-center justify-center text-center gap-2 py-8 text-muted-foreground h-full">
+                <CircleAlert className="w-8 h-8 text-muted-foreground/70" />
+                <div>
+                  <p className="text-sm font-medium">No recent activity available</p>
+                  <p className="text-xs">Unable to load activity at this time</p>
+                </div>
               </div>
             ) : recentActivity.length === 0 ? (
-              <div className="text-sm text-muted-foreground text-center py-6">
-                No recent activity yet.
+              <div className="flex flex-col items-center justify-center text-center gap-2 py-8 text-muted-foreground h-full">
+                <CircleAlert className="w-8 h-8 text-muted-foreground/70" />
+                <div>
+                  <p className="text-sm font-medium">No recent activity yet</p>
+                  <p className="text-xs">Activity will appear here as candidates are added and tasks are completed</p>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -783,7 +871,13 @@ export default function Dashboard() {
           <CardContent className="p-3 sm:p-4 pt-0">
             <div className="space-y-3">
               {urgentTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-2.5">No urgent tasks at the moment</p>
+                <div className="flex flex-col items-center justify-center text-center gap-2 py-8 text-muted-foreground">
+                  <CircleAlert className="w-8 h-8 text-muted-foreground/70" />
+                  <div>
+                    <p className="text-sm font-medium">No urgent tasks at the moment</p>
+                    <p className="text-xs">Overdue tasks will appear here for quick action</p>
+                  </div>
+                </div>
               ) : (
                 urgentTasks.map(({ task, dueDate, isOverdue }: { task: TaskWithCandidate; dueDate: Date | null; isOverdue: boolean }, index: number) => {
                   const candidateName = [task.candidate?.firstName, task.candidate?.lastName].filter(Boolean).join(" ") || "Unknown Candidate";
@@ -840,13 +934,35 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 flex-1">
             {!canViewDivisionOverview ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                You don’t have permission to view division insights.
-              </p>
+              <div className="flex flex-col items-center justify-center text-center gap-2 py-8 text-muted-foreground">
+                <CircleAlert className="w-8 h-8 text-muted-foreground/70" />
+                <div>
+                  <p className="text-sm font-medium">No division overview available</p>
+                  <p className="text-xs">Division insights are available for managers and administrators</p>
+                </div>
+              </div>
             ) : divisionOverviewError ? (
-              <p className="text-sm text-destructive text-center py-4">
-                Unable to load division overview. Please try again later.
-              </p>
+              <div className="flex flex-col items-center justify-center text-center gap-2 py-8 text-muted-foreground">
+                <CircleAlert className="w-8 h-8 text-muted-foreground/70" />
+                <div>
+                  <p className="text-sm font-medium">No division data available</p>
+                  <p className="text-xs">Unable to load division overview at this time</p>
+                </div>
+              </div>
+            ) : divisionOverviewLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <DashboardListRowSkeleton key={index} />
+                ))}
+              </div>
+            ) : divisionOverview.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center gap-2 py-8 text-muted-foreground">
+                <CircleAlert className="w-8 h-8 text-muted-foreground/70" />
+                <div>
+                  <p className="text-sm font-medium">No division data available</p>
+                  <p className="text-xs">Division data will appear here when active candidates are added</p>
+                </div>
+              </div>
             ) : (
               <div className="space-y-3">
                 {divisionOverviewItems.map((item, index) => {
