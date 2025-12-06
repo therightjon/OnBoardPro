@@ -211,16 +211,22 @@ export function HiringProgress({
       <CardContent>
         {/* Progress Steps */}
         <div className="relative">
-          {/* Connecting Line */}
-          <div className="absolute left-[18px] top-[24px] h-[calc(100%-48px)] w-0.5 bg-muted" />
+          {/* Connecting Line (background) */}
+          <div className={cn(
+            "absolute left-[18px] top-[24px] w-0.5 bg-muted",
+            isFullyOnboarded ? "h-[calc(100%-24px)]" : "h-[calc(100%-48px)]"
+          )} />
           
           {/* Progress Line (filled portion) */}
           <div
-            className="absolute left-[18px] top-[24px] w-0.5 bg-primary transition-all duration-500"
+            className={cn(
+              "absolute left-[18px] top-[24px] w-0.5 transition-all duration-500",
+              isFullyOnboarded ? "bg-green-600" : "bg-primary"
+            )}
             style={{
               height: isFullyOnboarded 
-                ? "calc(100% - 24px)" // Full line when fully onboarded
-                : `calc(${(effectivePhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${effectivePhaseIndex === 0 ? 0 : 24}px)`,
+                ? "calc(100% - 40px)" // Full line to completion note when fully onboarded
+                : `calc(${(effectivePhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${effectivePhaseIndex === 0 ? 0 : 30}px)`,
             }}
           />
 
@@ -317,23 +323,39 @@ export function HiringProgress({
                 </div>
               );
             })}
+
+            {/* Template Status Note - positioned inside the progress line container when fully onboarded */}
+            {candidate.templateAppliedAt && isFullyOnboarded && (
+              <div className="flex gap-4">
+                {/* Completion Circle */}
+                <div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-green-600 bg-green-600">
+                  <Check className="h-5 w-5 text-white" />
+                </div>
+                {/* Content */}
+                <div className="flex-1 min-w-0 max-w-[200px]">
+                  <div className={cn(
+                    "rounded-md p-3",
+                    "bg-green-50 dark:bg-emerald-950 border border-green-200 dark:border-emerald-700"
+                  )}>
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium text-green-700 dark:text-emerald-300">
+                        Onboarding Complete!
+                      </span>
+                      {" · "}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Template Status Note */}
-        {candidate.templateAppliedAt && (
-          <div className={cn(
-            "mt-4 rounded-md p-3",
-            isFullyOnboarded 
-              ? "bg-green-50 dark:bg-emerald-950 border border-green-200 dark:border-emerald-700" 
-              : "bg-muted/50"
-          )}>
+        {/* Template Status Note - shown outside progress line when not fully onboarded */}
+        {candidate.templateAppliedAt && !isFullyOnboarded && (
+          <div className="mt-4 rounded-md bg-muted/50 p-3">
             <p className="text-sm text-muted-foreground">
-              <span className={cn(
-                "font-medium",
-                isFullyOnboarded ? "text-green-700 dark:text-emerald-300" : "text-foreground"
-              )}>
-                {isFullyOnboarded ? "Onboarding Complete!" : "Onboarding Active"}
+              <span className="font-medium text-foreground">
+                Onboarding Active
               </span>
               {" · "}
               Template applied on {formatDate(candidate.templateAppliedAt)}
