@@ -602,8 +602,33 @@ export class MockServiceFactory {
   }
 
   getTaskService(): any {
+    const self = this;
     return {
       getTask: (id: string) => this.getCandidateTask(id),
+      getTasks: async (filters: any, authContext?: any) => {
+        let tasks = Array.from(self.data.candidateTasks.values());
+        
+        // Apply filters
+        if (filters?.assigneeId) {
+          tasks = tasks.filter(t => t.assigneeUserId === filters.assigneeId);
+        }
+        if (filters?.candidateId) {
+          tasks = tasks.filter(t => t.candidateId === filters.candidateId);
+        }
+        if (filters?.status) {
+          tasks = tasks.filter(t => t.status === filters.status);
+        }
+        
+        // Apply authorization context filtering
+        if (authContext && !authContext.privileged) {
+          tasks = tasks.filter((task) => {
+            const candidate = self.data.candidates.get(task.candidateId);
+            return candidate ? self.isCandidateVisible(candidate, authContext) : false;
+          });
+        }
+        
+        return tasks.map(t => ({ ...t }));
+      },
       getTasksForCandidate: (candidateId: string) => 
         Promise.resolve(Array.from(this.data.candidateTasks.values()).filter(t => t.candidateId === candidateId)),
       createTask: async (input: { data: any; actorId?: string }) => {

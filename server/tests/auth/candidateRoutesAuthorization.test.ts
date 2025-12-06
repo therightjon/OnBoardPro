@@ -30,7 +30,7 @@ async function setupTest(t: any, userId: string) {
   const env = await createAuthTestEnvironment();
   const resetStorage = env.useAsGlobalStorage();
   const fixtures = await seedAuthorizationFixtures(env.storage);
-  const { agent } = await createAuthedAgent({ storage: env.storage, userId });
+  const { agent } = await createAuthedAgent({ mockFactory: env.storage, userId });
 
   t.after(async () => {
     resetStorage();
