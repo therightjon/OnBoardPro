@@ -46,6 +46,8 @@ interface HiringProgressProps {
     offerLetterAcceptedAt: string | Date | null;
     templateAppliedAt: string | Date | null;
   };
+  /** The current stage phase from the candidate's workflow (pre_hire or onboarding) */
+  currentStagePhase?: "pre_hire" | "onboarding" | null;
   /** When true, shows the candidate as fully onboarded (all tasks completed) */
   isFullyOnboarded?: boolean;
   className?: string;
@@ -91,6 +93,7 @@ function formatDate(date: string | Date | null | undefined): string {
 
 export function HiringProgress({
   candidate,
+  currentStagePhase,
   isFullyOnboarded = false,
   className,
 }: HiringProgressProps) {
@@ -129,10 +132,16 @@ export function HiringProgress({
 
   const phaseInfo = getHiringPhase(candidate);
   
+  // Override the phase if currentStagePhase indicates onboarding and template is applied
+  const effectivePhase: HiringPhase = 
+    candidate.templateAppliedAt && currentStagePhase === "onboarding" 
+      ? "onboarding" 
+      : phaseInfo.phase;
+  
   // When fully onboarded, all steps are complete
   const effectivePhaseIndex = isFullyOnboarded
     ? HIRING_STEPS.length // All steps complete
-    : HIRING_STEPS.findIndex((step) => step.id === phaseInfo.phase);
+    : HIRING_STEPS.findIndex((step) => step.id === effectivePhase);
 
   // Determine step status for each phase
   const getStepStatus = (stepIndex: number) => {
@@ -204,7 +213,7 @@ export function HiringProgress({
           {isFullyOnboarded ? (
             <Badge variant="default" className="bg-green-600 hover:bg-green-600">Fully Onboarded</Badge>
           ) : (
-            <Badge variant={HIRING_PHASE_VARIANTS[phaseInfo.phase]}>{phaseInfo.label}</Badge>
+            <Badge variant={HIRING_PHASE_VARIANTS[effectivePhase]}>{HIRING_PHASE_LABELS[effectivePhase]}</Badge>
           )}
         </div>
       </CardHeader>
@@ -226,7 +235,7 @@ export function HiringProgress({
             style={{
               height: isFullyOnboarded 
                 ? "calc(100% - 40px)" // Full line to completion note when fully onboarded
-                : `calc(${(effectivePhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${effectivePhaseIndex === 0 ? 0 : 30}px)`,
+                : `calc(${(effectivePhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${effectivePhaseIndex === 0 ? 0 : 50}px)`,
             }}
           />
 
@@ -234,7 +243,8 @@ export function HiringProgress({
           <div className="relative space-y-6">
             {HIRING_STEPS.map((step, index) => {
               const status = getStepStatus(index);
-              const stepDate = getStepDate(step.id);
+              // Cast to HiringPhase since HIRING_STEPS only contains valid phases (not "completed")
+              const stepDate = getStepDate(step.id as HiringPhase);
               const isOnboardingStep = step.id === "onboarding";
 
               return (
@@ -249,7 +259,7 @@ export function HiringProgress({
                     )}
                   >
                     <StepIcon
-                      phase={step.id}
+                      phase={step.id as HiringPhase}
                       isComplete={status === "complete"}
                       isCurrent={status === "current"}
                     />

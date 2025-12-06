@@ -1152,6 +1152,7 @@ export default function CandidateDetailPage() {
           offerLetterAcceptedAt: (candidate as any).offerLetterAcceptedAt,
           templateAppliedAt: (candidate as any).templateAppliedAt,
         }}
+        currentStagePhase={candidatePhase === "onboarding" ? "onboarding" : "pre_hire"}
         isFullyOnboarded={fullyOnboarded}
       />
 
