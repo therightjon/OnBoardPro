@@ -13,7 +13,7 @@
     "db:run-sql": "node scripts/runSqlFiles.mjs",
     "user:set-password": "tsx scripts/setPassword.ts",
     "test": "npm run test:backend && npm run test:frontend",
-    "test:backend": "cross-env NODE_ENV=test SKIP_AUTH_SETUP=1 tsx --test server/tests/**/*.test.ts",
+    "test:backend": "cross-env NODE_ENV=test SKIP_AUTH_SETUP=1 tsx --test 'server/tests/{auth,routes,repositories,db,services,utils}/**/*.test.ts'",
     "test:frontend": "vitest run",
     "test:auth": "cross-env NODE_ENV=test SKIP_AUTH_SETUP=1 tsx --test server/tests/auth/**/*.test.ts",
     "test:routes": "cross-env NODE_ENV=test SKIP_AUTH_SETUP=1 tsx --test server/tests/routes/**/*.test.ts",

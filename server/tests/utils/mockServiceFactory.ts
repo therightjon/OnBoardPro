@@ -204,6 +204,44 @@ export class MockServiceFactory {
   }
 
   // ==========================================================================
+  // Legacy Async Methods (for backward compatibility with old tests)
+  // These wrap the synchronous upsert methods so tests can use await
+  // ==========================================================================
+
+  async createUser(record: User): Promise<User> {
+    this.upsertUser(record);
+    return { ...record };
+  }
+
+  async createDepartment(record: Department): Promise<Department> {
+    this.upsertDepartment(record);
+    return { ...record };
+  }
+
+  async createDivision(record: Division): Promise<Division> {
+    this.upsertDivision(record);
+    return { ...record };
+  }
+
+  async addUserRole(userId: string, role: string): Promise<void> {
+    const existing = this.data.userRoles.get(userId) ?? new Set();
+    existing.add(role);
+    this.data.userRoles.set(userId, existing);
+  }
+
+  async addUserDepartmentScope(userId: string, departmentId: string): Promise<void> {
+    const existing = this.data.userDepartmentScopes.get(userId) ?? new Set();
+    existing.add(departmentId);
+    this.data.userDepartmentScopes.set(userId, existing);
+  }
+
+  async addUserDivisionScope(userId: string, divisionId: string): Promise<void> {
+    const existing = this.data.userDivisionScopes.get(userId) ?? new Set();
+    existing.add(divisionId);
+    this.data.userDivisionScopes.set(userId, existing);
+  }
+
+  // ==========================================================================
   // Authorization Context Builder
   // ==========================================================================
 
