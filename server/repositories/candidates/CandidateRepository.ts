@@ -172,45 +172,6 @@ export class CandidateRepository extends BaseRepository {
       .orderBy(desc(candidates.createdAt));
   }
 
-  /**
-   * Build a visibility checker function for a specific authorization context
-   * Used to filter single candidate results in memory after fetching
-   *
-   * @param auth - Authorization context
-   * @returns Function that returns true if candidate is visible
-   */
-  private buildCandidateVisibilityChecker(auth: AuthorizationContext): (candidate: any) => boolean {
-    return (candidate: any) => {
-      if (auth.privileged) return true;
-
-      // Check department scope
-      if (candidate.departmentId && auth.departmentIds.has(candidate.departmentId)) {
-        return true;
-      }
-
-      // Check division scope
-      if (candidate.divisionId && auth.divisionIds.has(candidate.divisionId)) {
-        return true;
-      }
-
-      // Check manager scope
-      if (auth.roles.has("manager") && candidate.managerId === auth.userId) {
-        return true;
-      }
-
-      // Check candidate self-access
-      if (auth.roles.has("candidate") && candidate.linkedUserId === auth.userId) {
-        return true;
-      }
-
-      // Check explicit candidate grants
-      if (auth.managedCandidateIds.has(candidate.id)) {
-        return true;
-      }
-
-      return false;
-    };
-  }
 
   /**
    * Get a single candidate by ID with full details and authorization check
@@ -323,8 +284,30 @@ export class CandidateRepository extends BaseRepository {
 
     // CRITICAL: Authorization check for non-privileged users
     if (auth && !auth.privileged) {
-      const accessible = this.buildCandidateVisibilityChecker(auth);
-      if (!accessible(candidate)) {
+      let isVisible = false;
+
+      // Check department scope
+      if (candidate.departmentId && auth.departmentIds.has(candidate.departmentId)) {
+        isVisible = true;
+      }
+      // Check division scope
+      else if (candidate.divisionId && auth.divisionIds.has(candidate.divisionId)) {
+        isVisible = true;
+      }
+      // Check manager scope
+      else if (auth.roles.has("manager") && candidate.managerId === auth.userId) {
+        isVisible = true;
+      }
+      // Check candidate self-access
+      else if (auth.roles.has("candidate") && candidate.linkedUserId === auth.userId) {
+        isVisible = true;
+      }
+      // Check explicit candidate grants
+      else if (auth.managedCandidateIds.has(candidate.id)) {
+        isVisible = true;
+      }
+
+      if (!isVisible) {
         return undefined;
       }
     }
