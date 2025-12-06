@@ -374,7 +374,11 @@ export default function Dashboard() {
     enabled: !!user && canViewDivisionOverview,
     queryFn: async () => {
       const res = await fetch('/api/dashboard/divisions?limit=4', { credentials: 'include' });
-      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Division overview fetch failed:', res.status, errorText);
+        throw new Error(`${res.status}: ${res.statusText}`);
+      }
       return res.json();
     }
   });

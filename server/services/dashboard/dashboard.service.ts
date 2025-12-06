@@ -70,7 +70,8 @@ export class DashboardService {
       if (auth.isCandidate && auth.userId) {
         scopeFilters.linkedUserIds = [auth.userId];
       }
-      this.applyScopeFilters(whereConditions, scopeFilters, true);
+      // For division overview, don't require scope - allow empty results instead of blocking
+      this.applyScopeFilters(whereConditions, scopeFilters, false);
     }
 
     const countExpression = sql<number>`count(*)::int`;
