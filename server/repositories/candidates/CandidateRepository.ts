@@ -173,6 +173,46 @@ export class CandidateRepository extends BaseRepository {
   }
 
   /**
+   * Build a visibility checker function for a specific authorization context
+   * Used to filter single candidate results in memory after fetching
+   *
+   * @param auth - Authorization context
+   * @returns Function that returns true if candidate is visible
+   */
+  private buildCandidateVisibilityChecker(auth: AuthorizationContext): (candidate: any) => boolean {
+    return (candidate: any) => {
+      if (auth.privileged) return true;
+
+      // Check department scope
+      if (candidate.departmentId && auth.departmentIds.has(candidate.departmentId)) {
+        return true;
+      }
+
+      // Check division scope
+      if (candidate.divisionId && auth.divisionIds.has(candidate.divisionId)) {
+        return true;
+      }
+
+      // Check manager scope
+      if (auth.roles.has("manager") && candidate.managerId === auth.userId) {
+        return true;
+      }
+
+      // Check candidate self-access
+      if (auth.roles.has("candidate") && candidate.linkedUserId === auth.userId) {
+        return true;
+      }
+
+      // Check explicit candidate grants
+      if (auth.managedCandidateIds.has(candidate.id)) {
+        return true;
+      }
+
+      return false;
+    };
+  }
+
+  /**
    * Get a single candidate by ID with full details and authorization check
    *
    * Performs a complex query with 10+ left joins to fetch all related data.
