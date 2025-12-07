@@ -708,6 +708,7 @@ export class MockServiceFactory {
   }
 
   getUserService(): any {
+    const self = this;
     return {
       getUser: (id: string) => this.getUser(id),
       getUserByUsername: (username: string) => {
@@ -734,7 +735,12 @@ export class MockServiceFactory {
       getUserPreferences: (userId: string) => this.getUserPreferences(userId),
       updateUserPreferences: (userId: string, data: any) => this.upsertUserPreferences(userId, data),
       validatePassword: () => Promise.resolve(false),
-      verifyPassword: () => Promise.resolve(false)
+      verifyPassword: () => Promise.resolve(false),
+      // Add hydration methods
+      getUserRoles: (userId: string) => self.getUserRoles(userId),
+      getUserDepartmentScopeIds: (userId: string) => self.getUserDepartmentScopeIds(userId),
+      getUserDivisionScopeIds: (userId: string) => self.getUserDivisionScopeIds(userId),
+      getManagerCandidateScopeIds: (managerId: string) => self.getManagerCandidateScopeIds(managerId)
     };
   }
 
