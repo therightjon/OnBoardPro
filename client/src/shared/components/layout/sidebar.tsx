@@ -4,19 +4,22 @@ import { Button } from "@/shared/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useTheme } from "@/shared/components/layout/theme-provider";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
-import { 
-  ChartLine, 
-  Bus, 
-  BookOpen, 
-  UserCheck, 
-  ClipboardList, 
-  ChartBar, 
+import {
+  ChartLine,
+  Bus,
+  BookOpen,
+  UserCheck,
+  ClipboardList,
+  ChartBar,
   Bell,
   Settings,
   Users,
-  LogOut
+  LogOut,
+  Sun,
+  Moon
 } from "lucide-react";
 import { useUnreadNotifications, UNREAD_COUNT_QUERY_KEY } from "@/features/notifications/hooks/useUnreadNotifications";
 import { fetchNotifications, markNotificationRead } from "@/features/notifications/api";
@@ -40,8 +43,8 @@ interface NavigationItem {
 const allNavigation: NavigationItem[] = [
   { name: "Dashboard", href: "/", icon: ChartLine, roles: ["system_admin", "hr_staff", "department_admin", "division_leader", "manager", "candidate"] },
   { name: "Candidates", href: "/candidates", icon: Bus, roles: ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"] },
-  { name: "Task Library", href: "/tasks", icon: BookOpen, roles: ["system_admin", "hr_staff"] },
   { name: "My Tasks", href: "/tasks/mine", icon: UserCheck, roles: ["system_admin", "hr_staff", "department_admin", "division_leader", "manager", "candidate"] },
+  { name: "Task Library", href: "/tasks", icon: BookOpen, roles: ["system_admin", "hr_staff"] },
   { name: "Templates", href: "/templates", icon: ClipboardList, roles: ["system_admin", "hr_staff"] },
   { name: "Analytics", href: "/analytics", icon: ChartBar, roles: ["system_admin", "hr_staff", "department_admin"] },
   { name: "Settings", href: "/settings", icon: Settings, roles: ["system_admin", "hr_staff", "department_admin", "division_leader", "manager", "candidate"] },
@@ -52,9 +55,14 @@ const RESET_UNREAD_ON_NAVIGATE = false;
 export function Sidebar({ className, onNavigate }: SidebarProps) {
   const [location] = useLocation();
   const { user, logoutMutation } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   const handleLogout = () => {
     logoutMutation.mutate();
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
   };
 
   if (!user) return null;
@@ -125,8 +133,8 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       </nav>
 
       {/* User panel directly below nav with tighter spacing */}
-      <div className="px-3 pb-3 pt-2 border-t border-border">
-        <div className="flex items-center space-x-3 mb-2">
+      <div className="px-3 pb-3 pt-2 border-t border-border mr-4">
+        <div className="flex items-start space-x-3 mb-2">
           <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
             <span className="text-primary-foreground text-sm font-medium" data-testid="text-user-initials">
               {((user.firstName || '').charAt(0) + (user.lastName || '').charAt(0)).toUpperCase()}
@@ -138,10 +146,24 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
               {user.role.replace('_', ' ')}
             </p>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            className="h-8 w-8 shrink-0"
+            data-testid="button-theme-toggle"
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
         </div>
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           className="w-full justify-start text-muted-foreground hover:text-foreground"
           onClick={handleLogout}
           disabled={logoutMutation.isPending}
