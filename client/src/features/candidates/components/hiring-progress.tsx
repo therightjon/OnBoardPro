@@ -235,7 +235,7 @@ export function HiringProgress({
             style={{
               height: isFullyOnboarded 
                 ? "calc(100% - 40px)" // Full line to completion note when fully onboarded
-                : `calc(${(effectivePhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${effectivePhaseIndex === 0 ? 0 : 50}px)`,
+                : `calc(${(effectivePhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${effectivePhaseIndex === 0 ? 0 : 30}px)`,
             }}
           />
 
