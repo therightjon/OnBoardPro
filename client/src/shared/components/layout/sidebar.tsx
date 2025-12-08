@@ -133,8 +133,8 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       </nav>
 
       {/* User panel directly below nav with tighter spacing */}
-      <div className="px-3 pb-3 pt-2 border-t border-border">
-        <div className="flex items-center space-x-3 mb-2">
+      <div className="px-3 pb-3 pt-2 border-t border-border mr-4">
+        <div className="flex items-start space-x-3 mb-2">
           <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
             <span className="text-primary-foreground text-sm font-medium" data-testid="text-user-initials">
               {((user.firstName || '').charAt(0) + (user.lastName || '').charAt(0)).toUpperCase()}
