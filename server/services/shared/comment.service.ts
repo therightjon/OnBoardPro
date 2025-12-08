@@ -19,14 +19,14 @@ export interface CreateCommentInput {
 }
 
 export interface EditCommentInput {
-  commentId: string;
+  id: string;
   body: string;
   userId: string;
   userRole: string;
 }
 
 export interface DeleteCommentInput {
-  commentId: string;
+  id: string;
   userId: string;
   userRole: string;
 }
@@ -101,7 +101,7 @@ export class CommentService {
    */
   async editComment(input: EditCommentInput): Promise<Comment> {
     return this.commentRepo.editComment({
-      id: input.commentId,
+      id: input.id,
       body: input.body,
       userId: input.userId,
       userRole: input.userRole
@@ -114,7 +114,7 @@ export class CommentService {
    */
   async deleteComment(input: DeleteCommentInput): Promise<void> {
     await this.commentRepo.deleteComment({
-      id: input.commentId,
+      id: input.id,
       userId: input.userId,
       userRole: input.userRole
     });
