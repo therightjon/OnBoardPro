@@ -62,7 +62,8 @@ describe("Authentication - Password Hashing", () => {
 
     const { agent } = await createAuthedAgent({
       storage,
-      userId: null
+      userId: null,
+      enableSessions: true
     });
 
     // Attempt login with correct password
@@ -101,7 +102,8 @@ describe("Authentication - Password Hashing", () => {
 
     const { agent } = await createAuthedAgent({
       storage,
-      userId: null
+      userId: null,
+      enableSessions: true
     });
 
     // Attempt login with correct password
@@ -138,7 +140,8 @@ describe("Authentication - Password Hashing", () => {
 
     const { agent } = await createAuthedAgent({
       storage,
-      userId: null
+      userId: null,
+      enableSessions: true
     });
 
     // Attempt login with wrong password
@@ -169,7 +172,8 @@ describe("Authentication - Password Hashing", () => {
 
     const { agent } = await createAuthedAgent({
       storage,
-      userId: null
+      userId: null,
+      enableSessions: true
     });
 
     await agent
@@ -204,7 +208,8 @@ describe("Authentication - Login Flow", () => {
 
     const { agent } = await createAuthedAgent({
       storage,
-      userId: null
+      userId: null,
+      enableSessions: true
     });
 
     const response = await agent
@@ -228,7 +233,8 @@ describe("Authentication - Login Flow", () => {
 
     const { agent } = await createAuthedAgent({
       storage,
-      userId: null
+      userId: null,
+      enableSessions: true
     });
 
     await agent
@@ -261,7 +267,8 @@ describe("Authentication - Login Flow", () => {
 
     const { agent } = await createAuthedAgent({
       storage,
-      userId: null
+      userId: null,
+      enableSessions: true
     });
 
     await agent
@@ -291,7 +298,8 @@ describe("Authentication - Login Flow", () => {
 
     const { agent } = await createAuthedAgent({
       storage,
-      userId: null
+      userId: null,
+      enableSessions: true
     });
 
     await agent
@@ -375,7 +383,8 @@ describe("Authentication - Session Management", () => {
 
     const { agent } = await createAuthedAgent({
       storage,
-      userId: null
+      userId: null,
+      enableSessions: true
     });
 
     // Login
@@ -421,7 +430,8 @@ describe("Authentication - Session Management", () => {
 
     const { agent } = await createAuthedAgent({
       storage,
-      userId: null
+      userId: null,
+      enableSessions: true
     });
 
     // Login

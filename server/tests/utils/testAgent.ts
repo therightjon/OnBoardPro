@@ -1,10 +1,17 @@
 import express from "express";
 import type { Express } from "express";
+import session from "express-session";
 import supertest from "supertest";
 import type { SuperTest, Test } from "supertest";
 import type { RegisterRoutesOptions } from "../../routes";
 import { registerRoutes } from "../../routes";
 import type { MockServiceFactory } from "./mockServiceFactory";
+
+declare module "express-session" {
+  interface SessionData {
+    user?: Express.User;
+  }
+}
 
 /**
  * Build user session payload from mock factory data
@@ -34,8 +41,15 @@ export async function buildUserSessionPayload(factory: MockServiceFactory, userI
 export interface CreateAgentOptions {
   userId?: string | null;
   /** The mock service factory with test data */
-  mockFactory: MockServiceFactory;
+  mockFactory?: MockServiceFactory;
+  /** @deprecated Use mockFactory instead */
+  storage?: MockServiceFactory;
   registerOptions?: RegisterRoutesOptions;
+  /**
+   * Enable lightweight in-memory sessions for tests that need cookies.
+   * Defaults to false to preserve existing mock-only behavior.
+   */
+  enableSessions?: boolean;
 }
 
 /**
@@ -56,17 +70,53 @@ export interface CreateAgentOptions {
 export async function createAuthedAgent({
   userId,
   mockFactory,
-  registerOptions
+  storage,
+  registerOptions,
+  enableSessions
 }: CreateAgentOptions): Promise<{ agent: SuperTest<Test>; app: Express }>
 {
   const app = express();
   app.use(express.json());
 
-  const sessionUser = userId ? await buildUserSessionPayload(mockFactory, userId) : null;
+  const factory = mockFactory ?? storage;
+  if (!factory) {
+    throw new Error("createAuthedAgent requires a mockFactory or storage instance");
+  }
+
+  const sessionUser = userId ? await buildUserSessionPayload(factory, userId) : null;
+
+  if (enableSessions) {
+    const memoryStore = new session.MemoryStore();
+    app.use(
+      session({
+        secret: process.env.TEST_SESSION_SECRET || "test-session-secret",
+        resave: false,
+        saveUninitialized: false,
+        store: memoryStore,
+        cookie: {
+          httpOnly: true,
+          sameSite: "strict",
+          secure: false,
+          maxAge: 60 * 60 * 1000 // 1 hour
+        }
+      })
+    );
+  }
 
   app.use((req, _res, next) => {
-    if (sessionUser) {
-      req.user = { ...sessionUser } as Express.User;
+    const activeSessionUser = enableSessions ? (req.session?.user as Express.User | undefined) : undefined;
+
+    if (enableSessions && !activeSessionUser && sessionUser && req.session) {
+      // Seed the session with a user when userId is provided
+      req.session.user = { ...sessionUser } as Express.User;
+    }
+
+    const effectiveUser = enableSessions
+      ? (req.session?.user as Express.User | undefined) ?? null
+      : sessionUser;
+
+    if (effectiveUser) {
+      req.user = { ...effectiveUser } as Express.User;
       req.isAuthenticated = (() => true) as any;
     } else {
       req.user = undefined;
@@ -89,6 +139,7 @@ export interface LegacyCreateAgentOptions {
   /** @deprecated Use mockFactory instead */
   storage: MockServiceFactory;
   registerOptions?: RegisterRoutesOptions;
+  enableSessions?: boolean;
 }
 
 /**
@@ -98,6 +149,7 @@ export async function createAuthedAgentLegacy(options: LegacyCreateAgentOptions)
   return createAuthedAgent({
     userId: options.userId,
     mockFactory: options.storage,
-    registerOptions: options.registerOptions
+    registerOptions: options.registerOptions,
+    enableSessions: options.enableSessions
   });
 }
