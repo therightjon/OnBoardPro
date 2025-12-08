@@ -151,28 +151,17 @@ export function HiringProgress({
     return "upcoming";
   };
 
-  // Get the date for each step
+  // Map each step to the corresponding candidate date value
   const getStepDate = (stepId: HiringPhase): string | null => {
-    switch (stepId) {
-      case "loi_issued":
-        return candidate.letterOfIntentDate
-          ? formatDate(candidate.letterOfIntentDate)
-          : null;
-      case "offer_pending":
-        return candidate.offerLetterIssuedAt
-          ? formatDate(candidate.offerLetterIssuedAt)
-          : null;
-      case "pre_hire":
-        return candidate.offerLetterAcceptedAt
-          ? formatDate(candidate.offerLetterAcceptedAt)
-          : null;
-      case "onboarding":
-        return candidate.templateAppliedAt
-          ? formatDate(candidate.templateAppliedAt)
-          : null;
-      default:
-        return null;
-    }
+    const stepDateMap: Record<HiringPhase, string | Date | null> = {
+      loi_issued: candidate.letterOfIntentDate,
+      offer_pending: candidate.offerLetterIssuedAt,
+      pre_hire: candidate.offerLetterAcceptedAt,
+      onboarding: candidate.templateAppliedAt,
+    };
+
+    const date = stepDateMap[stepId];
+    return date ? formatDate(date) : null;
   };
 
   // Determine if the primary action button should be shown and what it should do
