@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { invalidateMyTasks } from "@/lib/query-invalidate";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -285,7 +285,10 @@ export default function CandidateDetailPage() {
       opts.set('none', { id: 'none', name: 'Unassigned' });
       (assignableUsers as any[]).forEach((u: any) => {
         if (u?.id) {
-          opts.set(u.id, { id: u.id, name: `${u.firstName} ${u.lastName}`, firstName: u.firstName, lastName: u.lastName });
+          const firstName = u.firstName ?? '';
+          const lastName = u.lastName ?? '';
+          const name = `${firstName} ${lastName}`.trim() || 'Unnamed User';
+          opts.set(u.id, { id: u.id, name, firstName: u.firstName, lastName: u.lastName });
         }
       });
       (tasksWithOrder as any[]).forEach((t: any) => {
@@ -296,7 +299,8 @@ export default function CandidateDetailPage() {
           opts.set(t.assigneeUserId, { id: t.assigneeUserId, name: fallbackName || 'Unassigned' });
         }
       });
-      return Array.from(opts.values());
+      // Filter out any entries with invalid names
+      return Array.from(opts.values()).filter(opt => opt.name && typeof opt.name === 'string');
     },
     [assignableUsers, tasksWithOrder]
   );
@@ -304,6 +308,73 @@ export default function CandidateDetailPage() {
   const pendingAnchorTasks = useMemo(() => (
     tasksWithOrder.filter((task: any) => task.pendingAnchor)
   ), [tasksWithOrder]);
+
+  // Memoized fetch function for assignee search to prevent infinite loops
+  const fetchAssigneeItems = useCallback(async (q: string, taskId: string) => {
+    try {
+      const query = q.trim().toLowerCase();
+      const allOptions = assigneeOptions;
+      
+      // Validate allOptions
+      if (!Array.isArray(allOptions)) {
+        console.error('assigneeOptions is not an array:', allOptions);
+        return [{ id: 'none', name: 'Unassigned' }];
+      }
+      
+      // Show a small curated list when empty query: Unassigned + current + up to 3 others
+      if (query.length === 0) {
+        const currentId = (pendingAssignees[taskId] ?? tasksWithOrder.find((t: any) => t.id === taskId)?.assignee?.id ?? tasksWithOrder.find((t: any) => t.id === taskId)?.assigneeUserId ?? 'none') as string;
+        const picked: any[] = [];
+        const seen = new Set<string>();
+        const addOption = (id: string) => {
+          const found = allOptions.find((o) => o && o.id === id);
+          if (found && !seen.has(id)) {
+            picked.push(found);
+            seen.add(id);
+          }
+        };
+        addOption('none');
+        addOption(currentId);
+        for (const opt of allOptions) {
+          if (picked.length >= 5) break;
+          if (opt && opt.id && !seen.has(opt.id)) addOption(opt.id);
+        }
+        return picked.slice(0, 5);
+      }
+
+      // For search, filter across full list but cap at 5, ensuring current (if matching) is included
+      const currentId = (pendingAssignees[taskId] ?? tasksWithOrder.find((t: any) => t.id === taskId)?.assignee?.id ?? tasksWithOrder.find((t: any) => t.id === taskId)?.assigneeUserId ?? 'none') as string;
+      const matches = allOptions.filter((opt) => {
+        if (!opt || !opt.id) return false;
+        return opt.name && typeof opt.name === 'string' && opt.name.toLowerCase().includes(query);
+      });
+
+      const results: typeof allOptions = [];
+      const seen = new Set<string>();
+      for (const opt of matches) {
+        if (results.length >= 5) break;
+        if (opt && opt.id && !seen.has(opt.id)) {
+          results.push(opt);
+          seen.add(opt.id);
+        }
+      }
+
+      const currentMatch = matches.find((m) => m && m.id === currentId);
+      if (currentMatch && !seen.has(currentId)) {
+        if (results.length < 5) {
+          results.push(currentMatch);
+        } else {
+          // Replace the last non-current entry to keep size at 5
+          results[results.length - 1] = currentMatch;
+        }
+      }
+
+      return results.slice(0, 5);
+    } catch (error) {
+      console.error('Error in fetchItems:', error);
+      return [{ id: 'none', name: 'Unassigned' }];
+    }
+  }, [assigneeOptions, pendingAssignees, tasksWithOrder]);
 
   // Group by stage_id using snapshotted order
   const tasksByStage = useMemo(() => {
@@ -1289,56 +1360,7 @@ export default function CandidateDetailPage() {
                                                 });
                                                 setPendingAssignees((prev) => ({ ...prev, [task.id]: id ?? 'none' }));
                                               }}
-                                              fetchItems={async (q: string) => {
-                                                const query = q.trim().toLowerCase();
-                                                const allOptions = assigneeOptions;
-                                                // Show a small curated list when empty query: Unassigned + current + up to 3 others
-                                                if (query.length === 0) {
-                                                  const currentId = (pendingAssignees[task.id] ?? task.assignee?.id ?? task.assigneeUserId ?? 'none') as string;
-                                                  const picked: any[] = [];
-                                                  const seen = new Set<string>();
-                                                  const addOption = (id: string) => {
-                                                    const found = allOptions.find((o) => o.id === id);
-                                                    if (found && !seen.has(id)) {
-                                                      picked.push(found);
-                                                      seen.add(id);
-                                                    }
-                                                  };
-                                                  addOption('none');
-                                                  addOption(currentId);
-                                                  for (const opt of allOptions) {
-                                                    if (picked.length >= 5) break;
-                                                    if (!seen.has(opt.id)) addOption(opt.id);
-                                                  }
-                                                  return picked.slice(0, 5);
-                                                }
-
-                                                // For search, filter across full list but cap at 5, ensuring current (if matching) is included
-                                                const currentId = (pendingAssignees[task.id] ?? task.assignee?.id ?? task.assigneeUserId ?? 'none') as string;
-                                                const matches = allOptions.filter((opt) => opt.id === 'none' || opt.name.toLowerCase().includes(query));
-
-                                                const results: typeof allOptions = [];
-                                                const seen = new Set<string>();
-                                                for (const opt of matches) {
-                                                  if (results.length >= 5) break;
-                                                  if (!seen.has(opt.id)) {
-                                                    results.push(opt);
-                                                    seen.add(opt.id);
-                                                  }
-                                                }
-
-                                                const currentMatch = matches.find((m) => m.id === currentId);
-                                                if (currentMatch && !seen.has(currentId)) {
-                                                  if (results.length < 5) {
-                                                    results.push(currentMatch);
-                                                  } else {
-                                                    // Replace the last non-current entry to keep size at 5
-                                                    results[results.length - 1] = currentMatch;
-                                                  }
-                                                }
-
-                                                return results.slice(0, 5);
-                                              }}
+                                              fetchItems={(q: string) => fetchAssigneeItems(q, task.id)}
                                               placeholder="Select assignee"
                                               disabled={assigneesLoading || updateAssigneeMutation.isPending || assigneeSelectLocked}
                                               data-testid={`select-task-assignee-${task.id}`}

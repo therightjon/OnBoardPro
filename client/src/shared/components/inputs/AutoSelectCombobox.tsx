@@ -48,30 +48,21 @@ export function AutoSelectCombobox({
   const [error, setError] = React.useState<string | null>(null);
   const [selected, setSelected] = React.useState<Item | null>(null);
   const preloadedValueRef = React.useRef<string | null>(null);
+  
+  // Use ref to store fetchItems to prevent infinite loops from unstable prop references
+  const fetchItemsRef = React.useRef(fetchItems);
+  React.useEffect(() => {
+    fetchItemsRef.current = fetchItems;
+  }, [fetchItems]);
 
   const load = React.useCallback(async (q: string) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchItems(q);
+      const data = await fetchItemsRef.current(q);
       setItems(data ?? []);
-      
-      // Auto-select logic
-      const trimmed = q.trim();
-      if (trimmed.length === 0) return; // do not auto-commit on empty query
-      
-      const exact = data.find(d => d.name.toLowerCase() === trimmed.toLowerCase());
-      if (exact) { 
-        setSelected(exact); 
-        onChange(exact.id, exact); 
-        return; 
-      }
-      
-      const top = data[0];
-      if (top && (data.length === 1 || (top.score ?? 0) >= autoCommitThreshold) && trimmed.length >= minAutoCommitLen) {
-        setSelected(top); 
-        onChange(top.id, top);
-      }
+      // Auto-select logic removed - users must explicitly click to select
+      // This prevents infinite render loops when onChange triggers parent re-renders
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to load items';
       setError(errorMsg);
@@ -80,14 +71,24 @@ export function AutoSelectCombobox({
     } finally {
       setLoading(false);
     }
-  }, [fetchItems, onChange, autoCommitThreshold, minAutoCommitLen, onError]);
+  }, [onError]); // Simplified dependencies
 
-  // Load on open (seed with top items)
+  // Debounced query for actual loading
+  const [debouncedQuery, setDebouncedQuery] = React.useState(query);
+  
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 150); // 150ms debounce
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Load on open (seed with top items) - use debounced query
   React.useEffect(() => {
     if (open) { 
-      load(query); 
+      load(debouncedQuery); 
     }
-  }, [open, query, load]);
+  }, [open, debouncedQuery, load]);
 
   // Keep displayed label in sync
   React.useEffect(() => {
@@ -162,27 +163,29 @@ export function AutoSelectCombobox({
             ) : (
               <CommandEmpty>{loading ? 'Loading…' : (emptyText ?? 'No items available.')}</CommandEmpty>
             )}
-            <CommandGroup>
-              {items.map((item) => (
-                <CommandItem
-                  key={item.id}
-                  value={item.name}
-                  onSelect={() => {
-                    setSelected(item);
-                    onChange(item.id, item);
-                    setOpen(false);
-                  }}
-                >
-                  <Check 
-                    className={cn(
-                      'mr-2 h-4 w-4', 
-                      value === item.id ? 'opacity-100' : 'opacity-0'
-                    )} 
-                  />
-                  <span className="truncate">{item.name}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {items.length > 0 && (
+              <CommandGroup>
+                {items.map((item) => (
+                  <CommandItem
+                    key={item.id}
+                    value={item.name || item.id}
+                    onSelect={() => {
+                      setSelected(item);
+                      onChange(item.id, item);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check 
+                      className={cn(
+                        'mr-2 h-4 w-4', 
+                        value === item.id ? 'opacity-100' : 'opacity-0'
+                      )} 
+                    />
+                    <span className="truncate">{item.name || 'Unnamed'}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
           </Command>
         </PopoverContent>
       </Popover>
