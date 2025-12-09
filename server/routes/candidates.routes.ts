@@ -1,3 +1,10 @@
+/**
+ * Candidate Routes
+ * Purpose: Candidate lifecycle APIs (CRUD, status/stage updates, tasks, comments, template application).
+ * Belongs: All HTTP endpoints for candidate-facing operations and related sub-resources under /api/candidates.
+ * Excludes: Business rules (in services) and data access (repositories); keep orchestration only.
+ * Conventions: Enforce auth/rate-limit first, build auth context via AuthorizationService, publish events via services/utils.
+ */
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/authorization";

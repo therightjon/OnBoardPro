@@ -1,3 +1,9 @@
+/**
+ * Auth Service (passport/session setup)
+ * Purpose: Configure local auth strategy, session store, and multi-provider hooks (Google/Azure/LDAP) for Express.
+ * Belongs: Authentication bootstrapping only; business auth logic lives in services and middleware.
+ * Conventions: Validate SESSION_SECRET early, hydrate user roles/scopes per request, prefer provider registry for new SSO integrations.
+ */
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";

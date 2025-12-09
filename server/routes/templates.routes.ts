@@ -1,3 +1,10 @@
+/**
+ * Template Routes
+ * Purpose: Manage templates, stages, and template tasks (CRUD, readiness/status, estimation, ordering) under /api/templates.
+ * Belongs: HTTP layer only; delegate expansion/estimation/business rules to services/repositories.
+ * Excludes: Candidate/task instantiation side effects (handled in services).
+ * Conventions: Restrict to admin roles, keep ordering/reorder logic clear, and align request/response shapes with OpenAPI.
+ */
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/authorization";

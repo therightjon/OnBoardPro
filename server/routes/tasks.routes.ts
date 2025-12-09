@@ -1,3 +1,10 @@
+/**
+ * Task Routes
+ * Purpose: Task listing, detail, CRUD, bulk updates, dashboard data, and task comments under /api/tasks.
+ * Belongs: HTTP orchestration and validation glue; delegate business rules to services/repositories.
+ * Excludes: Notification composition and due-date logic (lives in services/utils).
+ * Conventions: Apply sensitive rate limiting on read endpoints, enforce role guards on writes, keep pagination/filter behavior documented.
+ */
 import { Router } from "express";
 import { z } from "zod";
 import { sql } from "drizzle-orm";

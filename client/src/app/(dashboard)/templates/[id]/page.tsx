@@ -1,3 +1,9 @@
+/**
+ * Template Detail Page
+ * Purpose: Dashboard page for viewing/editing a single template, its stages, and tasks with rich client-side orchestration.
+ * Belongs: UI composition, data fetching, optimistic UX, and form state for template editing. Domain validation remains server-side.
+ * Conventions: Reuse shared hooks/components where possible, avoid duplicating server rules, and keep mutation invalidations centralized.
+ */
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";

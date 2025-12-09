@@ -1,3 +1,9 @@
+/**
+ * Query Client / Fetch Utilities
+ * Purpose: Central TanStack Query client configuration and fetch helpers (error parsing, auth handling, URL assembly).
+ * Belongs: Shared client-side data access patterns; keep API shape assumptions and fetch defaults here.
+ * Conventions: Always include credentials, parse JSON safely to surface backend HTML/route misses, and preserve cache key semantics when joining URL parts.
+ */
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {

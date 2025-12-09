@@ -1,8 +1,8 @@
 /**
  * Service Factory
- *
- * Creates and manages service instances with proper dependency injection
- * This acts as a simple dependency injection container
+ * Purpose: Central DI container that wires repositories to services and provides test-swappable getters.
+ * Belongs: Construction and exposure of service singletons; keep business logic in services themselves.
+ * Conventions: Use activeFactory for test overrides; update constructors here when repos/services change; avoid embedding request-specific state.
  */
 
 import { db, pool } from "../db/connection";
