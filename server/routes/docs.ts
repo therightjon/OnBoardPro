@@ -4,8 +4,14 @@ import { openApiSpec } from '../docs/openapi-spec';
 
 const router = Router();
 
-// Serve OpenAPI specification as JSON
+// Serve OpenAPI specification as JSON (both endpoints for backward compatibility)
+router.get('/api/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.json(openApiSpec);
+});
+
 router.get('/api/docs/spec.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
   res.json(openApiSpec);
 });
 
