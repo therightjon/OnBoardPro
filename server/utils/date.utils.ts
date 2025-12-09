@@ -48,7 +48,11 @@ export function ensureDate(input?: Date | string | null): Date | null {
  * Uses accepted date if available, falls back to issued date
  */
 export function resolveLooAnchor(candidate: Candidate): Date | null {
-  return ensureDate(candidate.offerLetterAcceptedAt) ?? ensureDate(candidate.offerLetterIssuedAt);
+  return (
+    ensureDate((candidate as any).offerLetterAcceptedAt) ??
+    ensureDate((candidate as any).offerLetterIssuedAt) ??
+    ensureDate((candidate as any).looDate)
+  );
 }
 
 /**

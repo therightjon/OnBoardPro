@@ -380,11 +380,11 @@ export class MockServiceFactory {
   // Mock Candidate Service Methods
   // ==========================================================================
 
-  async getCandidate(id: string, auth?: AuthorizationContext): Promise<Candidate | undefined> {
+  async getCandidate(id: string, auth?: AuthorizationContext): Promise<Candidate | null | undefined> {
     const candidate = this.data.candidates.get(id);
-    if (!candidate) return undefined;
+    if (!candidate || candidate.archived) return null;
     if (auth && !this.isCandidateVisible(candidate, auth)) {
-      return undefined;
+      return null;
     }
     return { ...candidate };
   }
@@ -423,7 +423,8 @@ export class MockServiceFactory {
 
   async getCandidateTask(id: string): Promise<CandidateTask | undefined> {
     const task = this.data.candidateTasks.get(id);
-    return task ? { ...task } : undefined;
+    if (!task || task.archived) return null as any;
+    return { ...task };
   }
 
   // Alias for legacy test compatibility
@@ -433,6 +434,8 @@ export class MockServiceFactory {
 
   async getCandidateTasks(filters?: any, auth?: AuthorizationContext): Promise<CandidateTask[]> {
     let tasks = Array.from(this.data.candidateTasks.values());
+
+    tasks = tasks.filter((task) => !task.archived);
 
     if (filters?.candidateId) {
       tasks = tasks.filter((task) => task.candidateId === filters.candidateId);
@@ -583,7 +586,10 @@ export class MockServiceFactory {
         const candidate = { ...data, id: data.id || randomUUID() } as Candidate;
         return this.createCandidate(candidate);
       },
-      updateCandidate: (id: string, data: any) => {
+      updateCandidate: (idOrInput: any, maybeData?: any) => {
+        const id = typeof idOrInput === "string" ? idOrInput : idOrInput?.id;
+        const data = typeof idOrInput === "string" ? maybeData : idOrInput?.data;
+        if (!id) return Promise.resolve(undefined);
         const existing = this.data.candidates.get(id);
         if (!existing) return Promise.resolve(undefined);
         const updated = { ...existing, ...data, updatedAt: new Date() };
@@ -594,6 +600,15 @@ export class MockServiceFactory {
         const existed = this.data.candidates.has(id);
         this.data.candidates.delete(id);
         return Promise.resolve(existed);
+      },
+      updateCandidateStatus: async (input: { id: string; newStatus: string; actorId?: string }) => {
+        const existing = this.data.candidates.get(input.id);
+        if (!existing) {
+          return { success: false, error: "Candidate not found", code: "CANDIDATE_NOT_FOUND" };
+        }
+        const updated = { ...existing, status: input.newStatus, updatedAt: new Date() } as Candidate;
+        this.data.candidates.set(input.id, updated);
+        return { success: true, candidate: { ...updated } };
       },
       getCandidateTemplateStages: (candidateId: string) => Promise.resolve([]),
       getCandidateStageHistory: (candidateId: string) => Promise.resolve([]),
@@ -616,7 +631,12 @@ export class MockServiceFactory {
           tasks = tasks.filter(t => t.candidateId === filters.candidateId);
         }
         if (filters?.status) {
-          tasks = tasks.filter(t => t.status === filters.status);
+          const internal = filters.status;
+          const aliasMatch = (status: string) => {
+            if (internal === "todo" && status === "todo") return true;
+            return status === internal;
+          };
+          tasks = tasks.filter(t => aliasMatch(t.status as any));
         }
         
         // Apply authorization context filtering
@@ -633,7 +653,7 @@ export class MockServiceFactory {
         Promise.resolve(Array.from(this.data.candidateTasks.values()).filter(t => t.candidateId === candidateId)),
       createTask: async (input: { data: any; actorId?: string }) => {
         const { data } = input;
-        const task = { ...data, id: data.id || randomUUID() } as CandidateTask;
+        const task = { ...data, id: data.id || randomUUID(), updatedAt: new Date(), createdAt: new Date() } as CandidateTask;
         return this.createCandidateTask(task);
       },
       updateTask: async (input: { id: string; data: any; actorId?: string }) => {
@@ -648,6 +668,14 @@ export class MockServiceFactory {
         const existed = this.data.candidateTasks.has(id);
         this.data.candidateTasks.delete(id);
         return Promise.resolve(existed);
+      },
+      archiveTask: (id: string) => {
+        const task = this.data.candidateTasks.get(id);
+        if (task) {
+          this.data.candidateTasks.set(id, { ...task, archived: true, deletedAt: new Date() });
+          return Promise.resolve(true);
+        }
+        return Promise.resolve(false);
       },
       completeTask: (id: string, userId: string) => {
         const task = this.data.candidateTasks.get(id);

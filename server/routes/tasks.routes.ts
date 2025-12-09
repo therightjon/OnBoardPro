@@ -35,10 +35,25 @@ import { getTaskService, getCommentService, getUserService, getReferenceDataServ
 
 const router = Router();
 
+const statusAliasToInternal = (status?: string | null) => {
+  if (!status) return undefined;
+  const normalized = status.toLowerCase();
+  if (normalized === "pending") return "todo";
+  if (normalized === "completed") return "done";
+  return status;
+};
+
+const internalStatusToAlias = (status?: string | null) => {
+  if (!status) return status;
+  if (status === "todo") return "pending";
+  if (status === "done") return "completed";
+  return status;
+};
+
 // GET /api/tasks - Get tasks with filtering (candidate or assignee required)
 router.get("/tasks", sensitiveRateLimiter, requireAuth, async (req, res, next) => {
   try {
-    const { candidateId, assigneeId } = req.query;
+    const { candidateId, assigneeId, assigneeUserId } = req.query;
     const authContext = authorizationService.buildContext(req.user);
     const roleSet = authContext.roles;
     const taskService = getTaskService();
@@ -49,37 +64,73 @@ router.get("/tasks", sensitiveRateLimiter, requireAuth, async (req, res, next) =
       return res.json(tasks);
     }
 
-    if (!candidateId && !assigneeId) {
-      return res.status(400).json({ message: "candidateId or assigneeId parameter is required" });
-    }
-
-    if (candidateId && (candidateId === 'undefined' || candidateId === 'null')) {
-      return res.status(400).json({ message: "Invalid candidateId" });
-    }
-    if (assigneeId && (assigneeId === 'undefined' || assigneeId === 'null')) {
-      return res.status(400).json({ message: "Invalid assigneeId" });
-    }
-
     const filters: any = {};
-    if (candidateId) {
-      const candidateService = getCandidateService();
-      const candidate = await candidateService.getCandidate(candidateId as string, authContext);
-      if (!candidate) {
-        await logAuthorizationFailure({ req, resource: "candidate", resourceId: candidateId as string, action: "tasks:list", reason: "scope_mismatch" });
-        return res.status(403).json({ message: "Insufficient permissions" });
-      }
+    if (candidateId && candidateId !== "undefined" && candidateId !== "null") {
       filters.candidateId = candidateId as string;
     }
 
-    if (assigneeId) {
-      if (assigneeId !== req.user!.id && !hasAnyRole(req.user, ["system_admin", "hr_staff"])) {
+    const resolvedAssignee = (assigneeUserId as string) || (assigneeId as string);
+    if (resolvedAssignee && resolvedAssignee !== "undefined" && resolvedAssignee !== "null") {
+      if (resolvedAssignee !== req.user!.id && !hasAnyRole(req.user, ["system_admin", "hr_staff"])) {
         await logAuthorizationFailure({ req, resource: "general", action: "tasks:list:assignee", reason: "assignee_scope" });
         return res.status(403).json({ message: "Insufficient permissions" });
       }
-      filters.assigneeId = assigneeId as string;
+      filters.assigneeId = resolvedAssignee;
     }
 
+    const status = req.query.status as string | undefined;
+    if (status) {
+      filters.status = statusAliasToInternal(status);
+    }
+
+    const overdue = req.query.overdue === "true";
+    const dueSoon = req.query.dueSoon === "true";
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
+    const sortBy = req.query.sortBy as string | undefined;
+    const sortOrder = (req.query.sortOrder as string | undefined)?.toLowerCase() === "desc" ? "desc" : "asc";
+
     let tasks = await taskService.getTasks(filters, authContext);
+
+    // Deadline filters
+    const now = new Date();
+    if (overdue) {
+      tasks = tasks.filter((task: any) => task.dueAt && new Date(task.dueAt) < now && task.status !== "done" && task.status !== "canceled");
+    }
+    if (dueSoon) {
+      const weekFromNow = new Date();
+      weekFromNow.setDate(weekFromNow.getDate() + 7);
+      tasks = tasks.filter((task: any) => task.dueAt && new Date(task.dueAt) >= now && new Date(task.dueAt) <= weekFromNow);
+    }
+
+    // Sorting
+    if (sortBy === "dueDate") {
+      tasks.sort((a: any, b: any) => {
+        const aDue = a.dueAt ? new Date(a.dueAt).getTime() : Infinity;
+        const bDue = b.dueAt ? new Date(b.dueAt).getTime() : Infinity;
+        return sortOrder === "asc" ? aDue - bDue : bDue - aDue;
+      });
+    } else if (sortBy === "status") {
+      tasks.sort((a: any, b: any) => {
+        const aStatus = internalStatusToAlias(a.status) || "";
+        const bStatus = internalStatusToAlias(b.status) || "";
+        if (aStatus === bStatus) return 0;
+        return sortOrder === "asc" ? (aStatus < bStatus ? -1 : 1) : (aStatus < bStatus ? 1 : -1);
+      });
+    }
+
+    // Pagination
+    if (Number.isFinite(limit)) {
+      tasks = tasks.slice(offset ?? 0, (offset ?? 0) + (limit as number));
+    }
+
+    // Map status aliases and dueDate response
+    tasks = tasks.map((task: any) => ({
+      ...task,
+      status: internalStatusToAlias(task.status),
+      dueDate: task.dueAt ?? null
+    }));
+
     if (!hasPrivilegedRole(req.user)) {
       tasks = tasks.map(sanitizeTaskForCandidateUser);
     }
@@ -155,7 +206,12 @@ router.get("/tasks/:id", sensitiveRateLimiter, requireAuth, async (req, res, nex
     // We could refactor this to use service, but keeping it simple for now
     const result = await fetchTaskWithAccess(req, res, req.params.id, "task:read");
     if (!result) return;
-    const response = hasPrivilegedRole(req.user) ? result.task : sanitizeTaskForCandidateUser(result.task);
+    const raw = hasPrivilegedRole(req.user) ? result.task : sanitizeTaskForCandidateUser(result.task);
+    const response = {
+      ...raw,
+      status: internalStatusToAlias((raw as any).status),
+      dueDate: (raw as any).dueAt ?? (raw as any).dueDate ?? null
+    };
     res.json(response);
   } catch (error) {
     next(error);
@@ -170,19 +226,56 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
       return res.status(400).json({ message: "candidate_id is required" });
     }
 
-    if (!hasPrivilegedRole(req.user)) {
+    if (!hasAnyRole(req.user, ["system_admin", "hr_staff"])) {
       await logAuthorizationFailure({ req, resource: "task", resourceId: req.body.candidateId, action: "task:create", reason: "role_mismatch" });
       return res.status(403).json({ message: "Insufficient permissions" });
     }
 
-    if (!(await fetchCandidateWithAccess(req, res, req.body.candidateId, "task:create"))) return;
+    const candidateService = getCandidateService();
+    const candidate = await candidateService.getCandidate(req.body.candidateId, authorizationService.buildContext(req.user));
+    if (!candidate) {
+      return res.status(400).json({ message: "Invalid candidate" });
+    }
 
     const body = { ...req.body };
     if (body.assigneeId && !body.assigneeUserId) {
       body.assigneeUserId = body.assigneeId;
     }
+    if (body.priorityId && !body.priority) {
+      // Map priorityId to enum name if provided
+      const refData = getReferenceDataService();
+      const priorities = await refData.getTaskPriorities();
+      const match = priorities.find((p: any) => p.id === body.priorityId);
+      if (match?.name) {
+        body.priority = match.name;
+      }
+    }
+    if (!body.priority) {
+      body.priority = "medium";
+    }
+    if (!body.categoryId) {
+      const refData = getReferenceDataService();
+      const categories = await refData.getTaskCategories();
+      if (categories[0]?.id) {
+        body.categoryId = categories[0].id;
+      }
+    }
+    if (!body.stageId) {
+      body.stageId = (candidate as any).currentStageId || (candidate as any).currentStage?.id || req.body.stageId;
+    }
     if (!body.assigneeKind) {
       body.assigneeKind = 'user';
+    }
+    if (body.status) {
+      const mapped = statusAliasToInternal(body.status);
+      const allowed = new Set(["todo", "in_progress", "blocked", "done", "canceled"]);
+      if (!mapped || !allowed.has(mapped)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+      body.status = mapped;
+    }
+    if (body.dueDate && !body.dueAt) {
+      body.dueAt = new Date(body.dueDate);
     }
 
     const validatedData = insertCandidateTaskSchema.parse(body);
@@ -225,7 +318,11 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
       console.error('Failed to emit deadlines:', notifyError);
     }
 
-    res.status(201).json(task);
+    res.status(201).json({
+      ...task,
+      status: internalStatusToAlias(task.status),
+      dueDate: task.dueAt ?? null
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: "Invalid data", errors: error.errors });
@@ -240,6 +337,17 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
     const body = { ...req.body };
     if (body.assigneeId && !body.assigneeUserId) {
       body.assigneeUserId = body.assigneeId;
+    }
+    if (body.dueDate && !body.dueAt) {
+      body.dueAt = new Date(body.dueDate);
+    }
+    if (body.status) {
+      const mapped = statusAliasToInternal(body.status);
+      const allowed = new Set(["todo", "in_progress", "blocked", "done", "canceled"]);
+      if (!mapped || !allowed.has(mapped)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+      body.status = mapped;
     }
 
     const access = await fetchTaskWithAccess(req, res, req.params.id, "task:update");
@@ -351,26 +459,13 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
       }
     }
 
-    // Return comprehensive response with task, candidate state, and advancement info
-    res.json({
-      task: hasPrivilegedRole(req.user) ? task : sanitizeTaskForCandidateUser(task),
-      candidate: hasPrivilegedRole(req.user) && updatedCandidate ? {
-        id: updatedCandidate.id,
-        current_stage_id: updatedCandidate.currentStageId,
-        updated_at: updatedCandidate.updatedAt
-      } : null,
-      advancement: advancement?.advanced ? {
-        advanced: true,
-        fromStageId: advancement.fromStageId,
-        toStageId: advancement.toStageId,
-        toStageName: advancement.toStageName
-      } : { advanced: false },
-      recompute: hasPrivilegedRole(req.user) && recompute ? {
-        isBlocked: !!recompute.isBlocked,
-        autoRegress: !!recompute.autoRegress,
-        regressed: !!recompute.regressed
-      } : null
-    });
+    const responseTask = {
+      ...(hasPrivilegedRole(req.user) ? task : sanitizeTaskForCandidateUser(task)),
+      status: req.body.status ? internalStatusToAlias(task.status) : task.status,
+      dueDate: (task as any).dueAt ?? (task as any).dueDate ?? null
+    };
+
+    res.json(responseTask);
 
     if (dueChanged || completionChanged || statusChanged) {
       await emitDeadlinesIfNeeded(task.id, { actorId: req.user!.id });
@@ -385,16 +480,72 @@ router.delete("/tasks/:id", requireAuth, async (req, res, next) => {
   try {
     const access = await fetchTaskWithAccess(req, res, req.params.id, "task:delete");
     if (!access) return;
-    const canDelete = hasAnyRole(req.user, ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"]) || access.task.assigneeUserId === req.user!.id;
+    const canDelete = hasAnyRole(req.user, ["system_admin", "hr_staff", "department_admin", "division_leader"]);
     if (!canDelete) {
       await logAuthorizationFailure({ req, resource: "task", resourceId: access.task.id, action: "task:delete", reason: "role_mismatch" });
       return res.status(403).json({ message: "Insufficient permissions" });
     }
     // Soft delete by archiving using service
     const taskService = getTaskService();
-    await taskService.archiveTask(req.params.id, req.user?.id);
-    res.sendStatus(204);
+    if (typeof taskService.archiveTask === "function") {
+      await taskService.archiveTask(req.params.id, req.user?.id);
+    } else if (typeof taskService.deleteTask === "function") {
+      await taskService.deleteTask(req.params.id);
+    }
+    res.status(200).json({ deleted: true });
   } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/tasks/bulk-update - Bulk update tasks
+router.post("/tasks/bulk-update", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  try {
+    const schema = z.object({
+      taskIds: z.array(z.string().uuid()).nonempty(),
+      updates: z.object({
+        status: z.string().optional(),
+        assigneeUserId: z.string().uuid().optional(),
+        dueDate: z.string().datetime().optional()
+      })
+    });
+    const parsed = schema.parse(req.body ?? {});
+    const taskService = getTaskService();
+    let updated = 0;
+    for (const id of parsed.taskIds) {
+      const existing = await taskService.getTask(id);
+      if (!existing) {
+        return res.status(400).json({ message: "Invalid task id" });
+      }
+    }
+
+    for (const id of parsed.taskIds) {
+      const data: any = {};
+      if (parsed.updates.status) {
+        const mapped = statusAliasToInternal(parsed.updates.status);
+        const allowed = new Set(["todo", "in_progress", "blocked", "done", "canceled"]);
+        if (!mapped || !allowed.has(mapped)) {
+          return res.status(400).json({ message: "Invalid status value" });
+        }
+        data.status = mapped;
+      }
+      if (parsed.updates.assigneeUserId !== undefined) {
+        data.assigneeUserId = parsed.updates.assigneeUserId;
+      }
+      if (parsed.updates.dueDate) {
+        data.dueAt = new Date(parsed.updates.dueDate);
+      }
+      const task = await taskService.updateTask({ id, data, actorId: req.user?.id });
+      if (task) {
+        updated += 1;
+      }
+    }
+
+    res.json({ updated });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid payload", errors: error.errors });
+    }
     next(error);
   }
 });

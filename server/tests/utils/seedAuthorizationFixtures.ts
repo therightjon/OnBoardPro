@@ -412,7 +412,7 @@ export async function seedAuthorizationFixtures(storage: MockServiceFactory): Pr
     id: ids.candidates.alphaPrimary,
     firstName: "Alice",
     lastName: "Alpha",
-    email: "alice.alpha@example.com",
+    email: "alpha.primary@example.com",
     candidateTypeId: ids.candidateTypes.faculty,
     departmentId: ids.departments.alpha,
     divisionId: ids.divisions.alpha,
