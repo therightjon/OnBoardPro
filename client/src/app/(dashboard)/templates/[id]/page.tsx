@@ -228,6 +228,7 @@ export default function TemplateDetailPage() {
       
       // Check if a stage was also removed
       if (result.removedStage) {
+        // #WHY backend deletes empty stages alongside the last task; messaging mirrors that side effect.
         toast({
           title: "Success",
           description: "Template task archived and empty stage removed successfully",
@@ -475,6 +476,7 @@ export default function TemplateDetailPage() {
   const handleDeleteTask = (task: TemplateTask) => {
     setTaskToDelete(task);
     if (isLastTaskInStage(task)) {
+      // #WHY deleting the last task can cascade into stage removal; ask for confirmation first.
       setShowDeleteConfirmation(true);
     } else {
       // Not the last task, delete immediately
