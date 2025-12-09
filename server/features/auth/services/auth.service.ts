@@ -47,6 +47,10 @@ const PostgresSessionStore = connectPg(session);
 
 const scryptAsync = promisify(scrypt);
 
+/**
+ * Hydrate a SelectUser with roles and scope metadata for session use.
+ * Side effects: fetches roles/department/division/managed candidate scopes in parallel.
+ */
 async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
   const userService = getUserService();
   const [roles, departmentScopes, divisionScopes, managedCandidateIds] = await Promise.all([
@@ -71,6 +75,10 @@ async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
   };
 }
 
+/**
+ * Compare supplied password against stored hash.
+ * Handles bcrypt (legacy) and scrypt (new format); returns false on format errors to avoid timing leaks.
+ */
 async function comparePasswords(supplied: string, stored: string) {
   try {
     // Check if it's a bcrypt hash (existing format)
@@ -106,6 +114,11 @@ async function comparePasswords(supplied: string, stored: string) {
   }
 }
 
+/**
+ * Initialize authentication for the Express app.
+ * Sets up passport strategies, session store, provider registry, and user serialization.
+ * Throws if required secrets are missing or providers fail to initialize.
+ */
 export async function setupAuth(app: Express) {
   // Initialize multi-provider authentication system
   try {

@@ -25,6 +25,10 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+/**
+ * Perform a JSON-aware API request with credentials included.
+ * Throws parsed error bodies when possible; use for imperative mutations.
+ */
 export async function apiRequest(
   method: string,
   url: string,
@@ -43,6 +47,12 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
+/**
+ * Build a query function for TanStack Query that understands our URL key conventions.
+ * - Joins leading string segments of the query key into a URL path.
+ * - Honors on401 behavior: returnNull or throw.
+ * Intended for use as the default queryFn on the shared client.
+ */
 export function getQueryFn<T>({ on401: unauthorizedBehavior }: { on401: UnauthorizedBehavior }): QueryFunction<T> {
   return async ({ queryKey }) => {
     // Build URL from all leading string segments of the queryKey.
@@ -99,6 +109,10 @@ export const queryClient = new QueryClient({
 // Safely parse JSON responses. If the response is HTML or otherwise not JSON,
 // throw a clear, concise error to help developers diagnose server route issues
 // (e.g., server not restarted so the route isn't registered and HTML is returned).
+/**
+ * Parse JSON responses with strict content-type checking.
+ * Throws clear errors when the response is HTML/empty/invalid JSON to surface backend route/config issues.
+ */
 export async function parseJsonSafe<T = any>(res: Response, context?: string): Promise<T> {
   const contentType = res.headers.get("content-type") || "";
   const text = await res.text();

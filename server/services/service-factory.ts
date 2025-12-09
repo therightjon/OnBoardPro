@@ -391,9 +391,6 @@ export class ServiceFactory {
   }
 }
 
-/**
- * Interface for testing - allows duck-typed mock factories
- */
 export interface IServiceFactory {
   getCandidateService(): CandidateService;
   getTaskService(): TaskService;
@@ -419,22 +416,26 @@ let activeFactory: IServiceFactory = new ServiceFactory();
 const defaultFactory: ServiceFactory = activeFactory as ServiceFactory;
 
 /**
- * For testing: Replace the active service factory with a mock
- * @param mockFactory - The mock service factory to use (can be any object implementing IServiceFactory)
+ * Swap the active factory for tests.
+ *
+ * Purpose: allow tests to inject mocks/fakes without mutating constructors across the codebase.
+ * Contract: pass an object that satisfies IServiceFactory; callers must restore via resetServiceFactory.
  */
 export function setServiceFactoryForTesting(mockFactory: IServiceFactory): void {
   activeFactory = mockFactory;
 }
 
 /**
- * For testing: Reset to the default (real) service factory
+ * Restore the default factory after a test override.
+ *
+ * Side effect: resets activeFactory to the process-wide singleton initialized at startup.
  */
 export function resetServiceFactory(): void {
   activeFactory = defaultFactory;
 }
 
 /**
- * Get the current active service factory (for testing inspection)
+ * Inspect the currently active factory (real or mocked).
  */
 export function getActiveServiceFactory(): IServiceFactory {
   return activeFactory;
@@ -443,21 +444,72 @@ export function getActiveServiceFactory(): IServiceFactory {
 // Export the default singleton instance (for direct access when needed)
 export const serviceFactory = defaultFactory;
 
-// Export individual service getters for convenience - use activeFactory for testability
+/**
+ * Convenience getter for candidate service.
+ * Contract: always returns the currently active factory instance (real or test double).
+ */
 export const getCandidateService = () => activeFactory.getCandidateService();
+/**
+ * Convenience getter for task service.
+ */
 export const getTaskService = () => activeFactory.getTaskService();
+/**
+ * Convenience getter for task due date service (deadline calculations).
+ */
 export const getTaskDueDateService = () => activeFactory.getTaskDueDateService();
+/**
+ * Convenience getter for template service.
+ */
 export const getTemplateService = () => activeFactory.getTemplateService();
+/**
+ * Convenience getter for template expansion service (materialize stages/tasks).
+ */
 export const getTemplateExpansionService = () => activeFactory.getTemplateExpansionService();
+/**
+ * Convenience getter for template estimation service (duration/capacity estimates).
+ */
 export const getTemplateEstimationService = () => activeFactory.getTemplateEstimationService();
+/**
+ * Convenience getter for user service (accounts/roles).
+ */
 export const getUserService = () => activeFactory.getUserService();
+/**
+ * Convenience getter for invitation service.
+ */
 export const getInvitationService = () => activeFactory.getInvitationService();
+/**
+ * Convenience getter for organization service (departments/divisions).
+ */
 export const getOrganizationService = () => activeFactory.getOrganizationService();
+/**
+ * Convenience getter for reference data service (lookup tables).
+ */
 export const getReferenceDataService = () => activeFactory.getReferenceDataService();
+/**
+ * Convenience getter for notification service.
+ */
 export const getNotificationService = () => activeFactory.getNotificationService();
+/**
+ * Convenience getter for comment service.
+ */
 export const getCommentService = () => activeFactory.getCommentService();
+/**
+ * Convenience getter for search service.
+ */
 export const getSearchService = () => activeFactory.getSearchService();
+/**
+ * Convenience getter for system settings service.
+ */
 export const getSystemSettingsService = () => activeFactory.getSystemSettingsService();
+/**
+ * Convenience getter for auth provider service (SSO/LDAP config).
+ */
 export const getAuthProviderService = () => activeFactory.getAuthProviderService();
+/**
+ * Convenience getter for dashboard service (metrics/aggregations).
+ */
 export const getDashboardService = () => activeFactory.getDashboardService();
+/**
+ * Convenience getter for authorization service (RBAC/scope checks).
+ */
 export const getAuthorizationService = () => activeFactory.getAuthorizationService();
