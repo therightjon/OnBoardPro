@@ -593,7 +593,7 @@ router.post("/tasks/:id/comments", sensitiveRateLimiter, requireAuth, async (req
     const { body, visibility, parentId } = req.body || {};
     if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
     const commentService = getCommentService();
-    const created = await commentService.createComment({ entityType: 'task', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
+    const created = await commentService.createComment({ entityType: 'task', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId, requestId: req.id });
 
     // Publish domain event
     const mentionKeys = extractMentionKeys(body);

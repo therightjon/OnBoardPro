@@ -9,6 +9,7 @@ import {
   type SmtpEncryptedSecretPayload,
 } from "@shared/schemas";
 import { encryptEnvelopeSecret, decryptEnvelopeSecret } from "../../utils/envelope";
+import { writeAuditLog } from "../../services/shared/audit-logger";
 
 const SETTINGS_ID = "primary";
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -324,7 +325,7 @@ export interface UpdateSmtpSettingsResult {
   passwordChanged: boolean;
 }
 
-export async function updateSmtpSettings(payload: UpdateInput, actorId: string): Promise<UpdateSmtpSettingsResult> {
+export async function updateSmtpSettings(payload: UpdateInput, actorId: string, requestId?: string): Promise<UpdateSmtpSettingsResult> {
   const row = await ensureRow();
   const parsed = updateSchema.safeParse(payload);
 
@@ -401,6 +402,25 @@ export async function updateSmtpSettings(payload: UpdateInput, actorId: string):
     passwordChanged,
   });
 
+  await writeAuditLog({
+    actorId,
+    resourceType: "settings",
+    resourceId: "smtp",
+    action: "update",
+    eventType: "smtp_settings_updated",
+    requestId,
+    details: {
+      enabled,
+      security,
+      authType,
+      hostname,
+      port,
+      username: username ? true : false, // avoid leaking username in audit
+      passwordChanged,
+      allowHeaderSpoofing: updates.allowHeaderSpoofing ?? row.allowHeaderSpoofing ?? false
+    }
+  });
+
   if (updated.enabled ?? false) {
     try {
       const { transport } = await getOrCreateTransport();
@@ -427,7 +447,7 @@ export async function updateSmtpSettings(payload: UpdateInput, actorId: string):
       encryptionVersion: updated.encryptionVersion ?? null,
       updatedAt: updated.updatedAt ? updated.updatedAt.toISOString() : new Date().toISOString(),
     },
-  passwordChanged,
+    passwordChanged,
   };
 }
 

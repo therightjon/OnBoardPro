@@ -22,7 +22,44 @@ OnBoardPro is a TypeScript monorepo for managing candidate onboarding. The stack
 - Database utilities:
   - `npm run db:push` — apply Drizzle migrations.
   - `npm run db:import` — import `database_export.sql`.
-  - `npm run db:run-sql` — run SQL files from `scripts/runSqlFiles.mjs`.
+  - `npm run db:run-sql` — run SQL files using `npx tsx scripts/runSqlFiles.ts`.
+  - `npm run db:migrate-file` — run a single SQL file using `npx tsx scripts/runMigration.ts`.
+
+Running SQL migrations manually
+-----------------------------
+
+You can apply a single SQL migration file or multiple SQL files using the TypeScript scripts in `scripts/`.
+
+- Apply a single migration with `runMigration.ts` (executes the SQL within a transaction and detects Neon SSL):
+
+  ```bash
+  npx tsx scripts/runMigration.ts migrations/0018_crud_audit.sql
+  # or using the npm helper
+  npm run db:migrate-file -- migrations/0018_crud_audit.sql
+  ```
+
+- If you don't have a `.env` file, set `DATABASE_URL` inline:
+
+  ```bash
+  DATABASE_URL="postgresql://db_user:password@localhost:5432/onboardpro" \
+  npx tsx scripts/runMigration.ts migrations/0018_crud_audit.sql
+  ```
+
+- Run multiple SQL files (runs each file in a transaction):
+  ```bash
+  npx tsx scripts/runSqlFiles.ts migrations/0001_initial.sql migrations/0002_prior_stage_blocking.sql
+  # or using the npm helper
+  npm run db:run-sql -- migrations/0001_initial.sql migrations/0002_prior_stage_blocking.sql
+  ```
+
+Notes and safety tips
+---------------------
+- Backup your DB before running manual migrations (for Postgres, `pg_dump` is a convenient option).
+- `runMigration.ts` expects `DATABASE_URL` to be set and will exit with an error if it is missing.
+- The scripts use `dotenv/config`, so placing a `.env` at the repo root works automatically.
+- The repository currently documents `npm run db:run-sql` as calling a `mjs` script; you can instead call the TypeScript script directly with `npx tsx` as shown above if you prefer working with TS runtime.
+- For Neon-managed databases, the script automatically enables SSL by detecting `neon.tech` in the host name.
+
 - Auth helper: `npm run user:set-password` — set a local user password.
 
 ## Environment
