@@ -47,7 +47,7 @@
 │  │  Background Jobs                                     │   │
 │  │  • Deadline scanner                                  │   │
 │  │  • Email notification processor                      │   │
-│  │  • Digest aggregator                                 │   │
+│  │  • Notification cleanup                              │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
                            │
@@ -61,6 +61,19 @@
 │  • Notification outbox                                       │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## API Documentation
+- Swagger UI: `/api/docs`
+- Canonical OpenAPI JSON: `/api/docs.json` (source `server/docs/openapi-spec.ts`; `/api/docs/spec.json` is kept for backward compatibility).
+
+---
+
+## Data & Seeding
+- Database: PostgreSQL (see `docker-compose.yml` for local dev).
+- Schema: Drizzle definitions in `shared/schema.ts` and `shared/schemas/*.ts`.
+- Seeds: Sample data in `initdb/phase5_sample_data.sql` applied by the Postgres container on first start.
 
 ---
 

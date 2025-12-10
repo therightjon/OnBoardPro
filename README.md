@@ -48,7 +48,7 @@ Env validation lives in `server/config/env.ts`. Required or common keys:
 
 ## Development notes
 - Path aliases: `@` → `client/src`, `@shared` → `shared`, `@assets` → `attached_assets`.
-- API docs: Swagger UI served at `/api/docs`; JSON at `/api/docs.json` or `/api/docs/spec.json`.
+- API docs: Swagger UI served at `/api/docs`; canonical JSON at `/api/docs.json` (single OpenAPI source in `server/docs/openapi-spec.ts`).
 - Background jobs: deadline scanner, email notification sender, notification cleanup (toggle via env flags).
 - Rate limiting: default and “sensitive” limiters applied in routers (see `server/middleware/rate-limiter.ts`).
 
