@@ -10,60 +10,61 @@ export interface SeededAuthorizationFixtures {
   tasks: Record<string, string>;
 }
 
-const ids = {
+// Canonical fixture IDs used across route and auth tests
+export const AUTH_FIXTURE_IDS = {
   departments: {
-    alpha: "11111111-1111-1111-1111-111111111111",
-    beta: "22222222-2222-2222-2222-222222222222"
+    alpha: "11111111-1111-4111-8111-111111111111",
+    beta: "22222222-2222-4222-8222-222222222222"
   },
   divisions: {
-    alpha: "33333333-3333-3333-3333-333333333333",
-    beta: "44444444-4444-4444-4444-444444444444"
+    alpha: "33333333-3333-4333-8333-333333333333",
+    beta: "44444444-4444-4444-8444-444444444444"
   },
   candidateTypes: {
-    faculty: "55555555-5555-5555-5555-555555555555"
+    faculty: "55555555-5555-4555-8555-555555555555"
   },
   facultyRanks: {
-    instructor: "66666666-6666-6666-6666-666666666666"
+    instructor: "66666666-6666-4666-8666-666666666666"
   },
   taskCategories: {
-    onboarding: "77777777-7777-7777-7777-777777777777"
+    onboarding: "77777777-7777-4777-8777-777777777777"
   },
   taskPriorities: {
-    medium: "88888888-8888-8888-8888-888888888888"
+    medium: "88888888-8888-4888-8888-888888888888"
   },
   hiringStages: {
-    offer: "99999999-9999-9999-9999-999999999999"
+    offer: "99999999-9999-4999-8999-999999999999"
   },
   templates: {
-    onboarding: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+    onboarding: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
   },
   templateStages: {
-    offer: "cccccccc-cccc-cccc-cccc-cccccccccccc"
+    offer: "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
   },
   taskDefinitions: {
-    provisioning: "dddddddd-dddd-dddd-dddd-dddddddddddd"
+    provisioning: "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
   },
   templateTasks: {
-    provisioning: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+    provisioning: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
   },
   users: {
-    systemAdmin: "f1111111-1111-1111-1111-111111111111",
-    hrStaff: "f2222222-2222-2222-2222-222222222222",
-    departmentAdmin: "f3333333-3333-3333-3333-333333333333",
-    divisionLeader: "f4444444-4444-4444-4444-444444444444",
-    manager: "f5555555-5555-5555-5555-555555555555",
-    dualRole: "f6666666-6666-6666-6666-666666666666",
-    candidateUser: "f7777777-7777-7777-7777-777777777777"
+    systemAdmin: "a1111111-1111-4111-8111-111111111111",
+    hrStaff: "a2222222-2222-4222-8222-222222222222",
+    departmentAdmin: "a3333333-3333-4333-8333-333333333333",
+    divisionLeader: "a4444444-4444-4444-8444-444444444444",
+    manager: "a5555555-5555-4555-8555-555555555555",
+    dualRole: "a6666666-6666-4666-8666-666666666666",
+    candidateUser: "a7777777-7777-4777-8777-777777777777"
   },
   candidates: {
-    alphaPrimary: "f8888888-8888-8888-8888-888888888888",
-    betaCandidate: "f9999999-9999-9999-9999-999999999999",
-    managedOnly: "fababab0-0000-0000-0000-000000000000"
+    alphaPrimary: "a8888888-8888-4888-8888-888888888888",
+    betaCandidate: "a9999999-9999-4999-8999-999999999999",
+    managedOnly: "aababab0-0000-4000-8000-000000000000"
   },
   candidateTasks: {
-    alphaTask: "fcdcdcdc-dcdc-dcdc-dcdc-dcdcdcdcdcdc",
-    betaTask: "fdeedeee-deee-deee-deee-deeedeeedeee",
-    managedTask: "fff0f0f0-f0f0-f0f0-f0f0-f0f0f0f0f0f0"
+    alphaTask: "acbcbcbc-bcbc-4bcb-8bcb-bcbcbcbcbcbc",
+    betaTask: "adeedeee-deee-4eee-8eee-deeedeeedeee",
+    managedTask: "aff0f0f0-f0f0-4f0f-8f0f-f0f0f0f0f0f0"
   }
 } as const;
 
@@ -277,41 +278,41 @@ export async function seedAuthorizationFixtures(storage: MockServiceFactory): Pr
   storage.reset();
 
   const departments: Department[] = [
-    makeDepartment({ id: ids.departments.alpha, name: "Office of Faculty Affairs" }),
-    makeDepartment({ id: ids.departments.beta, name: "Graduate Medical Education" })
+    makeDepartment({ id: AUTH_FIXTURE_IDS.departments.alpha, name: "Office of Faculty Affairs" }),
+    makeDepartment({ id: AUTH_FIXTURE_IDS.departments.beta, name: "Graduate Medical Education" })
   ];
   departments.forEach((dept) => storage.upsertDepartment(dept));
 
   const divisions: Division[] = [
-    makeDivision({ id: ids.divisions.alpha, departmentId: ids.departments.alpha, name: "Academic Operations" }),
-    makeDivision({ id: ids.divisions.beta, departmentId: ids.departments.beta, name: "Clinical Programs" })
+    makeDivision({ id: AUTH_FIXTURE_IDS.divisions.alpha, departmentId: AUTH_FIXTURE_IDS.departments.alpha, name: "Academic Operations" }),
+    makeDivision({ id: AUTH_FIXTURE_IDS.divisions.beta, departmentId: AUTH_FIXTURE_IDS.departments.beta, name: "Clinical Programs" })
   ];
   divisions.forEach((division) => storage.upsertDivision(division));
 
-  const taskCategory = makeTaskCategory({ id: ids.taskCategories.onboarding, name: "Onboarding" });
+  const taskCategory = makeTaskCategory({ id: AUTH_FIXTURE_IDS.taskCategories.onboarding, name: "Onboarding" });
   storage.upsertTaskCategory(taskCategory);
 
-  const priority = makeTaskPriority({ id: ids.taskPriorities.medium, name: "medium" as any });
+  const priority = makeTaskPriority({ id: AUTH_FIXTURE_IDS.taskPriorities.medium, name: "medium" as any });
   storage.upsertTaskPriority(priority);
 
-  const taskDefinition = makeTaskDefinition({ id: ids.taskDefinitions.provisioning, name: "Provision Accounts", createdBy: ids.users.systemAdmin });
+  const taskDefinition = makeTaskDefinition({ id: AUTH_FIXTURE_IDS.taskDefinitions.provisioning, name: "Provision Accounts", createdBy: AUTH_FIXTURE_IDS.users.systemAdmin });
   storage.upsertTaskDefinition(taskDefinition);
 
-  const template = makeTemplate({ id: ids.templates.onboarding, name: "Faculty Onboarding", candidateTypeId: ids.candidateTypes.faculty, createdBy: ids.users.systemAdmin });
+  const template = makeTemplate({ id: AUTH_FIXTURE_IDS.templates.onboarding, name: "Faculty Onboarding", candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty, createdBy: AUTH_FIXTURE_IDS.users.systemAdmin });
   storage.upsertTemplate(template);
 
-  const templateStage = makeTemplateStage({ id: ids.templateStages.offer, templateId: template.id, stageId: ids.hiringStages.offer, orderIndex: 1 });
+  const templateStage = makeTemplateStage({ id: AUTH_FIXTURE_IDS.templateStages.offer, templateId: template.id, stageId: AUTH_FIXTURE_IDS.hiringStages.offer, orderIndex: 1 });
   storage.upsertTemplateStage(templateStage);
 
   const templateTask = makeTemplateTask({
-    id: ids.templateTasks.provisioning,
+    id: AUTH_FIXTURE_IDS.templateTasks.provisioning,
     templateId: template.id,
     taskDefId: taskDefinition.id,
-    stageId: ids.hiringStages.offer,
+    stageId: AUTH_FIXTURE_IDS.hiringStages.offer,
     templateStageId: templateStage.id,
     defaultPriorityId: priority.id,
     defaultCategoryId: taskCategory.id,
-    createdBy: ids.users.systemAdmin
+    createdBy: AUTH_FIXTURE_IDS.users.systemAdmin
   });
   storage.upsertTemplateTask(templateTask);
 
@@ -325,62 +326,62 @@ export async function seedAuthorizationFixtures(storage: MockServiceFactory): Pr
 
   const users: User[] = [
     makeUser({
-      id: ids.users.systemAdmin,
+      id: AUTH_FIXTURE_IDS.users.systemAdmin,
       email: "system.admin@example.com",
       firstName: "System",
       lastName: "Admin",
       mentionKey: "system.admin",
       role: "system_admin",
-      departmentId: ids.departments.alpha
+      departmentId: AUTH_FIXTURE_IDS.departments.alpha
     }),
     makeUser({
-      id: ids.users.hrStaff,
+      id: AUTH_FIXTURE_IDS.users.hrStaff,
       email: "hr.staff@example.com",
       firstName: "HR",
       lastName: "Staff",
       mentionKey: "hr.staff",
       role: "hr_staff",
-      departmentId: ids.departments.alpha
+      departmentId: AUTH_FIXTURE_IDS.departments.alpha
     }),
     makeUser({
-      id: ids.users.departmentAdmin,
+      id: AUTH_FIXTURE_IDS.users.departmentAdmin,
       email: "dept.admin@example.com",
       firstName: "Dept",
       lastName: "Admin",
       mentionKey: "dept.admin",
       role: "department_admin",
-      departmentId: ids.departments.alpha
+      departmentId: AUTH_FIXTURE_IDS.departments.alpha
     }),
     makeUser({
-      id: ids.users.divisionLeader,
+      id: AUTH_FIXTURE_IDS.users.divisionLeader,
       email: "division.leader@example.com",
       firstName: "Division",
       lastName: "Leader",
       mentionKey: "division.leader",
       role: "division_leader",
-      departmentId: ids.departments.alpha,
-      divisionId: ids.divisions.alpha
+      departmentId: AUTH_FIXTURE_IDS.departments.alpha,
+      divisionId: AUTH_FIXTURE_IDS.divisions.alpha
     }),
     makeUser({
-      id: ids.users.manager,
+      id: AUTH_FIXTURE_IDS.users.manager,
       email: "manager@example.com",
       firstName: "Team",
       lastName: "Manager",
       mentionKey: "team.manager",
       role: "manager",
-      departmentId: ids.departments.alpha
+      departmentId: AUTH_FIXTURE_IDS.departments.alpha
     }),
     makeUser({
-      id: ids.users.dualRole,
+      id: AUTH_FIXTURE_IDS.users.dualRole,
       email: "dual.role@example.com",
       firstName: "Dual",
       lastName: "Role",
       mentionKey: "dual.role",
       role: "hr_staff",
-      departmentId: ids.departments.beta
+      departmentId: AUTH_FIXTURE_IDS.departments.beta
     }),
     makeUser({
-      id: ids.users.candidateUser,
+      id: AUTH_FIXTURE_IDS.users.candidateUser,
       email: "candidate@example.com",
       firstName: "Cand",
       lastName: "User",
@@ -391,68 +392,68 @@ export async function seedAuthorizationFixtures(storage: MockServiceFactory): Pr
 
   users.forEach((user) => {
     const extras: { roles?: string[]; departmentScopes?: string[]; divisionScopes?: string[]; managedCandidateIds?: string[] } = {};
-    if (user.id === ids.users.departmentAdmin) {
-      extras.departmentScopes = [ids.departments.alpha];
+    if (user.id === AUTH_FIXTURE_IDS.users.departmentAdmin) {
+      extras.departmentScopes = [AUTH_FIXTURE_IDS.departments.alpha];
     }
-    if (user.id === ids.users.divisionLeader) {
-      extras.divisionScopes = [ids.divisions.alpha];
+    if (user.id === AUTH_FIXTURE_IDS.users.divisionLeader) {
+      extras.divisionScopes = [AUTH_FIXTURE_IDS.divisions.alpha];
     }
-    if (user.id === ids.users.dualRole) {
+    if (user.id === AUTH_FIXTURE_IDS.users.dualRole) {
       extras.roles = ["department_admin", "division_leader"];
-      extras.departmentScopes = [ids.departments.beta];
-      extras.divisionScopes = [ids.divisions.beta];
+      extras.departmentScopes = [AUTH_FIXTURE_IDS.departments.beta];
+      extras.divisionScopes = [AUTH_FIXTURE_IDS.divisions.beta];
     }
-    if (user.id === ids.users.manager) {
-      extras.managedCandidateIds = [ids.candidates.managedOnly];
+    if (user.id === AUTH_FIXTURE_IDS.users.manager) {
+      extras.managedCandidateIds = [AUTH_FIXTURE_IDS.candidates.managedOnly];
     }
     storage.upsertUser(user, extras);
   });
 
   const candidateAlpha = makeCandidate({
-    id: ids.candidates.alphaPrimary,
+    id: AUTH_FIXTURE_IDS.candidates.alphaPrimary,
     firstName: "Alice",
     lastName: "Alpha",
-    email: "alice.alpha@example.com",
-    candidateTypeId: ids.candidateTypes.faculty,
-    departmentId: ids.departments.alpha,
-    divisionId: ids.divisions.alpha,
-    managerId: ids.users.manager,
-    facultyRankId: ids.facultyRanks.instructor,
-    primaryOwnerId: ids.users.hrStaff,
-    linkedUserId: ids.users.candidateUser,
-    currentStageId: ids.hiringStages.offer,
-    templateAppliedFromId: ids.templates.onboarding,
+    email: "alpha.primary@example.com",
+    candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
+    departmentId: AUTH_FIXTURE_IDS.departments.alpha,
+    divisionId: AUTH_FIXTURE_IDS.divisions.alpha,
+    managerId: AUTH_FIXTURE_IDS.users.manager,
+    facultyRankId: AUTH_FIXTURE_IDS.facultyRanks.instructor,
+    primaryOwnerId: AUTH_FIXTURE_IDS.users.hrStaff,
+    linkedUserId: AUTH_FIXTURE_IDS.users.candidateUser,
+    currentStageId: AUTH_FIXTURE_IDS.hiringStages.offer,
+    templateAppliedFromId: AUTH_FIXTURE_IDS.templates.onboarding,
     templateAppliedAt: now,
     templateNameSnapshot: "Faculty Onboarding"
   });
 
   const candidateBeta = makeCandidate({
-    id: ids.candidates.betaCandidate,
+    id: AUTH_FIXTURE_IDS.candidates.betaCandidate,
     firstName: "Betty",
     lastName: "Beta",
     email: "betty.beta@example.com",
-    candidateTypeId: ids.candidateTypes.faculty,
-    departmentId: ids.departments.beta,
-    divisionId: ids.divisions.beta,
-    facultyRankId: ids.facultyRanks.instructor,
-    primaryOwnerId: ids.users.hrStaff,
-    currentStageId: ids.hiringStages.offer,
-    templateAppliedFromId: ids.templates.onboarding,
+    candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
+    departmentId: AUTH_FIXTURE_IDS.departments.beta,
+    divisionId: AUTH_FIXTURE_IDS.divisions.beta,
+    facultyRankId: AUTH_FIXTURE_IDS.facultyRanks.instructor,
+    primaryOwnerId: AUTH_FIXTURE_IDS.users.hrStaff,
+    currentStageId: AUTH_FIXTURE_IDS.hiringStages.offer,
+    templateAppliedFromId: AUTH_FIXTURE_IDS.templates.onboarding,
     templateAppliedAt: now,
     templateNameSnapshot: "Faculty Onboarding"
   });
 
   const managedCandidate = makeCandidate({
-    id: ids.candidates.managedOnly,
+    id: AUTH_FIXTURE_IDS.candidates.managedOnly,
     firstName: "Miles",
     lastName: "Managed",
     email: "miles.managed@example.com",
-    candidateTypeId: ids.candidateTypes.faculty,
-    departmentId: ids.departments.beta,
-    facultyRankId: ids.facultyRanks.instructor,
-    primaryOwnerId: ids.users.hrStaff,
-    currentStageId: ids.hiringStages.offer,
-    templateAppliedFromId: ids.templates.onboarding,
+    candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
+    departmentId: AUTH_FIXTURE_IDS.departments.beta,
+    facultyRankId: AUTH_FIXTURE_IDS.facultyRanks.instructor,
+    primaryOwnerId: AUTH_FIXTURE_IDS.users.hrStaff,
+    currentStageId: AUTH_FIXTURE_IDS.hiringStages.offer,
+    templateAppliedFromId: AUTH_FIXTURE_IDS.templates.onboarding,
     templateAppliedAt: now,
     templateNameSnapshot: "Faculty Onboarding"
   });
@@ -463,35 +464,35 @@ export async function seedAuthorizationFixtures(storage: MockServiceFactory): Pr
 
   const tasks: CandidateTask[] = [
     makeTask({
-      id: ids.candidateTasks.alphaTask,
+      id: AUTH_FIXTURE_IDS.candidateTasks.alphaTask,
       candidateId: candidateAlpha.id,
       taskDefId: taskDefinition.id,
       title: "Provision Network Accounts",
       description: "Create network accounts",
-      stageId: ids.hiringStages.offer,
-      assigneeUserId: ids.users.manager,
+    stageId: AUTH_FIXTURE_IDS.hiringStages.offer,
+      assigneeUserId: AUTH_FIXTURE_IDS.users.manager,
       categoryId: taskCategory.id,
       templateStageId: templateStage.id
     }),
     makeTask({
-      id: ids.candidateTasks.betaTask,
+      id: AUTH_FIXTURE_IDS.candidateTasks.betaTask,
       candidateId: candidateBeta.id,
       taskDefId: taskDefinition.id,
       title: "Beta Task",
       description: "Review documents",
-      stageId: ids.hiringStages.offer,
-      assigneeUserId: ids.users.hrStaff,
+      stageId: AUTH_FIXTURE_IDS.hiringStages.offer,
+      assigneeUserId: AUTH_FIXTURE_IDS.users.hrStaff,
       categoryId: taskCategory.id,
       templateStageId: templateStage.id
     }),
     makeTask({
-      id: ids.candidateTasks.managedTask,
+      id: AUTH_FIXTURE_IDS.candidateTasks.managedTask,
       candidateId: managedCandidate.id,
       taskDefId: taskDefinition.id,
       title: "Managed Task",
       description: "Manager scoped task",
-      stageId: ids.hiringStages.offer,
-      assigneeUserId: ids.users.manager,
+      stageId: AUTH_FIXTURE_IDS.hiringStages.offer,
+      assigneeUserId: AUTH_FIXTURE_IDS.users.manager,
       categoryId: taskCategory.id,
       templateStageId: templateStage.id
     })
@@ -501,14 +502,14 @@ export async function seedAuthorizationFixtures(storage: MockServiceFactory): Pr
     storage.upsertCandidateTask(task);
   }
 
-  storage.addFollower(candidateAlpha.id, ids.users.hrStaff);
+  storage.addFollower(candidateAlpha.id, AUTH_FIXTURE_IDS.users.hrStaff);
 
   return {
-    departments: ids.departments,
-    divisions: ids.divisions,
-    users: ids.users,
-    candidates: ids.candidates,
-    templates: ids.templates,
-    tasks: ids.candidateTasks
+    departments: AUTH_FIXTURE_IDS.departments,
+    divisions: AUTH_FIXTURE_IDS.divisions,
+    users: AUTH_FIXTURE_IDS.users,
+    candidates: AUTH_FIXTURE_IDS.candidates,
+    templates: AUTH_FIXTURE_IDS.templates,
+    tasks: AUTH_FIXTURE_IDS.candidateTasks
   };
 }

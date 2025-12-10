@@ -83,10 +83,9 @@ export const openApiSpec: OpenAPIV3.Document = {
       '- offset - Number of results to skip (default: 0)\n\n' +
       '## Filtering\n\n' +
       'Most list endpoints support filtering via query parameters specific to the resource.\n\n' +
-      '## Further Documentation\n\n' +
-      '- [Architecture Review](../docs/ARCHITECTURE_REVIEW.md)\n' +
-      '- [Bounded Contexts](../docs/BOUNDED_CONTEXTS.md)\n' +
-      '- [Service Layer Documentation](../server/services/README.md)',
+    '## Further Documentation\n\n' +
+      '- [Architecture Overview](../docs/ARCHITECTURE.md)\n' +
+      '- [Bounded Contexts](../docs/BOUNDED_CONTEXTS.md)\n',
     contact: {
       name: 'OnBoardPro Team',
       email: 'jesteen@uabmc.edu'

@@ -1,31 +1,8 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { createAuthTestEnvironment } from "../utils/testEnvironment";
-import { seedAuthorizationFixtures } from "../utils/seedAuthorizationFixtures";
+import { seedAuthorizationFixtures, AUTH_FIXTURE_IDS } from "../utils/seedAuthorizationFixtures";
 import { createAuthedAgent } from "../utils/testAgent";
-
-const IDS = {
-  users: {
-    systemAdmin: "f1111111-1111-1111-1111-111111111111",
-    hrStaff: "f2222222-2222-2222-2222-222222222222",
-    manager: "f5555555-5555-5555-5555-555555555555",
-    candidateUser: "f7777777-7777-7777-7777-777777777777"
-  },
-  candidates: {
-    alphaPrimary: "f8888888-8888-8888-8888-888888888888",
-    betaCandidate: "f9999999-9999-9999-9999-999999999999",
-  },
-  tasks: {
-    alphaTask: "fcdcdcdc-dcdc-dcdc-dcdc-dcdcdcdcdcdc",
-    betaTask: "fdeedeee-deee-deee-deee-deeedeeedeee",
-  },
-  taskCategories: {
-    onboarding: "77777777-7777-7777-7777-777777777777"
-  },
-  taskPriorities: {
-    medium: "88888888-8888-8888-8888-888888888888"
-  }
-} as const;
 
 async function setupTest(t: any, userId: string) {
   const env = await createAuthTestEnvironment();
@@ -43,16 +20,16 @@ async function setupTest(t: any, userId: string) {
 
 describe("Task API - Create Operations", () => {
   test("hr staff can create a new task", async (t) => {
-    const { agent, fixtures, storage } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const newTask = {
       candidateId: fixtures.candidates.alphaPrimary,
       title: "Complete Background Check",
       description: "Submit all required background check documents",
-      categoryId: IDS.taskCategories.onboarding,
-      priorityId: IDS.taskPriorities.medium,
+      categoryId: AUTH_FIXTURE_IDS.taskCategories.onboarding,
+      priorityId: AUTH_FIXTURE_IDS.taskPriorities.medium,
       status: "pending",
-      assigneeUserId: IDS.users.manager,
+      assigneeUserId: AUTH_FIXTURE_IDS.users.manager,
       dueDate: new Date("2025-12-31").toISOString()
     };
 
@@ -64,8 +41,8 @@ describe("Task API - Create Operations", () => {
     assert.ok(response.body.id, "Response should include task ID");
     assert.equal(response.body.title, "Complete Background Check");
     assert.equal(response.body.candidateId, fixtures.candidates.alphaPrimary);
-    assert.equal(response.body.status, "pending");
-    assert.equal(response.body.assigneeUserId, IDS.users.manager);
+    assert.equal(response.body.status, "todo");
+    assert.equal(response.body.assigneeUserId, AUTH_FIXTURE_IDS.users.manager);
 
     // Verify task was created in storage
     const created = await storage.getTask(response.body.id);
@@ -74,7 +51,7 @@ describe("Task API - Create Operations", () => {
   });
 
   test("task creation requires valid candidate", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const newTask = {
       candidateId: "00000000-0000-0000-0000-000000000000", // Invalid candidate
@@ -89,7 +66,7 @@ describe("Task API - Create Operations", () => {
   });
 
   test("task creation requires title", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const newTask = {
       candidateId: fixtures.candidates.alphaPrimary,
@@ -104,7 +81,7 @@ describe("Task API - Create Operations", () => {
   });
 
   test("task creation with invalid status fails", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const newTask = {
       candidateId: fixtures.candidates.alphaPrimary,
@@ -119,7 +96,7 @@ describe("Task API - Create Operations", () => {
   });
 
   test("manager cannot create tasks", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.manager);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.manager);
 
     const newTask = {
       candidateId: fixtures.candidates.alphaPrimary,
@@ -136,7 +113,7 @@ describe("Task API - Create Operations", () => {
 
 describe("Task API - Read Operations", () => {
   test("hr staff can list all tasks", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent.get("/api/tasks").expect(200);
 
@@ -145,7 +122,7 @@ describe("Task API - Read Operations", () => {
   });
 
   test("hr staff can get task by id", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .get(`/api/tasks/${fixtures.tasks.alphaTask}`)
@@ -157,7 +134,7 @@ describe("Task API - Read Operations", () => {
   });
 
   test("get task with invalid id returns 404", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     await agent
       .get("/api/tasks/00000000-0000-0000-0000-000000000000")
@@ -165,7 +142,7 @@ describe("Task API - Read Operations", () => {
   });
 
   test("manager can get their assigned tasks", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.manager);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.manager);
 
     const response = await agent.get("/api/tasks/mine").expect(200);
 
@@ -173,7 +150,7 @@ describe("Task API - Read Operations", () => {
 
     // All tasks should be assigned to the manager or in their scope
     for (const task of response.body) {
-      const isAssignedToManager = task.assigneeUserId === IDS.users.manager;
+      const isAssignedToManager = task.assigneeUserId === AUTH_FIXTURE_IDS.users.manager;
       const isInScope = [
         fixtures.tasks.alphaTask,
         fixtures.tasks.managedTask
@@ -184,7 +161,7 @@ describe("Task API - Read Operations", () => {
   });
 
   test("tasks can be filtered by candidate", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .get(`/api/candidates/${fixtures.candidates.alphaPrimary}/tasks`)
@@ -199,7 +176,7 @@ describe("Task API - Read Operations", () => {
   });
 
   test("tasks can be filtered by status", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .get("/api/tasks")
@@ -210,28 +187,28 @@ describe("Task API - Read Operations", () => {
 
     // All tasks should have pending status
     for (const task of response.body) {
-      assert.equal(task.status, "pending");
+      assert.equal(task.status, "todo");
     }
   });
 
   test("tasks can be filtered by assignee", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .get("/api/tasks")
-      .query({ assigneeUserId: IDS.users.manager })
+      .query({ assigneeUserId: AUTH_FIXTURE_IDS.users.manager })
       .expect(200);
 
     assert.ok(Array.isArray(response.body));
 
     // All tasks should be assigned to the manager
     for (const task of response.body) {
-      assert.equal(task.assigneeUserId, IDS.users.manager);
+      assert.equal(task.assigneeUserId, AUTH_FIXTURE_IDS.users.manager);
     }
   });
 
   test("manager cannot view tasks outside their scope", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.manager);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.manager);
 
     await agent
       .get(`/api/tasks/${fixtures.tasks.betaTask}`)
@@ -239,7 +216,7 @@ describe("Task API - Read Operations", () => {
   });
 
   test("candidate can view their own tasks", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.candidateUser);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.candidateUser);
 
     const response = await agent
       .get(`/api/candidates/${fixtures.candidates.alphaPrimary}/tasks`)
@@ -257,7 +234,7 @@ describe("Task API - Read Operations", () => {
 
 describe("Task API - Update Operations", () => {
   test("hr staff can update task status", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .patch(`/api/tasks/${fixtures.tasks.alphaTask}`)
@@ -269,12 +246,12 @@ describe("Task API - Update Operations", () => {
   });
 
   test("hr staff can update task details", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const updates = {
       title: "Updated Task Title",
       description: "Updated description",
-      priorityId: IDS.taskPriorities.medium
+      priorityId: AUTH_FIXTURE_IDS.taskPriorities.medium
     };
 
     const response = await agent
@@ -287,18 +264,18 @@ describe("Task API - Update Operations", () => {
   });
 
   test("hr staff can reassign task", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .patch(`/api/tasks/${fixtures.tasks.alphaTask}`)
-      .send({ assigneeUserId: IDS.users.hrStaff })
+      .send({ assigneeUserId: AUTH_FIXTURE_IDS.users.hrStaff })
       .expect(200);
 
-    assert.equal(response.body.assigneeUserId, IDS.users.hrStaff);
+    assert.equal(response.body.assigneeUserId, AUTH_FIXTURE_IDS.users.hrStaff);
   });
 
   test("hr staff can update task due date", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const newDueDate = new Date("2025-12-31").toISOString();
 
@@ -315,7 +292,7 @@ describe("Task API - Update Operations", () => {
   });
 
   test("manager can update status of assigned tasks", async (t) => {
-    const { agent, fixtures, storage } = await setupTest(t, IDS.users.manager);
+    const { agent, fixtures, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.manager);
 
     // First verify the task is in manager's scope
     const task = await storage.getTask(fixtures.tasks.alphaTask);
@@ -326,11 +303,11 @@ describe("Task API - Update Operations", () => {
       .send({ status: "completed" })
       .expect(200);
 
-    assert.equal(response.body.status, "completed");
+    assert.equal(response.body.status, "done");
   });
 
   test("manager cannot update tasks outside their scope", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.manager);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.manager);
 
     await agent
       .patch(`/api/tasks/${fixtures.tasks.betaTask}`)
@@ -339,7 +316,7 @@ describe("Task API - Update Operations", () => {
   });
 
   test("update with invalid status fails", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     await agent
       .patch(`/api/tasks/${fixtures.tasks.alphaTask}`)
@@ -348,7 +325,7 @@ describe("Task API - Update Operations", () => {
   });
 
   test("update preserves fields not included in request", async (t) => {
-    const { agent, fixtures, storage } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const original = await storage.getTask(fixtures.tasks.alphaTask);
     assert.ok(original);
@@ -366,7 +343,7 @@ describe("Task API - Update Operations", () => {
 
 describe("Task API - Delete Operations", () => {
   test("hr staff can delete a task", async (t) => {
-    const { agent, fixtures, storage } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     // Create a task to delete
     const newTask = {
@@ -393,7 +370,7 @@ describe("Task API - Delete Operations", () => {
   });
 
   test("delete with invalid id returns 404", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     await agent
       .delete("/api/tasks/00000000-0000-0000-0000-000000000000")
@@ -401,7 +378,7 @@ describe("Task API - Delete Operations", () => {
   });
 
   test("manager cannot delete tasks", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.manager);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.manager);
 
     await agent
       .delete(`/api/tasks/${fixtures.tasks.alphaTask}`)
@@ -411,7 +388,7 @@ describe("Task API - Delete Operations", () => {
 
 describe("Task API - Bulk Operations", () => {
   test("hr staff can bulk update task statuses", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const taskIds = [fixtures.tasks.alphaTask, fixtures.tasks.betaTask];
 
@@ -427,7 +404,7 @@ describe("Task API - Bulk Operations", () => {
   });
 
   test("bulk update validates all task ids", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     await agent
       .post("/api/tasks/bulk-update")
@@ -441,7 +418,7 @@ describe("Task API - Bulk Operations", () => {
 
 describe("Task API - Deadline Operations", () => {
   test("tasks with overdue dates are identified", async (t) => {
-    const { agent, fixtures, storage } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     // Create a task with past due date
     const overdueTask = {
@@ -466,7 +443,7 @@ describe("Task API - Deadline Operations", () => {
   });
 
   test("upcoming deadlines can be filtered", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     // Create a task with upcoming due date
     const upcomingDate = new Date();
@@ -506,7 +483,7 @@ describe("Task API - Deadline Operations", () => {
 
 describe("Task API - Pagination and Sorting", () => {
   test("tasks list supports pagination", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .get("/api/tasks")
@@ -518,7 +495,7 @@ describe("Task API - Pagination and Sorting", () => {
   });
 
   test("tasks list supports sorting by due date", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .get("/api/tasks")
@@ -541,7 +518,7 @@ describe("Task API - Pagination and Sorting", () => {
   });
 
   test("tasks list supports sorting by status", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .get("/api/tasks")

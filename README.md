@@ -1,44 +1,61 @@
 # OnBoardPro
 
-## Security Notes
+OnBoardPro is a TypeScript monorepo for managing candidate onboarding. The stack pairs an Express/Drizzle/PostgreSQL API with a Vite + React 18 SPA, sharing types and schema definitions across client and server. Session-based auth (passport) supports local logins plus optional SSO/LDAP, and background jobs drive notification and deadline workflows.
 
-- Dev-only audit warnings: `npm audit` may report moderate vulnerabilities under the Drizzle CLI toolchain (e.g., `@esbuild-kit/core-utils` pulling an older `esbuild`). These are used only during development (migrations/CLI) and are not part of the production build artifacts.
-- Production build is clean: `npm audit --production` reports 0 vulnerabilities. The app bundles with Vite 7 and ships only the compiled client assets plus the server bundle.
-- Mitigation in place: we pin `esbuild@0.25.0` via `overrides` for most consumers (including Vite and tsx). Some nested dev tools still install their own `esbuild`, which triggers the dev-only advisory, but does not affect runtime.
-- How to verify:
-  - Run `npm audit --production` to focus on runtime dependencies.
-  - Run `npm run build` to generate production artifacts in `dist/`.
+## Quick start
+1) Prereqs: Node 22+, npm, Docker (for Postgres).  
+2) Install deps: `npm install` (root).  
+3) Start database: `docker-compose up db` (uses `initdb/phase5_sample_data.sql`).  
+4) Copy `.env` and fill values (see Environment).  
+5) Dev server: `npm run dev` (Express + Vite middleware on PORT, defaults to 5000).  
+6) Open API docs at `http://localhost:5000/api/docs` once the server is running.
 
-## Tooling
+## Scripts (verified)
+- `npm run dev` — start Express in development with Vite middleware.
+- `npm run build` — Vite build for client to `dist/public` and esbuild bundle for server to `dist/`.
+- `npm start` — run the bundled server (expects `dist` from build).
+- `npm run check` — TypeScript type-check.
+- `npm test` — run backend and frontend test suites.
+  - `npm run test:backend` — `tsx --test server/tests/**` (happy-dom disabled).
+  - `npm run test:frontend` — `vitest run` (happy-dom).
+  - `npm run test:coverage` — Vitest coverage for frontend.
+- Database utilities:
+  - `npm run db:push` — apply Drizzle migrations.
+  - `npm run db:import` — import `database_export.sql`.
+  - `npm run db:run-sql` — run SQL files from `scripts/runSqlFiles.mjs`.
+- Auth helper: `npm run user:set-password` — set a local user password.
 
-- Bundler: Vite 7 with `@vitejs/plugin-react-swc`.
-- Node: 18+ recommended (tested with Node 24.x).
+## Environment
+Env validation lives in `server/config/env.ts`. Required or common keys:
+- `NODE_ENV` (`development` | `production` | `test`, default `development`)
+- `PORT` (default `5000`)
+- `DATABASE_URL` (Postgres connection string; SSL auto-enabled for Neon hosts)
+- `SESSION_SECRET` (>=32 chars)
+- Rate limits: `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX`, `SENSITIVE_RATE_LIMIT_WINDOW_MS`, `SENSITIVE_RATE_LIMIT_MAX`
+- Feature flags/jobs: `DISABLE_DEADLINE_SCANNER`, `DISABLE_EMAIL_JOBS`, `DISABLE_NOTIFICATION_CLEANUP`
+- SMTP (optional): `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`
+- OAuth/SSO (optional): `GOOGLE_CLIENT_ID/SECRET`, `AZURE_CLIENT_ID/SECRET`, `AZURE_TENANT_ID`
+- LDAP (optional): `LDAP_URL`, `LDAP_BIND_DN`, `LDAP_BIND_PASSWORD`, `LDAP_SEARCH_BASE`, `LDAP_SEARCH_FILTER`
 
-## Commands
+## Project structure
+- `server/` — Express app entry (`index.ts`), config, routes, middleware, services, repositories, events, background jobs, tests.
+- `client/` — Vite React SPA (`src/main.tsx`, `src/App.tsx`) with routes under `src/app/(dashboard)` and feature modules in `src/features`.
+- `shared/` — Drizzle schema, enums, and shared types reused via the `@shared` alias.
+- `docs/` — documentation (architecture, glossary, audits).
+- `scripts/` — database and maintenance utilities.
+- `initdb/` — seed SQL for local Postgres.
+- `dist/` — build output (server bundle + static client).
 
-- Dev: `npm run dev`
-- Build: `npm run build`
-- Audit (prod only): `npm audit --production`
+## Development notes
+- Path aliases: `@` → `client/src`, `@shared` → `shared`, `@assets` → `attached_assets`.
+- API docs: Swagger UI served at `/api/docs`; canonical JSON at `/api/docs.json` (single OpenAPI source in `server/docs/openapi-spec.ts`).
+- Background jobs: deadline scanner, email notification sender, notification cleanup (toggle via env flags).
+- Rate limiting: default and “sensitive” limiters applied in routers (see `server/middleware/rate-limiter.ts`).
 
-## Browserslist Data
+## Testing
+- Backend tests use `tsx --test` (see `server/tests/**`). Requires `NODE_ENV=test` and typically `SKIP_AUTH_SETUP=1` for isolated routes.
+- Frontend tests run with Vitest + happy-dom (`client/tests/setup.ts`).
+- Prefer running `npm test` for the full suite before shipping changes.
 
-- If you see a warning about old Browserslist/caniuse-lite data during build, update the local DB:
-  - `npx update-browserslist-db@latest`
-  - Optionally add an npm script: `"browserslist:update": "npx update-browserslist-db@latest"`
-  - More info: https://github.com/browserslist/update-db
-
-## Upgrading To Vite 7
-
-- Summary
-  - Upgraded `vite` to `^7.1.6` and switched to `@vitejs/plugin-react-swc` for faster React transforms.
-  - Removed unused `@tailwindcss/vite` (was not referenced in `vite.config.ts`).
-  - Bumped `@types/node` to satisfy Vite 7 peer requirement.
-  - Kept `overrides` to pin `esbuild@0.25.0` due to dev-tooling chain (`drizzle-kit`/`@esbuild-kit`).
-- Config changes
-  - `vite.config.ts` now imports `@vitejs/plugin-react-swc` and keeps existing aliases/root/outDir.
-- Requirements
-  - Node 18+ (tested with Node 24.x).
-- Verification
-  - `npm install`
-  - `npm run dev` and `npm run build`
-  - `npm audit --production` should report 0 vulnerabilities.
+## Licensing
+MIT (see `package.json`).

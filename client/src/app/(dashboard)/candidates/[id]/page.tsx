@@ -1,3 +1,9 @@
+/**
+ * Candidate Detail Page
+ * Purpose: Dashboard page to view/manage a single candidate, tasks, comments, and status/stage transitions.
+ * Belongs: UI/data orchestration and optimistic interactions; enforce business rules on the server.
+ * Conventions: Centralize query/mutation hooks, keep status/stage/notes helpers consistent, and avoid duplicating authorization logic client-side.
+ */
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { invalidateMyTasks } from "@/lib/query-invalidate";

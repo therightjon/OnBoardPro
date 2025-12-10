@@ -146,11 +146,23 @@ router.post("/auth/login", async (req, res, next) => {
           managedCandidateIds: Array.from(new Set(managedCandidateIds.filter(Boolean)))
         };
         
-        // Remove sensitive fields
+        // Remove sensitive fields before persisting
         delete enrichedUser.passwordHash;
         delete (enrichedUser as any).password;
+
+        if (req.session) {
+          // Regenerate to avoid fixation even in test mode, but don't fail login if it errors
+          if (typeof req.session.regenerate === "function") {
+            await new Promise<void>((resolve) => {
+              req.session!.regenerate(() => resolve());
+            });
+          }
+          req.session.user = enrichedUser as any;
+          if (typeof req.session.save === "function") {
+            await new Promise<void>((resolve) => req.session!.save(() => resolve()));
+          }
+        }
         
-        // Mock session establishment
         req.user = enrichedUser as any;
         req.isAuthenticated = () => true;
         
@@ -168,6 +180,18 @@ router.post("/auth/login", async (req, res, next) => {
         delete basicUser.passwordHash;
         delete (basicUser as any).password;
         
+        if (req.session) {
+          if (typeof req.session.regenerate === "function") {
+            await new Promise<void>((resolve) => {
+              req.session!.regenerate(() => resolve());
+            });
+          }
+          req.session.user = basicUser as any;
+          if (typeof req.session.save === "function") {
+            await new Promise<void>((resolve) => req.session!.save(() => resolve()));
+          }
+        }
+
         req.user = basicUser as any;
         req.isAuthenticated = () => true;
         res.status(200).json({ user: basicUser });
@@ -189,9 +213,19 @@ router.post("/auth/logout", (req, res, next) => {
       res.sendStatus(200);
     });
   } else {
-    // Test mode: just clear mock session
-    req.user = undefined;
-    res.sendStatus(200);
+    // Test mode: clear mock session and destroy any in-memory session store
+    if (req.session) {
+      req.session.destroy((destroyErr) => {
+        if (destroyErr) {
+          console.error("Failed to destroy session during logout:", destroyErr);
+        }
+        req.user = undefined;
+        res.sendStatus(200);
+      });
+    } else {
+      req.user = undefined;
+      res.sendStatus(200);
+    }
   }
 });
 
