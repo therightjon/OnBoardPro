@@ -35,6 +35,17 @@ Common terms for OnBoardPro so client/server/services stay aligned.
 - **Outbox**: Email outbox entries (`notificationOutbox`) processed by jobs.
 - **Comments**: User comments on candidates/tasks with mention support (`mentionKey` on users).
 
+## Audit logging
+- **Audit Log Entry**: Immutable record of a system action or event; stored in `audit_log` table.
+- **Actor**: User who performed the action (`actorId` field).
+- **Resource Type**: Type of entity affected (candidate, task, template, user, etc.).
+- **Resource ID**: Unique identifier of the affected resource.
+- **Action**: Type of operation (create, update, delete, archive, restore, assign, status_change, access_denied).
+- **Event Type**: Category of audit event (crud, authorization).
+- **Access Denied**: Authorization failure logged for security tracking.
+- **writeAuditLog()**: Helper function called from services to record audit entries; non-blocking.
+- **Cursor Pagination**: Efficient pagination using `occurredAt` timestamps with `before` parameter.
+
 ## Auth & identity
 - **Auth Providers**: Local, Google, Azure AD, LDAP; configured in auth provider service and routes.
 - **Session**: Express-session with Postgres store; cookie `connect.sid`.
@@ -43,3 +54,11 @@ Common terms for OnBoardPro so client/server/services stay aligned.
 ## Data/shared
 - **Shared schema**: `shared/schema.ts` and `shared/schemas/*.ts` define database tables/enums and Zod schemas reused by client/server.
 - **Preferences**: User preference payloads defined in `shared/preferences.ts` and consumed via `/api/me/preferences`.
+
+## Database migrations
+- **Migration Scripts**: SQL migration files in `migrations/` directory (e.g., `0018_crud_audit.sql`).
+- **runMigration.ts**: TypeScript script to run a single SQL migration file with transaction support.
+- **runSqlFiles.ts**: TypeScript script to run multiple SQL migration files sequentially.
+- **DATABASE_URL**: Environment variable for PostgreSQL connection; SSL auto-enabled for Neon hosts.
+- **npm run db:migrate-file**: Command to run a single migration file.
+- **npm run db:run-sql**: Command to run multiple SQL files.
