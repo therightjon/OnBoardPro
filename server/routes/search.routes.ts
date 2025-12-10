@@ -4,8 +4,7 @@ import { authorizationService } from "../services/authorization";
 import { requireAuth } from "../middleware/authorization";
 import { appRoleEnum } from "@shared/schemas";
 import { reportAuthorizationFailure } from "../observability/authMetrics";
-import { db } from "../db/connection";
-import { sql } from "drizzle-orm";
+import { writeAuditLog } from "../services/shared/audit-logger";
 
 const router = Router();
 
@@ -95,16 +94,16 @@ async function logAuthorizationFailure(params: {
       taskId,
       timestamp: new Date()
     });
-    await db.execute(sql`
-      INSERT INTO audit_log (actor_id, candidate_id, task_id, event_type, details)
-      VALUES (
-        ${actorId ?? null}::uuid,
-        ${candidateId ?? null}::uuid,
-        ${taskId ?? null}::uuid,
-        'authorization_denied',
-        ${JSON.stringify(details)}::jsonb
-      )
-    `);
+    await writeAuditLog({
+      actorId,
+      candidateId,
+      taskId,
+      resourceType: resource,
+      resourceId,
+      action: "access_denied",
+      eventType: "authorization_denied",
+      details
+    });
   } catch (error) {
     console.error("Failed to log authorization failure", error);
   }

@@ -19,8 +19,7 @@ import type {
 import { CandidatePolicy } from "./CandidatePolicy";
 import { TaskPolicy } from "./TaskPolicy";
 import { reportAuthorizationFailure } from "../../observability/authMetrics";
-import { db } from "../../db/connection";
-import { sql } from "drizzle-orm";
+import { writeAuditLog } from "../shared/audit-logger";
 
 /**
  * Main authorization service
@@ -211,30 +210,27 @@ export class AuthorizationService {
         timestamp: failure.timestamp
       });
 
-      // Log to audit table
-      const details = {
-        action: failure.action,
-        resource: failure.resourceType,
-        resourceId: failure.resourceId,
-        reason: failure.reason,
-        path: failure.path,
-        method: failure.method,
-        roles: failure.roles
-      };
-
       const candidateId = failure.resourceType === "candidate" ? failure.resourceId : null;
       const taskId = failure.resourceType === "candidate_task" ? failure.resourceId : null;
 
-      await db.execute(sql`
-        INSERT INTO audit_log (actor_id, candidate_id, task_id, event_type, details)
-        VALUES (
-          ${failure.userId ?? null}::uuid,
-          ${candidateId ?? null}::uuid,
-          ${taskId ?? null}::uuid,
-          'authorization_denied',
-          ${JSON.stringify(details)}::jsonb
-        )
-      `);
+      await writeAuditLog({
+        actorId: failure.userId,
+        candidateId,
+        taskId,
+        resourceType: (failure.resourceType as any) ?? "general",
+        resourceId: failure.resourceId,
+        action: "access_denied",
+        eventType: "authorization_denied",
+        details: {
+          action: failure.action,
+          resource: failure.resourceType,
+          resourceId: failure.resourceId,
+          reason: failure.reason,
+          path: failure.path,
+          method: failure.method,
+          roles: failure.roles
+        }
+      });
     } catch (error) {
       console.error("Failed to log authorization failure", error);
     }

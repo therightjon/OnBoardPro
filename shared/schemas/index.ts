@@ -8,4 +8,5 @@ export * from "./system.schema";
 export * from "./comments.schema";
 export * from "./notifications.schema";
 export * from "./email.schema";
+export * from "./audit.schema";
 export * from "../preferences";

@@ -7,10 +7,8 @@
  */
 import { Router } from "express";
 import { z, ZodError } from "zod/v4";
-import { sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { sensitiveRateLimiter } from "../middleware/rate-limiter";
-import { db } from "../db/connection";
 import { insertCandidateTaskSchema } from "@shared/schemas";
 import {
   fetchTaskWithAccess,
@@ -39,6 +37,7 @@ import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helper
 import { authorizationService } from "../services/authorization";
 import { eventBus, candidateStageChanged, taskCreated, taskAssigned, taskStatusChanged, taskCompleted, commentCreated } from "../events";
 import { getTaskService, getCommentService, getUserService, getReferenceDataService, getCandidateService } from "../services/service-factory";
+import { writeAuditLog } from "../services/shared/audit-logger";
 
 const router = Router();
 
@@ -420,13 +419,17 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
     const completionChanged = Object.prototype.hasOwnProperty.call(updateData, 'completedAt');
 
     // Audit log on cancellation
-    try {
-      if (body.status === 'canceled') {
-        await db.execute(sql`INSERT INTO audit_log (actor_id, candidate_id, task_id, event_type, details)
-          VALUES (${req.user!.id}::uuid, ${existingTask.candidateId}::uuid, ${existingTask.id}::uuid, 'task_canceled', ${JSON.stringify({ reason: updateData.cancelReason })}::jsonb)`);
-      }
-    } catch (e) {
-      console.error('audit log insert failed:', e);
+    if (body.status === 'canceled') {
+      await writeAuditLog({
+        actorId: req.user?.id,
+        candidateId: existingTask.candidateId,
+        taskId: existingTask.id,
+        resourceType: "candidate_task",
+        resourceId: existingTask.id,
+        action: "status_change",
+        eventType: "task_canceled",
+        details: { reason: updateData.cancelReason ?? null, status: body.status }
+      });
     }
 
     // Recompute candidate blocked state and possible auto-regression

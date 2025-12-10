@@ -14,11 +14,13 @@ import type { CandidateStageRepository } from "../../repositories/candidates/Can
 import type { TemplateRepository } from "../../repositories/templates/TemplateRepository";
 import type { AuthorizationContext } from "../../repositories/base/types";
 import { eventBus, candidateCreated, candidateStageChanged, candidateStatusChanged, templateApplied } from "../../events";
+import { writeAuditLog } from "../shared/audit-logger";
 
 export interface CreateCandidateInput {
   data: InsertCandidate;
   templateId?: string;
   actorId?: string;
+  requestId?: string;
   authContext?: AuthorizationContext;
 }
 
@@ -33,6 +35,7 @@ export interface UpdateCandidateInput {
   id: string;
   data: Partial<Candidate>;
   actorId?: string;
+  requestId?: string;
   authContext?: AuthorizationContext;
 }
 
@@ -80,6 +83,23 @@ export class CandidateService {
 
     // Create the candidate
     const candidate = await this.candidateRepo.createCandidate(data);
+
+    await writeAuditLog({
+      actorId,
+      resourceType: "candidate",
+      resourceId: candidate.id,
+      candidateId: candidate.id,
+      action: "create",
+      eventType: "candidate_created",
+      requestId: input.requestId,
+      details: {
+        templateId,
+        departmentId: candidate.departmentId,
+        divisionId: candidate.divisionId,
+        managerId: candidate.managerId,
+        status: candidate.status
+      }
+    });
 
     // Publish domain event
     await eventBus.publish(candidateCreated(candidate.id, {
@@ -132,6 +152,27 @@ export class CandidateService {
       return undefined;
     }
 
+    const changes: Record<string, { before: any; after: any }> = {};
+    for (const key of Object.keys(nextData)) {
+      const before = (existingCandidate as any)[key];
+      const after = (updatedCandidate as any)[key];
+      if (before !== after) {
+        changes[key] = { before, after };
+      }
+    }
+    if (Object.keys(changes).length > 0) {
+      await writeAuditLog({
+        actorId,
+        resourceType: "candidate",
+        resourceId: id,
+        candidateId: id,
+        action: "update",
+        eventType: "candidate_updated",
+        requestId: input.requestId,
+        details: { changes }
+      });
+    }
+
     // Detect and publish stage change event
     if (data.currentStageId && data.currentStageId !== existingCandidate.currentStageId) {
       // TODO: Get stage name from repository
@@ -168,6 +209,7 @@ export class CandidateService {
     newStatus: string;
     actorId: string;
     closeOpenTasks?: boolean;
+    requestId?: string;
     authContext?: AuthorizationContext;
   }): Promise<{
     success: boolean;
@@ -211,6 +253,21 @@ export class CandidateService {
       }, {
         actorId
       }));
+
+      await writeAuditLog({
+        actorId,
+        resourceType: "candidate",
+        resourceId: id,
+        candidateId: id,
+        action: "status_change",
+        eventType: "candidate_status_changed",
+        requestId: input.requestId,
+        details: {
+          from: existing.status,
+          to: updated.status,
+          closeOpenTasks
+        }
+      });
     }
 
     return { ...result, candidate: updated };
@@ -237,6 +294,15 @@ export class CandidateService {
     const candidate = await this.candidateRepo.updateCandidate(id, { archived: true });
 
     if (candidate) {
+      await writeAuditLog({
+        actorId,
+        resourceType: "candidate",
+        resourceId: id,
+        candidateId: id,
+        action: "archive",
+        eventType: "candidate_archived",
+        details: { archived: true }
+      });
       // TODO: Publish candidateArchived event
     }
 
@@ -249,6 +315,16 @@ export class CandidateService {
   async addFollower(candidateId: string, userId: string, actorId?: string): Promise<void> {
     await this.followerRepo.addCandidateFollower(candidateId, userId);
 
+    await writeAuditLog({
+      actorId,
+      resourceType: "candidate",
+      resourceId: candidateId,
+      candidateId,
+      action: "update",
+      eventType: "candidate_follower_added",
+      details: { followerId: userId }
+    });
+
     // TODO: Publish candidateFollowed event
   }
 
@@ -257,6 +333,16 @@ export class CandidateService {
    */
   async removeFollower(candidateId: string, userId: string, actorId?: string): Promise<void> {
     await this.followerRepo.removeCandidateFollower(candidateId, userId);
+
+    await writeAuditLog({
+      actorId,
+      resourceType: "candidate",
+      resourceId: candidateId,
+      candidateId,
+      action: "update",
+      eventType: "candidate_follower_removed",
+      details: { followerId: userId }
+    });
 
     // TODO: Publish candidateUnfollowed event
   }
