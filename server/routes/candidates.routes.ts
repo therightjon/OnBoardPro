@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { z } from "zod";
+import { z, ZodError } from "zod/v4";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { sensitiveRateLimiter } from "../middleware/rate-limiter";
 import { db } from "../db/connection";
@@ -36,6 +36,14 @@ import { CandidateValidationError } from "../services/candidates/candidate.servi
 import { shouldAutoApplyTemplate } from "../utils/hiring-phase.utils";
 
 const router = Router();
+
+// Normalize outbound task statuses to what the client expects (todo | in_progress | blocked | done | canceled)
+const internalStatusToAlias = (status?: string | null) => {
+  if (!status) return status;
+  if (status === "todo") return "todo";
+  if (status === "done") return "done";
+  return status;
+};
 
 /**
  * @swagger
@@ -341,10 +349,14 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
     }
 
     // Validate input
-    const validatedData = insertCandidateSchema.parse({
+    const parsed = insertCandidateSchema.safeParse({
       ...req.body,
       templateAppliedFromId: req.body.templateId ?? req.body.templateAppliedFromId
     });
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid data", errors: parsed.error.errors });
+    }
+    const validatedData = parsed.data;
     
     // NEW: Set up candidate with deferred template application
     // Template is selected (templateAppliedFromId) but not yet applied (templateAppliedAt = null)
@@ -369,7 +381,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
 
     res.status(201).json(candidate);
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof ZodError) {
       return res.status(400).json({ message: "Invalid data", errors: error.errors });
     }
     if (error instanceof CandidateValidationError) {
@@ -804,6 +816,11 @@ router.get("/candidates/:id/tasks", sensitiveRateLimiter, requireAuth, async (re
     const authContext = authorizationService.buildContext(req.user);
     const taskService = getTaskService();
     let tasks = await taskService.getTasks({ candidateId: id }, authContext);
+    tasks = tasks.map((task: any) => ({
+      ...task,
+      status: internalStatusToAlias(task.status),
+      dueDate: (task as any).dueAt ?? (task as any).dueDate ?? null
+    }));
     if (!hasPrivilegedRole(req.user)) {
       tasks = tasks.map(sanitizeTaskForCandidateUser);
     }

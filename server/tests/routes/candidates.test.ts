@@ -1,40 +1,10 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { createAuthTestEnvironment } from "../utils/testEnvironment";
-import { seedAuthorizationFixtures } from "../utils/seedAuthorizationFixtures";
+import { seedAuthorizationFixtures, AUTH_FIXTURE_IDS } from "../utils/seedAuthorizationFixtures";
 import { createAuthedAgent } from "../utils/testAgent";
 import { setServiceFactoryForTesting, resetServiceFactory } from "../utils/mockServiceFactory";
 import type { MockServiceFactory } from "../utils/mockServiceFactory";
-
-const IDS = {
-  users: {
-    systemAdmin: "f1111111-1111-1111-1111-111111111111",
-    hrStaff: "f2222222-2222-2222-2222-222222222222",
-    departmentAdmin: "f3333333-3333-3333-3333-333333333333",
-    manager: "f5555555-5555-5555-5555-555555555555",
-    candidateUser: "f7777777-7777-7777-7777-777777777777"
-  },
-  departments: {
-    alpha: "11111111-1111-1111-1111-111111111111",
-    beta: "22222222-2222-2222-2222-222222222222"
-  },
-  divisions: {
-    alpha: "33333333-3333-3333-3333-333333333333",
-  },
-  candidates: {
-    alphaPrimary: "f8888888-8888-8888-8888-888888888888",
-    betaCandidate: "f9999999-9999-9999-9999-999999999999",
-  },
-  candidateTypes: {
-    faculty: "55555555-5555-5555-5555-555555555555"
-  },
-  facultyRanks: {
-    instructor: "66666666-6666-6666-6666-666666666666"
-  },
-  templates: {
-    onboarding: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
-  }
-} as const;
 
 async function setupTest(t: any, userId: string) {
   const env = await createAuthTestEnvironment();
@@ -52,18 +22,18 @@ async function setupTest(t: any, userId: string) {
 
 describe("Candidate API - Create Operations", () => {
   test("hr staff can create a new candidate", async (t) => {
-    const { agent, storage } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const newCandidate = {
       firstName: "John",
       lastName: "Doe",
       email: "john.doe@example.com",
-      departmentId: IDS.departments.alpha,
-      divisionId: IDS.divisions.alpha,
-      candidateTypeId: IDS.candidateTypes.faculty,
-      facultyRankId: IDS.facultyRanks.instructor,
+      departmentId: AUTH_FIXTURE_IDS.departments.alpha,
+      divisionId: AUTH_FIXTURE_IDS.divisions.alpha,
+      candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
+      facultyRankId: AUTH_FIXTURE_IDS.facultyRanks.instructor,
       letterOfIntentDate: new Date().toISOString(),
-      templateId: IDS.templates.onboarding
+      templateId: AUTH_FIXTURE_IDS.templates.onboarding
     };
 
     const response = await agent
@@ -75,7 +45,7 @@ describe("Candidate API - Create Operations", () => {
     assert.equal(response.body.firstName, "John");
     assert.equal(response.body.lastName, "Doe");
     assert.equal(response.body.email, "john.doe@example.com");
-    assert.equal(response.body.departmentId, IDS.departments.alpha);
+    assert.equal(response.body.departmentId, AUTH_FIXTURE_IDS.departments.alpha);
 
     // Verify candidate was actually created in storage
     const created = await storage.getCandidate(response.body.id);
@@ -84,16 +54,16 @@ describe("Candidate API - Create Operations", () => {
   });
 
   test("candidate creation requires valid department", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const newCandidate = {
       firstName: "John",
       lastName: "Doe",
       email: "john.doe@example.com",
       departmentId: "00000000-0000-0000-0000-000000000000", // Invalid department
-      candidateTypeId: IDS.candidateTypes.faculty,
+      candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
       letterOfIntentDate: new Date().toISOString(),
-      templateId: IDS.templates.onboarding
+      templateId: AUTH_FIXTURE_IDS.templates.onboarding
     };
 
     await agent
@@ -103,7 +73,7 @@ describe("Candidate API - Create Operations", () => {
   });
 
   test("candidate creation requires all required fields", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const incompleteCandidate = {
       firstName: "John"
@@ -117,16 +87,16 @@ describe("Candidate API - Create Operations", () => {
   });
 
   test("candidate creation with duplicate email should fail", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const newCandidate = {
       firstName: "Alpha",
       lastName: "Primary",
       email: "alpha.primary@example.com", // Duplicate email from fixtures
-      departmentId: IDS.departments.alpha,
-      candidateTypeId: IDS.candidateTypes.faculty,
+      departmentId: AUTH_FIXTURE_IDS.departments.alpha,
+      candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
       letterOfIntentDate: new Date().toISOString(),
-      templateId: IDS.templates.onboarding
+      templateId: AUTH_FIXTURE_IDS.templates.onboarding
     };
 
     await agent
@@ -136,16 +106,16 @@ describe("Candidate API - Create Operations", () => {
   });
 
   test("manager cannot create candidates", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.manager);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.manager);
 
     const newCandidate = {
       firstName: "John",
       lastName: "Doe",
       email: "john.doe@example.com",
-      departmentId: IDS.departments.alpha,
-      candidateTypeId: IDS.candidateTypes.faculty,
+      departmentId: AUTH_FIXTURE_IDS.departments.alpha,
+      candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
       letterOfIntentDate: new Date().toISOString(),
-      templateId: IDS.templates.onboarding
+      templateId: AUTH_FIXTURE_IDS.templates.onboarding
     };
 
     await agent
@@ -157,7 +127,7 @@ describe("Candidate API - Create Operations", () => {
 
 describe("Candidate API - Read Operations", () => {
   test("hr staff can list all candidates", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent.get("/api/candidates").expect(200);
 
@@ -170,7 +140,7 @@ describe("Candidate API - Read Operations", () => {
   });
 
   test("hr staff can get candidate by id", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .get(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
@@ -183,7 +153,7 @@ describe("Candidate API - Read Operations", () => {
   });
 
   test("get candidate with invalid id returns 404", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     await agent
       .get("/api/candidates/00000000-0000-0000-0000-000000000000")
@@ -191,23 +161,23 @@ describe("Candidate API - Read Operations", () => {
   });
 
   test("candidates list supports filtering by department", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .get("/api/candidates")
-      .query({ departmentId: IDS.departments.alpha })
+      .query({ departmentId: AUTH_FIXTURE_IDS.departments.alpha })
       .expect(200);
 
     assert.ok(Array.isArray(response.body));
 
     // All candidates should belong to alpha department
     for (const candidate of response.body) {
-      assert.equal(candidate.departmentId, IDS.departments.alpha);
+      assert.equal(candidate.departmentId, AUTH_FIXTURE_IDS.departments.alpha);
     }
   });
 
   test("candidates list supports search by name", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .get("/api/candidates")
@@ -227,13 +197,13 @@ describe("Candidate API - Read Operations", () => {
   });
 
   test("department admin only sees candidates in their department", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.departmentAdmin);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.departmentAdmin);
 
     const response = await agent.get("/api/candidates").expect(200);
 
     // Department admin should only see alpha department candidates
     for (const candidate of response.body) {
-      assert.equal(candidate.departmentId, IDS.departments.alpha);
+      assert.equal(candidate.departmentId, AUTH_FIXTURE_IDS.departments.alpha);
     }
 
     // Should not include beta candidate
@@ -260,7 +230,7 @@ describe("Candidate API - Read Operations", () => {
 
 describe("Candidate API - Update Operations", () => {
   test("hr staff can update candidate details", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const updates = {
       firstName: "UpdatedFirst",
@@ -280,7 +250,7 @@ describe("Candidate API - Update Operations", () => {
   });
 
   test("update preserves fields not included in request", async (t) => {
-    const { agent, fixtures, storage } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     // Get original candidate
     const original = await storage.getCandidate(fixtures.candidates.alphaPrimary);
@@ -305,7 +275,7 @@ describe("Candidate API - Update Operations", () => {
   });
 
   test("cannot update candidate email to duplicate", async (t) => {
-    const { agent, fixtures, storage } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const betaCandidate = await storage.getCandidate(fixtures.candidates.betaCandidate);
     assert.ok(betaCandidate);
@@ -321,7 +291,7 @@ describe("Candidate API - Update Operations", () => {
   });
 
   test("manager cannot update candidates", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.manager);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.manager);
 
     const updates = {
       firstName: "Unauthorized"
@@ -334,7 +304,7 @@ describe("Candidate API - Update Operations", () => {
   });
 
   test("department admin cannot update candidates outside their scope", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.departmentAdmin);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.departmentAdmin);
 
     const updates = {
       firstName: "Unauthorized"
@@ -347,7 +317,7 @@ describe("Candidate API - Update Operations", () => {
   });
 
   test("update with invalid id returns 404", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     await agent
       .patch("/api/candidates/00000000-0000-0000-0000-000000000000")
@@ -358,17 +328,17 @@ describe("Candidate API - Update Operations", () => {
 
 describe("Candidate API - Delete Operations", () => {
   test("hr staff can delete a candidate", async (t) => {
-    const { agent, storage } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     // Create a candidate to delete
     const newCandidate = {
       firstName: "ToDelete",
       lastName: "Candidate",
       email: "todelete@example.com",
-      departmentId: IDS.departments.alpha,
-      candidateTypeId: IDS.candidateTypes.faculty,
+      departmentId: AUTH_FIXTURE_IDS.departments.alpha,
+      candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
       letterOfIntentDate: new Date().toISOString(),
-      templateId: IDS.templates.onboarding
+      templateId: AUTH_FIXTURE_IDS.templates.onboarding
     };
 
     const createResponse = await agent
@@ -389,7 +359,7 @@ describe("Candidate API - Delete Operations", () => {
   });
 
   test("delete with invalid id returns 404", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     await agent
       .delete("/api/candidates/00000000-0000-0000-0000-000000000000")
@@ -397,7 +367,7 @@ describe("Candidate API - Delete Operations", () => {
   });
 
   test("manager cannot delete candidates", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.manager);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.manager);
 
     await agent
       .delete(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
@@ -405,7 +375,7 @@ describe("Candidate API - Delete Operations", () => {
   });
 
   test("department admin cannot delete candidates outside their scope", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.departmentAdmin);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.departmentAdmin);
 
     await agent
       .delete(`/api/candidates/${fixtures.candidates.betaCandidate}`)
@@ -415,7 +385,7 @@ describe("Candidate API - Delete Operations", () => {
 
 describe("Candidate API - Status Operations", () => {
   test("hr staff can update candidate status", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .patch(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
@@ -426,7 +396,7 @@ describe("Candidate API - Status Operations", () => {
   });
 
   test("status update validates against allowed statuses", async (t) => {
-    const { agent, fixtures } = await setupTest(t, IDS.users.hrStaff);
+    const { agent, fixtures } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     await agent
       .patch(`/api/candidates/${fixtures.candidates.alphaPrimary}`)
@@ -437,7 +407,7 @@ describe("Candidate API - Status Operations", () => {
 
 describe("Candidate API - Pagination and Sorting", () => {
   test("candidates list supports pagination", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .get("/api/candidates")
@@ -449,7 +419,7 @@ describe("Candidate API - Pagination and Sorting", () => {
   });
 
   test("candidates list supports sorting by name", async (t) => {
-    const { agent } = await setupTest(t, IDS.users.hrStaff);
+    const { agent } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
 
     const response = await agent
       .get("/api/candidates")

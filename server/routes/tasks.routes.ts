@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { z } from "zod";
+import { z, ZodError } from "zod/v4";
 import { sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { sensitiveRateLimiter } from "../middleware/rate-limiter";
@@ -39,14 +39,15 @@ const statusAliasToInternal = (status?: string | null) => {
   if (!status) return undefined;
   const normalized = status.toLowerCase();
   if (normalized === "pending") return "todo";
-  if (normalized === "completed") return "done";
-  return status;
+  if (normalized === "completed" || normalized === "done") return "done";
+  return normalized as any;
 };
 
+// Align outbound statuses with client expectations (todo | in_progress | blocked | done | canceled)
 const internalStatusToAlias = (status?: string | null) => {
   if (!status) return status;
-  if (status === "todo") return "pending";
-  if (status === "done") return "completed";
+  if (status === "todo") return "todo";
+  if (status === "done") return "done";
   return status;
 };
 
@@ -278,7 +279,11 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
       body.dueAt = new Date(body.dueDate);
     }
 
-    const validatedData = insertCandidateTaskSchema.parse(body);
+    const parsed = insertCandidateTaskSchema.safeParse(body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid data", errors: parsed.error.errors });
+    }
+    const validatedData = parsed.data;
 
     if (!validatedData.assigneeKind) {
       validatedData.assigneeKind = 'user';
@@ -324,7 +329,7 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
       dueDate: task.dueAt ?? null
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof ZodError) {
       return res.status(400).json({ message: "Invalid data", errors: error.errors });
     }
     next(error);
@@ -465,7 +470,14 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
       dueDate: (task as any).dueAt ?? (task as any).dueDate ?? null
     };
 
-    res.json(responseTask);
+    // Keep response compatible with both legacy tests (flat task fields) and frontend (expects { task, candidate?, advancement?, recompute? })
+    res.json({
+      ...responseTask,
+      task: responseTask,
+      candidate: updatedCandidate,
+      advancement,
+      recompute
+    });
 
     if (dueChanged || completionChanged || statusChanged) {
       await emitDeadlinesIfNeeded(task.id, { actorId: req.user!.id });

@@ -55,6 +55,14 @@ export class OrganizationService {
     return this.departmentRepo.updateDepartment(id, { archived: false, updatedAt: new Date() });
   }
 
+  /**
+   * Get a single department by ID (includes archived when requested)
+   */
+  async getDepartment(id: string, includeArchived: boolean = false): Promise<Department | undefined> {
+    const departments = await this.departmentRepo.getDepartments(includeArchived);
+    return departments.find((dept) => dept.id === id);
+  }
+
   // ==================== Divisions ====================
 
   /**
@@ -90,6 +98,14 @@ export class OrganizationService {
    */
   async restoreDivision(id: string): Promise<Division | undefined> {
     return this.divisionRepo.updateDivision(id, { archived: false, updatedAt: new Date() });
+  }
+
+  /**
+   * Get a single division by ID (includes archived when requested)
+   */
+  async getDivision(id: string, includeArchived: boolean = false): Promise<Division | undefined> {
+    const divisions = await this.divisionRepo.getDivisions(undefined, includeArchived);
+    return divisions.find((div) => div.id === id);
   }
 
   /**
