@@ -145,5 +145,5 @@ export const isCandidateFullyOnboarded = (
 ) => {
   const status = normalizeCandidateStatus(candidate?.status);
   const summary = summarizeCandidateTasks(tasks);
-  return status === "completed" && summary.allDone;
+  return status === "completed" && summary.allClosed;
 };
