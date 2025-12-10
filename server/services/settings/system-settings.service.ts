@@ -6,6 +6,7 @@
 
 import type { db as DbType } from "../../db/connection";
 import { systemSettings } from "@shared/schemas";
+import { writeAuditLog } from "../shared/audit-logger";
 
 export interface SystemSettings {
   auto_regress_on_prior_open: boolean;
@@ -27,7 +28,7 @@ export class SystemSettingsService {
   /**
    * Update system settings
    */
-  async setSystemSettings(patch: Partial<SystemSettings>): Promise<SystemSettings | undefined> {
+  async setSystemSettings(patch: Partial<SystemSettings>, actorId?: string, requestId?: string): Promise<SystemSettings | undefined> {
     if (patch.auto_regress_on_prior_open !== undefined) {
       const now = new Date();
       const value = { enabled: !!patch.auto_regress_on_prior_open } as any;
@@ -38,6 +39,16 @@ export class SystemSettingsService {
           target: systemSettings.key,
           set: { value, updatedAt: now }
         });
+
+      await writeAuditLog({
+        actorId,
+        resourceType: "settings",
+        resourceId: "system",
+        action: "update",
+        eventType: "system_settings_updated",
+        requestId,
+        details: { auto_regress_on_prior_open: !!patch.auto_regress_on_prior_open }
+      });
     }
     return await this.getSystemSettings();
   }

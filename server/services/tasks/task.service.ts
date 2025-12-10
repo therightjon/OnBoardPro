@@ -9,22 +9,26 @@ import type { InsertCandidateTask, CandidateTask } from "@shared/schemas";
 import type { CandidateTaskRepository } from "../../repositories/candidates/CandidateTaskRepository";
 import type { AuthorizationContext } from "../../repositories/base/types";
 import { eventBus, taskCreated, taskAssigned, taskStatusChanged, taskCompleted } from "../../events";
+import { writeAuditLog } from "../shared/audit-logger";
 
 export interface CreateTaskInput {
   data: InsertCandidateTask;
   actorId?: string;
+  requestId?: string;
 }
 
 export interface UpdateTaskInput {
   id: string;
   data: Partial<CandidateTask>;
   actorId?: string;
+  requestId?: string;
 }
 
 export interface AssignTaskInput {
   taskId: string;
   assigneeUserId: string;
   actorId?: string;
+  requestId?: string;
 }
 
 /**
@@ -44,6 +48,24 @@ export class TaskService {
 
     // Create the task
     const task = await this.taskRepo.createCandidateTask(data);
+
+    await writeAuditLog({
+      actorId,
+      resourceType: "candidate_task",
+      resourceId: task.id,
+      taskId: task.id,
+      candidateId: task.candidateId,
+      action: "create",
+      eventType: "task_created",
+      requestId: input.requestId,
+      details: {
+        title: task.title,
+        candidateId: task.candidateId,
+        assigneeUserId: task.assigneeUserId,
+        dueAt: task.dueAt,
+        priority: task.priority
+      }
+    });
 
     // Publish domain event
     await eventBus.publish(taskCreated(task.id, {
@@ -78,6 +100,28 @@ export class TaskService {
     const updatedTask = await this.taskRepo.updateCandidateTask(id, data);
     if (!updatedTask) {
       return undefined;
+    }
+
+    const changes: Record<string, { before: any; after: any }> = {};
+    for (const key of Object.keys(data)) {
+      const before = (existingTask as any)[key];
+      const after = (updatedTask as any)[key];
+      if (before !== after) {
+        changes[key] = { before, after };
+      }
+    }
+    if (Object.keys(changes).length > 0) {
+      await writeAuditLog({
+        actorId,
+        resourceType: "candidate_task",
+        resourceId: id,
+        taskId: id,
+        candidateId: updatedTask.candidateId,
+        action: "update",
+        eventType: "task_updated",
+        requestId: input.requestId,
+        details: { changes }
+      });
     }
 
     // Detect and publish assignment change event
@@ -135,7 +179,7 @@ export class TaskService {
    * Assign a task to a user
    */
   async assignTask(input: AssignTaskInput): Promise<CandidateTask | undefined> {
-    const { taskId, assigneeUserId, actorId } = input;
+    const { taskId, assigneeUserId, actorId, requestId } = input;
 
     return this.updateTask({
       id: taskId,
@@ -145,7 +189,8 @@ export class TaskService {
         assigneeRole: null,
         assigneeResolvedAt: new Date()
       },
-      actorId
+      actorId,
+      requestId
     });
   }
 
@@ -182,6 +227,14 @@ export class TaskService {
    */
   async archiveTask(id: string, actorId?: string): Promise<void> {
     await this.taskRepo.archiveCandidateTask(id);
+    await writeAuditLog({
+      actorId,
+      resourceType: "candidate_task",
+      resourceId: id,
+      taskId: id,
+      action: "archive",
+      eventType: "task_archived"
+    });
     // TODO: Publish taskArchived event
   }
 
@@ -190,6 +243,14 @@ export class TaskService {
    */
   async deleteTask(id: string, actorId?: string): Promise<void> {
     await this.taskRepo.deleteCandidateTask(id);
+    await writeAuditLog({
+      actorId,
+      resourceType: "candidate_task",
+      resourceId: id,
+      taskId: id,
+      action: "delete",
+      eventType: "task_deleted"
+    });
     // TODO: Publish taskDeleted event
   }
 

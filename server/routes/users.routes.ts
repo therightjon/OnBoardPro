@@ -65,7 +65,7 @@ router.patch("/me/preferences", requireAuth, async (req, res, next) => {
     const parsedUpdates = preferencesUpdateSchema.parse(req.body ?? {});
     const filteredUpdates = filterUpdatesForRole(parsedUpdates, role);
     const userService = getUserService();
-    const updatedPreferences = await userService.upsertUserPreferences(userId, filteredUpdates);
+    const updatedPreferences = await userService.upsertUserPreferences(userId, filteredUpdates, req.user?.id, req.id);
     const response = buildPreferenceResponse(updatedPreferences);
     res.json(pickPreferencesForRole(response, role));
   } catch (error) {
@@ -233,7 +233,8 @@ router.post("/users", requireAuth, requireRole(["system_admin", "hr_staff"]), as
     const userService = getUserService();
     const user = await userService.createUser({
       data: req.body,
-      actorId: req.user?.id
+      actorId: req.user?.id,
+      requestId: req.id
     });
 
     res.status(201).json(user);
@@ -255,7 +256,8 @@ router.patch("/users/:id", requireAuth, requireRole(["system_admin", "hr_staff"]
     const user = await userService.updateUser({
       id: req.params.id,
       data: req.body,
-      actorId: req.user?.id
+      actorId: req.user?.id,
+      requestId: req.id
     });
 
     if (!user) {
@@ -275,7 +277,8 @@ router.patch("/users/:id/roles", requireAuth, requireRole(["system_admin", "hr_s
     const userRoles = await userService.updateUserRoles({
       userId: req.params.id,
       roles: req.body.roles,
-      actorId: req.user?.id
+      actorId: req.user?.id,
+      requestId: req.id
     });
 
     res.json({ userRoles });
@@ -294,7 +297,8 @@ router.post("/users/:id/disable", requireAuth, requireRole(["system_admin", "hr_
     const result = await userService.disableUser({
       userId: req.params.id,
       reassignOpenTasksTo: req.body.reassignOpenTasksTo,
-      actorId: req.user?.id
+      actorId: req.user?.id,
+      requestId: req.id
     });
 
     res.json(result);
@@ -306,7 +310,7 @@ router.post("/users/:id/disable", requireAuth, requireRole(["system_admin", "hr_
 router.post("/users/:id/enable", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
     const userService = getUserService();
-    const user = await userService.enableUser(req.params.id, req.user?.id);
+    const user = await userService.enableUser(req.params.id, req.user?.id, req.id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }

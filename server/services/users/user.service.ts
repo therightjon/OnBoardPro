@@ -13,6 +13,7 @@ import type { UserRepository } from "../../repositories/users/UserRepository";
 import type { UserIdentityRepository } from "../../repositories/users/UserIdentityRepository";
 import type { AuthorizationContext } from "../authorization/policy-types";
 import { eventBus, userCreated, userRoleChanged } from "../../events";
+import { writeAuditLog } from "../shared/audit-logger";
 
 export class UserValidationError extends Error {
   constructor(message: string) {
@@ -24,24 +25,28 @@ export class UserValidationError extends Error {
 export interface CreateUserInput {
   data: InsertUser & { passwordHash?: string; roles?: UserRole[] };
   actorId?: string;
+  requestId?: string;
 }
 
 export interface UpdateUserInput {
   id: string;
   data: Partial<User> & { passwordHash?: string };
   actorId?: string;
+  requestId?: string;
 }
 
 export interface UpdateUserRolesInput {
   userId: string;
   roles: UserRole[];
   actorId?: string;
+  requestId?: string;
 }
 
 export interface DisableUserInput {
   userId: string;
   reassignOpenTasksTo?: string;
   actorId?: string;
+  requestId?: string;
 }
 
 export interface GetUsersFilters {
@@ -120,6 +125,16 @@ export class UserService {
       actorId
     }));
 
+    await writeAuditLog({
+      actorId,
+      resourceType: "user",
+      resourceId: user.id,
+      action: "create",
+      eventType: "user_created",
+      requestId: input.requestId,
+      details: { email: user.email, roles: roleNames }
+    });
+
     return user;
   }
 
@@ -136,7 +151,19 @@ export class UserService {
       updateData.passwordHash = await this.hashPassword(updateData.passwordHash);
     }
 
-    return this.userRepo.updateUser(id, updateData);
+    const user = await this.userRepo.updateUser(id, updateData);
+    if (user) {
+      await writeAuditLog({
+        actorId,
+        resourceType: "user",
+        resourceId: id,
+        action: "update",
+        eventType: "user_updated",
+        requestId: input.requestId,
+        details: { changes: Object.keys(updateData).filter((k) => k !== "passwordHash") }
+      });
+    }
+    return user;
   }
 
   /**
@@ -166,6 +193,16 @@ export class UserService {
       actorId
     }));
 
+    await writeAuditLog({
+      actorId,
+      resourceType: "user",
+      resourceId: userId,
+      action: "update",
+      eventType: "user_roles_updated",
+      requestId: input.requestId,
+      details: { previousRoles, newRoles: roleNames }
+    });
+
     return userRoles;
   }
 
@@ -186,20 +223,43 @@ export class UserService {
     // Get task count before disabling
     const taskCount = await this.userRepo.getUserOpenTaskCount(userId);
 
-    const result = await this.userRepo.disableUser(userId, reassignOpenTasksTo);
+    const repoResult = await this.userRepo.disableUser(userId, reassignOpenTasksTo);
 
-    return {
-      success: result.success,
-      tasksReassigned: result.tasksReassigned ?? 0,
-      taskCount: (result as any).taskCount ?? 0
+    const result = {
+      success: repoResult.success,
+      tasksReassigned: repoResult.tasksReassigned ?? 0,
+      taskCount: (repoResult as any).taskCount ?? 0
     };
+
+    await writeAuditLog({
+      actorId,
+      resourceType: "user",
+      resourceId: userId,
+      action: "update",
+      eventType: "user_disabled",
+      requestId: input.requestId,
+      details: { reassignOpenTasksTo, taskCount: result.taskCount }
+    });
+
+    return result;
   }
 
   /**
    * Enable user
    */
-  async enableUser(userId: string, actorId?: string): Promise<User | undefined> {
-    return this.userRepo.enableUser(userId);
+  async enableUser(userId: string, actorId?: string, requestId?: string): Promise<User | undefined> {
+    const user = await this.userRepo.enableUser(userId);
+    if (user) {
+      await writeAuditLog({
+        actorId,
+        resourceType: "user",
+        resourceId: userId,
+        action: "update",
+        eventType: "user_enabled",
+        requestId
+      });
+    }
+    return user;
   }
 
   /**
@@ -252,10 +312,20 @@ export class UserService {
   /**
    * Upsert user preferences
    */
-  async upsertUserPreferences(userId: string, preferences: any): Promise<any> {
+  async upsertUserPreferences(userId: string, preferences: any, actorId?: string, requestId?: string): Promise<any> {
     const repo: any = this.userRepo as any;
     if (typeof repo.upsertUserPreferences === "function") {
-      return repo.upsertUserPreferences(userId, preferences);
+      const result = await repo.upsertUserPreferences(userId, preferences);
+      await writeAuditLog({
+        actorId: actorId ?? userId,
+        resourceType: "user",
+        resourceId: userId,
+        action: "update",
+        eventType: "user_preferences_updated",
+        requestId,
+        details: { keys: Object.keys(preferences ?? {}) }
+      });
+      return result;
     }
     return undefined;
   }

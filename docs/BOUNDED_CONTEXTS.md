@@ -9,7 +9,7 @@
 
 ## Overview
 
-OnBoardPro is organized into **seven bounded contexts**, each representing a distinct subdomain with its own models, business rules, and ubiquitous language. These contexts integrate through well-defined interfaces (repositories, domain events, and services) rather than direct coupling.
+OnBoardPro is organized into **eight bounded contexts**, each representing a distinct subdomain with its own models, business rules, and ubiquitous language. These contexts integrate through well-defined interfaces (repositories, domain events, and services) rather than direct coupling.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -31,13 +31,14 @@ OnBoardPro is organized into **seven bounded contexts**, each representing a dis
 │  │      User       │    │  Notification   │                      │
 │  │  Management     │◄──►│     System      │                      │
 │  └─────────────────┘    └─────────────────┘                      │
+│           ▲                      ▲                               │
+│           │                      │                               │
+│  ┌─────────────────┐    ┌─────────────────┐                      │
+│  │ Collaboration   │    │  Audit Logging  │                      │
+│  │  (Comments)     │    │     System      │                      │
+│  └─────────────────┘    └─────────────────┘                      │
 │                                  ▲                               │
 │                                  │                               │
-│                         ┌─────────────────┐                      │
-│                         │ Collaboration   │                      │
-│                         │  (Comments)     │                      │
-│                         └─────────────────┘                      │
-│                                                                  │
 │           ▲──────────── EventBus (Domain Events) ──────────►     │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -763,6 +764,118 @@ Enable team collaboration through comments on candidates and tasks with visibili
 
 ---
 
+## 8. Audit Logging Context
+
+### Purpose
+Provide comprehensive audit trail for all CRUD operations and authorization events across the system for compliance, security, and accountability.
+
+### Aggregate Root
+**AuditLogEntry** - A record of a system action or event.
+
+### Entities & Value Objects
+- **AuditLogEntry** (Aggregate Root)
+  - Properties: occurredAt, actorId, resourceType, resourceId, action, eventType, details, candidateId, taskId
+  - Event types: crud (default), authorization
+  - Resource types: candidate, candidate_task, task, template, template_task, comment, user, department, division, invitation, settings
+  - Actions: create, update, delete, archive, restore, assign, status_change, access_denied
+
+### Ubiquitous Language
+
+| Term | Meaning in This Context |
+|------|------------------------|
+| **Audit Log Entry** | A record of a system action or authorization event |
+| **Actor** | The user who performed the action (actorId) |
+| **Resource Type** | The type of entity affected (candidate, task, etc.) |
+| **Resource ID** | The unique identifier of the affected resource |
+| **Action** | The type of operation performed (create, update, delete, etc.) |
+| **Event Type** | Category of audit event (crud, authorization) |
+| **Details** | JSON metadata about the action (changes, request ID, etc.) |
+| **Access Denied** | Authorization failure logged for security tracking |
+| **Cursor Pagination** | Efficient pagination using occurredAt timestamps |
+
+### Business Rules
+
+1. **Non-blocking Writes**: Audit log failures never block business operations
+2. **Immutability**: Audit log entries cannot be modified or deleted
+3. **Comprehensive Tracking**: All CRUD operations across resources are logged
+4. **Authorization Tracking**: All access denied events are logged for security
+5. **Request Correlation**: Request IDs stored in details for distributed tracing
+6. **Indexed Queries**: Efficient querying by resource, actor, and time range
+7. **Pagination**: Cursor-based pagination for large result sets
+8. **Retention**: Audit logs retained indefinitely for compliance
+
+### Domain Events Published
+
+```typescript
+// Audit Logging is an observer context - it doesn't publish events,
+// it only consumes them from other contexts and writes audit entries
+```
+
+### Integration Points
+
+**Consumes From:**
+- **All Contexts**: Via `writeAuditLog()` helper function called from services
+- Services call audit logger for CRUD operations and authorization events
+
+**Provides To:**
+- **System Administrators**: Audit trail queries for compliance and security
+- **Security Team**: Authorization failure tracking
+
+### Service Layer
+- **AuditService** (`server/services/audit/audit.service.ts`)
+  - `list()` - Query audit logs with filtering and pagination
+    - Filter by resourceType, action, actorId
+    - Cursor-based pagination with `before` parameter
+    - Returns items + nextCursor
+- **writeAuditLog()** (`server/services/shared/audit-logger.ts`)
+  - Helper function called from other services
+  - Non-blocking writes (catches and logs errors)
+  - Accepts: actorId, resourceType, resourceId, action, eventType, details, candidateId, taskId, requestId
+  - Stores in audit_log table
+
+### Data Access Layer
+- Direct Drizzle queries in `AuditService`
+- Schema defined in `shared/schemas/audit.schema.ts`
+- Indexed columns:
+  - `audit_log_resource_idx` on (resource_type, resource_id, occurred_at DESC)
+  - `audit_log_actor_idx` on (actor_id, occurred_at DESC)
+
+### Routes
+- **GET** `/api/admin/audit` - Query audit logs (system_admin, hr_staff only)
+  - Query params: `resourceType`, `action`, `actorId`, `before` (cursor), `limit`
+  - Returns: `{ items: AuditLogEntry[], nextCursor: string | null }`
+
+(Routes defined in `server/routes/audit.routes.ts`)
+
+### Usage Example
+
+```typescript
+// Services call writeAuditLog after operations
+import { writeAuditLog } from '../shared/audit-logger';
+
+// In CandidateService.createCandidate()
+const candidate = await this.candidateRepo.create(data);
+
+await writeAuditLog({
+  actorId: authContext.user.id,
+  resourceType: 'candidate',
+  resourceId: candidate.id,
+  action: 'create',
+  candidateId: candidate.id,
+  requestId: req.id,
+  details: { departmentId: candidate.departmentId }
+});
+```
+
+### Database Migration
+- Migration `0018_crud_audit.sql` added columns:
+  - `resource_type` - Type of resource (candidate, task, etc.)
+  - `resource_id` - ID of the resource
+  - `action` - CRUD action performed
+- Indexes created for efficient querying
+
+---
+
 ## Cross-Context Integration Patterns
 
 ### 1. Repository Integration (Synchronous)
@@ -910,6 +1023,7 @@ Legend:
 | All | Notification | **Published Language** | All contexts publish events consumed by notifications |
 | Comments | Candidate | **Partnership** | Comments belong to candidates/tasks |
 | Comments | Task | **Partnership** | Comments belong to candidates/tasks |
+| All | Audit Logging | **Conformist** | All contexts call writeAuditLog() for audit trail |
 
 ---
 
@@ -1034,12 +1148,14 @@ The following ADRs support this bounded context design:
 | Organization Management | High     | Low      | Complete      | ✅ 10/10     |
 | Notification System     | Medium   | High     | Complete      | ✅ 8/10      |
 | Collaboration           | High     | Medium   | Complete      | ✅ 9/10      |
+| Audit Logging           | High     | Low      | Complete      | ✅ 10/10     |
 
-**Overall System Score:** 9.3/10
+**Overall System Score:** 9.4/10
 
 **Notes:**
 - Notification System has high coupling by design (consumes events from all contexts)
 - Candidate and Task contexts have medium coupling due to bidirectional relationship
+- Audit Logging has low coupling (observer pattern, non-blocking writes)
 - All contexts have complete documentation and clear boundaries
 - Context boundaries are respected in implementation
 

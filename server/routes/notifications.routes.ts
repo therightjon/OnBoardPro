@@ -72,7 +72,7 @@ router.patch("/comments/:id", requireAuth, async (req: any, res, next) => {
     const { body } = req.body || {};
     if (!body) return res.status(400).json({ message: 'body is required' });
     const commentService = getCommentService();
-    const updated = await commentService.editComment({ id: req.params.id, userId: req.user.id, userRole: req.user.role, body });
+    const updated = await commentService.editComment({ id: req.params.id, userId: req.user.id, userRole: req.user.role, body, requestId: req.id });
     res.json(updated);
   } catch (error: any) { res.status(400).json({ message: error.message || 'Unable to edit comment' }); }
 });
@@ -80,7 +80,7 @@ router.patch("/comments/:id", requireAuth, async (req: any, res, next) => {
 router.delete("/comments/:id", requireAuth, async (req: any, res, next) => {
   try {
     const commentService = getCommentService();
-    await commentService.deleteComment({ id: req.params.id, userId: req.user.id, userRole: req.user.role });
+    await commentService.deleteComment({ id: req.params.id, userId: req.user.id, userRole: req.user.role, requestId: req.id });
     res.sendStatus(204);
   } catch (error: any) { res.status(400).json({ message: error.message || 'Unable to delete comment' }); }
 });

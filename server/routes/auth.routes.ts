@@ -351,7 +351,8 @@ router.post(
         departmentId: parsed.departmentId,
         divisionId: parsed.divisionId,
         firstName: parsed.firstName,
-        lastName: parsed.lastName
+        lastName: parsed.lastName,
+        requestId: req.id
       });
 
       await sendInviteEmail(invitation.email, invitation.token, new Date(invitation.expiresAt));
@@ -481,7 +482,7 @@ router.patch("/auth/providers/:id", requireAuth, requireRole(["system_admin", "h
     }
 
     const authProviderServiceForUpdate = getAuthProviderService();
-    const updatedProvider = await authProviderServiceForUpdate.updateAuthProvider(id, { enabled });
+    const updatedProvider = await authProviderServiceForUpdate.updateAuthProvider(id, { enabled }, req.user?.id, req.id);
 
     if (!updatedProvider) {
       return res.status(404).json({ message: "Provider not found" });
@@ -550,7 +551,7 @@ router.put("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]),
     // Normalize boolean
     if (patch.startTls !== undefined) patch.startTls = !!patch.startTls;
     const authProviderService = getAuthProviderService();
-    const updated = await authProviderService.setLdapSettings(patch);
+    const updated = await authProviderService.setLdapSettings(patch, req.user?.id, req.id);
     // Reinitialize providers to apply changes immediately
     try {
       const { initializeAuthProviders } = await import('../features/auth/services');

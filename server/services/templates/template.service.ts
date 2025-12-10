@@ -10,23 +10,27 @@ import type { TemplateRepository } from "../../repositories/templates/TemplateRe
 import type { TemplateStageRepository } from "../../repositories/templates/TemplateStageRepository";
 import type { TemplateTaskRepository } from "../../repositories/templates/TemplateTaskRepository";
 import { eventBus, templateCreated, templateUpdated, templateCloned, templateApplied } from "../../events";
+import { writeAuditLog } from "../shared/audit-logger";
 
 export interface CreateTemplateInput {
   data: InsertTemplate;
   cloneFromTemplateId?: string;
   actorId?: string;
+  requestId?: string;
 }
 
 export interface UpdateTemplateInput {
   id: string;
   data: Partial<Template>;
   actorId?: string;
+  requestId?: string;
 }
 
 export interface CloneTemplateInput {
   sourceTemplateId: string;
   newName: string;
   actorId?: string;
+  requestId?: string;
 }
 
 export interface ApplyTemplateInput {
@@ -54,6 +58,19 @@ export class TemplateService {
 
     // Create the template
     const template = await this.templateRepo.createTemplate(data, cloneFromTemplateId);
+
+    await writeAuditLog({
+      actorId,
+      resourceType: "template",
+      resourceId: template.id,
+      action: "create",
+      eventType: cloneFromTemplateId ? "template_cloned" : "template_created",
+      requestId: input.requestId,
+      details: {
+        name: template.name,
+        cloneFromTemplateId: cloneFromTemplateId ?? null
+      }
+    });
 
     // Publish appropriate domain event
     if (cloneFromTemplateId) {
@@ -86,6 +103,16 @@ export class TemplateService {
     const template = await this.templateRepo.updateTemplate(id, data);
 
     if (template) {
+      await writeAuditLog({
+        actorId,
+        resourceType: "template",
+        resourceId: id,
+        action: "update",
+        eventType: "template_updated",
+        requestId: input.requestId,
+        details: { changes: Object.keys(data) }
+      });
+
       // Publish domain event
       await eventBus.publish(templateUpdated(template.id, {
         templateName: template.name,
@@ -122,7 +149,8 @@ export class TemplateService {
     return this.createTemplate({
       data: newTemplateData,
       cloneFromTemplateId: sourceTemplateId,
-      actorId
+      actorId,
+      requestId: input.requestId
     });
   }
 
@@ -146,6 +174,15 @@ export class TemplateService {
     if (!template) {
       throw new Error(`Template ${templateId} not found`);
     }
+
+    await writeAuditLog({
+      actorId,
+      resourceType: "template",
+      resourceId: templateId,
+      action: "update",
+      eventType: "template_applied",
+      details: { candidateId }
+    });
 
     await eventBus.publish(templateApplied(candidateId, {
       templateId,
@@ -178,6 +215,13 @@ export class TemplateService {
    */
   async archiveTemplate(id: string, actorId?: string): Promise<void> {
     await this.templateRepo.archiveTemplate(id);
+    await writeAuditLog({
+      actorId,
+      resourceType: "template",
+      resourceId: id,
+      action: "archive",
+      eventType: "template_archived"
+    });
     // TODO: Publish templateArchived event
   }
 

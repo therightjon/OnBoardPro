@@ -30,6 +30,7 @@ import searchRouter from "./search.routes";
 import usersRouter from "./users.routes";
 import authRouter from "./auth.routes";
 import notificationsRouter from "./notifications.routes";
+import auditRouter from "./audit.routes";
 import templatesRouter from "./templates.routes";
 import tasksRouter from "./tasks.routes";
 import candidatesRouter from "./candidates.routes";
@@ -77,6 +78,8 @@ export function registerRoutes(app: Express): void {
 
   // Notifications and comments (used by all entities)
   app.use("/api", notificationsRouter);
+  // Audit log (privileged)
+  app.use("/api", auditRouter);
 }
 
 /**
@@ -98,6 +101,7 @@ export function createCombinedRouter(): Router {
   router.use(candidatesRouter);
   router.use(tasksRouter);
   router.use(notificationsRouter);
+  router.use(auditRouter);
 
   return router;
 }

@@ -21,7 +21,7 @@ router.patch("/system-settings", requireAuth, requireRole(["system_admin", "hr_s
   try {
     const { auto_regress_on_prior_open } = req.body ?? {};
     const systemSettingsService = getSystemSettingsService();
-    const updated = await systemSettingsService.setSystemSettings({ auto_regress_on_prior_open });
+    const updated = await systemSettingsService.setSystemSettings({ auto_regress_on_prior_open }, req.user?.id, req.id);
     res.json(updated);
   } catch (error) {
     next(error);
@@ -40,7 +40,7 @@ router.get("/settings/email", requireAuth, requireRole(["system_admin"]), async 
 
 router.patch("/settings/email", requireAuth, requireRole(["system_admin"]), async (req: any, res) => {
   try {
-    const result = await updateSmtpSettings(req.body ?? {}, req.user!.id);
+    const result = await updateSmtpSettings(req.body ?? {}, req.user!.id, req.id);
     res.json(result.settings);
   } catch (error: any) {
     await logAuthorizationFailure({ req, resource: "settings", action: "settings:email:update", reason: error?.message ?? "update_failed" });

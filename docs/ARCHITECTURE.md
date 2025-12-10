@@ -197,6 +197,7 @@ server/
 │   ├── organizations.routes.ts      # Departments & divisions
 │   ├── reference-data.routes.ts     # Lookup tables
 │   ├── settings.routes.ts           # System settings
+│   ├── audit.routes.ts              # Audit log query endpoints
 │   └── health.ts                    # Health check endpoints
 │
 ├── services/                        # Business logic layer
@@ -217,9 +218,12 @@ server/
 │   │   ├── AuthorizationService.ts
 │   │   ├── CandidatePolicy.ts
 │   │   └── TaskPolicy.ts
+│   ├── audit/                       # Audit logging
+│   │   └── audit.service.ts
 │   ├── shared/                      # Shared services
 │   │   ├── notification.service.ts
 │   │   ├── comment.service.ts
+│   │   ├── audit-logger.ts
 │   │   └── search.service.ts
 │   └── dashboard/                   # Dashboard queries
 │       └── dashboard.service.ts
@@ -409,7 +413,8 @@ comments                 # Comments on candidates/tasks
 ├── notifications        # In-app notifications
 ├── notification_keys    # Deduplication keys
 ├── notification_outbox  # Email outbox (SMTP delivery)
-└── activity_log         # Audit trail of all actions
+└── audit_log            # Comprehensive audit trail of all actions
+                         # with CRUD tracking (resourceType, action)
 ```
 
 **Settings & Configuration:**
@@ -492,6 +497,7 @@ smtp_settings            # SMTP configuration (encrypted secrets)
 **Key Design Patterns:**
 - ✅ **Normalized schema** with proper foreign keys and indexes
 - ✅ **Audit fields** (createdAt, updatedAt, createdBy, updatedBy) on all tables
+- ✅ **Comprehensive audit logging** with CRUD tracking (resourceType, resourceId, action)
 - ✅ **Soft deletes** (deletedAt, archived) for data retention
 - ✅ **Outbox pattern** for reliable email notifications
 - ✅ **Multi-tenancy** via departments and divisions
@@ -599,6 +605,82 @@ immediate    digest (daily/weekly)
 - ✅ **Digest aggregation** (daily/weekly)
 - ✅ **Quiet hours** support
 - ✅ **Idempotent processing**
+
+---
+
+## Audit Logging Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                  Audit Logging System                   │
+│                                                         │
+│  ┌────────────────────────────────────┐                 │
+│  │   writeAuditLog()                  │                 │
+│  │   • Resource type tracking         │                 │
+│  │   • Action tracking (CRUD)         │                 │
+│  │   • Actor identification           │                 │
+│  │   • Request ID correlation         │                 │
+│  └────────────────────────────────────┘                 │
+│                    │                                    │
+│                    ↓                                    │
+│  ┌────────────────────────────────────┐                 │
+│  │   audit_log table                  │                 │
+│  │   • occurredAt (timestamp)         │                 │
+│  │   • actorId (who)                  │                 │
+│  │   • resourceType (what)            │                 │
+│  │   • resourceId (which)             │                 │
+│  │   • action (create/update/delete)  │                 │
+│  │   • eventType (crud/authorization) │                 │
+│  │   • details (JSON metadata)        │                 │
+│  │   • candidateId, taskId (context)  │                 │
+│  └────────────────────────────────────┘                 │
+│                    │                                    │
+│                    ↓                                    │
+│  ┌────────────────────────────────────┐                 │
+│  │   Indexed Queries                  │                 │
+│  │   • By resource type + ID          │                 │
+│  │   • By actor                       │                 │
+│  │   • By time range (occurred_at)    │                 │
+│  │   • Cursor-based pagination        │                 │
+│  └────────────────────────────────────┘                 │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Audit Logging Features:**
+- ✅ **Comprehensive tracking** of all CRUD operations across the system
+- ✅ **Resource-level granularity** with resourceType, resourceId, and action
+- ✅ **Actor tracking** for user accountability
+- ✅ **Authorization failures** logged with access_denied action
+- ✅ **Request correlation** via requestId in details JSON
+- ✅ **Efficient querying** with indexed columns and cursor pagination
+- ✅ **Non-blocking** audit writes (errors don't block business logic)
+- ✅ **Flexible metadata** storage via JSON details column
+
+**Audited Resource Types:**
+- `candidate` - Candidate CRUD operations
+- `candidate_task` - Task operations on candidates
+- `task` - Task definition operations
+- `template` - Template management
+- `template_task` - Template task operations
+- `comment` - Comment activity
+- `user` - User management
+- `department` / `division` - Organizational changes
+- `invitation` - User invitation tracking
+- `settings` - System configuration changes
+
+**Audit Actions:**
+- `create` - Resource creation
+- `update` - Resource modification
+- `delete` - Resource deletion
+- `archive` / `restore` - Soft deletion lifecycle
+- `assign` - Task/ownership assignment
+- `status_change` - Status transitions
+- `access_denied` - Authorization failures
+
+**API Endpoints:**
+- **GET** `/api/admin/audit` - Query audit logs (admin only)
+  - Query params: `resourceType`, `action`, `actorId`, `before` (cursor), `limit`
+  - Returns paginated results with `nextCursor` for pagination
 
 ---
 
