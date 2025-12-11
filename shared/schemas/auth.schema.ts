@@ -5,6 +5,7 @@ import {
   text, 
   timestamp, 
   boolean,
+  integer,
   time,
   jsonb,
   pgEnum,
@@ -42,6 +43,16 @@ export const appRoleEnum = pgEnum("app_role", [
   "manager",
   "candidate"
 ]);
+
+// Rate limiting counters (DB-backed, multi-node)
+export const rateLimitCounters = pgTable("rate_limit_counters", {
+  type: text("type").notNull(),
+  key: text("key").notNull(),
+  count: integer("count").notNull().default(0),
+  resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+}, (t) => ({
+  pk: uniqueIndex("rate_limit_counters_type_key_idx").on(t.type, t.key),
+}));
 
 // Auth tables
 export const users = pgTable("users", {

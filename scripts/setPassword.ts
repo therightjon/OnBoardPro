@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 import 'dotenv/config';
 import pg from 'pg';
-import bcrypt from 'bcrypt';
+import { assertPasswordPolicy, hashPassword } from "../server/utils/passwords";
 
 const { Pool } = pg;
 
@@ -16,10 +16,17 @@ async function main() {
     process.exit(1);
   }
 
+  try {
+    assertPasswordPolicy(plain);
+  } catch (err: any) {
+    console.error(`Password does not meet policy: ${err?.message || err}`);
+    process.exit(1);
+  }
+
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const client = await pool.connect();
   try {
-    const hash = await bcrypt.hash(plain, 10);
+    const hash = await hashPassword(plain);
     const { rowCount } = await client.query(
       'UPDATE users SET password_hash = $1, email_verified = true WHERE lower(email) = lower($2)',
       [hash, email]

@@ -15,6 +15,14 @@ Overall security posture is **B- (good foundations, notable gaps)**. Strong RBAC
 - [x] Stop logging full `/api` response bodies (log metadata only).
 - [x] Remove committed session cookie artifact (`cookies_login.txt`) and rely on `.gitignore` pattern.
 
+## Week 2-3 To-Do (live tracking)
+- [x] Enforce password complexity/banlist across user create/update and tooling, and align hashing strategy.
+- [x] Add login-specific rate limits: 5 failed attempts per user per 15 minutes with soft lock message.
+- [x] Add per-IP login throttling: ~20–30 auth attempts per IP per 15 minutes, stored in DB.
+- [x] Persist rate-limit counters in the database for multi-node support.
+- [x] Apply moderate global API rate limit (~200 req/min per IP) using DB-backed counters.
+- [x] Update `scripts/setPassword.ts` to use the new password policy and hashing.
+
 ## High-Level Strengths
 - Server-side sessions with HttpOnly + SameSite=Strict cookies; credentials always sent with `credentials: "include"` on the client.
 - RBAC enforcement helpers and per-resource policies; invitation-based onboarding prevents open registration.

@@ -9,6 +9,7 @@ import { getInvitationService, getAuthProviderService, getUserService } from "..
 import bcrypt from "bcrypt";
 import { scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../services/login-rate-limit";
 
 const router = Router();
 const scryptAsync = promisify(scrypt);
@@ -46,9 +47,23 @@ router.post("/auth/login", async (req, res, next) => {
   
   if (hasPassport && passport.authenticate) {
     // Production mode: use Passport authentication
+    const identifier = email || username || "";
+    const clientIp = req.ip || req.headers["x-forwarded-for"] || req.connection?.remoteAddress || "";
+
+    const limitCheck = await checkLoginLimits({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+    if (!limitCheck.allowed) {
+      if (limitCheck.retryAfterSeconds) {
+        res.setHeader("Retry-After", String(limitCheck.retryAfterSeconds));
+      }
+      return res.status(limitCheck.status).json({ message: limitCheck.message });
+    }
+
     return passport.authenticate("local", async (err: any, user: any, info: any) => {
       if (err) return next(err);
-      if (!user) return res.status(401).json({ message: info?.message || 'Authentication failed' });
+      if (!user) {
+        await recordLoginFailure({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+        return res.status(401).json({ message: info?.message || 'Authentication failed' });
+      }
       
       try {
         // Establish session
@@ -65,6 +80,8 @@ router.post("/auth/login", async (req, res, next) => {
               console.error('Failed to update last login:', error);
             }
           }
+
+          await resetLoginLimit({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
           
           res.status(200).json({ user });
         });
@@ -77,6 +94,15 @@ router.post("/auth/login", async (req, res, next) => {
     try {
       const { email, username, password } = req.body;
       const userService = getUserService();
+
+      const clientIp = req.ip || req.headers["x-forwarded-for"] || req.connection?.remoteAddress || "";
+      const limitCheck = await checkLoginLimits({ identifier: email || username, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+      if (!limitCheck.allowed) {
+        if (limitCheck.retryAfterSeconds) {
+          res.setHeader("Retry-After", String(limitCheck.retryAfterSeconds));
+        }
+        return res.status(limitCheck.status).json({ message: limitCheck.message });
+      }
       
       // Try to find user by email or username
       const user = email 
@@ -86,6 +112,7 @@ router.post("/auth/login", async (req, res, next) => {
           : null;
       
       if (!user || !user.passwordHash) {
+        await recordLoginFailure({ identifier: email || username, ip: req.ip });
         return res.status(401).json({ message: 'Invalid credentials' });
       }
       
@@ -126,6 +153,7 @@ router.post("/auth/login", async (req, res, next) => {
       }
       
       if (!validPassword) {
+        await recordLoginFailure({ identifier: email || username, ip: req.ip });
         return res.status(401).json({ message: 'Invalid credentials' });
       }
       
@@ -165,7 +193,7 @@ router.post("/auth/login", async (req, res, next) => {
         
         req.user = enrichedUser as any;
         req.isAuthenticated = () => true;
-        
+        await resetLoginLimit({ identifier: email || username, ip: req.ip });
         res.status(200).json({ user: enrichedUser });
       } catch (hydrationError) {
         // If hydration fails, fall back to basic user (test environment may not have all data)
@@ -194,6 +222,7 @@ router.post("/auth/login", async (req, res, next) => {
 
         req.user = basicUser as any;
         req.isAuthenticated = () => true;
+        await resetLoginLimit({ identifier: email || username, ip: req.ip });
         res.status(200).json({ user: basicUser });
       }
     } catch (error) {
