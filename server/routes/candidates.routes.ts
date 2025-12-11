@@ -38,7 +38,7 @@ import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helper
 import { emitOwnerChanged } from "../features/notifications/owner-change";
 import { authorizationService } from "../services/authorization";
 import { eventBus, candidateCreated, candidateStatusChanged, candidateStageChanged, taskCreated, taskAssigned, commentCreated } from "../events";
-import { getCandidateService, getTaskService, getCommentService, getReferenceDataService, getTemplateExpansionService, getTaskDueDateService, getOrganizationService } from "../services/service-factory";
+import { getCandidateService, getTaskService, getCommentService, getReferenceDataService, getTemplateExpansionService, getTemplateEstimationService, getTaskDueDateService, getOrganizationService } from "../services/service-factory";
 import { CandidateValidationError } from "../services/candidates/candidate.service";
 import { shouldAutoApplyTemplate } from "../utils/hiring-phase.utils";
 import { publishTemplateTaskCreatedEvents } from "../utils/template-event.utils";
@@ -906,6 +906,30 @@ router.get("/candidates/:id/stage-history", requireAuth, async (req, res, next) 
     const candidateService = getCandidateService();
     const history = await candidateService.getCandidateStageHistory(id);
     res.json({ history });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/candidates/:id/estimate - Get pipeline duration estimate
+router.get("/candidates/:id/estimate", requireAuth, async (req, res, next) => {
+  try {
+    // Authorization check - reuse existing helper
+    const access = await fetchCandidateWithAccess(req, res, req.params.id, "candidate:view");
+    if (!access) return;
+
+    // Get template estimation service
+    const templateEstimationService = getTemplateEstimationService();
+
+    // Calculate estimate with optional business days
+    const businessDays = req.query.businessDays === 'true';
+    const estimate = await templateEstimationService.estimateCandidate(
+      req.params.id,
+      businessDays
+    );
+
+    // Return estimate (may include error field if calculation failed)
+    res.json(estimate);
   } catch (error) {
     next(error);
   }
