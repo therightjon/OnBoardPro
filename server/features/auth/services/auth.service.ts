@@ -134,16 +134,19 @@ export async function setupAuth(app: Express) {
     throw new Error("SESSION_SECRET environment variable is required");
   }
 
+  const TEN_HOURS_MS = 10 * 60 * 60 * 1000;
+
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Refresh cookie on each response while active
     store: new PostgresSessionStore({
       pool,
       createTableIfMissing: true
     }),
     cookie: {
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: TEN_HOURS_MS, // 10 hours
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       sameSite: 'strict', // Prevent CSRF attacks
@@ -196,18 +199,43 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  app.post("/api/login", passport.authenticate("local"), async (req, res) => {
+  app.post("/api/login", passport.authenticate("local"), async (req, res, next) => {
     try {
-      // Track last login time
-      if (req.user && req.user.id) {
-        const userService = getUserService();
-        await userService.updateLastLogin(req.user.id);
+      const authenticatedUser = req.user;
+      if (!authenticatedUser) {
+        return res.sendStatus(401);
       }
-      res.status(200).json(req.user);
+
+      // Preserve invitation-related session data across regeneration
+      const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt } = req.session || {};
+
+      req.session.regenerate(async (err) => {
+        if (err) return next(err);
+
+        if (inviteToken) req.session.inviteToken = inviteToken;
+        if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
+        if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+
+        req.login(authenticatedUser, async (loginErr) => {
+          if (loginErr) return next(loginErr);
+
+          req.session.lastActivity = Date.now();
+
+          // Track last login time (best-effort)
+          if (authenticatedUser.id) {
+            try {
+              const userService = getUserService();
+              await userService.updateLastLogin(authenticatedUser.id);
+            } catch (updateErr) {
+              console.error('Failed to update last login:', updateErr);
+            }
+          }
+
+          res.status(200).json(req.user);
+        });
+      });
     } catch (error) {
-      // Don't fail login if last login update fails
-      console.error('Failed to update last login:', error);
-      res.status(200).json(req.user);
+      next(error);
     }
   });
 
@@ -275,15 +303,31 @@ export async function setupAuth(app: Express) {
 
       // Log the user in using passport
       hydrateAuthUser(signInResult.user!).then((sessionUser) => {
-        req.login(sessionUser, (err) => {
+        const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt } = req.session || {};
+
+        req.session?.regenerate((err) => {
           if (err) {
             console.error('Login error:', err);
             return res.status(500).json({ message: "Login failed" });
           }
-          res.json({
-            user: sessionUser,
-            isNewUser: signInResult.isNewUser,
-            assignedRoles: signInResult.assignedRoles
+
+          if (inviteToken) req.session.inviteToken = inviteToken;
+          if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
+          if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+
+          req.login(sessionUser, (loginErr) => {
+            if (loginErr) {
+              console.error('Login error:', loginErr);
+              return res.status(500).json({ message: "Login failed" });
+            }
+
+            req.session.lastActivity = Date.now();
+
+            res.json({
+              user: sessionUser,
+              isNewUser: signInResult.isNewUser,
+              assignedRoles: signInResult.assignedRoles
+            });
           });
         });
       }).catch((error) => {

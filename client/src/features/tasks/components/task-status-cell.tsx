@@ -82,13 +82,19 @@ export function TaskStatusCell({
       
       // If candidate stage advanced, update candidate data immediately
       if (data.candidate && data.advancement?.advanced) {
-        qc.setQueryData(['/api/candidates', candidateId], (old: any) =>
-          old ? { 
-            ...old, 
-            currentStageId: data.candidate.current_stage_id,
-            updatedAt: data.candidate.updated_at 
-          } : old
-        );
+        qc.setQueryData(['/api/candidates', candidateId], (old: any) => {
+          if (!old) return old;
+
+          // Update with full candidate data from server, preserving client-side fields
+          return {
+            ...old,
+            ...data.candidate,
+            // Ensure currentStage object is properly updated with phase info
+            currentStage: data.candidate.currentStage || old.currentStage,
+            currentStageId: data.candidate.currentStageId || data.candidate.current_stage_id,
+            updatedAt: data.candidate.updatedAt || data.candidate.updated_at
+          };
+        });
       }
       
       // Mark caches as stale but don't refetch immediately (we already set the data above)

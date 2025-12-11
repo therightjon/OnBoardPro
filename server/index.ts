@@ -45,26 +45,11 @@ app.use((req: any, res, next) => {
   const start = Date.now();
   const path = req.path;
   const requestId = getRequestId(req);
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `[${requestId}] ${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 120) {
-        logLine = logLine.slice(0, 119) + "…";
-      }
-
+      const logLine = `[${requestId}] ${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       log(logLine);
     }
   });

@@ -309,13 +309,21 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
     onSuccess: (candidate) => {
       queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
       queryClient.invalidateQueries({ queryKey: ["/api/candidates", candidate.id] });
-      
-      // Determine success message based on whether template was applied
-      const hasLOOAccepted = !!candidate.offerLetterAcceptedAt;
-      const description = hasLOOAccepted 
-        ? "Candidate created and tasks generated"
-        : "Candidate created. Tasks will be generated when LOO is accepted.";
-      
+
+      // Determine success message based on whether template was auto-applied
+      let description: string;
+      if ((candidate as any).templateAutoApplied) {
+        // Template was successfully applied during creation
+        const taskCount = (candidate as any).tasksCreated || 0;
+        description = `Candidate created and ${taskCount} task${taskCount !== 1 ? 's' : ''} generated from template.`;
+      } else if (candidate.offerLetterAcceptedAt) {
+        // LOO accepted but template wasn't applied (error case)
+        description = "Candidate created. Template application pending - please apply manually if needed.";
+      } else {
+        // Normal deferred case
+        description = "Candidate created. Tasks will be generated when LOO is accepted.";
+      }
+
       toast({
         title: "Success",
         description,
@@ -323,7 +331,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
 
       onOpenChange(false);
       form.reset();
-      
+
       // Navigate to candidate detail page
       setLocation(`/candidates/${candidate.id}`);
     },

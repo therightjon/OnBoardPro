@@ -14,6 +14,8 @@ import authRouter from "./routes/auth.routes";
 import usersRouter from "./routes/users.routes";
 import organizationsRouter from "./routes/organizations.routes";
 import settingsRouter from "./routes/settings.routes";
+import { csrfErrorHandler, csrfProtection } from "./middleware/csrf";
+import { sessionIdleTimeout } from "./middleware/session-timeout";
 
 // Re-export for backward compatibility with tests
 export { preferencesUpdateSchema } from "./routes/users.routes";
@@ -55,6 +57,15 @@ export async function registerRoutes(app: Express, options: RegisterRoutesOption
     await setupAuth(app);
   }
 
+  // Enforce idle timeout on all requests once the session is available
+  app.use(sessionIdleTimeout);
+
+  // CSRF token endpoint and protection for state-changing API routes
+  app.get("/api/csrf-token", csrfProtection, (req, res) => {
+    res.json({ csrfToken: req.csrfToken() });
+  });
+  app.use("/api", csrfProtection);
+
   // Mount all route modules under /api prefix
   // Order matters for route matching - more specific routes should come first
   
@@ -90,6 +101,9 @@ export async function registerRoutes(app: Express, options: RegisterRoutesOption
   
   // API Documentation
   app.use(docsRouter);
+
+  // Normalize CSRF errors
+  app.use(csrfErrorHandler);
 
   // Create and return HTTP server
   const httpServer = createServer(app);
