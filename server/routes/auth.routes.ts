@@ -179,12 +179,17 @@ router.post("/auth/login", async (req, res, next) => {
         delete (enrichedUser as any).password;
 
         if (req.session) {
+          // Preserve CSRF secret across session regeneration
+          const csrfSecret = req.session.csrfSecret;
+
           // Regenerate to avoid fixation even in test mode, but don't fail login if it errors
           if (typeof req.session.regenerate === "function") {
             await new Promise<void>((resolve) => {
               req.session!.regenerate(() => resolve());
             });
           }
+
+          if (csrfSecret) req.session.csrfSecret = csrfSecret;
           req.session.user = enrichedUser as any;
           if (typeof req.session.save === "function") {
             await new Promise<void>((resolve) => req.session!.save(() => resolve()));
@@ -207,13 +212,18 @@ router.post("/auth/login", async (req, res, next) => {
         };
         delete basicUser.passwordHash;
         delete (basicUser as any).password;
-        
+
         if (req.session) {
+          // Preserve CSRF secret across session regeneration
+          const csrfSecret = req.session.csrfSecret;
+
           if (typeof req.session.regenerate === "function") {
             await new Promise<void>((resolve) => {
               req.session!.regenerate(() => resolve());
             });
           }
+
+          if (csrfSecret) req.session.csrfSecret = csrfSecret;
           req.session.user = basicUser as any;
           if (typeof req.session.save === "function") {
             await new Promise<void>((resolve) => req.session!.save(() => resolve()));

@@ -41,6 +41,8 @@ declare module "express-session" {
     inviteToken?: string;
     inviteTokenEmail?: string;
     inviteTokenIssuedAt?: string;
+    csrfSecret?: string;
+    lastActivity?: number;
   }
 }
 
@@ -227,8 +229,8 @@ export async function setupAuth(app: Express) {
         try {
           const authenticatedUser = user;
 
-          // Preserve invitation-related session data across regeneration
-          const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt } = req.session || {};
+          // Preserve invitation-related session data and CSRF secret across regeneration
+          const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
 
           req.session.regenerate(async (regenErr) => {
             if (regenErr) return next(regenErr);
@@ -236,6 +238,7 @@ export async function setupAuth(app: Express) {
             if (inviteToken) req.session.inviteToken = inviteToken;
             if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
             if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+            if (csrfSecret) req.session.csrfSecret = csrfSecret;
 
             req.login(authenticatedUser, async (loginErr) => {
               if (loginErr) return next(loginErr);
@@ -330,7 +333,7 @@ export async function setupAuth(app: Express) {
 
       // Log the user in using passport
       hydrateAuthUser(signInResult.user!).then((sessionUser) => {
-        const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt } = req.session || {};
+        const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
 
         req.session?.regenerate((err) => {
           if (err) {
@@ -341,6 +344,7 @@ export async function setupAuth(app: Express) {
           if (inviteToken) req.session.inviteToken = inviteToken;
           if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
           if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+          if (csrfSecret) req.session.csrfSecret = csrfSecret;
 
           req.login(sessionUser, (loginErr) => {
             if (loginErr) {
