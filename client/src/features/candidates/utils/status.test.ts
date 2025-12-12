@@ -29,8 +29,14 @@ describe("completion helpers", () => {
     expect(result).toBe(true);
   });
 
-  it("does not treat canceled tasks as completion", () => {
+  it("treats canceled tasks as completion (allClosed)", () => {
     const tasks = [{ status: "done" }, { status: "canceled" }];
+    const result = isCandidateFullyOnboarded({ status: "completed" }, tasks);
+    expect(result).toBe(true);
+  });
+
+  it("does not mark as fully onboarded when tasks are still open", () => {
+    const tasks = [{ status: "done" }, { status: "todo" }];
     const result = isCandidateFullyOnboarded({ status: "completed" }, tasks);
     expect(result).toBe(false);
   });

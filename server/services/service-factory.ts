@@ -56,6 +56,7 @@ import { SystemSettingsService } from "./settings/system-settings.service";
 import { AuthProviderService } from "./auth/auth-provider.service";
 import { DashboardService } from "./dashboard/dashboard.service";
 import { AuthorizationService } from "./authorization/AuthorizationService";
+import { AuditService } from "./audit/audit.service";
 
 /**
  * Service factory class
@@ -113,6 +114,7 @@ export class ServiceFactory {
   protected authProviderServiceInstance: AuthProviderService | null = null;
   protected dashboardServiceInstance: DashboardService | null = null;
   protected authorizationServiceInstance: AuthorizationService | null = null;
+  protected auditServiceInstance: AuditService | null = null;
 
   constructor() {
     // Initialize repositories - Candidates
@@ -344,6 +346,13 @@ export class ServiceFactory {
     return this.authProviderServiceInstance;
   }
 
+  getAuditService(): AuditService {
+    if (!this.auditServiceInstance) {
+      this.auditServiceInstance = new AuditService(db);
+    }
+    return this.auditServiceInstance;
+  }
+
   /**
    * Get all services
    * Useful for initializing everything at once
@@ -513,3 +522,7 @@ export const getDashboardService = () => activeFactory.getDashboardService();
  * Convenience getter for authorization service (RBAC/scope checks).
  */
 export const getAuthorizationService = () => activeFactory.getAuthorizationService();
+/**
+ * Convenience getter for audit service.
+ */
+export const getAuditService = () => activeFactory.getAuditService();

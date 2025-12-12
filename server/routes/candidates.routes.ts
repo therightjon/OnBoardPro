@@ -38,9 +38,10 @@ import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helper
 import { emitOwnerChanged } from "../features/notifications/owner-change";
 import { authorizationService } from "../services/authorization";
 import { eventBus, candidateCreated, candidateStatusChanged, candidateStageChanged, taskCreated, taskAssigned, commentCreated } from "../events";
-import { getCandidateService, getTaskService, getCommentService, getReferenceDataService, getTemplateExpansionService, getTaskDueDateService, getOrganizationService } from "../services/service-factory";
+import { getCandidateService, getTaskService, getCommentService, getReferenceDataService, getTemplateExpansionService, getTemplateEstimationService, getTaskDueDateService, getOrganizationService } from "../services/service-factory";
 import { CandidateValidationError } from "../services/candidates/candidate.service";
 import { shouldAutoApplyTemplate } from "../utils/hiring-phase.utils";
+import { publishTemplateTaskCreatedEvents } from "../utils/template-event.utils";
 
 const router = Router();
 
@@ -386,7 +387,56 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
       authContext
     });
 
-    res.status(201).json(candidate);
+    // NEW: Auto-apply template if LOO is accepted at creation time
+    let templateExpansionResult = null;
+    if (candidate.offerLetterAcceptedAt && candidate.templateAppliedFromId) {
+      try {
+        console.log('Auto-applying template on candidate creation with LOO accepted:', {
+          candidateId: candidate.id,
+          templateId: candidate.templateAppliedFromId
+        });
+
+        const templateExpansionService = getTemplateExpansionService();
+        templateExpansionResult = await templateExpansionService.expandTemplate(
+          candidate.templateAppliedFromId,
+          candidate.id,
+          req.user!.id
+        );
+
+        // Publish taskCreated events for all created tasks
+        await publishTemplateTaskCreatedEvents(
+          templateExpansionResult.createdTasks,
+          req.user?.id
+        );
+
+        console.log('Template auto-applied successfully on creation:', {
+          taskCount: templateExpansionResult.createdCount
+        });
+      } catch (templateError: any) {
+        console.error('Failed to auto-apply template on creation:', templateError);
+        // Don't fail candidate creation - user can manually apply template later
+      }
+    }
+
+    // If template was applied, refetch candidate to get updated data
+    let responseCandidate = candidate;
+    if (templateExpansionResult) {
+      const refreshed = await candidateService.getCandidate(candidate.id, authContext);
+      if (refreshed) {
+        responseCandidate = refreshed;
+      }
+    }
+
+    // Include template expansion metadata in response
+    const response = templateExpansionResult
+      ? {
+          ...responseCandidate,
+          templateAutoApplied: true,
+          tasksCreated: templateExpansionResult.createdCount
+        }
+      : responseCandidate;
+
+    res.status(201).json(response);
   } catch (error) {
     if (error instanceof ZodError) {
       return res.status(400).json({ message: "Invalid data", errors: error.errors });
@@ -559,22 +609,11 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
           fullCandidate.id,
           req.user!.id
         );
-        
+
         // Publish taskCreated events for all tasks created from template
-        await Promise.all(
-          templateExpansionResult.createdTasks.map((task) =>
-            eventBus.publish(taskCreated(task.id, {
-              candidateId: task.candidateId,
-              title: task.title,
-              assigneeUserId: task.assigneeUserId,
-              assigneeRole: task.assigneeKind === 'role' ? task.assigneeRole : null,
-              dueAt: task.dueAt,
-              isRequired: false,
-              fromTemplate: true
-            }, {
-              actorId: req.user?.id
-            }))
-          )
+        await publishTemplateTaskCreatedEvents(
+          templateExpansionResult.createdTasks,
+          req.user?.id
         );
         
         console.log('Template auto-applied successfully:', { 
@@ -872,6 +911,30 @@ router.get("/candidates/:id/stage-history", requireAuth, async (req, res, next) 
   }
 });
 
+// GET /api/candidates/:id/estimate - Get pipeline duration estimate
+router.get("/candidates/:id/estimate", requireAuth, async (req, res, next) => {
+  try {
+    // Authorization check - reuse existing helper
+    const access = await fetchCandidateWithAccess(req, res, req.params.id, "candidate:view");
+    if (!access) return;
+
+    // Get template estimation service
+    const templateEstimationService = getTemplateEstimationService();
+
+    // Calculate estimate with optional business days
+    const businessDays = req.query.businessDays === 'true';
+    const estimate = await templateEstimationService.estimateCandidate(
+      req.params.id,
+      businessDays
+    );
+
+    // Return estimate (may include error field if calculation failed)
+    res.json(estimate);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/candidates/:id/comments - Get comments for a candidate
 router.get("/candidates/:id/comments", sensitiveRateLimiter, requireAuth, async (req: any, res, next) => {
   try {
@@ -891,7 +954,7 @@ router.post("/candidates/:id/comments", sensitiveRateLimiter, requireAuth, async
     const { body, visibility, parentId } = req.body || {};
     if (!body || !visibility) return res.status(400).json({ message: 'body and visibility are required' });
     const commentService = getCommentService();
-    const created = await commentService.createComment({ entityType: 'candidate', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId });
+    const created = await commentService.createComment({ entityType: 'candidate', entityId: req.params.id, authorUserId: req.user.id, role: req.user.role, body, visibility, parentId, requestId: req.id });
 
     // Publish domain event
     const mentionKeys = extractMentionKeys(body);

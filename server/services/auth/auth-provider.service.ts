@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import type { db as DbType } from "../../db/connection";
 import { authProviders, systemSettings, type AuthProvider } from "@shared/schemas";
 import { encryptSecret, decryptSecret } from "../../utils/secret";
+import { writeAuditLog } from "../shared/audit-logger";
 
 export interface LdapSettings {
   url?: string;
@@ -54,12 +55,23 @@ export class AuthProviderService {
   /**
    * Update an auth provider's settings
    */
-  async updateAuthProvider(id: string, data: Partial<AuthProvider>): Promise<AuthProvider | undefined> {
+  async updateAuthProvider(id: string, data: Partial<AuthProvider>, actorId?: string, requestId?: string): Promise<AuthProvider | undefined> {
     const [provider] = await this.db
       .update(authProviders)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(authProviders.id, id))
       .returning();
+    if (provider) {
+      await writeAuditLog({
+        actorId,
+        resourceType: "settings",
+        resourceId: `auth_provider:${id}`,
+        action: "update",
+        eventType: "auth_provider_updated",
+        requestId,
+        details: { id, enabled: provider.enabled, name: provider.name }
+      });
+    }
     return provider || undefined;
   }
 
@@ -102,7 +114,7 @@ export class AuthProviderService {
   /**
    * Update LDAP settings
    */
-  async setLdapSettings(partial: Partial<LdapSettings>): Promise<LdapSettings> {
+  async setLdapSettings(partial: Partial<LdapSettings>, actorId?: string, requestId?: string): Promise<LdapSettings> {
     // Load existing to support partial updates and to avoid clearing password
     const existing = await this.getLdapSettings();
     const next: LdapSettings = {
@@ -135,6 +147,23 @@ export class AuthProviderService {
       .insert(systemSettings)
       .values({ key: 'auth.ldap', value: toStore as any, updatedAt: now, createdAt: now } as any)
       .onConflictDoUpdate({ target: systemSettings.key, set: { value: toStore as any, updatedAt: now } });
+
+    await writeAuditLog({
+      actorId,
+      resourceType: "settings",
+      resourceId: "auth.ldap",
+      action: "update",
+      eventType: "ldap_settings_updated",
+      requestId,
+      details: {
+        url: toStore.url,
+        startTls: toStore.startTls,
+        baseDn: toStore.baseDn,
+        userFilter: toStore.userFilter,
+        usernameAttr: toStore.usernameAttr,
+        emailAttr: toStore.emailAttr
+      }
+    });
 
     // Return decrypted/current
     return await this.getLdapSettings();

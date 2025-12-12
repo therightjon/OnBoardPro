@@ -84,6 +84,10 @@ export interface CandidateForPhase {
   templateAppliedFromId?: string | null;
   templateAppliedAt?: Date | string | null;
   currentStageId?: string | null;
+  currentStage?: {
+    phase?: "pre_hire" | "onboarding" | string | null;
+    name?: string | null;
+  } | null;
 }
 
 /**
@@ -135,16 +139,19 @@ export function getHiringPhase(candidate: CandidateForPhase): HiringPhaseInfo {
   }
 
   // Phase 3+: LOO accepted - template should be applied
-  // Determine if in pre_hire or onboarding based on template stages
-  // For now, default to pre_hire (actual phase determined by currentStageId in template)
-  
-  // If template is applied, we're in active workflow
+  // Determine if in pre_hire or onboarding based on current stage phase
+
+  // If template is applied, use the current stage's phase to determine hiring phase
   if (hasTemplateApplied) {
-    // TODO: Could determine actual phase (pre_hire vs onboarding) from current stage
+    // Use the actual phase from the candidate's current stage if available
+    const actualPhase = candidate.currentStage?.phase;
+    const phase: HiringPhase =
+      actualPhase === "onboarding" ? "onboarding" : "pre_hire";
+
     return {
-      phase: "pre_hire",
-      label: HIRING_PHASE_LABELS.pre_hire,
-      step: HIRING_PHASE_STEPS.pre_hire,
+      phase,
+      label: HIRING_PHASE_LABELS[phase],
+      step: HIRING_PHASE_STEPS[phase],
       canApplyTemplate: false, // Already applied
       templatePending: false,
     };

@@ -9,6 +9,7 @@ import { getInvitationService, getAuthProviderService, getUserService } from "..
 import bcrypt from "bcrypt";
 import { scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../services/login-rate-limit";
 
 const router = Router();
 const scryptAsync = promisify(scrypt);
@@ -46,9 +47,23 @@ router.post("/auth/login", async (req, res, next) => {
   
   if (hasPassport && passport.authenticate) {
     // Production mode: use Passport authentication
+    const identifier = email || username || "";
+    const clientIp = req.ip || req.headers["x-forwarded-for"] || req.connection?.remoteAddress || "";
+
+    const limitCheck = await checkLoginLimits({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+    if (!limitCheck.allowed) {
+      if (limitCheck.retryAfterSeconds) {
+        res.setHeader("Retry-After", String(limitCheck.retryAfterSeconds));
+      }
+      return res.status(limitCheck.status).json({ message: limitCheck.message });
+    }
+
     return passport.authenticate("local", async (err: any, user: any, info: any) => {
       if (err) return next(err);
-      if (!user) return res.status(401).json({ message: info?.message || 'Authentication failed' });
+      if (!user) {
+        await recordLoginFailure({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+        return res.status(401).json({ message: info?.message || 'Authentication failed' });
+      }
       
       try {
         // Establish session
@@ -65,6 +80,8 @@ router.post("/auth/login", async (req, res, next) => {
               console.error('Failed to update last login:', error);
             }
           }
+
+          await resetLoginLimit({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
           
           res.status(200).json({ user });
         });
@@ -77,6 +94,15 @@ router.post("/auth/login", async (req, res, next) => {
     try {
       const { email, username, password } = req.body;
       const userService = getUserService();
+
+      const clientIp = req.ip || req.headers["x-forwarded-for"] || req.connection?.remoteAddress || "";
+      const limitCheck = await checkLoginLimits({ identifier: email || username, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+      if (!limitCheck.allowed) {
+        if (limitCheck.retryAfterSeconds) {
+          res.setHeader("Retry-After", String(limitCheck.retryAfterSeconds));
+        }
+        return res.status(limitCheck.status).json({ message: limitCheck.message });
+      }
       
       // Try to find user by email or username
       const user = email 
@@ -86,6 +112,7 @@ router.post("/auth/login", async (req, res, next) => {
           : null;
       
       if (!user || !user.passwordHash) {
+        await recordLoginFailure({ identifier: email || username, ip: req.ip });
         return res.status(401).json({ message: 'Invalid credentials' });
       }
       
@@ -126,6 +153,7 @@ router.post("/auth/login", async (req, res, next) => {
       }
       
       if (!validPassword) {
+        await recordLoginFailure({ identifier: email || username, ip: req.ip });
         return res.status(401).json({ message: 'Invalid credentials' });
       }
       
@@ -151,12 +179,17 @@ router.post("/auth/login", async (req, res, next) => {
         delete (enrichedUser as any).password;
 
         if (req.session) {
+          // Preserve CSRF secret across session regeneration
+          const csrfSecret = req.session.csrfSecret;
+
           // Regenerate to avoid fixation even in test mode, but don't fail login if it errors
           if (typeof req.session.regenerate === "function") {
             await new Promise<void>((resolve) => {
               req.session!.regenerate(() => resolve());
             });
           }
+
+          if (csrfSecret) req.session.csrfSecret = csrfSecret;
           req.session.user = enrichedUser as any;
           if (typeof req.session.save === "function") {
             await new Promise<void>((resolve) => req.session!.save(() => resolve()));
@@ -165,7 +198,7 @@ router.post("/auth/login", async (req, res, next) => {
         
         req.user = enrichedUser as any;
         req.isAuthenticated = () => true;
-        
+        await resetLoginLimit({ identifier: email || username, ip: req.ip });
         res.status(200).json({ user: enrichedUser });
       } catch (hydrationError) {
         // If hydration fails, fall back to basic user (test environment may not have all data)
@@ -179,13 +212,18 @@ router.post("/auth/login", async (req, res, next) => {
         };
         delete basicUser.passwordHash;
         delete (basicUser as any).password;
-        
+
         if (req.session) {
+          // Preserve CSRF secret across session regeneration
+          const csrfSecret = req.session.csrfSecret;
+
           if (typeof req.session.regenerate === "function") {
             await new Promise<void>((resolve) => {
               req.session!.regenerate(() => resolve());
             });
           }
+
+          if (csrfSecret) req.session.csrfSecret = csrfSecret;
           req.session.user = basicUser as any;
           if (typeof req.session.save === "function") {
             await new Promise<void>((resolve) => req.session!.save(() => resolve()));
@@ -194,6 +232,7 @@ router.post("/auth/login", async (req, res, next) => {
 
         req.user = basicUser as any;
         req.isAuthenticated = () => true;
+        await resetLoginLimit({ identifier: email || username, ip: req.ip });
         res.status(200).json({ user: basicUser });
       }
     } catch (error) {
@@ -351,7 +390,8 @@ router.post(
         departmentId: parsed.departmentId,
         divisionId: parsed.divisionId,
         firstName: parsed.firstName,
-        lastName: parsed.lastName
+        lastName: parsed.lastName,
+        requestId: req.id
       });
 
       await sendInviteEmail(invitation.email, invitation.token, new Date(invitation.expiresAt));
@@ -481,7 +521,7 @@ router.patch("/auth/providers/:id", requireAuth, requireRole(["system_admin", "h
     }
 
     const authProviderServiceForUpdate = getAuthProviderService();
-    const updatedProvider = await authProviderServiceForUpdate.updateAuthProvider(id, { enabled });
+    const updatedProvider = await authProviderServiceForUpdate.updateAuthProvider(id, { enabled }, req.user?.id, req.id);
 
     if (!updatedProvider) {
       return res.status(404).json({ message: "Provider not found" });
@@ -550,7 +590,7 @@ router.put("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]),
     // Normalize boolean
     if (patch.startTls !== undefined) patch.startTls = !!patch.startTls;
     const authProviderService = getAuthProviderService();
-    const updated = await authProviderService.setLdapSettings(patch);
+    const updated = await authProviderService.setLdapSettings(patch, req.user?.id, req.id);
     // Reinitialize providers to apply changes immediately
     try {
       const { initializeAuthProviders } = await import('../features/auth/services');

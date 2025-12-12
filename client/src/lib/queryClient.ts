@@ -5,6 +5,9 @@
  * Conventions: Always include credentials, parse JSON safely to surface backend HTML/route misses, and preserve cache key semantics when joining URL parts.
  */
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getCsrfToken, clearCsrfTokenCache } from "./csrf";
+
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -34,13 +37,28 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const normalizedMethod = method.toUpperCase();
+
+  const headers = new Headers();
+  if (data) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (!SAFE_METHODS.has(normalizedMethod)) {
+    const csrfToken = await getCsrfToken();
+    headers.set("X-CSRF-Token", csrfToken);
+  }
+
   const res = await fetch(url, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    method: normalizedMethod,
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
     cache: "no-store",
   });
+
+  if (res.status === 403) {
+    clearCsrfTokenCache();
+  }
 
   await throwIfResNotOk(res);
   return res;

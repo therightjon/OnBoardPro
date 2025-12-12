@@ -131,11 +131,12 @@ export function HiringProgress({
   });
 
   const phaseInfo = getHiringPhase(candidate);
-  
-  // Override the phase if currentStagePhase indicates onboarding and template is applied
-  const effectivePhase: HiringPhase = 
-    candidate.templateAppliedAt && currentStagePhase === "onboarding" 
-      ? "onboarding" 
+
+  // Use the phase from getHiringPhase, which now correctly uses currentStage.phase
+  // Keep the override as a fallback in case currentStage data is not available
+  const effectivePhase: HiringPhase =
+    candidate.templateAppliedAt && currentStagePhase === "onboarding"
+      ? "onboarding"
       : phaseInfo.phase;
   
   // When fully onboarded, all steps are complete

@@ -7,6 +7,7 @@
 
 import type { Comment } from "@shared/schemas";
 import type { CommentRepository, CommentWithAuthor, CommentStats } from "../../repositories/CommentRepository";
+import { writeAuditLog } from "./audit-logger";
 
 export interface CreateCommentInput {
   entityType: 'candidate' | 'task';
@@ -16,6 +17,7 @@ export interface CreateCommentInput {
   parentId?: string | null;
   authorUserId: string;
   role: string;
+  requestId?: string;
 }
 
 export interface EditCommentInput {
@@ -23,12 +25,14 @@ export interface EditCommentInput {
   body: string;
   userId: string;
   userRole: string;
+  requestId?: string;
 }
 
 export interface DeleteCommentInput {
   id: string;
   userId: string;
   userRole: string;
+  requestId?: string;
 }
 
 export interface GetCommentsInput {
@@ -84,7 +88,7 @@ export class CommentService {
    * Create a new comment
    */
   async createComment(input: CreateCommentInput): Promise<CommentWithAuthor> {
-    return this.commentRepo.createComment({
+    const comment = await this.commentRepo.createComment({
       entityType: input.entityType,
       entityId: input.entityId,
       body: input.body,
@@ -93,6 +97,23 @@ export class CommentService {
       authorUserId: input.authorUserId,
       role: input.role
     });
+
+    await writeAuditLog({
+      actorId: input.authorUserId,
+      resourceType: input.entityType === "candidate" ? "candidate" : "candidate_task",
+      resourceId: input.entityId,
+      candidateId: input.entityType === "candidate" ? input.entityId : null,
+      taskId: input.entityType === "task" ? input.entityId : null,
+      action: "create",
+      eventType: "comment_created",
+      requestId: input.requestId,
+      details: {
+        visibility: input.visibility,
+        parentId: input.parentId || null
+      }
+    });
+
+    return comment;
   }
 
   /**
@@ -100,12 +121,24 @@ export class CommentService {
    * Business rule: Only the author (within 5 min) or admin can edit
    */
   async editComment(input: EditCommentInput): Promise<Comment> {
-    return this.commentRepo.editComment({
+    const comment = await this.commentRepo.editComment({
       id: input.id,
       body: input.body,
       userId: input.userId,
       userRole: input.userRole
     });
+
+    await writeAuditLog({
+      actorId: input.userId,
+      resourceType: "comment",
+      resourceId: input.id,
+      action: "update",
+      eventType: "comment_updated",
+      requestId: input.requestId,
+      details: { userRole: input.userRole }
+    });
+
+    return comment;
   }
 
   /**
@@ -117,6 +150,16 @@ export class CommentService {
       id: input.id,
       userId: input.userId,
       userRole: input.userRole
+    });
+
+    await writeAuditLog({
+      actorId: input.userId,
+      resourceType: "comment",
+      resourceId: input.id,
+      action: "delete",
+      eventType: "comment_deleted",
+      requestId: input.requestId,
+      details: { userRole: input.userRole }
     });
   }
 

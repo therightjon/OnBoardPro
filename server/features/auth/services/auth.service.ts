@@ -16,13 +16,14 @@ import { User as SelectUser } from "@shared/schemas";
 import { z } from "zod";
 import connectPg from "connect-pg-simple";
 import { pool } from "../../../config/database.config";
-import { 
+import {
   initializeAuthProviders, 
   providerRegistry, 
   authService, 
   getAvailableProviders,
   validateProviderConfigurations
 } from "./index";
+import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../../../services/login-rate-limit";
 
 declare global {
   namespace Express {
@@ -40,6 +41,8 @@ declare module "express-session" {
     inviteToken?: string;
     inviteTokenEmail?: string;
     inviteTokenIssuedAt?: string;
+    csrfSecret?: string;
+    lastActivity?: number;
   }
 }
 
@@ -134,16 +137,19 @@ export async function setupAuth(app: Express) {
     throw new Error("SESSION_SECRET environment variable is required");
   }
 
+  const TEN_HOURS_MS = 10 * 60 * 60 * 1000;
+
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Refresh cookie on each response while active
     store: new PostgresSessionStore({
       pool,
       createTableIfMissing: true
     }),
     cookie: {
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: TEN_HOURS_MS, // 10 hours
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       sameSite: 'strict', // Prevent CSRF attacks
@@ -196,18 +202,70 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  app.post("/api/login", passport.authenticate("local"), async (req, res) => {
+  app.post("/api/login", async (req, res, next) => {
     try {
-      // Track last login time
-      if (req.user && req.user.id) {
-        const userService = getUserService();
-        await userService.updateLastLogin(req.user.id);
+      const identifier = typeof req.body?.email === "string"
+        ? req.body.email
+        : typeof req.body?.username === "string"
+          ? req.body.username
+          : "";
+      const clientIp = req.ip || req.headers["x-forwarded-for"] || req.connection?.remoteAddress || "";
+
+      const limitCheck = await checkLoginLimits({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+      if (!limitCheck.allowed) {
+        if (limitCheck.retryAfterSeconds) {
+          res.setHeader("Retry-After", String(limitCheck.retryAfterSeconds));
+        }
+        return res.status(limitCheck.status).json({ message: limitCheck.message });
       }
-      res.status(200).json(req.user);
+
+      passport.authenticate("local", async (err: any, user: any, info: any) => {
+        if (err) return next(err);
+        if (!user) {
+          await recordLoginFailure({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+          return res.status(401).json({ message: info?.message || "Authentication failed" });
+        }
+
+        try {
+          const authenticatedUser = user;
+
+          // Preserve invitation-related session data and CSRF secret across regeneration
+          const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
+
+          req.session.regenerate(async (regenErr) => {
+            if (regenErr) return next(regenErr);
+
+            if (inviteToken) req.session.inviteToken = inviteToken;
+            if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
+            if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+            if (csrfSecret) req.session.csrfSecret = csrfSecret;
+
+            req.login(authenticatedUser, async (loginErr) => {
+              if (loginErr) return next(loginErr);
+
+              req.session.lastActivity = Date.now();
+
+              // Track last login time (best-effort)
+              if (authenticatedUser.id) {
+                try {
+                  const userService = getUserService();
+                  await userService.updateLastLogin(authenticatedUser.id);
+                } catch (updateErr) {
+                  console.error('Failed to update last login:', updateErr);
+                }
+              }
+
+              await resetLoginLimit({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+
+              res.status(200).json(req.user);
+            });
+          });
+        } catch (error) {
+          next(error);
+        }
+      })(req, res, next);
     } catch (error) {
-      // Don't fail login if last login update fails
-      console.error('Failed to update last login:', error);
-      res.status(200).json(req.user);
+      next(error);
     }
   });
 
@@ -275,15 +333,32 @@ export async function setupAuth(app: Express) {
 
       // Log the user in using passport
       hydrateAuthUser(signInResult.user!).then((sessionUser) => {
-        req.login(sessionUser, (err) => {
+        const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
+
+        req.session?.regenerate((err) => {
           if (err) {
             console.error('Login error:', err);
             return res.status(500).json({ message: "Login failed" });
           }
-          res.json({
-            user: sessionUser,
-            isNewUser: signInResult.isNewUser,
-            assignedRoles: signInResult.assignedRoles
+
+          if (inviteToken) req.session.inviteToken = inviteToken;
+          if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
+          if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+          if (csrfSecret) req.session.csrfSecret = csrfSecret;
+
+          req.login(sessionUser, (loginErr) => {
+            if (loginErr) {
+              console.error('Login error:', loginErr);
+              return res.status(500).json({ message: "Login failed" });
+            }
+
+            req.session.lastActivity = Date.now();
+
+            res.json({
+              user: sessionUser,
+              isNewUser: signInResult.isNewUser,
+              assignedRoles: signInResult.assignedRoles
+            });
           });
         });
       }).catch((error) => {

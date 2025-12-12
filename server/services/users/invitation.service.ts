@@ -7,6 +7,7 @@
 
 import type { Invitation } from "@shared/schemas";
 import type { InvitationRepository, InvitationWithOrganization } from "../../repositories/users/InvitationRepository";
+import { writeAuditLog } from "../shared/audit-logger";
 
 export interface CreateInvitationInput {
   email: string;
@@ -17,6 +18,7 @@ export interface CreateInvitationInput {
   divisionId?: string | null;
   firstName?: string | null;
   lastName?: string | null;
+  requestId?: string;
 }
 
 export interface CreateInvitationResult {
@@ -57,6 +59,22 @@ export class InvitationService {
       lastName: input.lastName
     });
 
+    await writeAuditLog({
+      actorId: input.invitedBy ?? null,
+      resourceType: "invitation",
+      resourceId: invitation.id,
+      action: "create",
+      eventType: "invitation_created",
+      requestId: input.requestId,
+      details: {
+        email: invitation.email,
+        roles: invitation.roles,
+        departmentId: invitation.departmentId,
+        divisionId: invitation.divisionId,
+        expiresAt: invitation.expiresAt
+      }
+    });
+
     return { invitation, token };
   }
 
@@ -72,8 +90,20 @@ export class InvitationService {
    * Consume an invitation when a user registers
    * Marks the invitation as used
    */
-  async consumeInvitation(invitationId: string): Promise<Invitation | null> {
-    return this.invitationRepo.consumeInvitation(invitationId);
+  async consumeInvitation(invitationId: string, actorId?: string, requestId?: string): Promise<Invitation | null> {
+    const invitation = await this.invitationRepo.consumeInvitation(invitationId);
+    if (invitation) {
+      await writeAuditLog({
+        actorId,
+        resourceType: "invitation",
+        resourceId: invitationId,
+        action: "update",
+        eventType: "invitation_consumed",
+        requestId,
+        details: { email: invitation.email }
+      });
+    }
+    return invitation;
   }
 
   /**

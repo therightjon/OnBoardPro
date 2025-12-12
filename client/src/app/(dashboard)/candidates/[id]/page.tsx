@@ -425,8 +425,8 @@ export default function CandidateDetailPage() {
     // no-op on server / ensure candidate exists
     if (!candidate) return;
     const status = (candidate as any).status as string | undefined;
-    // Only auto-complete when every task is actually done (no canceled) and status isn't already terminal
-    const shouldAutoComplete = taskSummary.allDone;
+    // Only auto-complete when every task is closed (done or canceled) and status isn't already terminal
+    const shouldAutoComplete = taskSummary.allClosed;
     if (!shouldAutoComplete) return;
     if (!status || status === 'completed' || status === 'canceled' || status === 'offer_declined' || status === 'archived') return;
     // Fire-and-forget status update; ignore errors here and let manual update handle it
@@ -440,7 +440,7 @@ export default function CandidateDetailPage() {
         // Silently ignore; user can manually adjust if needed
       }
     })();
-  }, [candidate, taskSummary.allDone, queryClient]);
+  }, [candidate, taskSummary.allClosed, queryClient]);
 
   const candidatePhase = (candidate as any)?.currentStage?.phase ?? "pre_hire";
   const candidatePhaseLabel = candidatePhase === "onboarding" ? "Onboarding" : "Pre-hire";
