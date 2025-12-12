@@ -240,19 +240,20 @@ export async function setupAuth(app: Express) {
           // Preserve invitation-related session data and CSRF secret across regeneration
           const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
 
-          // Use promisified session regeneration to avoid race conditions
+          // Regenerate session and restore data atomically to prevent race conditions
           await new Promise<void>((resolve, reject) => {
             req.session.regenerate((regenErr) => {
               if (regenErr) return reject(regenErr);
+
+              // Restore session data immediately in callback to ensure CSRF protection works
+              if (inviteToken) req.session.inviteToken = inviteToken;
+              if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
+              if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+              if (csrfSecret) req.session.csrfSecret = csrfSecret;
+
               resolve();
             });
           });
-
-          // Restore session data after regeneration completes
-          if (inviteToken) req.session.inviteToken = inviteToken;
-          if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
-          if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
-          if (csrfSecret) req.session.csrfSecret = csrfSecret;
 
           // Promisify login to ensure proper sequencing
           await new Promise<void>((resolve, reject) => {
@@ -264,19 +265,16 @@ export async function setupAuth(app: Express) {
 
           req.session.lastActivity = Date.now();
 
-          // Save session to ensure CSRF secret and other data is persisted
-          if (req.session.save) {
-            await new Promise<void>((resolve, reject) => {
-              req.session.save((saveErr) => {
-                if (saveErr) {
-                  console.error('Session save error:', saveErr);
-                  // Don't reject - treat as non-critical in case of test environment
-                  resolve();
-                }
-                resolve();
-              });
+          // Explicitly save session to ensure all data is persisted
+          await new Promise<void>((resolve, reject) => {
+            req.session.save((saveErr) => {
+              if (saveErr) {
+                console.error('Session save error:', saveErr);
+                return reject(saveErr);
+              }
+              resolve();
             });
-          }
+          });
 
           // Track last login time (best-effort)
           if (authenticatedUser.id) {
@@ -367,19 +365,20 @@ export async function setupAuth(app: Express) {
         try {
           const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
 
-          // Use promisified session regeneration to avoid race conditions
+          // Regenerate session and restore data atomically to prevent race conditions
           await new Promise<void>((resolve, reject) => {
             req.session?.regenerate((err) => {
               if (err) return reject(err);
+
+              // Restore session data immediately in callback to ensure CSRF protection works
+              if (inviteToken) req.session.inviteToken = inviteToken;
+              if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
+              if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+              if (csrfSecret) req.session.csrfSecret = csrfSecret;
+
               resolve();
             });
           });
-
-          // Restore session data after regeneration completes
-          if (inviteToken) req.session.inviteToken = inviteToken;
-          if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
-          if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
-          if (csrfSecret) req.session.csrfSecret = csrfSecret;
 
           // Promisify login to ensure proper sequencing
           await new Promise<void>((resolve, reject) => {
@@ -391,19 +390,16 @@ export async function setupAuth(app: Express) {
 
           req.session.lastActivity = Date.now();
 
-          // Save session to ensure CSRF secret and other data is persisted
-          if (req.session.save) {
-            await new Promise<void>((resolve, reject) => {
-              req.session.save((saveErr) => {
-                if (saveErr) {
-                  console.error('Session save error:', saveErr);
-                  // Don't reject - treat as non-critical in case of test environment
-                  resolve();
-                }
-                resolve();
-              });
+          // Explicitly save session to ensure all data is persisted
+          await new Promise<void>((resolve, reject) => {
+            req.session.save((saveErr) => {
+              if (saveErr) {
+                console.error('Session save error:', saveErr);
+                return reject(saveErr);
+              }
+              resolve();
             });
-          }
+          });
 
           res.json({
             user: sessionUser,

@@ -185,11 +185,17 @@ router.post("/auth/login", async (req, res, next) => {
           // Regenerate to avoid fixation even in test mode, but don't fail login if it errors
           if (typeof req.session.regenerate === "function") {
             await new Promise<void>((resolve) => {
-              req.session!.regenerate(() => resolve());
+              req.session!.regenerate(() => {
+                // Restore CSRF secret inside callback to ensure it's preserved in the new session
+                if (csrfSecret) req.session!.csrfSecret = csrfSecret;
+                resolve();
+              });
             });
+          } else {
+            // No regenerate function available, just restore the secret
+            if (csrfSecret) req.session.csrfSecret = csrfSecret;
           }
 
-          if (csrfSecret) req.session.csrfSecret = csrfSecret;
           req.session.user = enrichedUser as any;
           if (typeof req.session.save === "function") {
             await new Promise<void>((resolve) => req.session!.save(() => resolve()));
@@ -219,11 +225,17 @@ router.post("/auth/login", async (req, res, next) => {
 
           if (typeof req.session.regenerate === "function") {
             await new Promise<void>((resolve) => {
-              req.session!.regenerate(() => resolve());
+              req.session!.regenerate(() => {
+                // Restore CSRF secret inside callback to ensure it's preserved in the new session
+                if (csrfSecret) req.session!.csrfSecret = csrfSecret;
+                resolve();
+              });
             });
+          } else {
+            // No regenerate function available, just restore the secret
+            if (csrfSecret) req.session.csrfSecret = csrfSecret;
           }
 
-          if (csrfSecret) req.session.csrfSecret = csrfSecret;
           req.session.user = basicUser as any;
           if (typeof req.session.save === "function") {
             await new Promise<void>((resolve) => req.session!.save(() => resolve()));
