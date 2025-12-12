@@ -1,17 +1,26 @@
 # Security Review (Re‑evaluation) — 2025‑12‑11
 
-This report re‑evaluates the OnBoardPro codebase with focus on the areas requested. It supersedes `docs/SECURITY_REVIEW_2025-12-11.md`. Findings are based on static analysis of the repository in this workspace; no network‑based dependency scan was run due to restricted network access.
+This report re‑evaluates the OnBoardPro codebase with focus on the areas requested, **assuming the application is internal-only and not public-facing** (e.g., reachable only from a corporate network/VPN/Zero‑Trust gateway). It supersedes `docs/SECURITY_REVIEW_2025-12-11.md`. Findings are based on static analysis of the repository in this workspace; no network‑based dependency scan was run due to restricted network access.
 
 **Scope**
 - Server: Express/Passport/Drizzle/Postgres (`server/`, `shared/`, `scripts/`)
 - Client: React/Vite (`client/`)
 - Infra/config: `docker-compose.yml`, env/config files
 
-**Severity scale**
-- **Critical**: Exploitable to gain unauthorized access or major data exposure.
-- **High**: Realistic exploitation with significant impact.
-- **Medium**: Exploitable with constraints or moderate impact.
-- **Low**: Hard to exploit or minor impact; best‑practice gaps.
+**Deployment assumptions (internal-only)**
+- App is not reachable from the public internet; access requires corporate network controls (VPN/ZTNA) and authenticated users.
+- Primary adversaries are **malicious insiders**, **compromised employee endpoints**, **stolen sessions**, and **misconfiguration/lateral movement** inside the network.
+- “Internal” reduces some internet-scale threats (mass scanning, commodity bots), but **does not eliminate** browser threats (CSRF), identity threats (credential stuffing/phishing), or unauthorized access via over-broad roles.
+
+**Severity scale (internal-only)**
+- **Critical**: Enables privilege escalation/impersonation or broad PII exposure to internal users/attackers.
+- **High**: Realistic exploitation by an internal user or compromised endpoint with significant impact.
+- **Medium**: Exploitable under specific internal conditions; moderate impact or requires additional misconfigurations.
+- **Low**: Best-practice gaps with limited practical impact in an internal deployment.
+
+**Threat model notes**
+- Biggest risk drivers: RBAC mistakes, over-broad serialization (PII), session theft, directory/SSO integration flaws, and insufficient auditability for insider investigations.
+- Perimeter mitigations (rate limits, CSP, IP allowlists) still matter, but are secondary to **least privilege** and **strong identity boundaries**.
 
 ---
 
@@ -28,19 +37,20 @@ This report re‑evaluates the OnBoardPro codebase with focus on the areas reque
 1. **Critical — LDAP injection in user search filter**
    - `LdapAuthProvider` interpolates `ldapUser` directly into `userFilter` without escaping (`server/features/auth/services/providers.ts`).
    - `toLdapUsername` only trims/lowercases; it does not escape LDAP filter metacharacters (`server/features/auth/identifier.ts`).
-   - Impact: attacker may craft usernames like `*)(uid=*)` or `)(|(uid=*))` to alter filter, potentially authenticating as another user or bypassing user lookup logic.
+   - Internal impact: a malicious insider (or malware on an internal workstation) may craft usernames like `*)(uid=*)` or `)(|(uid=*))` to alter filter, potentially authenticating as another user or bypassing user lookup logic.
 
 2. **High — StartTLS flag validated but not enforced**
    - Config validation allows `ldap://` + `startTls=true`, but provider never calls `client.starttls(...)` (`server/features/auth/services/providers.ts`, `server/features/auth/services/config.ts`).
-   - Impact: deployments expecting StartTLS may silently run plaintext LDAP bind/search, exposing credentials on the wire.
+   - Internal impact: even on an internal network, plaintext binds/search increase credential exposure during lateral movement or when traffic crosses segments/VPNs.
 
 3. **Medium — Provider email‑based linking could enable account takeover for future SSO**
    - `AuthService.findExistingUser` links by verified email if provider claims `emailVerified` (`server/features/auth/services/service.ts`).
    - LDAP provider hard‑sets `emailVerified: true`. Future OIDC/Google/Azure providers must ensure `emailVerified` is trustworthy.
-   - Impact: a misconfigured or untrusted IdP could claim another user’s verified email and link identities.
+   - Internal impact: if an internal IdP/app is misconfigured (or a test IdP is trusted), identity linking can cause account takeover across internal users.
 
 4. **Low — No MFA**
    - No TOTP/SMS/WebAuthn or step‑up auth found.
+   - Internal note: MFA is often “inherited” at the perimeter (VPN/ZTNA/SSO). If local auth remains enabled, MFA/step‑up is still valuable for privileged roles.
 
 ### Recommendations
 - **Escape LDAP filter inputs** (e.g., RFC 4515 escaping) before interpolation; ideally use ldapjs `filters` API or a safe builder.
@@ -65,7 +75,7 @@ This report re‑evaluates the OnBoardPro codebase with focus on the areas reque
 1. **Low/Medium — A few admin endpoints accept raw bodies**
    - Example: `/users` create/update passes `req.body` to service without route‑level `.strict()` parsing (`server/routes/users.routes.ts`).
    - Service‑level validation exists for passwords/roles, but other fields rely on repository constraints.
-   - Impact: schema drift or unexpected field writes if repo layer doesn’t whitelist.
+   - Internal impact: mainly raises risk of accidental privilege/field misconfiguration by admins or via internal tooling misuse.
 
 2. **Low — Potential stored‑XSS depends on client rendering**
    - Comments and other text inputs are stored as strings; no server‑side HTML sanitization.
@@ -88,7 +98,7 @@ This report re‑evaluates the OnBoardPro codebase with focus on the areas reque
 ### Findings
 1. **Medium — Some routes leak error details / log sensitive queries**
    - Search endpoints log raw search queries and use `error.message` in responses (`server/routes/search.routes.ts`).
-   - Impact: PII in logs; information disclosure to privileged but non‑admin users.
+   - Internal impact: increases the blast radius of PII exposure through logs (which are commonly accessible to more internal operators than production DBs).
 
 2. **Low — No API versioning**
    - No `/v1` or deprecation strategy observed.
@@ -112,11 +122,11 @@ This report re‑evaluates the OnBoardPro codebase with focus on the areas reque
 1. **High — Database TLS not universally enforced; Neon TLS verification disabled**
    - Only auto‑enables TLS for `*.neon.tech`, and uses `rejectUnauthorized: false` (`server/config/database.config.ts`).
    - Other hosts default to plaintext unless URL forces SSL.
-   - Impact: MITM risk for Neon; plaintext DB creds/data for non‑Neon prod if misconfigured.
+   - Internal impact: internal networks are not automatically trusted; plaintext DB traffic and disabled TLS verification are common lateral-movement targets.
 
 2. **Medium — Data‑at‑rest & local dev exposure**
    - `docker-compose.yml` exposes Postgres on `5432` with no TLS and a host‑mounted volume.
-   - Impact: acceptable for dev, but unsafe for prod‑like environments.
+   - Internal impact: acceptable for local dev; unsafe if reused in shared environments or “internal staging” where multiple users share a network.
 
 3. **Low/Medium — Audit log details may contain PII**
    - `writeAuditLog` stores arbitrary `details` from call sites (`server/services/shared/audit-logger.ts`).
@@ -133,7 +143,7 @@ This report re‑evaluates the OnBoardPro codebase with focus on the areas reque
 ### Findings
 1. **Medium — `trust proxy` always enabled**
    - `app.set("trust proxy", 1)` is unconditional (`server/features/auth/services/auth.service.ts`).
-   - Impact: if deployed without a trusted proxy in front, clients can spoof `X-Forwarded-For`, affecting rate limiting and login throttling.
+   - Internal impact: if internal clients can spoof forwarding headers, it can weaken rate limiting and investigation accuracy. If a trusted proxy is always present, this becomes lower risk but should be explicit/configured.
 
 2. **Low — CSP allows inline scripts**
    - Production CSP includes `scriptSrc: ["'self'", "'unsafe-inline'"]` (`server/index.ts`).
@@ -161,6 +171,7 @@ This report re‑evaluates the OnBoardPro codebase with focus on the areas reque
 ### Recommendations
 - Run `npm audit --production` and a full SCA tool (Dependabot/Snyk/GitHub Advanced Security).
 - Consider migrating from `csurf` to a maintained CSRF solution when feasible.
+  - Internal note: internal apps often rely on SSO and shared gateways; supply-chain attacks can be especially impactful because they propagate inside trusted environments.
 
 ---
 
@@ -180,6 +191,7 @@ This report re‑evaluates the OnBoardPro codebase with focus on the areas reque
   - rate‑limit spikes,
   - unusual candidate/task access patterns.
 - Sanitize log fields to strip control characters.
+  - Internal note: invest in audit log completeness + retention + access controls; insider investigations depend on these more than perimeter telemetry.
 
 ---
 
@@ -204,8 +216,8 @@ This report re‑evaluates the OnBoardPro codebase with focus on the areas reque
 1. **Critical**: Escape LDAP username in filters and add LDAP injection tests.
 2. **High**: Implement StartTLS or require LDAPS; enforce TLS verification.
 3. **High**: Enforce DB TLS in prod; remove `rejectUnauthorized: false`.
-4. **Medium**: Remove PII/debug logging and unify error responses.
-5. **Medium**: Conditional `trust proxy`.
+4. **Medium**: Remove PII/debug logging and unify error responses (internal logs are a common exposure path).
+5. **Medium**: Make `trust proxy` explicit/conditional and align rate-limit IP derivation with your gateway.
 6. **Low**: Harden CSP and route‑level strict validation.
 
 ---
@@ -218,4 +230,3 @@ This report re‑evaluates the OnBoardPro codebase with focus on the areas reque
   - CSRF enforcement on all mutations.
 - Automate dependency scanning (CI) and secret detection.
 - Document production hardening checklist in `docs/SECURITY_AUDIT.md` or a new `PROD_SECURITY_CHECKLIST.md`.
-
