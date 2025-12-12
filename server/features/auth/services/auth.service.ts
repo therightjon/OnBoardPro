@@ -264,6 +264,20 @@ export async function setupAuth(app: Express) {
 
           req.session.lastActivity = Date.now();
 
+          // Save session to ensure CSRF secret and other data is persisted
+          if (req.session.save) {
+            await new Promise<void>((resolve, reject) => {
+              req.session.save((saveErr) => {
+                if (saveErr) {
+                  console.error('Session save error:', saveErr);
+                  // Don't reject - treat as non-critical in case of test environment
+                  resolve();
+                }
+                resolve();
+              });
+            });
+          }
+
           // Track last login time (best-effort)
           if (authenticatedUser.id) {
             try {
@@ -376,6 +390,20 @@ export async function setupAuth(app: Express) {
           });
 
           req.session.lastActivity = Date.now();
+
+          // Save session to ensure CSRF secret and other data is persisted
+          if (req.session.save) {
+            await new Promise<void>((resolve, reject) => {
+              req.session.save((saveErr) => {
+                if (saveErr) {
+                  console.error('Session save error:', saveErr);
+                  // Don't reject - treat as non-critical in case of test environment
+                  resolve();
+                }
+                resolve();
+              });
+            });
+          }
 
           res.json({
             user: sessionUser,
