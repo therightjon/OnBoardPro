@@ -23,6 +23,7 @@ import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AutoSelectCombobox } from "@/shared/components/inputs/AutoSelectCombobox";
 import { searchDepartments, searchDivisions, searchManagers } from "@/lib/search";
+import { formatDateForApi } from "@/shared/components/inputs/DatePicker";
 import type { Template, CandidateType, Department, Division, User as UserType, TemplateTask, TaskDefinition, HiringStage } from "@shared/schemas";
 
 const newCandidateSchema = z.object({
@@ -283,12 +284,12 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
         managerId: data.managerId === "none" ? null : data.managerId || null,
         facultyRankId: data.facultyRankId || null,
         // NEW: Letter of Intent date is required
-        letterOfIntentDate: format(data.letterOfIntentDate, "yyyy-MM-dd"),
+        letterOfIntentDate: formatDateForApi(data.letterOfIntentDate),
         // LOO dates are optional at creation
-        offerLetterIssuedAt: data.offerLetterIssuedAt ? format(data.offerLetterIssuedAt, "yyyy-MM-dd") : null,
-        offerLetterAcceptedAt: data.offerLetterAcceptedAt ? format(data.offerLetterAcceptedAt, "yyyy-MM-dd") : null,
+        offerLetterIssuedAt: formatDateForApi(data.offerLetterIssuedAt),
+        offerLetterAcceptedAt: formatDateForApi(data.offerLetterAcceptedAt),
         // Anticipated start date is optional at creation
-        anticipatedStartDate: data.anticipatedStartDate ? format(data.anticipatedStartDate, "yyyy-MM-dd") : null,
+        anticipatedStartDate: formatDateForApi(data.anticipatedStartDate),
         // Template is required - will be stored as selected but not applied until LOO accepted
         templateId: data.templateId,
       };

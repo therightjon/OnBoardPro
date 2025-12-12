@@ -36,10 +36,15 @@ export const parseAsLocalDate = (dateStr: string | Date | null | undefined): Dat
 
 /**
  * Format a Date object to YYYY-MM-DD string for API submission
+ * Uses UTC components since Calendar component creates dates at UTC midnight
  */
 export const formatDateForApi = (date: Date | null | undefined): string | null => {
   if (!date) return null;
-  return format(date, "yyyy-MM-dd");
+  // Use UTC components to get the calendar date that was selected
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 interface DatePickerProps {

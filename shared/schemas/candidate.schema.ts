@@ -98,11 +98,11 @@ export const candidates = pgTable("candidates", {
   divisionId: uuid("division_id"),
   managerId: uuid("manager_id"),
   facultyRankId: uuid("faculty_rank_id"),
-  // Hiring milestone dates
+  // Hiring milestone dates - all DATE type (no time component) to avoid timezone issues
   letterOfIntentDate: date("letter_of_intent_date"), // Required at creation, immutable
-  offerLetterIssuedAt: timestamp("offer_letter_issued_at"),
-  offerLetterAcceptedAt: timestamp("offer_letter_accepted_at"),
-  anticipatedStartDate: timestamp("anticipated_start_date"), // Optional at creation, required before onboarding
+  offerLetterIssuedAt: date("offer_letter_issued_at"),
+  offerLetterAcceptedAt: date("offer_letter_accepted_at"),
+  anticipatedStartDate: date("anticipated_start_date"), // Optional at creation, required before onboarding
   status: candidateStatusEnum("status").default("active").notNull(),
   primaryOwnerId: uuid("primary_owner_id").references(() => users.id),
   linkedUserId: uuid("linked_user_id").references(() => users.id),
@@ -253,12 +253,15 @@ export const candidateFollowersRelations = relations(candidateFollowers, ({ one 
 // Zod schemas
 export const insertCandidateSchema = createInsertSchema(candidates).extend({
   // Letter of Intent date - required at creation, immutable
-  letterOfIntentDate: z.coerce.date(),
+  // Use string validation to avoid timezone conversion issues
+  letterOfIntentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
   // LOO dates - optional at creation
-  offerLetterIssuedAt: z.coerce.date().optional().nullable(),
-  offerLetterAcceptedAt: z.coerce.date().optional().nullable(),
+  // Use string validation to avoid timezone conversion issues
+  offerLetterIssuedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format").optional().nullable(),
+  offerLetterAcceptedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format").optional().nullable(),
   // Anticipated start date - optional at creation, can be set when LOO is accepted
-  anticipatedStartDate: z.coerce.date().optional().nullable(),
+  // Use string validation to avoid timezone conversion issues
+  anticipatedStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format").optional().nullable(),
   // Template ID - required at creation but expansion is deferred until LOO accepted
   templateAppliedFromId: z.string().uuid().optional().nullable(),
 });

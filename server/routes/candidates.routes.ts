@@ -510,10 +510,8 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
         let value = req.body[field];
-        // Coerce date strings to Date objects for timestamp fields
-        if (dateFields.has(field) && value !== null) {
-          value = value ? new Date(value) : null;
-        }
+        // Date fields are now stored as strings (YYYY-MM-DD format)
+        // No conversion needed - they will be validated by the Zod schema
         updateData[field] = nullableIdFields.has(field) && value === '' ? null : value;
       }
     }
@@ -572,9 +570,9 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
     const anchorChanged = anchorFields.some((field) => {
       const beforeValue = (previousCandidate as any)[field];
       const afterValue = (fullCandidate as any)[field];
-      const before = beforeValue ? new Date(beforeValue as any).getTime() : null;
-      const after = afterValue ? new Date(afterValue as any).getTime() : null;
-      return before !== after;
+      // Compare date strings directly (format: YYYY-MM-DD)
+      // Null values are treated as empty strings for comparison
+      return (beforeValue ?? '') !== (afterValue ?? '');
     });
 
     if (anchorChanged) {

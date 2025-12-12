@@ -25,6 +25,7 @@ import {
 import { LooDateDialog } from "./loo-date-dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/shared/hooks/use-toast";
+import { parseAsLocalDate } from "@/shared/components/inputs/DatePicker";
 
 /**
  * Steps for the hiring progress stepper
@@ -87,7 +88,8 @@ function StepIcon({ phase, isComplete, isCurrent }: StepIconProps) {
 
 function formatDate(date: string | Date | null | undefined): string {
   if (!date) return "—";
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = parseAsLocalDate(date);
+  if (!d) return "—";
   return format(d, "MMM d, yyyy");
 }
 
