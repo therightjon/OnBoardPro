@@ -81,6 +81,7 @@ async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
 /**
  * Compare supplied password against stored hash.
  * Handles bcrypt (legacy) and scrypt (new format); returns false on format errors to avoid timing leaks.
+ * Uses constant-time comparison to prevent timing attacks.
  */
 async function comparePasswords(supplied: string, stored: string) {
   try {
@@ -88,30 +89,37 @@ async function comparePasswords(supplied: string, stored: string) {
     if (stored.startsWith('$2')) {
       return await bcrypt.compare(supplied, stored);
     }
-    
+
     // Handle scrypt format (new format)
     const parts = stored.split(".");
-    if (parts.length !== 2) {
-      console.error("Invalid stored password format - missing salt or hash");
-      return false;
-    }
-    
-    const [hashed, salt] = parts;
-    if (!hashed || !salt) {
-      console.error("Invalid stored password format - empty hash or salt");
-      return false;
-    }
-    
-    const hashedBuf = Buffer.from(hashed, "hex");
+    // Continue processing even if format is wrong to maintain constant timing
+    const hashed = parts[0] || "";
+    const salt = parts[1] || "dummysalt";
+
+    // Always compute hash even if inputs are invalid to maintain constant timing
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-    
-    if (hashedBuf.length !== suppliedBuf.length) {
-      console.error("Buffer length mismatch in password comparison");
+
+    // Validate format after timing-sensitive operations
+    if (parts.length !== 2 || !hashed || !parts[1]) {
+      // Still return false but after performing the hash computation
       return false;
     }
-    
+
+    const hashedBuf = Buffer.from(hashed, "hex");
+
+    if (hashedBuf.length !== suppliedBuf.length) {
+      // Length mismatch - return false after timing-sensitive operations
+      return false;
+    }
+
     return timingSafeEqual(hashedBuf, suppliedBuf);
   } catch (error) {
+    // Perform dummy operation to maintain timing even in error case
+    try {
+      await scryptAsync("dummy", "dummysalt", 64);
+    } catch {
+      // Ignore errors in dummy operation
+    }
     console.error("Error comparing passwords:", error);
     return false;
   }
@@ -232,34 +240,43 @@ export async function setupAuth(app: Express) {
           // Preserve invitation-related session data and CSRF secret across regeneration
           const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
 
-          req.session.regenerate(async (regenErr) => {
-            if (regenErr) return next(regenErr);
-
-            if (inviteToken) req.session.inviteToken = inviteToken;
-            if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
-            if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
-            if (csrfSecret) req.session.csrfSecret = csrfSecret;
-
-            req.login(authenticatedUser, async (loginErr) => {
-              if (loginErr) return next(loginErr);
-
-              req.session.lastActivity = Date.now();
-
-              // Track last login time (best-effort)
-              if (authenticatedUser.id) {
-                try {
-                  const userService = getUserService();
-                  await userService.updateLastLogin(authenticatedUser.id);
-                } catch (updateErr) {
-                  console.error('Failed to update last login:', updateErr);
-                }
-              }
-
-              await resetLoginLimit({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
-
-              res.status(200).json(req.user);
+          // Use promisified session regeneration to avoid race conditions
+          await new Promise<void>((resolve, reject) => {
+            req.session.regenerate((regenErr) => {
+              if (regenErr) return reject(regenErr);
+              resolve();
             });
           });
+
+          // Restore session data after regeneration completes
+          if (inviteToken) req.session.inviteToken = inviteToken;
+          if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
+          if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+          if (csrfSecret) req.session.csrfSecret = csrfSecret;
+
+          // Promisify login to ensure proper sequencing
+          await new Promise<void>((resolve, reject) => {
+            req.login(authenticatedUser, (loginErr) => {
+              if (loginErr) return reject(loginErr);
+              resolve();
+            });
+          });
+
+          req.session.lastActivity = Date.now();
+
+          // Track last login time (best-effort)
+          if (authenticatedUser.id) {
+            try {
+              const userService = getUserService();
+              await userService.updateLastLogin(authenticatedUser.id);
+            } catch (updateErr) {
+              console.error('Failed to update last login:', updateErr);
+            }
+          }
+
+          await resetLoginLimit({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+
+          res.status(200).json(req.user);
         } catch (error) {
           next(error);
         }
@@ -332,35 +349,43 @@ export async function setupAuth(app: Express) {
       }
 
       // Log the user in using passport
-      hydrateAuthUser(signInResult.user!).then((sessionUser) => {
-        const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
+      hydrateAuthUser(signInResult.user!).then(async (sessionUser) => {
+        try {
+          const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
 
-        req.session?.regenerate((err) => {
-          if (err) {
-            console.error('Login error:', err);
-            return res.status(500).json({ message: "Login failed" });
-          }
+          // Use promisified session regeneration to avoid race conditions
+          await new Promise<void>((resolve, reject) => {
+            req.session?.regenerate((err) => {
+              if (err) return reject(err);
+              resolve();
+            });
+          });
 
+          // Restore session data after regeneration completes
           if (inviteToken) req.session.inviteToken = inviteToken;
           if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
           if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
           if (csrfSecret) req.session.csrfSecret = csrfSecret;
 
-          req.login(sessionUser, (loginErr) => {
-            if (loginErr) {
-              console.error('Login error:', loginErr);
-              return res.status(500).json({ message: "Login failed" });
-            }
-
-            req.session.lastActivity = Date.now();
-
-            res.json({
-              user: sessionUser,
-              isNewUser: signInResult.isNewUser,
-              assignedRoles: signInResult.assignedRoles
+          // Promisify login to ensure proper sequencing
+          await new Promise<void>((resolve, reject) => {
+            req.login(sessionUser, (loginErr) => {
+              if (loginErr) return reject(loginErr);
+              resolve();
             });
           });
-        });
+
+          req.session.lastActivity = Date.now();
+
+          res.json({
+            user: sessionUser,
+            isNewUser: signInResult.isNewUser,
+            assignedRoles: signInResult.assignedRoles
+          });
+        } catch (error) {
+          console.error('Login error:', error);
+          res.status(500).json({ message: "Login failed" });
+        }
       }).catch((error) => {
         console.error('Authentication error:', error);
         res.status(500).json({ message: "Internal server error" });
