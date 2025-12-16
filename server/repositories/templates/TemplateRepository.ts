@@ -176,16 +176,33 @@ export class TemplateRepository extends BaseRepository {
    * @param id - Template ID
    * @returns Object with active_stage_count
    */
-  async getTemplateReadiness(id: string): Promise<{ active_stage_count: number }> {
+  async getTemplateReadiness(id: string): Promise<{
+    active_stage_count: number;
+    active_task_count: number;
+    assigned_task_count: number;
+  }> {
     const [result] = await this.db
       .select({
-        active_stage_count: sql<number>`COUNT(${templateStages.id}) FILTER (WHERE ${templateStages.isActive} = true)`
+        active_stage_count: sql<number>`COUNT(DISTINCT ${templateStages.id}) FILTER (WHERE ${templateStages.isActive} = true)`,
+        active_task_count: sql<number>`COUNT(${templateTasks.id}) FILTER (WHERE ${templateTasks.id} IS NOT NULL)`,
+        assigned_task_count: sql<number>`COUNT(${templateTasks.id}) FILTER (
+          WHERE ${templateTasks.id} IS NOT NULL
+            AND ${templateTasks.defaultAssigneeKind} = 'user'
+            AND ${templateTasks.defaultAssigneeUserId} IS NOT NULL
+        )`
       })
       .from(templates)
       .leftJoin(templateStages, eq(templateStages.templateId, templates.id))
+      .leftJoin(
+        templateTasks,
+        and(
+          eq(templateTasks.templateStageId, templateStages.id),
+          eq(templateTasks.archived, false)
+        )
+      )
       .where(eq(templates.id, id))
       .groupBy(templates.id);
 
-    return result || { active_stage_count: 0 };
+    return result || { active_stage_count: 0, active_task_count: 0, assigned_task_count: 0 };
   }
 }

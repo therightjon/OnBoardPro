@@ -225,22 +225,79 @@ export class TemplateService {
     // TODO: Publish templateArchived event
   }
 
-  /**
-   * Check if a template is ready to be activated
-   */
+   /**
+    * Check if a template is ready to be activated
+    */
   async checkTemplateReadiness(id: string): Promise<{ ready: boolean; reason?: string }> {
-    const readiness = await this.templateRepo.getTemplateReadiness(id);
+    // Ensure each active stage has at least one active task
+    const stages = await this.stageRepo.getTemplateStages(id);
+    const stageIdSet = new Set(stages.map(stage => stage.id));
 
-    if (readiness.active_stage_count === 0) {
+    if (stages.length === 0) {
       return {
         ready: false,
         reason: 'Template must have at least one stage'
       };
     }
 
-    // TODO: Add more readiness checks
-    // - Each stage should have at least one task
-    // - All required fields should be filled
+    const tasks = await this.taskRepo.getTemplateTasks(id);
+    const tasksByStage = new Map<string, number>();
+
+    for (const task of tasks) {
+      if (!stageIdSet.has(task.templateStageId)) continue;
+      const currentCount = tasksByStage.get(task.templateStageId) ?? 0;
+      tasksByStage.set(task.templateStageId, currentCount + 1);
+    }
+
+    const stageWithoutTasks = stages.find(stage => (tasksByStage.get(stage.id) ?? 0) === 0);
+    if (stageWithoutTasks) {
+      return {
+        ready: false,
+        reason: 'Each stage should have at least one task'
+      };
+    }
+
+    // Validate required task fields for readiness
+    const relativeDueRuleTypes = new Set([
+      'days_before_loo',
+      'days_after_loo',
+      'days_before_start',
+      'days_after_start',
+      'days_before_stage',
+      'days_after_stage'
+    ]);
+
+    const missingRequiredFields = tasks.some(task => {
+      if (!stageIdSet.has(task.templateStageId)) {
+        return false;
+      }
+
+      const needsDueValue = relativeDueRuleTypes.has(task.dueRuleType);
+      if (needsDueValue && task.dueRuleValue == null) {
+        return true;
+      }
+
+      if (task.dueRuleType === 'fixed_date' && !task.fixedDate) {
+        return true;
+      }
+
+      if (task.defaultAssigneeKind === 'user' && !task.defaultAssigneeUserId) {
+        return true;
+      }
+
+      if (task.defaultAssigneeKind === 'role' && !task.defaultAssigneeRole) {
+        return true;
+      }
+
+      return false;
+    });
+
+    if (missingRequiredFields) {
+      return {
+        ready: false,
+        reason: 'All required fields should be filled'
+      };
+    }
 
     return { ready: true };
   }
