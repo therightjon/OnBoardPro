@@ -69,9 +69,14 @@ router.post("/templates", requireAuth, requireRole(["system_admin", "hr_staff"])
     });
 
     res.status(201).json(template);
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: "Invalid data", errors: error.errors });
+    }
+    // Unique constraint: template name (case-insensitive)
+    const pgError = error?.cause ?? error;
+    if (`${pgError?.code}` === "23505" && pgError?.constraint === "templates_name_unique") {
+      return res.status(409).json({ message: "Template name already exists" });
     }
     next(error);
   }
