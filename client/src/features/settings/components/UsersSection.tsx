@@ -14,6 +14,7 @@ import {
   Archive,
   Send,
   Search,
+  X,
 } from "lucide-react";
 
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -49,12 +50,21 @@ const userSchema = z.object({
   divisionId: z.string().min(1, "Division is required"),
 });
 
+// Password validation matching server-side policy (server/utils/passwords.ts)
+const passwordValidation = z.string()
+  .min(12, "Password must be at least 12 characters")
+  .max(128, "Password must not exceed 128 characters")
+  .regex(/[A-Z]/, "Password must include an uppercase letter")
+  .regex(/[a-z]/, "Password must include a lowercase letter")
+  .regex(/[0-9]/, "Password must include a number")
+  .regex(/[^A-Za-z0-9]/, "Password must include a special character");
+
 const createUserSchema = userSchema.extend({
-  passwordHash: z.string().min(6, "Password must be at least 6 characters"),
+  passwordHash: passwordValidation,
 });
 
 const editUserSchema = userSchema.extend({
-  passwordHash: z.string().min(6, "Password must be at least 6 characters").or(z.literal("")),
+  passwordHash: passwordValidation.or(z.literal("")),
 });
 
 const inviteSchema = z.object({
@@ -393,6 +403,20 @@ export function UsersSection() {
     },
   });
 
+  const cancelInvitationMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const res = await apiRequest("DELETE", `/api/invitations/${invitationId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Success", description: "Invitation canceled successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   // ---- Handlers ----
   const handleNewUser = () => {
     setEditingUser(null);
@@ -410,6 +434,16 @@ export function UsersSection() {
   };
 
   const handleEditUser = (u: any) => {
+    // Prevent editing of invited users (pseudo-users from invitations table)
+    if (u.id?.startsWith('invite:')) {
+      toast({
+        title: "Cannot edit invited user",
+        description: "Invited users must complete registration before they can be edited. You can resend the invitation or cancel it instead.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setEditingUser(u);
     userForm.reset({
       firstName: u.firstName,
@@ -425,13 +459,48 @@ export function UsersSection() {
   };
 
   const handleDisableUser = (u: any) => {
+    // Prevent disabling invited users
+    if (u.id?.startsWith('invite:')) {
+      toast({
+        title: "Cannot disable invited user",
+        description: "Invited users are not active yet. You can cancel their invitation instead.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setDisablingUser(u);
     setReassignTo("");
     setIsDisableDialogOpen(true);
   };
 
   const handleEnableUser = (u: any) => {
+    // Prevent enabling invited users
+    if (u.id?.startsWith('invite:')) {
+      toast({
+        title: "Cannot enable invited user",
+        description: "Invited users must complete registration first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     enableUserMutation.mutate(u.id);
+  };
+
+  const handleCancelInvitation = (u: any) => {
+    // Extract the actual invitation ID from the pseudo-user ID format "invite:actual-id"
+    if (!u.id?.startsWith('invite:')) {
+      toast({
+        title: "Invalid invitation",
+        description: "This is not a pending invitation.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const invitationId = u.id.replace('invite:', '');
+    cancelInvitationMutation.mutate(invitationId);
   };
 
   const handleConfirmDisable = () => {
@@ -672,6 +741,11 @@ export function UsersSection() {
                       />
                       {userForm.formState.errors.passwordHash && (
                         <p className="text-sm text-destructive mt-1">{userForm.formState.errors.passwordHash.message}</p>
+                      )}
+                      {!editingUser && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Must be 12+ characters with uppercase, lowercase, number, and special character
+                        </p>
                       )}
                     </div>
 
@@ -923,7 +997,9 @@ export function UsersSection() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditUser(u)}
+                              disabled={u.id?.startsWith('invite:')}
                               data-testid={`button-edit-user-${u.id}`}
+                              title={u.id?.startsWith('invite:') ? "Invited users cannot be edited until they complete registration" : "Edit user"}
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
@@ -936,6 +1012,17 @@ export function UsersSection() {
                                 data-testid={`button-disable-user-${u.id}`}
                               >
                                 <Archive className="w-4 h-4" />
+                              </Button>
+                            ) : u.status === "invited" ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive"
+                                onClick={() => handleCancelInvitation(u)}
+                                data-testid={`button-cancel-invitation-${u.id}`}
+                                title="Cancel invitation"
+                              >
+                                <X className="w-4 h-4" />
                               </Button>
                             ) : (
                               <Button
@@ -1026,10 +1113,24 @@ export function UsersSection() {
                       </div>
                     </div>
                     <div className="flex items-center justify-start gap-2 mt-3 pt-3 border-t">
-                      <Button variant="ghost" size="sm" onClick={() => handleEditUser(u)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditUser(u)}
+                        disabled={u.id?.startsWith('invite:')}
+                      >
                         Edit
                       </Button>
-                      {u.status === "disabled" ? (
+                      {u.status === "invited" ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCancelInvitation(u)}
+                          className="text-destructive"
+                        >
+                          Cancel
+                        </Button>
+                      ) : u.status === "disabled" ? (
                         <Button variant="ghost" size="sm" onClick={() => handleEnableUser(u)}>
                           Enable
                         </Button>

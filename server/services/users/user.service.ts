@@ -11,7 +11,6 @@
 import type { User, InsertUser, UserRole, UserIdentity, InsertUserIdentity } from "@shared/schemas";
 import type { UserRepository } from "../../repositories/users/UserRepository";
 import type { UserIdentityRepository } from "../../repositories/users/UserIdentityRepository";
-import type { AuthorizationContext } from "../authorization/policy-types";
 import { eventBus, userCreated, userRoleChanged } from "../../events";
 import { writeAuditLog } from "../shared/audit-logger";
 import { assertPasswordPolicy, hashPassword } from "../../utils/passwords";
@@ -80,7 +79,7 @@ export class UserService {
     const { data, actorId } = input;
 
     // Business Rule: Check for duplicate email
-    const existingUser = await this.userRepo.getUserByEmail(data.email);
+    const existingUser = await this.userRepo.getUserByEmail(data.email as string);
     if (existingUser) {
       throw new UserValidationError("Email already exists");
     }
@@ -104,8 +103,9 @@ export class UserService {
     const user = await this.userRepo.createUser(userData as InsertUser);
 
     // Set roles if provided
+    let roleNames: string[] | undefined;
     if (roles && Array.isArray(roles)) {
-      const roleNames = roles.map((r: any) => typeof r === "string" ? r : r.role).filter(Boolean) as string[];
+      roleNames = roles.map((r: any) => typeof r === "string" ? r : r.role).filter(Boolean) as string[];
       await this.userRepo.setUserRoles(user.id, roleNames);
     }
 
@@ -226,7 +226,7 @@ export class UserService {
     const result = {
       success: repoResult.success,
       tasksReassigned: repoResult.tasksReassigned ?? 0,
-      taskCount: (repoResult as any).taskCount ?? 0
+      taskCount: typeof taskCount === 'number' ? taskCount : 0
     };
 
     await writeAuditLog({

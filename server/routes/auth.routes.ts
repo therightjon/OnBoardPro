@@ -424,6 +424,33 @@ router.post(
   }
 );
 
+// DELETE /api/invitations/:id - Cancel a pending invitation
+router.delete(
+  "/invitations/:id",
+  requireAuth,
+  requireRole(["system_admin", "hr_staff"]),
+  async (req, res, next) => {
+    try {
+      const invitationId = req.params.id;
+
+      const invitationService = getInvitationService();
+      const success = await invitationService.cancelInvitation(
+        invitationId,
+        req.user?.id,
+        req.id
+      );
+
+      if (!success) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+
+      res.json({ message: "Invitation canceled successfully" });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // GET /api/invitations/accept - Accept an invitation
 router.get("/invitations/accept", async (req: any, res, next) => {
   try {
