@@ -9,22 +9,56 @@ import { getCsrfToken, clearCsrfTokenCache } from "./csrf";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
+function extractErrorMessage(errorData: any, fallback: string): string {
+  if (!errorData) return fallback;
+  if (typeof errorData === "string") return errorData;
+  if (typeof errorData.message === "string" && errorData.message.trim()) return errorData.message;
+  if (typeof errorData.error?.message === "string" && errorData.error.message.trim()) return errorData.error.message;
+  if (typeof errorData.error === "string" && errorData.error.trim()) return errorData.error;
+  return fallback;
+}
+
+function deriveErrorMessage(res: Response, rawText: string): { message: string; parsed?: any } {
+  const statusText = res.statusText || "Request failed";
+  const cleaned = rawText.replace(/^\uFEFF/, "").trim();
+
+  const tryParse = (text: string) => {
+    try {
+      const parsed = JSON.parse(text);
+      return { message: extractErrorMessage(parsed, statusText), parsed };
+    } catch {
+      return null;
+    }
+  };
+
+  const direct = tryParse(cleaned);
+  if (direct) return direct;
+
+  const firstJsonChar = cleaned.search(/[\[{]/);
+  if (firstJsonChar >= 0) {
+    const candidate = cleaned.slice(firstJsonChar);
+    const recovered = tryParse(candidate);
+    if (recovered) return recovered;
+  }
+
+  const messageMatch = cleaned.match(/\"message\"\\s*:\\s*\"([^\"]+)\"/);
+  if (messageMatch?.[1]) {
+    return { message: messageMatch[1], parsed: undefined };
+  }
+
+  return { message: statusText, parsed: undefined };
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    // Read the response text once
     const text = await res.text();
-    
-    try {
-      // Try to parse as JSON for structured error responses
-      const errorData = JSON.parse(text);
-      // Create an error object with the parsed data
-      const error = new Error(errorData.message || res.statusText);
-      Object.assign(error, errorData);
-      throw error;
-    } catch (jsonError) {
-      // If JSON parsing fails, use the text as error message
-      throw new Error(`${res.status}: ${text || res.statusText}`);
-    }
+    const { message, parsed } = deriveErrorMessage(res, text);
+    const error: any = new Error(message);
+    error.status = res.status;
+    error.statusText = res.statusText;
+    error.body = parsed || text;
+    error.parsedBody = parsed;
+    throw error;
   }
 }
 

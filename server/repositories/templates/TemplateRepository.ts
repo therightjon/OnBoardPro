@@ -150,15 +150,37 @@ export class TemplateRepository extends BaseRepository {
    * Archive a template (soft delete)
    *
    * Archives the template by setting archived=true and isActive=false.
+   * Appends the current date (MM-DD-YYYY) to the template name to avoid conflicts.
    * Only archives templates that aren't already archived.
    *
    * @param id - Template ID
    * @throws Error if template not found or already archived
    */
   async archiveTemplate(id: string): Promise<void> {
+    // Get the current template to access its name
+    const template = await this.getTemplate(id);
+    if (!template || template.archived) {
+      throw new Error("Template not found or already archived");
+    }
+
+    // Format current date as MM-DD-YYYY
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const year = now.getFullYear();
+    const dateString = `${month}-${day}-${year}`;
+
+    // Append date to template name
+    const archivedName = `${template.name} - ${dateString}`;
+
     const result = await this.db
       .update(templates)
-      .set({ archived: true, isActive: false, updatedAt: new Date() })
+      .set({
+        name: archivedName,
+        archived: true,
+        isActive: false,
+        updatedAt: now
+      })
       .where(and(eq(templates.id, id), eq(templates.archived, false)))
       .returning({ id: templates.id });
 
