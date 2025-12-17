@@ -591,15 +591,6 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                         </SelectContent>
                       </Select>
                       <FormMessage />
-                      {/* Info about deferred template application */}
-                      {selectedTemplateId && !selectedOfferLetterAccepted && (
-                        <div className="flex items-start gap-2 p-2 text-xs text-muted-foreground bg-muted/50 rounded-md mt-2">
-                          <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                          <span>
-                            Tasks will be generated when the Letter of Offer is accepted.
-                          </span>
-                        </div>
-                      )}
                     </FormItem>
                   )}
                 />
@@ -950,23 +941,33 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isCreating}
-                data-testid="button-cancel"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isCreating || !form.formState.isValid}
-                data-testid="button-create-candidate"
-              >
-                {isCreating ? "Creating..." : "Create Candidate"}
-              </Button>
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+              {/* Info about deferred template application */}
+              <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>
+                  Tasks will be generated when the Letter of Offer is accepted.
+                </span>
+              </div>
+
+              <div className="flex flex-row gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={isCreating}
+                  data-testid="button-cancel"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isCreating || !form.formState.isValid}
+                  data-testid="button-create-candidate"
+                >
+                  {isCreating ? "Creating..." : "Create Candidate"}
+                </Button>
+              </div>
             </div>
           </form>
         </Form>
