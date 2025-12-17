@@ -152,17 +152,25 @@ async function clearDatabase(isDryRun: boolean = false) {
     // Phase 1: Candidate-Related Data
     console.log('\n📊 Phase 1: Clearing Candidate Data...');
 
+    // Delete audit_log first as it references both candidates and candidate_tasks
+    results.auditLog = await deleteTable(client, 'audit_log', isDryRun);
     results.candidateFollowers = await deleteTable(client, 'candidate_followers', isDryRun);
     results.candidateTemplateStages = await deleteTable(client, 'candidate_template_stages', isDryRun);
     results.candidateStageHistory = await deleteTable(client, 'candidate_stage_history', isDryRun);
     results.managerCandidateScopes = await deleteTable(client, 'manager_candidate_scopes', isDryRun);
-    results.candidateTasks = await deleteTable(client, 'candidate_tasks', isDryRun);
     results.comments = await deleteTable(client, 'comments', isDryRun);
-    results.auditLog = await deleteTable(client, 'audit_log', isDryRun);
+    results.candidateTasks = await deleteTable(client, 'candidate_tasks', isDryRun);
     results.candidates = await deleteTable(client, 'candidates', isDryRun);
 
-    // Phase 2: User-Related Data (Non-Admins)
-    console.log('\n👥 Phase 2: Clearing Non-Admin Users...');
+    // Phase 2: Clear ALL notifications (for all users, since they reference deleted candidates/tasks)
+    console.log('\n📬 Phase 2: Clearing Notifications...');
+
+    results.notificationOutbox = await deleteTable(client, 'notification_outbox', isDryRun);
+    results.notificationKeys = await deleteTable(client, 'notification_keys', isDryRun);
+    results.notifications = await deleteTable(client, 'notifications', isDryRun);
+
+    // Phase 3: User-Related Data (Non-Admins Only)
+    console.log('\n👥 Phase 3: Clearing Non-Admin Users...');
 
     // First get list of non-admin user IDs
     const nonAdminUserIdsResult = await client.query(
@@ -172,27 +180,6 @@ async function clearDatabase(isDryRun: boolean = false) {
 
     if (userIdsList.length > 0) {
       // Delete user-related data for non-admins
-      results.notificationOutbox = await deleteWhere(
-        client,
-        'notification_outbox',
-        'user_id',
-        userIdsList,
-        isDryRun
-      );
-      results.notificationKeys = await deleteWhere(
-        client,
-        'notification_keys',
-        'user_id',
-        userIdsList,
-        isDryRun
-      );
-      results.notifications = await deleteWhere(
-        client,
-        'notifications',
-        'user_id',
-        userIdsList,
-        isDryRun
-      );
       results.userDepartmentScopes = await deleteWhere(
         client,
         'user_department_scopes',
@@ -243,8 +230,8 @@ async function clearDatabase(isDryRun: boolean = false) {
       console.log('  No non-admin users to delete');
     }
 
-    // Phase 3: Sessions
-    console.log('\n🔐 Phase 3: Clearing Sessions...');
+    // Phase 4: Sessions
+    console.log('\n🔐 Phase 4: Clearing Sessions...');
 
     results.sessions = await deleteTable(client, 'session', isDryRun);
 
