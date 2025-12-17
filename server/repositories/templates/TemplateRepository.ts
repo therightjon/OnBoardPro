@@ -150,15 +150,37 @@ export class TemplateRepository extends BaseRepository {
    * Archive a template (soft delete)
    *
    * Archives the template by setting archived=true and isActive=false.
+   * Appends the current date (MM-DD-YYYY) to the template name to avoid conflicts.
    * Only archives templates that aren't already archived.
    *
    * @param id - Template ID
    * @throws Error if template not found or already archived
    */
   async archiveTemplate(id: string): Promise<void> {
+    // Get the current template to access its name
+    const template = await this.getTemplate(id);
+    if (!template || template.archived) {
+      throw new Error("Template not found or already archived");
+    }
+
+    // Format current date as MM-DD-YYYY
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const year = now.getFullYear();
+    const dateString = `${month}-${day}-${year}`;
+
+    // Append date to template name
+    const archivedName = `${template.name} - ${dateString}`;
+
     const result = await this.db
       .update(templates)
-      .set({ archived: true, isActive: false, updatedAt: new Date() })
+      .set({
+        name: archivedName,
+        archived: true,
+        isActive: false,
+        updatedAt: now
+      })
       .where(and(eq(templates.id, id), eq(templates.archived, false)))
       .returning({ id: templates.id });
 
@@ -176,16 +198,33 @@ export class TemplateRepository extends BaseRepository {
    * @param id - Template ID
    * @returns Object with active_stage_count
    */
-  async getTemplateReadiness(id: string): Promise<{ active_stage_count: number }> {
+  async getTemplateReadiness(id: string): Promise<{
+    active_stage_count: number;
+    active_task_count: number;
+    assigned_task_count: number;
+  }> {
     const [result] = await this.db
       .select({
-        active_stage_count: sql<number>`COUNT(${templateStages.id}) FILTER (WHERE ${templateStages.isActive} = true)`
+        active_stage_count: sql<number>`COUNT(DISTINCT ${templateStages.id}) FILTER (WHERE ${templateStages.isActive} = true)`,
+        active_task_count: sql<number>`COUNT(${templateTasks.id}) FILTER (WHERE ${templateTasks.id} IS NOT NULL)`,
+        assigned_task_count: sql<number>`COUNT(${templateTasks.id}) FILTER (
+          WHERE ${templateTasks.id} IS NOT NULL
+            AND ${templateTasks.defaultAssigneeKind} = 'user'
+            AND ${templateTasks.defaultAssigneeUserId} IS NOT NULL
+        )`
       })
       .from(templates)
       .leftJoin(templateStages, eq(templateStages.templateId, templates.id))
+      .leftJoin(
+        templateTasks,
+        and(
+          eq(templateTasks.templateStageId, templateStages.id),
+          eq(templateTasks.archived, false)
+        )
+      )
       .where(eq(templates.id, id))
       .groupBy(templates.id);
 
-    return result || { active_stage_count: 0 };
+    return result || { active_stage_count: 0, active_task_count: 0, assigned_task_count: 0 };
   }
 }

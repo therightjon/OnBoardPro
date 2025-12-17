@@ -691,6 +691,17 @@ router.patch("/candidates/:id/status", requireAuth, requireRole(["system_admin",
 
     const candidateService = getCandidateService();
     const authContext = authorizationService.buildContext(req.user);
+
+    // Prevent archiving canceled candidates - they are already in a terminal state
+    if (parsed.status === 'archived') {
+      const existing = await candidateService.getCandidate(req.params.id, authContext);
+      if (existing && existing.status === 'canceled') {
+        return res.status(400).json({
+          message: "Cannot archive a candidate that is already canceled. Canceled candidates are already in a terminal state."
+        });
+      }
+    }
+
     const result = await candidateService.updateCandidateStatus({
       id: req.params.id,
       newStatus: parsed.status,
@@ -726,6 +737,13 @@ router.delete("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_s
     const existing = await candidateService.getCandidate(req.params.id, authContext);
     if (!existing) {
       return res.status(404).json({ message: "Candidate not found" });
+    }
+
+    // Prevent archiving canceled candidates - they are already in a terminal state
+    if (existing.status === 'canceled') {
+      return res.status(400).json({
+        message: "Cannot archive a candidate that is already canceled. Canceled candidates are already in a terminal state."
+      });
     }
 
     // Archive using service, which will also update status

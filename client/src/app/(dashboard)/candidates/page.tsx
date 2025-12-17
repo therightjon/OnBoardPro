@@ -24,7 +24,7 @@ const NewCandidateDialog = lazy(() => import("@/features/candidates/components/n
 const ArchiveCandidateDialog = lazy(() => import("@/features/candidates/components/archive-candidate-dialog").then(m => ({ default: m.ArchiveCandidateDialog })));
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
-import { candidateStatusBadgeClass, resolveCandidateStatus } from "@/features/candidates/utils/status";
+import { candidateStatusBadgeClass, resolveCandidateStatus, canArchiveCandidate } from "@/features/candidates/utils/status";
 import type { Candidate, CandidateType, HiringStage } from "@shared/schemas";
 import { PaginationControls } from "@/shared/components/pagination-controls";
 
@@ -566,7 +566,7 @@ const formatLooAge = (isoDate?: string | null) => {
                               View
                             </Button>
                           </Link>
-                          {user && ["system_admin", "hr_staff"].includes(user.role) && (
+                          {user && ["system_admin", "hr_staff"].includes(user.role) && (candidate.archived || canArchiveCandidate(candidate)) && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -709,7 +709,7 @@ const formatLooAge = (isoDate?: string | null) => {
                         View Details
                       </Button>
                     </Link>
-                    {user && ["system_admin", "hr_staff"].includes(user.role) && (
+                    {user && ["system_admin", "hr_staff"].includes(user.role) && (candidate.archived || canArchiveCandidate(candidate)) && (
                       <Button
                         variant="ghost"
                         size="sm"

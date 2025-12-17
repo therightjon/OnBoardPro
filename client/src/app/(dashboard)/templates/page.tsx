@@ -31,6 +31,26 @@ const PAGE_SIZE = 5;
 
 type TemplateSortKey = "name" | "candidateType" | "status" | "createdAt" | "updatedAt";
 
+function normalizeErrorMessage(error: unknown): string {
+  const fallback = "Something went wrong";
+  if (!error) return fallback;
+  if (typeof error === "string") return error;
+
+  const asAny = error as any;
+
+  // Try to get message from error.message (already parsed by throwIfResNotOk)
+  if (typeof asAny.message === "string" && asAny.message.trim()) {
+    return asAny.message;
+  }
+
+  // Fallback: try to extract from body if parsing failed
+  if (asAny.parsedBody?.message) {
+    return asAny.parsedBody.message;
+  }
+
+  return fallback;
+}
+
 const templateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   candidateTypeId: z.string().min(1, "Candidate type is required"),
@@ -100,7 +120,7 @@ export default function TemplatesPage() {
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: normalizeErrorMessage(error),
         variant: "destructive",
       });
     },

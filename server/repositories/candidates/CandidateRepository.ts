@@ -407,7 +407,7 @@ export class CandidateRepository extends BaseRepository {
       'active': ['on_hold', 'completed', 'canceled', 'archived'],
       'on_hold': ['active', 'canceled', 'archived'],
       'completed': ['archived'],
-      'canceled': ['archived', 'active'], // Can restore canceled to active
+      'canceled': ['active'], // Canceled is terminal - can only restore to active, not archive
       'offer_declined': ['archived', 'active'], // Can restore offer_declined to active
       'archived': ['active'] // Can only restore to active
     };
