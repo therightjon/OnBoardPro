@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/shared/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { invalidateMyTasks } from "@/lib/query-invalidate";
+import { canArchiveCandidate } from "@/features/candidates/utils/status";
 
 interface ArchiveCandidateDialogProps {
   candidate: any;
@@ -237,6 +238,16 @@ export function ArchiveCandidateDialog({
   const handleArchive = () => {
     if (!candidate) {
       console.error('No candidate provided for archive operation');
+      return;
+    }
+    // Defensive check: prevent archiving canceled candidates
+    if (!canArchiveCandidate(candidate)) {
+      toast({
+        title: "Cannot archive candidate",
+        description: "This candidate is in canceled status and cannot be archived. Canceled candidates are already in a terminal state.",
+        variant: "destructive",
+      });
+      onOpenChange(false);
       return;
     }
     archiveMutation.mutate(candidate);

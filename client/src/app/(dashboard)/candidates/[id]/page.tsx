@@ -30,7 +30,7 @@ import { CommentsTab } from "@/features/comments/components/comments-tab";
 // Lazy load heavy dialogs to reduce initial bundle size
 const EditCandidateDialog = lazy(() => import("@/features/candidates/components/edit-candidate-dialog").then(m => ({ default: m.EditCandidateDialog })));
 const ArchiveCandidateDialog = lazy(() => import("@/features/candidates/components/archive-candidate-dialog").then(m => ({ default: m.ArchiveCandidateDialog })));
-import { candidateStatusBadgeClass, isCandidateFullyOnboarded, resolveCandidateStatus, summarizeCandidateTasks, type ResolvedCandidateStatus } from "@/features/candidates/utils/status";
+import { candidateStatusBadgeClass, isCandidateFullyOnboarded, resolveCandidateStatus, summarizeCandidateTasks, canArchiveCandidate, type ResolvedCandidateStatus } from "@/features/candidates/utils/status";
 import { HiringProgress } from "@/features/candidates/components/hiring-progress";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
@@ -754,7 +754,6 @@ export default function CandidateDetailPage() {
           { value: 'archived', label: 'Archived', destructive: true }
         ],
         'canceled': [
-          { value: 'archived', label: 'Archived', destructive: true },
           { value: 'active', label: 'Restore to Active' }
         ],
         'offer_declined': [
@@ -950,7 +949,7 @@ export default function CandidateDetailPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {(candidate as any).archived ? (
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => setIsArchiveDialogOpen(true)}
                       data-testid="menu-restore-candidate"
                     >
@@ -958,9 +957,10 @@ export default function CandidateDetailPage() {
                       Restore Candidate
                     </DropdownMenuItem>
                   ) : (
-                    <DropdownMenuItem 
-                      onClick={() => setIsArchiveDialogOpen(true)}
-                      className="text-destructive focus:text-destructive"
+                    <DropdownMenuItem
+                      onClick={() => canArchiveCandidate(candidate) && setIsArchiveDialogOpen(true)}
+                      className={canArchiveCandidate(candidate) ? "text-destructive focus:text-destructive" : "opacity-50 cursor-not-allowed"}
+                      disabled={!canArchiveCandidate(candidate)}
                       data-testid="menu-archive-candidate"
                     >
                       <Archive className="w-4 h-4 mr-2" />

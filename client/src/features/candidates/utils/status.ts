@@ -147,3 +147,12 @@ export const isCandidateFullyOnboarded = (
   const summary = summarizeCandidateTasks(tasks);
   return status === "completed" && summary.allClosed;
 };
+
+export const canArchiveCandidate = (
+  candidate: CandidateStatusLike | null | undefined
+): boolean => {
+  if (!candidate) return false;
+  const status = normalizeCandidateStatus(candidate?.status);
+  // Canceled candidates cannot be archived - they are already in a terminal state
+  return status !== "canceled" && status !== "archived";
+};
