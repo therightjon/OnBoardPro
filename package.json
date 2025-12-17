@@ -12,6 +12,8 @@
     "db:import": "tsx scripts/importDatabaseExport.ts database_export.sql",
     "db:run-sql": "npx tsx scripts/runSqlFiles.ts",
     "db:migrate-file": "npx tsx scripts/runMigration.ts",
+    "db:clear": "tsx scripts/clear-database.ts",
+    "db:clear:dry-run": "tsx scripts/clear-database.ts --dry-run",
     "user:set-password": "tsx scripts/setPassword.ts",
     "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "cross-env NODE_ENV=test SKIP_AUTH_SETUP=1 tsx --test 'server/tests/{auth,routes,repositories,db,services,utils}/**/*.test.ts'",
