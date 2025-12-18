@@ -20,7 +20,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roleEnum, userStatusEnum, appRoleEnum } from "./schemas/auth.schema";
 import { candidateStatusEnum, salutationEnum, stagePhaseEnum } from "./schemas/candidate.schema";
-import { taskStatusEnum, priorityEnum, dueRuleTypeEnum, taskAssigneeKindEnum } from "./schemas/task.enums";
+import { taskStatusEnum, priorityEnum, dueRuleTypeEnum, taskAssigneeKindEnum, prerequisiteConditionEnum } from "./schemas/task.enums";
 import {
   notificationEntityEnum,
   notifications,
@@ -47,7 +47,7 @@ import {
 // Re-export enums and types for external consumers
 export { roleEnum, userStatusEnum, appRoleEnum };
 export { candidateStatusEnum, salutationEnum, stagePhaseEnum };
-export { taskStatusEnum, priorityEnum, dueRuleTypeEnum, taskAssigneeKindEnum };
+export { taskStatusEnum, priorityEnum, dueRuleTypeEnum, taskAssigneeKindEnum, prerequisiteConditionEnum };
 export {
   notificationEntityEnum,
   notifications,
@@ -273,6 +273,8 @@ export const templateTasks = pgTable("template_tasks", {
   defaultAssigneeRole: text("default_assignee_role"),
   defaultPriorityId: uuid("default_priority_id"),
   defaultCategoryId: uuid("default_category_id"),
+  isPrerequisite: boolean("is_prerequisite").default(false).notNull(),
+  prerequisiteCondition: prerequisiteConditionEnum("prerequisite_condition"),
   archived: boolean("archived").default(false).notNull(),
   createdBy: uuid("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -303,6 +305,7 @@ export const candidateTasks = pgTable("candidate_tasks", {
   completedAt: timestamp("completed_at"),
   notes: text("notes"),
   required: boolean("required").default(true).notNull(),
+  isPrerequisiteTask: boolean("is_prerequisite_task").default(false).notNull(),
   archived: boolean("archived").default(false).notNull(),
   stageOrderIndex: integer("stage_order_index"),
   deletedAt: timestamp("deleted_at"),

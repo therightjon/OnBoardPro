@@ -7,7 +7,7 @@
 
 import type { Candidate } from "@shared/schemas";
 
-export type AnchorKey = 'loo' | 'start';
+export type AnchorKey = 'loi' | 'loo' | 'start';
 export type AnchorDates = Record<AnchorKey, Date | null>;
 
 export const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -41,6 +41,13 @@ export function ensureDate(input?: Date | string | null): Date | null {
   const date = input instanceof Date ? new Date(input.getTime()) : new Date(input);
   if (Number.isNaN(date.getTime())) return null;
   return normalizeToUtcDate(date);
+}
+
+/**
+ * Resolve the Letter of Intent (LOI) anchor date for a candidate
+ */
+export function resolveLoiAnchor(candidate: Candidate): Date | null {
+  return ensureDate(candidate.letterOfIntentDate);
 }
 
 /**
@@ -86,6 +93,12 @@ export function computeDueFromRule(
   };
 
   switch (ruleType) {
+    case "on_loi_date":
+      return applyAnchor("loi", 0);
+    case "days_before_loi":
+      return applyAnchor("loi", -1 * (ruleValue ?? 0));
+    case "days_after_loi":
+      return applyAnchor("loi", ruleValue ?? 0);
     case "on_loo_date":
       return applyAnchor("loo", 0);
     case "days_before_loo":

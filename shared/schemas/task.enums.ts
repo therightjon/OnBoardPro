@@ -16,6 +16,9 @@ export const priorityEnum = pgEnum("priority", [
 ]);
 
 export const dueRuleTypeEnum = pgEnum("due_rule_type", [
+  "on_loi_date",
+  "days_before_loi",
+  "days_after_loi",
   "on_loo_date",
   "days_before_loo",
   "days_after_loo",
@@ -30,4 +33,9 @@ export const dueRuleTypeEnum = pgEnum("due_rule_type", [
 export const taskAssigneeKindEnum = pgEnum("task_assignee_kind", [
   "user",
   "role"
+]);
+
+export const prerequisiteConditionEnum = pgEnum("prerequisite_condition", [
+  "requires_pt",
+  "always"
 ]);

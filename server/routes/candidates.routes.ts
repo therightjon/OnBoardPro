@@ -387,6 +387,37 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
       authContext
     });
 
+    // NEW: Expand prerequisite tasks if template and LOI date provided
+    let prerequisiteExpansionResult = null;
+    if (candidate.templateAppliedFromId && candidate.letterOfIntentDate) {
+      try {
+        console.log('Expanding prerequisite tasks on candidate creation:', {
+          candidateId: candidate.id,
+          templateId: candidate.templateAppliedFromId
+        });
+
+        const templateExpansionService = getTemplateExpansionService();
+        prerequisiteExpansionResult = await templateExpansionService.expandPrerequisites(
+          candidate.id,
+          candidate.templateAppliedFromId
+        );
+
+        // Publish taskCreated events for prerequisite tasks
+        if (prerequisiteExpansionResult.tasksCreated > 0) {
+          // Note: We'd need to get the actual tasks to publish events
+          // For now, just log the expansion
+          console.log('Prerequisite tasks expanded successfully:', {
+            tasksCreated: prerequisiteExpansionResult.tasksCreated,
+            conditionsMet: prerequisiteExpansionResult.conditionsMet,
+            tasksSkipped: prerequisiteExpansionResult.tasksSkipped
+          });
+        }
+      } catch (prerequisiteError: any) {
+        console.error('Failed to expand prerequisite tasks on creation:', prerequisiteError);
+        // Don't fail candidate creation - prerequisites can be expanded later
+      }
+    }
+
     // NEW: Auto-apply template if LOO is accepted at creation time
     let templateExpansionResult = null;
     if (candidate.offerLetterAcceptedAt && candidate.templateAppliedFromId) {
@@ -428,13 +459,18 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
     }
 
     // Include template expansion metadata in response
-    const response = templateExpansionResult
-      ? {
-          ...responseCandidate,
-          templateAutoApplied: true,
-          tasksCreated: templateExpansionResult.createdCount
-        }
-      : responseCandidate;
+    const response: any = { ...responseCandidate };
+
+    if (templateExpansionResult) {
+      response.templateAutoApplied = true;
+      response.tasksCreated = templateExpansionResult.createdCount;
+    }
+
+    if (prerequisiteExpansionResult) {
+      response.prerequisiteTasksCreated = prerequisiteExpansionResult.tasksCreated;
+      response.prerequisiteConditionsMet = prerequisiteExpansionResult.conditionsMet;
+      response.prerequisiteTasksSkipped = prerequisiteExpansionResult.tasksSkipped;
+    }
 
     res.status(201).json(response);
   } catch (error) {

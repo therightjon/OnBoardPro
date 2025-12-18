@@ -67,6 +67,7 @@ export const candidateTypes = pgTable("candidate_types", {
 export const facultyRanks = pgTable("faculty_ranks", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
+  requiresPT: boolean("requires_pt").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -109,6 +110,7 @@ export const candidates = pgTable("candidates", {
   currentStageId: uuid("current_stage_id").references(() => hiringStages.id),
   templateAppliedFromId: uuid("template_applied_from_id"),
   templateAppliedAt: timestamp("template_applied_at"),
+  templatePrerequisitesExpandedAt: timestamp("template_prerequisites_expanded_at"),
   templateLocked: boolean("template_locked").default(false).notNull(),
   templateNameSnapshot: text("template_name_snapshot"), // Template name captured at expansion time
   templateVersion: integer("template_version").default(1), // Optional immutable version number
