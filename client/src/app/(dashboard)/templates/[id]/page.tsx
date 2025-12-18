@@ -47,6 +47,9 @@ const templateTaskSchema = z.object({
   taskDefId: z.string().min(1, "Task definition is required"),
   stageId: z.string().min(1, "Stage is required"),
   dueRuleType: z.enum([
+    "on_loi_date",
+    "days_before_loi",
+    "days_after_loi",
     "on_loo_date",
     "days_before_loo",
     "days_after_loo",
@@ -65,6 +68,38 @@ const templateTaskSchema = z.object({
   defaultPriorityId: z.string().optional(),
   defaultCategoryId: z.string().optional(),
   isRequired: z.boolean().optional(),
+  isPrerequisite: z.boolean().optional(),
+  prerequisiteCondition: z.enum(["requires_pt", "always"]).optional(),
+}).superRefine((data, ctx) => {
+  const loiRules = ["on_loi_date", "days_before_loi", "days_after_loi"];
+  const nonLoiRules = ["on_loo_date", "days_before_loo", "days_after_loo", "days_before_start", "on_start_date", "days_after_start", "days_before_stage", "days_after_stage", "fixed_date"];
+
+  // If prerequisite task, must use LOI-based rules
+  if (data.isPrerequisite && !loiRules.includes(data.dueRuleType)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Prerequisite tasks must use Letter of Intent (LOI) based due rules",
+      path: ["dueRuleType"],
+    });
+  }
+
+  // If not prerequisite task, cannot use LOI-based rules
+  if (!data.isPrerequisite && loiRules.includes(data.dueRuleType)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Regular tasks cannot use LOI-based rules. Please select LOO or Start date rules.",
+      path: ["dueRuleType"],
+    });
+  }
+
+  // If prerequisite is checked, condition is required
+  if (data.isPrerequisite && !data.prerequisiteCondition) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Prerequisite condition is required for prerequisite tasks",
+      path: ["prerequisiteCondition"],
+    });
+  }
 });
 
 type TemplateTaskForm = z.infer<typeof templateTaskSchema>;
@@ -150,6 +185,8 @@ export default function TemplateDetailPage() {
       defaultPriorityId: "none",
       defaultCategoryId: "none",
       isRequired: false,
+      isPrerequisite: false,
+      prerequisiteCondition: undefined,
     },
   });
 
@@ -167,8 +204,62 @@ export default function TemplateDetailPage() {
       defaultPriorityId: "none",
       defaultCategoryId: "none",
       isRequired: false,
+      isPrerequisite: false,
+      prerequisiteCondition: undefined,
     },
   });
+
+  // Sync due rule type when isPrerequisite changes (for Add Task form)
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'isPrerequisite') {
+        // When prerequisite changes, set appropriate default due rule type
+        // This happens AFTER React re-renders with new Select options
+        if (value.isPrerequisite) {
+          const currentDueRule = form.getValues('dueRuleType');
+          const loiRules = ['on_loi_date', 'days_before_loi', 'days_after_loi'];
+          // Only change if current rule is not LOI-based
+          if (!loiRules.includes(currentDueRule)) {
+            form.setValue('dueRuleType', 'on_loi_date', { shouldValidate: false });
+            form.setValue('prerequisiteCondition', 'requires_pt', { shouldValidate: false });
+          }
+        } else {
+          const currentDueRule = form.getValues('dueRuleType');
+          const loiRules = ['on_loi_date', 'days_before_loi', 'days_after_loi'];
+          // Only change if current rule is LOI-based (shouldn't be used for non-prerequisite)
+          if (loiRules.includes(currentDueRule)) {
+            form.setValue('dueRuleType', 'on_loo_date', { shouldValidate: false });
+            form.setValue('prerequisiteCondition', undefined, { shouldValidate: false });
+          }
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Sync due rule type when isPrerequisite changes (for Edit Task form)
+  useEffect(() => {
+    const subscription = editForm.watch((value, { name }) => {
+      if (name === 'isPrerequisite') {
+        if (value.isPrerequisite) {
+          const currentDueRule = editForm.getValues('dueRuleType');
+          const loiRules = ['on_loi_date', 'days_before_loi', 'days_after_loi'];
+          if (!loiRules.includes(currentDueRule)) {
+            editForm.setValue('dueRuleType', 'on_loi_date', { shouldValidate: false });
+            editForm.setValue('prerequisiteCondition', 'requires_pt', { shouldValidate: false });
+          }
+        } else {
+          const currentDueRule = editForm.getValues('dueRuleType');
+          const loiRules = ['on_loi_date', 'days_before_loi', 'days_after_loi'];
+          if (loiRules.includes(currentDueRule)) {
+            editForm.setValue('dueRuleType', 'on_loo_date', { shouldValidate: false });
+            editForm.setValue('prerequisiteCondition', undefined, { shouldValidate: false });
+          }
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [editForm]);
 
   const createTemplateTaskMutation = useMutation({
     mutationFn: async (data: TemplateTaskForm) => {
@@ -409,6 +500,8 @@ export default function TemplateDetailPage() {
       defaultPriorityId: task.defaultPriorityId || "none",
       defaultCategoryId: task.defaultCategoryId || "none",
       isRequired: !!(task as any).isRequired,
+      isPrerequisite: !!(task as any).isPrerequisite,
+      prerequisiteCondition: (task as any).prerequisiteCondition,
     });
     setIsEditTaskDialogOpen(true);
   };
@@ -798,6 +891,66 @@ export default function TemplateDetailPage() {
                     )}
                   />
 
+                  <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Task Type</label>
+                      <p className="text-xs text-muted-foreground">
+                        Regular tasks expand when LOO is accepted. Prerequisite tasks expand immediately on candidate creation.
+                      </p>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="is-prerequisite"
+                          checked={!!form.watch('isPrerequisite')}
+                          onCheckedChange={(checked: any) => {
+                            // Just toggle the checkbox - useEffect will handle syncing other fields
+                            form.setValue('isPrerequisite', !!checked, { shouldValidate: false });
+                          }}
+                          data-testid="checkbox-is-prerequisite"
+                        />
+                        <label htmlFor="is-prerequisite" className="text-sm font-medium cursor-pointer">
+                          This is a prerequisite task
+                        </label>
+                      </div>
+                    </div>
+
+                    {form.watch('isPrerequisite') && (
+                      <FormField
+                        control={form.control}
+                        name="prerequisiteCondition"
+                        render={({ field }: { field: any }) => (
+                          <FormItem>
+                            <FormLabel>Prerequisite Condition</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-prerequisite-condition">
+                                  <SelectValue placeholder="Select condition" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="requires_pt">
+                                  <div>
+                                    <div className="font-medium">Requires P&T Approval</div>
+                                    <div className="text-xs text-muted-foreground">Associate Professor or higher</div>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="always">
+                                  <div>
+                                    <div className="font-medium">Always Apply</div>
+                                    <div className="text-xs text-muted-foreground">Create for all candidates</div>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Task will only be created if this condition is met
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+
                   <FormField
                     control={form.control}
                     name="dueRuleType"
@@ -806,10 +959,12 @@ export default function TemplateDetailPage() {
                         <FormLabel>Due Rule Type</FormLabel>
                         <Select onValueChange={(value) => {
                           field.onChange(value);
-                          const zeroValueRules = ["on_start_date", "on_loo_date"];
+                          const zeroValueRules = ["on_start_date", "on_loo_date", "on_loi_date"];
                           const relativeValueRules = [
                             "days_before_start",
                             "days_after_start",
+                            "days_before_loi",
+                            "days_after_loi",
                             "days_before_loo",
                             "days_after_loo",
                             "days_before_stage",
@@ -831,34 +986,51 @@ export default function TemplateDetailPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectGroup>
-                              <SelectLabel>Offer letter (LOO)</SelectLabel>
-                              <SelectItem value="on_loo_date">On LOO Date</SelectItem>
-                              <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
-                              <SelectItem value="days_after_loo">Days After LOO</SelectItem>
-                            </SelectGroup>
-                            <SelectSeparator />
-                            <SelectGroup>
-                              <SelectLabel>Start date</SelectLabel>
-                              <SelectItem value="on_start_date">On Start Date</SelectItem>
-                              <SelectItem value="days_before_start">Days Before Start</SelectItem>
-                              <SelectItem value="days_after_start">Days After Start</SelectItem>
-                            </SelectGroup>
-                            <SelectSeparator />
-                            <SelectGroup>
-                              <SelectLabel>Stage relative</SelectLabel>
-                              <SelectItem value="days_before_stage">Days Before Stage</SelectItem>
-                              <SelectItem value="days_after_stage">Days After Stage</SelectItem>
-                            </SelectGroup>
-                            <SelectSeparator />
-                            <SelectGroup>
-                              <SelectLabel>Fixed</SelectLabel>
-                              <SelectItem value="fixed_date">Fixed Date</SelectItem>
-                            </SelectGroup>
+                            {form.watch('isPrerequisite') ? (
+                              // LOI-based rules for prerequisite tasks
+                              <>
+                                <SelectGroup>
+                                  <SelectLabel>Letter of Intent (LOI)</SelectLabel>
+                                  <SelectItem value="on_loi_date">On LOI Date</SelectItem>
+                                  <SelectItem value="days_before_loi">Days Before LOI</SelectItem>
+                                  <SelectItem value="days_after_loi">Days After LOI</SelectItem>
+                                </SelectGroup>
+                              </>
+                            ) : (
+                              // Regular rules for normal tasks
+                              <>
+                                <SelectGroup>
+                                  <SelectLabel>Offer letter (LOO)</SelectLabel>
+                                  <SelectItem value="on_loo_date">On LOO Date</SelectItem>
+                                  <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
+                                  <SelectItem value="days_after_loo">Days After LOO</SelectItem>
+                                </SelectGroup>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                  <SelectLabel>Start date</SelectLabel>
+                                  <SelectItem value="on_start_date">On Start Date</SelectItem>
+                                  <SelectItem value="days_before_start">Days Before Start</SelectItem>
+                                  <SelectItem value="days_after_start">Days After Start</SelectItem>
+                                </SelectGroup>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                  <SelectLabel>Stage relative</SelectLabel>
+                                  <SelectItem value="days_before_stage">Days Before Stage</SelectItem>
+                                  <SelectItem value="days_after_stage">Days After Stage</SelectItem>
+                                </SelectGroup>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                  <SelectLabel>Fixed</SelectLabel>
+                                  <SelectItem value="fixed_date">Fixed Date</SelectItem>
+                                </SelectGroup>
+                              </>
+                            )}
                           </SelectContent>
                         </Select>
                         <p className="mt-2 text-xs text-muted-foreground">
-                          LOO anchors most pre-hire tasks; Start anchors day-one and beyond.
+                          {form.watch('isPrerequisite')
+                            ? 'Prerequisite tasks use LOI date as anchor'
+                            : 'LOO anchors most pre-hire tasks; Start anchors day-one and beyond.'}
                         </p>
                         <FormMessage />
                       </FormItem>
@@ -866,6 +1038,8 @@ export default function TemplateDetailPage() {
                   />
 
                   {form.watch("dueRuleType") && [
+                    "days_before_loi",
+                    "days_after_loi",
                     "days_before_loo",
                     "days_after_loo",
                     "days_before_start",
@@ -1088,6 +1262,66 @@ export default function TemplateDetailPage() {
                     )}
                   />
 
+                  <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Task Type</label>
+                      <p className="text-xs text-muted-foreground">
+                        Regular tasks expand when LOO is accepted. Prerequisite tasks expand immediately on candidate creation.
+                      </p>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="edit-is-prerequisite"
+                          checked={!!editForm.watch('isPrerequisite')}
+                          onCheckedChange={(checked: any) => {
+                            // Just toggle the checkbox - useEffect will handle syncing other fields
+                            editForm.setValue('isPrerequisite', !!checked, { shouldValidate: false });
+                          }}
+                          data-testid="edit-checkbox-is-prerequisite"
+                        />
+                        <label htmlFor="edit-is-prerequisite" className="text-sm font-medium cursor-pointer">
+                          This is a prerequisite task
+                        </label>
+                      </div>
+                    </div>
+
+                    {editForm.watch('isPrerequisite') && (
+                      <FormField
+                        control={editForm.control}
+                        name="prerequisiteCondition"
+                        render={({ field }: { field: any }) => (
+                          <FormItem>
+                            <FormLabel>Prerequisite Condition</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="edit-select-prerequisite-condition">
+                                  <SelectValue placeholder="Select condition" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="requires_pt">
+                                  <div>
+                                    <div className="font-medium">Requires P&T Approval</div>
+                                    <div className="text-xs text-muted-foreground">Associate Professor or higher</div>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="always">
+                                  <div>
+                                    <div className="font-medium">Always Apply</div>
+                                    <div className="text-xs text-muted-foreground">Create for all candidates</div>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Task will only be created if this condition is met
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+
                   <FormField
                     control={editForm.control}
                     name="dueRuleType"
@@ -1096,10 +1330,12 @@ export default function TemplateDetailPage() {
                         <FormLabel>Due Rule Type</FormLabel>
                         <Select onValueChange={(value) => {
                           field.onChange(value);
-                          const zeroValueRules = ["on_start_date", "on_loo_date"];
+                          const zeroValueRules = ["on_start_date", "on_loo_date", "on_loi_date"];
                           const relativeValueRules = [
                             "days_before_start",
                             "days_after_start",
+                            "days_before_loi",
+                            "days_after_loi",
                             "days_before_loo",
                             "days_after_loo",
                             "days_before_stage",
@@ -1121,34 +1357,51 @@ export default function TemplateDetailPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectGroup>
-                              <SelectLabel>Offer letter (LOO)</SelectLabel>
-                              <SelectItem value="on_loo_date">On LOO Date</SelectItem>
-                              <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
-                              <SelectItem value="days_after_loo">Days After LOO</SelectItem>
-                            </SelectGroup>
-                            <SelectSeparator />
-                            <SelectGroup>
-                              <SelectLabel>Start date</SelectLabel>
-                              <SelectItem value="on_start_date">On Start Date</SelectItem>
-                              <SelectItem value="days_before_start">Days Before Start</SelectItem>
-                              <SelectItem value="days_after_start">Days After Start</SelectItem>
-                            </SelectGroup>
-                            <SelectSeparator />
-                            <SelectGroup>
-                              <SelectLabel>Stage relative</SelectLabel>
-                              <SelectItem value="days_before_stage">Days Before Stage</SelectItem>
-                              <SelectItem value="days_after_stage">Days After Stage</SelectItem>
-                            </SelectGroup>
-                            <SelectSeparator />
-                            <SelectGroup>
-                              <SelectLabel>Fixed</SelectLabel>
-                              <SelectItem value="fixed_date">Fixed Date</SelectItem>
-                            </SelectGroup>
+                            {editForm.watch('isPrerequisite') ? (
+                              // LOI-based rules for prerequisite tasks
+                              <>
+                                <SelectGroup>
+                                  <SelectLabel>Letter of Intent (LOI)</SelectLabel>
+                                  <SelectItem value="on_loi_date">On LOI Date</SelectItem>
+                                  <SelectItem value="days_before_loi">Days Before LOI</SelectItem>
+                                  <SelectItem value="days_after_loi">Days After LOI</SelectItem>
+                                </SelectGroup>
+                              </>
+                            ) : (
+                              // Regular rules for normal tasks
+                              <>
+                                <SelectGroup>
+                                  <SelectLabel>Offer letter (LOO)</SelectLabel>
+                                  <SelectItem value="on_loo_date">On LOO Date</SelectItem>
+                                  <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
+                                  <SelectItem value="days_after_loo">Days After LOO</SelectItem>
+                                </SelectGroup>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                  <SelectLabel>Start date</SelectLabel>
+                                  <SelectItem value="on_start_date">On Start Date</SelectItem>
+                                  <SelectItem value="days_before_start">Days Before Start</SelectItem>
+                                  <SelectItem value="days_after_start">Days After Start</SelectItem>
+                                </SelectGroup>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                  <SelectLabel>Stage relative</SelectLabel>
+                                  <SelectItem value="days_before_stage">Days Before Stage</SelectItem>
+                                  <SelectItem value="days_after_stage">Days After Stage</SelectItem>
+                                </SelectGroup>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                  <SelectLabel>Fixed</SelectLabel>
+                                  <SelectItem value="fixed_date">Fixed Date</SelectItem>
+                                </SelectGroup>
+                              </>
+                            )}
                           </SelectContent>
                         </Select>
                         <p className="mt-2 text-xs text-muted-foreground">
-                          LOO anchors most pre-hire tasks; Start anchors day-one and beyond.
+                          {editForm.watch('isPrerequisite')
+                            ? 'Prerequisite tasks use LOI date as anchor'
+                            : 'LOO anchors most pre-hire tasks; Start anchors day-one and beyond.'}
                         </p>
                         <FormMessage />
                       </FormItem>
@@ -1156,6 +1409,8 @@ export default function TemplateDetailPage() {
                   />
 
                   {editForm.watch("dueRuleType") && [
+                    "days_before_loi",
+                    "days_after_loi",
                     "days_before_loo",
                     "days_after_loo",
                     "days_before_start",
@@ -1332,7 +1587,19 @@ export default function TemplateDetailPage() {
                 templateTasks.map((task: TemplateTask) => (
                   <TableRow key={task.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">
-                      {getTaskDefinitionName(task.taskDefId)}
+                      <div className="flex items-center gap-2">
+                        <span>{getTaskDefinitionName(task.taskDefId)}</span>
+                        {(task as any).isPrerequisite && (
+                          <Badge variant="secondary" className="text-xs">
+                            ⚡ Prerequisite
+                          </Badge>
+                        )}
+                      </div>
+                      {(task as any).isPrerequisite && (task as any).prerequisiteCondition && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Condition: {(task as any).prerequisiteCondition === 'requires_pt' ? 'Requires P&T' : 'Always apply'}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>{getStageName(task.stageId)}</TableCell>
                     <TableCell>{getStagePhaseLabel(task.stageId)}</TableCell>
@@ -1933,7 +2200,7 @@ function AddStageForm({
                   setDueRuleType(value);
                   if (value === 'fixed_date') {
                     setDueRuleValue('');
-                  } else if (value === 'on_start_date' || value === 'on_loo_date') {
+                  } else if (value === 'on_start_date' || value === 'on_loo_date' || value === 'on_loi_date') {
                     setDueRuleValue(null);
                   } else {
                     setDueRuleValue(0);
@@ -1944,6 +2211,13 @@ function AddStageForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Letter of Intent (LOI)</SelectLabel>
+                    <SelectItem value="on_loi_date">On LOI Date</SelectItem>
+                    <SelectItem value="days_before_loi">Days Before LOI</SelectItem>
+                    <SelectItem value="days_after_loi">Days After LOI</SelectItem>
+                  </SelectGroup>
+                  <SelectSeparator />
                   <SelectGroup>
                     <SelectLabel>Offer letter (LOO)</SelectLabel>
                     <SelectItem value="on_loo_date">On LOO Date</SelectItem>
@@ -1971,10 +2245,10 @@ function AddStageForm({
                 </SelectContent>
               </Select>
               <p className="mt-2 text-xs text-muted-foreground">
-                LOO anchors most pre-hire tasks; Start anchors day-one and beyond.
+                LOI for prerequisite tasks; LOO anchors most pre-hire tasks; Start anchors day-one and beyond.
               </p>
             </div>
-            {!['on_start_date', 'on_loo_date'].includes(dueRuleType) && (
+            {!['on_start_date', 'on_loo_date', 'on_loi_date'].includes(dueRuleType) && (
               <div>
                 <label className="block text-xs font-medium mb-1">
                   {dueRuleType === 'fixed_date' ? 'Date' : 'Days'}

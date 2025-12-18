@@ -22,14 +22,18 @@ import type { TaskDefinitionRepository } from "../../repositories/reference/Task
 
 export interface CreateHiringStageInput {
   name: string;
+  description?: string | null;
   orderIndex?: number;
+  isActive?: boolean;
   actorId?: string;
 }
 
 export interface UpdateHiringStageInput {
   id: string;
   name?: string;
+  description?: string | null;
   orderIndex?: number;
+  isActive?: boolean;
   actorId?: string;
 }
 
@@ -109,7 +113,9 @@ export class ReferenceDataService {
   async createHiringStage(input: CreateHiringStageInput): Promise<HiringStage> {
     return this.hiringStageRepo.createHiringStage({
       name: input.name,
-      orderIndex: input.orderIndex
+      description: input.description,
+      orderIndex: input.orderIndex,
+      isActive: input.isActive
     });
   }
 
@@ -119,7 +125,9 @@ export class ReferenceDataService {
   async updateHiringStage(input: UpdateHiringStageInput): Promise<HiringStage | undefined> {
     const updateData: Partial<InsertHiringStage> = {};
     if (input.name !== undefined) updateData.name = input.name;
+    if (input.description !== undefined) updateData.description = input.description;
     if (input.orderIndex !== undefined) updateData.orderIndex = input.orderIndex;
+    if (input.isActive !== undefined) updateData.isActive = input.isActive;
 
     return this.hiringStageRepo.updateHiringStage(input.id, updateData);
   }

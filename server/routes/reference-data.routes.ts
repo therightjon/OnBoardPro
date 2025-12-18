@@ -71,7 +71,9 @@ router.post("/hiring-stages", requireAuth, requireRole(["system_admin", "hr_staf
     const referenceDataService = getReferenceDataService();
     const stage = await referenceDataService.createHiringStage({
       name: validatedData.name,
-      orderIndex: validatedData.orderIndex
+      description: validatedData.description,
+      orderIndex: validatedData.orderIndex,
+      isActive: validatedData.isActive
     });
     res.status(201).json(stage);
   } catch (error) {

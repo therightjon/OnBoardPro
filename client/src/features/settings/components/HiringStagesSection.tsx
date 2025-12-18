@@ -162,7 +162,7 @@ export function HiringStagesSection() {
                 New Stage
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-min">
               <DialogHeader>
                 <DialogTitle>{editingStage ? "Edit Hiring Stage" : "Create Hiring Stage"}</DialogTitle>
               </DialogHeader>
