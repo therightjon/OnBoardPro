@@ -53,6 +53,12 @@ const templateTaskSchema = z.object({
     "on_loo_date",
     "days_before_loo",
     "days_after_loo",
+    "on_loo_accepted_date",
+    "days_before_loo_accepted",
+    "days_after_loo_accepted",
+    "on_loo_issued_date",
+    "days_before_loo_issued",
+    "days_after_loo_issued",
     "days_before_start",
     "on_start_date",
     "days_after_start",
@@ -72,7 +78,7 @@ const templateTaskSchema = z.object({
   prerequisiteCondition: z.enum(["requires_pt", "always"]).optional(),
 }).superRefine((data, ctx) => {
   const loiRules = ["on_loi_date", "days_before_loi", "days_after_loi"];
-  const nonLoiRules = ["on_loo_date", "days_before_loo", "days_after_loo", "days_before_start", "on_start_date", "days_after_start", "days_before_stage", "days_after_stage", "fixed_date"];
+  const nonLoiRules = ["on_loo_date", "days_before_loo", "days_after_loo", "on_loo_accepted_date", "days_before_loo_accepted", "days_after_loo_accepted", "on_loo_issued_date", "days_before_loo_issued", "days_after_loo_issued", "days_before_start", "on_start_date", "days_after_start", "days_before_stage", "days_after_stage", "fixed_date"];
 
   // If prerequisite task, must use LOI-based rules
   if (data.isPrerequisite && !loiRules.includes(data.dueRuleType)) {
@@ -959,7 +965,7 @@ export default function TemplateDetailPage() {
                         <FormLabel>Due Rule Type</FormLabel>
                         <Select onValueChange={(value) => {
                           field.onChange(value);
-                          const zeroValueRules = ["on_start_date", "on_loo_date", "on_loi_date"];
+                          const zeroValueRules = ["on_start_date", "on_loo_date", "on_loi_date", "on_loo_accepted_date", "on_loo_issued_date"];
                           const relativeValueRules = [
                             "days_before_start",
                             "days_after_start",
@@ -967,6 +973,10 @@ export default function TemplateDetailPage() {
                             "days_after_loi",
                             "days_before_loo",
                             "days_after_loo",
+                            "days_before_loo_accepted",
+                            "days_after_loo_accepted",
+                            "days_before_loo_issued",
+                            "days_after_loo_issued",
                             "days_before_stage",
                             "days_after_stage"
                           ];
@@ -1000,10 +1010,24 @@ export default function TemplateDetailPage() {
                               // Regular rules for normal tasks
                               <>
                                 <SelectGroup>
-                                  <SelectLabel>Offer letter (LOO)</SelectLabel>
-                                  <SelectItem value="on_loo_date">On LOO Date</SelectItem>
+                                  <SelectLabel>Offer letter (LOO) - Generic</SelectLabel>
+                                  <SelectItem value="on_loo_date">On LOO Date (Accepted or Issued)</SelectItem>
                                   <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
                                   <SelectItem value="days_after_loo">Days After LOO</SelectItem>
+                                </SelectGroup>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                  <SelectLabel>Offer letter (LOO) - Accepted</SelectLabel>
+                                  <SelectItem value="on_loo_accepted_date">On LOO Accepted Date</SelectItem>
+                                  <SelectItem value="days_before_loo_accepted">Days Before LOO Accepted</SelectItem>
+                                  <SelectItem value="days_after_loo_accepted">Days After LOO Accepted</SelectItem>
+                                </SelectGroup>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                  <SelectLabel>Offer letter (LOO) - Issued</SelectLabel>
+                                  <SelectItem value="on_loo_issued_date">On LOO Issued Date</SelectItem>
+                                  <SelectItem value="days_before_loo_issued">Days Before LOO Issued</SelectItem>
+                                  <SelectItem value="days_after_loo_issued">Days After LOO Issued</SelectItem>
                                 </SelectGroup>
                                 <SelectSeparator />
                                 <SelectGroup>
@@ -1042,6 +1066,10 @@ export default function TemplateDetailPage() {
                     "days_after_loi",
                     "days_before_loo",
                     "days_after_loo",
+                    "days_before_loo_accepted",
+                    "days_after_loo_accepted",
+                    "days_before_loo_issued",
+                    "days_after_loo_issued",
                     "days_before_start",
                     "days_after_start",
                     "days_before_stage",
@@ -1330,7 +1358,7 @@ export default function TemplateDetailPage() {
                         <FormLabel>Due Rule Type</FormLabel>
                         <Select onValueChange={(value) => {
                           field.onChange(value);
-                          const zeroValueRules = ["on_start_date", "on_loo_date", "on_loi_date"];
+                          const zeroValueRules = ["on_start_date", "on_loo_date", "on_loi_date", "on_loo_accepted_date", "on_loo_issued_date"];
                           const relativeValueRules = [
                             "days_before_start",
                             "days_after_start",
@@ -1338,6 +1366,10 @@ export default function TemplateDetailPage() {
                             "days_after_loi",
                             "days_before_loo",
                             "days_after_loo",
+                            "days_before_loo_accepted",
+                            "days_after_loo_accepted",
+                            "days_before_loo_issued",
+                            "days_after_loo_issued",
                             "days_before_stage",
                             "days_after_stage"
                           ];
@@ -1371,10 +1403,24 @@ export default function TemplateDetailPage() {
                               // Regular rules for normal tasks
                               <>
                                 <SelectGroup>
-                                  <SelectLabel>Offer letter (LOO)</SelectLabel>
-                                  <SelectItem value="on_loo_date">On LOO Date</SelectItem>
+                                  <SelectLabel>Offer letter (LOO) - Generic</SelectLabel>
+                                  <SelectItem value="on_loo_date">On LOO Date (Accepted or Issued)</SelectItem>
                                   <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
                                   <SelectItem value="days_after_loo">Days After LOO</SelectItem>
+                                </SelectGroup>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                  <SelectLabel>Offer letter (LOO) - Accepted</SelectLabel>
+                                  <SelectItem value="on_loo_accepted_date">On LOO Accepted Date</SelectItem>
+                                  <SelectItem value="days_before_loo_accepted">Days Before LOO Accepted</SelectItem>
+                                  <SelectItem value="days_after_loo_accepted">Days After LOO Accepted</SelectItem>
+                                </SelectGroup>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                  <SelectLabel>Offer letter (LOO) - Issued</SelectLabel>
+                                  <SelectItem value="on_loo_issued_date">On LOO Issued Date</SelectItem>
+                                  <SelectItem value="days_before_loo_issued">Days Before LOO Issued</SelectItem>
+                                  <SelectItem value="days_after_loo_issued">Days After LOO Issued</SelectItem>
                                 </SelectGroup>
                                 <SelectSeparator />
                                 <SelectGroup>
@@ -1413,6 +1459,10 @@ export default function TemplateDetailPage() {
                     "days_after_loi",
                     "days_before_loo",
                     "days_after_loo",
+                    "days_before_loo_accepted",
+                    "days_after_loo_accepted",
+                    "days_before_loo_issued",
+                    "days_after_loo_issued",
                     "days_before_start",
                     "days_after_start",
                     "days_before_stage",
@@ -1712,6 +1762,12 @@ function PipelineEstimateSection({
         }
         if (item.missingAnchor === 'loo') {
           return 'Waiting for LOO date';
+        }
+        if (item.missingAnchor === 'loo_accepted') {
+          return 'Waiting for LOO acceptance';
+        }
+        if (item.missingAnchor === 'loo_issued') {
+          return 'Waiting for LOO to be issued';
         }
         if (item.missingAnchor === 'start') {
           return 'Waiting for anticipated start date';
@@ -2244,10 +2300,24 @@ function AddStageForm({
                   </SelectGroup>
                   <SelectSeparator />
                   <SelectGroup>
-                    <SelectLabel>Offer letter (LOO)</SelectLabel>
-                    <SelectItem value="on_loo_date">On LOO Date</SelectItem>
+                    <SelectLabel>Offer letter (LOO) - Generic</SelectLabel>
+                    <SelectItem value="on_loo_date">On LOO Date (Accepted or Issued)</SelectItem>
                     <SelectItem value="days_before_loo">Days Before LOO</SelectItem>
                     <SelectItem value="days_after_loo">Days After LOO</SelectItem>
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectLabel>Offer letter (LOO) - Accepted</SelectLabel>
+                    <SelectItem value="on_loo_accepted_date">On LOO Accepted Date</SelectItem>
+                    <SelectItem value="days_before_loo_accepted">Days Before LOO Accepted</SelectItem>
+                    <SelectItem value="days_after_loo_accepted">Days After LOO Accepted</SelectItem>
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectLabel>Offer letter (LOO) - Issued</SelectLabel>
+                    <SelectItem value="on_loo_issued_date">On LOO Issued Date</SelectItem>
+                    <SelectItem value="days_before_loo_issued">Days Before LOO Issued</SelectItem>
+                    <SelectItem value="days_after_loo_issued">Days After LOO Issued</SelectItem>
                   </SelectGroup>
                   <SelectSeparator />
                   <SelectGroup>
@@ -2273,7 +2343,7 @@ function AddStageForm({
                 LOI for prerequisite tasks; LOO anchors most pre-hire tasks; Start anchors day-one and beyond.
               </p>
             </div>
-            {!['on_start_date', 'on_loo_date', 'on_loi_date'].includes(dueRuleType) && (
+            {!['on_start_date', 'on_loo_date', 'on_loi_date', 'on_loo_accepted_date', 'on_loo_issued_date'].includes(dueRuleType) && (
               <div>
                 <label className="block text-xs font-medium mb-1">
                   {dueRuleType === 'fixed_date' ? 'Date' : 'Days'}

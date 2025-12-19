@@ -28,6 +28,8 @@ import {
   ensureDate,
   computeDueFromRule,
   resolveLoiAnchor,
+  resolveLooIssuedAnchor,
+  resolveLooAcceptedAnchor,
 } from "../../utils/date.utils";
 import { countBusinessDays } from "../../utils/business-day.utils";
 import type { CandidateRepository } from "../../repositories/candidates/CandidateRepository";
@@ -172,6 +174,8 @@ export class TemplateEstimationService {
     const anchors: AnchorDates = {
       loi: ensureDate(loiDate ?? (candidate ? resolveLoiAnchor(candidate) : null)),
       loo: ensureDate(looDate ?? candidate?.offerLetterAcceptedAt ?? candidate?.offerLetterIssuedAt ?? null),
+      loo_issued: ensureDate(looDate ? looDate : candidate?.offerLetterIssuedAt ?? null),
+      loo_accepted: ensureDate(looDate ? looDate : candidate?.offerLetterAcceptedAt ?? null),
       start: ensureDate(startDate ?? candidate?.anticipatedStartDate ?? null),
     };
 

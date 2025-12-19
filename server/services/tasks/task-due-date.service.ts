@@ -13,7 +13,10 @@ import type { CandidateRepository } from "../../repositories/candidates/Candidat
 import type { CandidateTaskRepository } from "../../repositories/candidates/CandidateTaskRepository";
 import {
   type AnchorDates,
+  resolveLoiAnchor,
   resolveLooAnchor,
+  resolveLooIssuedAnchor,
+  resolveLooAcceptedAnchor,
   resolveStartAnchor,
   computeDueFromRule
 } from "../../utils/date.utils";
@@ -70,7 +73,10 @@ export class TaskDueDateService {
 
     // Resolve anchor dates from candidate
     const anchors: AnchorDates = {
+      loi: resolveLoiAnchor(candidate),
       loo: resolveLooAnchor(candidate),
+      loo_issued: resolveLooIssuedAnchor(candidate),
+      loo_accepted: resolveLooAcceptedAnchor(candidate),
       start: resolveStartAnchor(candidate),
     };
 

@@ -29,6 +29,8 @@ import {
   type AnchorDates,
   resolveLoiAnchor,
   resolveLooAnchor,
+  resolveLooIssuedAnchor,
+  resolveLooAcceptedAnchor,
   resolveStartAnchor,
   computeDueFromRule,
 } from "../../utils/date.utils";
@@ -223,7 +225,10 @@ export class TemplateExpansionService {
     // ========================================================================
 
     const anchors: AnchorDates = {
-      loo: resolveLooAnchor(candidate),
+      loi: null, // Not available during LOO expansion
+      loo: resolveLooAnchor(candidate), // Generic fallback
+      loo_issued: resolveLooIssuedAnchor(candidate), // Explicit issued
+      loo_accepted: resolveLooAcceptedAnchor(candidate), // Explicit accepted
       start: resolveStartAnchor(candidate),
     };
 
@@ -502,6 +507,8 @@ export class TemplateExpansionService {
     const anchors: AnchorDates = {
       loi: resolveLoiAnchor(candidate),
       loo: null, // Not available yet for prerequisites
+      loo_issued: null, // Not available yet for prerequisites
+      loo_accepted: null, // Not available yet for prerequisites
       start: null, // Not available yet for prerequisites
     };
 
