@@ -1967,7 +1967,7 @@ function PipelineEstimateSection({
             )}
 
             {missingAnchorTasks.length > 0 && (
-              <div className="border border-amber-200 bg-amber-50/70 rounded-lg p-3">
+              <div className="border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-900/30 rounded-lg p-3">
                 <h4 className="font-medium text-amber-700 dark:text-amber-400 mb-2">
                   Tasks waiting on anchors
                 </h4>
