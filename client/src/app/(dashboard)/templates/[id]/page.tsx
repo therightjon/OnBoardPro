@@ -1697,6 +1697,7 @@ function PipelineEstimateSection({
     return today.toISOString().split('T')[0];
   });
   const [looDate, setLooDate] = useState<string>("");
+  const [loiDate, setLoiDate] = useState<string>("");
 
   const formatPhaseLabel = (phase?: string | null) => {
     if (phase === 'onboarding') return 'Onboarding';
@@ -1706,6 +1707,9 @@ function PipelineEstimateSection({
   const formatNonEstimableReason = (item: any) => {
     switch (item.reason) {
       case 'missing_anchor':
+        if (item.missingAnchor === 'loi') {
+          return 'Waiting for LOI date';
+        }
         if (item.missingAnchor === 'loo') {
           return 'Waiting for LOO date';
         }
@@ -1723,7 +1727,7 @@ function PipelineEstimateSection({
   };
 
   const { data: estimate, isLoading, error } = useQuery({
-    queryKey: ['/api/templates', templateId, 'estimate', { startDate, looDate, businessDays: true }, templateTasks, getTaskDefinitionName],
+    queryKey: ['/api/templates', templateId, 'estimate', { startDate, looDate, loiDate, businessDays: true }, templateTasks, getTaskDefinitionName],
     queryFn: async () => {
       const params = new URLSearchParams({
         businessDays: 'true'
@@ -1733,6 +1737,9 @@ function PipelineEstimateSection({
       }
       if (looDate) {
         params.set('looDate', looDate);
+      }
+      if (loiDate) {
+        params.set('loiDate', loiDate);
       }
       const response = await apiRequest('GET', `/api/templates/${templateId}/estimate?${params}`);
       return response.json();
@@ -1764,6 +1771,18 @@ function PipelineEstimateSection({
         <div className="flex flex-col sm:flex-row gap-4 pb-4 border-b">
           <div className="flex-1">
             <label className="text-sm font-medium text-muted-foreground mb-1 block">
+              LOI Date (override)
+            </label>
+            <Input
+              type="date"
+              value={loiDate}
+              onChange={(e) => setLoiDate(e.target.value)}
+              data-testid="input-estimate-loi-date"
+              className="w-full sm:w-auto"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="text-sm font-medium text-muted-foreground mb-1 block">
               LOO Accepted (override)
             </label>
             <Input
@@ -1778,14 +1797,14 @@ function PipelineEstimateSection({
             <label className="text-sm font-medium text-muted-foreground mb-1 block">
               Anticipated Start (override)
             </label>
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            data-testid="input-estimate-anticipated-start"
-            className="w-full sm:w-auto"
-          />
-        </div>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              data-testid="input-estimate-anticipated-start"
+              className="w-full sm:w-auto"
+            />
+          </div>
         </div>
 
         {/* Results */}
@@ -1805,7 +1824,13 @@ function PipelineEstimateSection({
           <div className="space-y-4">
             {/* Anchor summary */}
             {estimate.anchors && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3 rounded border bg-muted/40">
+                  <div className="text-xs text-muted-foreground">LOI anchor</div>
+                  <div className="text-sm font-medium text-foreground">
+                    {estimate.anchors.loi ? formatDate(estimate.anchors.loi) : 'Not provided'}
+                  </div>
+                </div>
                 <div className="p-3 rounded border bg-muted/40">
                   <div className="text-xs text-muted-foreground">LOO anchor</div>
                   <div className="text-sm font-medium text-foreground">

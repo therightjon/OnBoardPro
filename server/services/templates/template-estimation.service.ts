@@ -27,6 +27,7 @@ import {
   MS_PER_DAY,
   ensureDate,
   computeDueFromRule,
+  resolveLoiAnchor,
 } from "../../utils/date.utils";
 import { countBusinessDays } from "../../utils/business-day.utils";
 import type { CandidateRepository } from "../../repositories/candidates/CandidateRepository";
@@ -35,6 +36,8 @@ import type { CandidateRepository } from "../../repositories/candidates/Candidat
  * Options for template estimation
  */
 export interface EstimateTemplateOptions {
+  /** Letter of intent date (can override candidate's date) - for prerequisite tasks */
+  loiDate?: string | null;
   /** Letter of offer date (can override candidate's date) */
   looDate?: string | null;
   /** Start date (can override candidate's date) */
@@ -86,6 +89,7 @@ export interface TemplateEstimationResult {
   templateId: string;
   taskCount: number;
   anchors: {
+    loi: string | null;
     loo: string | null;
     start: string | null;
   };
@@ -157,15 +161,16 @@ export class TemplateEstimationService {
     templateId: string,
     options: EstimateTemplateOptions = {}
   ): Promise<TemplateEstimationResult> {
-    const { looDate, startDate, candidateId, businessDays: includeBusinessDays = false } = options;
+    const { loiDate, looDate, startDate, candidateId, businessDays: includeBusinessDays = false } = options;
 
     // Resolve anchor dates from options or candidate
     let candidate: Candidate | undefined;
-    if ((!looDate || !startDate) && candidateId) {
+    if ((!loiDate || !looDate || !startDate) && candidateId) {
       candidate = await this.candidateRepository.getCandidate(candidateId) ?? undefined;
     }
 
     const anchors: AnchorDates = {
+      loi: ensureDate(loiDate ?? (candidate ? resolveLoiAnchor(candidate) : null)),
       loo: ensureDate(looDate ?? candidate?.offerLetterAcceptedAt ?? candidate?.offerLetterIssuedAt ?? null),
       start: ensureDate(startDate ?? candidate?.anticipatedStartDate ?? null),
     };
@@ -191,7 +196,7 @@ export class TemplateEstimationService {
       ));
 
     // Calculate baseline date (earliest anchor date)
-    const baselineCandidates = [anchors.loo, anchors.start].filter((date): date is Date => !!date);
+    const baselineCandidates = [anchors.loi, anchors.loo, anchors.start].filter((date): date is Date => !!date);
     const baselineDate = baselineCandidates.length
       ? new Date(Math.min(...baselineCandidates.map(date => date.getTime())))
       : null;
@@ -332,6 +337,7 @@ export class TemplateEstimationService {
       templateId,
       taskCount: tasksQuery.length,
       anchors: {
+        loi: anchors.loi ? anchors.loi.toISOString() : null,
         loo: anchors.loo ? anchors.loo.toISOString() : null,
         start: anchors.start ? anchors.start.toISOString() : null,
       },

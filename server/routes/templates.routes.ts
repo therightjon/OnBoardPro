@@ -197,9 +197,10 @@ router.get("/templates/:id/estimate", requireAuth, requireRole(["system_admin", 
   try {
     const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:estimate");
     if (!template) return;
-    const { looDate, startDate, candidateId, businessDays } = req.query;
+    const { loiDate, looDate, startDate, candidateId, businessDays } = req.query;
     const templateEstimationService = getTemplateEstimationService();
     const estimate = await templateEstimationService.estimateTemplate(req.params.id, {
+      loiDate: loiDate as string | undefined,
       looDate: looDate as string | undefined,
       startDate: startDate as string | undefined,
       candidateId: candidateId as string | undefined,
