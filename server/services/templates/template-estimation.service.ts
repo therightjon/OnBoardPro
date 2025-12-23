@@ -85,6 +85,23 @@ export interface StageSummary {
 }
 
 /**
+ * Lead time requirements by anchor type
+ * Represents the maximum number of days before each anchor that tasks are due
+ */
+export interface LeadTimeByAnchor {
+  /** Maximum days before LOI date that a task is due */
+  loi: number;
+  /** Maximum days before LOO date that a task is due */
+  loo: number;
+  /** Maximum days before LOO issued date that a task is due */
+  looIssued: number;
+  /** Maximum days before LOO accepted date that a task is due */
+  looAccepted: number;
+  /** Maximum days before start date that a task is due */
+  start: number;
+}
+
+/**
  * Template estimation result
  */
 export interface TemplateEstimationResult {
@@ -99,6 +116,8 @@ export interface TemplateEstimationResult {
   lastDueDate: string | null;
   totalCalendarDays: number;
   totalBusinessDays: number | null;
+  /** Lead time requirements - max days before each anchor that tasks are due */
+  leadTimes: LeadTimeByAnchor;
   nonEstimable: NonEstimableTask[];
   perPhase: PhaseSummary[];
   perStage: StageSummary[];
@@ -211,6 +230,15 @@ export class TemplateEstimationService {
     const perPhaseMap = new Map<string, { phase: string; taskCount: number; lastDueDate: Date | null }>();
     const perStageMap = new Map<string, { stageId: string; stageName: string; phase: string | null; taskCount: number; latestOffsetDays: number; lastDueDate: Date | null }>();
 
+    // Initialize lead time tracking
+    const leadTimes: LeadTimeByAnchor = {
+      loi: 0,
+      loo: 0,
+      looIssued: 0,
+      looAccepted: 0,
+      start: 0
+    };
+
     let maxCalendarOffset = 0;
     let maxDueDate: Date | null = null;
 
@@ -218,6 +246,26 @@ export class TemplateEstimationService {
     for (const task of tasksQuery) {
       const phaseKey = task.stagePhase ?? "pre_hire";
       const dueComputation = computeDueFromRule(task.dueRuleType, task.dueRuleValue, task.fixedDate, anchors);
+
+      // Track lead times (days before anchor dates)
+      const dueValue = task.dueRuleValue ?? 0;
+      switch (task.dueRuleType) {
+        case "days_before_loi":
+          leadTimes.loi = Math.max(leadTimes.loi, dueValue);
+          break;
+        case "days_before_loo":
+          leadTimes.loo = Math.max(leadTimes.loo, dueValue);
+          break;
+        case "days_before_loo_issued":
+          leadTimes.looIssued = Math.max(leadTimes.looIssued, dueValue);
+          break;
+        case "days_before_loo_accepted":
+          leadTimes.looAccepted = Math.max(leadTimes.looAccepted, dueValue);
+          break;
+        case "days_before_start":
+          leadTimes.start = Math.max(leadTimes.start, dueValue);
+          break;
+      }
 
       // Detect stage-relative tasks (cannot be estimated without stage dates)
       if (task.dueRuleType === "days_before_stage" || task.dueRuleType === "days_after_stage") {
@@ -359,6 +407,7 @@ export class TemplateEstimationService {
       lastDueDate: maxDueDate ? maxDueDate.toISOString() : null,
       totalCalendarDays: maxCalendarOffset,
       totalBusinessDays,
+      leadTimes,
       nonEstimable: formattedNonEstimable,
       perPhase,
       perStage,

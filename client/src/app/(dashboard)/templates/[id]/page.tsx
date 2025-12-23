@@ -1863,6 +1863,140 @@ function PipelineEstimateSection({
 
         {estimate && (
           <div className="space-y-4">
+            {/* Lead Times Section */}
+            {estimate.leadTimes && (estimate.leadTimes.loi > 0 || estimate.leadTimes.loo > 0 || estimate.leadTimes.looIssued > 0 || estimate.leadTimes.looAccepted > 0 || estimate.leadTimes.start > 0) && (
+              <div>
+                <h4 className="font-medium mb-3 text-foreground">Required Lead Times</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {estimate.leadTimes.loi > 0 && (
+                    <div className="p-3 rounded border bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        {estimate.leadTimes.loi}
+                      </div>
+                      <div className="text-xs text-blue-600/70 dark:text-blue-400/70">days before LOI</div>
+                    </div>
+                  )}
+                  {estimate.leadTimes.loo > 0 && (
+                    <div className="p-3 rounded border bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800">
+                      <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                        {estimate.leadTimes.loo}
+                      </div>
+                      <div className="text-xs text-purple-600/70 dark:text-purple-400/70">days before LOO</div>
+                    </div>
+                  )}
+                  {estimate.leadTimes.looIssued > 0 && (
+                    <div className="p-3 rounded border bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800">
+                      <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                        {estimate.leadTimes.looIssued}
+                      </div>
+                      <div className="text-xs text-indigo-600/70 dark:text-indigo-400/70">days before LOO issued</div>
+                    </div>
+                  )}
+                  {estimate.leadTimes.looAccepted > 0 && (
+                    <div className="p-3 rounded border bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800">
+                      <div className="text-2xl font-bold text-violet-600 dark:text-violet-400">
+                        {estimate.leadTimes.looAccepted}
+                      </div>
+                      <div className="text-xs text-violet-600/70 dark:text-violet-400/70">days before LOO accepted</div>
+                    </div>
+                  )}
+                  {estimate.leadTimes.start > 0 && (
+                    <div className="p-3 rounded border bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                        {estimate.leadTimes.start}
+                      </div>
+                      <div className="text-xs text-green-600/70 dark:text-green-400/70">days before start</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Suggested Dates based on Start Date */}
+            {startDate && estimate.leadTimes && (estimate.leadTimes.start > 0 || estimate.leadTimes.loo > 0 || estimate.leadTimes.loi > 0) && (
+              <div>
+                <h4 className="font-medium mb-3 text-foreground">Suggested Anchor Dates</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {estimate.leadTimes.loi > 0 && (
+                    <div className="p-3 rounded border bg-muted/40">
+                      <div className="text-xs text-muted-foreground mb-1">Suggested LOI Date</div>
+                      <div className="text-sm font-medium text-foreground mb-2">
+                        {(() => {
+                          const startDateObj = new Date(startDate);
+                          const totalDaysBefore = estimate.leadTimes.start + estimate.leadTimes.loo + estimate.leadTimes.loi;
+                          const suggestedDate = new Date(startDateObj);
+                          suggestedDate.setDate(suggestedDate.getDate() - totalDaysBefore);
+                          return formatDate(suggestedDate.toISOString());
+                        })()}
+                      </div>
+                      {!loiDate && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full text-xs"
+                          onClick={() => {
+                            const startDateObj = new Date(startDate);
+                            const totalDaysBefore = estimate.leadTimes.start + estimate.leadTimes.loo + estimate.leadTimes.loi;
+                            const suggestedDate = new Date(startDateObj);
+                            suggestedDate.setDate(suggestedDate.getDate() - totalDaysBefore);
+                            setLoiDate(suggestedDate.toISOString().split('T')[0]);
+                          }}
+                        >
+                          Apply
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {estimate.leadTimes.loo > 0 && (
+                    <div className="p-3 rounded border bg-muted/40">
+                      <div className="text-xs text-muted-foreground mb-1">Suggested LOO Date</div>
+                      <div className="text-sm font-medium text-foreground mb-2">
+                        {(() => {
+                          const startDateObj = new Date(startDate);
+                          const totalDaysBefore = estimate.leadTimes.start + estimate.leadTimes.loo;
+                          const suggestedDate = new Date(startDateObj);
+                          suggestedDate.setDate(suggestedDate.getDate() - totalDaysBefore);
+                          return formatDate(suggestedDate.toISOString());
+                        })()}
+                      </div>
+                      {!looDate && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full text-xs"
+                          onClick={() => {
+                            const startDateObj = new Date(startDate);
+                            const totalDaysBefore = estimate.leadTimes.start + estimate.leadTimes.loo;
+                            const suggestedDate = new Date(startDateObj);
+                            suggestedDate.setDate(suggestedDate.getDate() - totalDaysBefore);
+                            setLooDate(suggestedDate.toISOString().split('T')[0]);
+                          }}
+                        >
+                          Apply
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {estimate.leadTimes.start > 0 && (
+                    <div className="p-3 rounded border bg-muted/40">
+                      <div className="text-xs text-muted-foreground mb-1">Pipeline Start Date</div>
+                      <div className="text-sm font-medium text-foreground">
+                        {(() => {
+                          const startDateObj = new Date(startDate);
+                          const suggestedDate = new Date(startDateObj);
+                          suggestedDate.setDate(suggestedDate.getDate() - estimate.leadTimes.start);
+                          return formatDate(suggestedDate.toISOString());
+                        })()}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        ({estimate.leadTimes.start} days before start)
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Anchor summary */}
             {estimate.anchors && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
