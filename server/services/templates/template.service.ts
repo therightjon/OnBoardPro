@@ -422,6 +422,50 @@ export class TemplateService {
     return this.stageRepo.reorderTemplateStages(templateId, stageIdsInOrder);
   }
 
+  /**
+   * Reorder a template task (within stage or move to different stage)
+   */
+  async reorderTemplateTask(input: {
+    taskId: string;
+    targetStageId: string;
+    targetTemplateStageId: string;
+    newIndex: number;
+    actorId?: string;
+  }): Promise<TemplateTask | undefined> {
+    const { taskId, targetStageId, targetTemplateStageId, newIndex, actorId } = input;
+    
+    // Get the task to check if it's moving stages
+    const task = await this.taskRepo.getTemplateTask(taskId);
+    if (!task) return undefined;
+
+    const isMovingStages = task.templateStageId !== targetTemplateStageId;
+
+    // Reorder tasks in the repository
+    const updatedTask = await this.taskRepo.reorderTemplateTask({
+      taskId,
+      targetStageId,
+      targetTemplateStageId,
+      newIndex
+    });
+
+    if (updatedTask && actorId) {
+      await writeAuditLog({
+        actorId,
+        resourceType: "template_task",
+        resourceId: taskId,
+        action: "update",
+        eventType: "crud",
+        details: {
+          action: isMovingStages ? "moved_to_stage" : "reordered",
+          targetStageId,
+          newIndex
+        }
+      });
+    }
+
+    return updatedTask;
+  }
+
   // ============================================================================
   // Template Readiness & Estimation
   // ============================================================================

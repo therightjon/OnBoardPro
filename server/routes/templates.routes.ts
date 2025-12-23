@@ -595,4 +595,38 @@ router.post("/templates/:id/stages/create-with-task", requireAuth, requireRole([
   }
 });
 
+// Reorder template tasks (within stage or move to different stage)
+router.patch("/templates/:templateId/template-tasks/reorder", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  try {
+    const { templateId } = req.params;
+    const { taskId, targetStageId, targetTemplateStageId, newIndex } = req.body;
+
+    const templateService = getTemplateService();
+    
+    // Validate template exists and user has access
+    const template = await fetchTemplateWithAccess(req, res, templateId, "template:update");
+    if (!template) return;
+
+    // Reorder task using service
+    const updatedTask = await templateService.reorderTemplateTask({
+      taskId,
+      targetStageId,
+      targetTemplateStageId,
+      newIndex,
+      actorId: req.user?.id
+    });
+
+    if (!updatedTask) {
+      return res.status(404).json({ message: "Template task not found" });
+    }
+
+    res.json(updatedTask);
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+    }
+    next(error);
+  }
+});
+
 export default router;

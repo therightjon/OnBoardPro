@@ -28,7 +28,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { RouteGuard } from "@/shared/components/route-guard";
 import { TemplateStatusControl } from "@/features/templates/components/template-status-control";
-import { TemplateStagesList } from "@/features/templates/components/TemplateStagesList";
+import { TemplateStagesWithTasks } from "@/features/templates/components/TemplateStagesWithTasks";
 import { PerStageMiniBar } from "@/features/templates/components/PerStageMiniBar";
 import { AutoSelectCombobox } from "@/shared/components/inputs/AutoSelectCombobox";
 import { DatePicker, formatDateForApi } from "@/shared/components/inputs/DatePicker";
@@ -458,6 +458,60 @@ export default function TemplateDetailPage() {
     },
   });
 
+  const reorderStagesMutation = useMutation({
+    mutationFn: async (stageIdsInOrder: string[]) => {
+      const res = await apiRequest("PATCH", `/api/templates/${templateId}/stages/reorder`, {
+        stageIdsInOrder,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateTemplate(queryClient, templateId!);
+      toast({
+        title: "Success",
+        description: "Stage order updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const reorderTaskMutation = useMutation({
+    mutationFn: async ({ taskId, targetStageId, targetTemplateStageId, newIndex }: {
+      taskId: string;
+      targetStageId: string;
+      targetTemplateStageId: string;
+      newIndex: number;
+    }) => {
+      const res = await apiRequest("PATCH", `/api/templates/${templateId}/template-tasks/reorder`, {
+        taskId,
+        targetStageId,
+        targetTemplateStageId,
+        newIndex,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateTemplate(queryClient, templateId!);
+      toast({
+        title: "Success",
+        description: "Task order updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleNameClick = () => {
     if (!template) return;
     setIsEditingName(true);
@@ -752,89 +806,95 @@ export default function TemplateDetailPage() {
         getTaskDefinitionName={getTaskDefinitionName}
       />
 
-      {/* Template Stages */}
-      <Card className="mb-6" id="template-stages-section">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Template Stages</CardTitle>
-          <Dialog open={isAddStageDialogOpen} onOpenChange={setIsAddStageDialogOpen}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-add-template-stage">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Stage
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Add Stage to Template</DialogTitle>
-              </DialogHeader>
-              <AddStageForm 
-                templateId={templateId!} 
-                hiringStages={hiringStages}
-                templateStages={templateStages}
-                templateTasks={templateTasks}
-                taskDefinitions={taskDefinitions}
-                taskPriorities={taskPriorities}
-                taskCategories={taskCategories}
-                users={users}
-                createStageWithTaskMutation={createStageWithTaskMutation}
-                onClose={() => setIsAddStageDialogOpen(false)} 
-              />
-            </DialogContent>
-          </Dialog>
-        </CardHeader>
-        <CardContent>
-          {stagesLoading ? (
-            <div className="text-center py-4">Loading stages...</div>
-          ) : templateStages.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No stages configured for this template. Add stages to define the hiring flow.
-            </div>
-          ) : (
-            <TemplateStagesList 
-              templateId={templateId!}
-              stages={templateStages.map(ts => {
-                const stage = hiringStages.find(s => s.id === ts.stageId);
-                return {
-                  templateStageId: ts.id,
-                  stageId: ts.stageId,
-                  stageName: stage?.name || 'Unknown Stage',
-                  orderIndex: ts.orderIndex,
-                  phase: ts.phase ?? 'pre_hire'
-                };
-              })}
-            />
-          )}
+      {/* Template Stages & Tasks - Unified View */}
+      <Card>
+        <CardContent className="pt-6">
+          <TemplateStagesWithTasks
+            templateId={templateId!}
+            stages={templateStages.map(ts => {
+              const stage = hiringStages.find(s => s.id === ts.stageId);
+              return {
+                templateStageId: ts.id,
+                stageId: ts.stageId,
+                stageName: stage?.name || 'Unknown Stage',
+                orderIndex: ts.orderIndex,
+                phase: ts.phase ?? 'pre_hire'
+              };
+            })}
+            tasks={templateTasks}
+            taskDefinitions={taskDefinitions}
+            priorities={taskPriorities}
+            isLoading={stagesLoading || tasksLoading}
+            onStageReorder={async (stageIdsInOrder) => {
+              await reorderStagesMutation.mutateAsync(stageIdsInOrder);
+            }}
+            onTaskReorder={async (taskId, targetStageId, targetTemplateStageId, newIndex) => {
+              await reorderTaskMutation.mutateAsync({
+                taskId,
+                targetStageId,
+                targetTemplateStageId,
+                newIndex
+              });
+            }}
+            onAddStage={() => setIsAddStageDialogOpen(true)}
+            onAddTask={(stageId, templateStageId) => {
+              // Pre-select the stage in the add task form
+              form.reset({
+                taskDefId: "",
+                stageId: stageId,
+                dueRuleType: "on_start_date",
+                dueRuleValue: undefined,
+                fixedDate: undefined,
+                defaultAssigneeUserId: undefined,
+                defaultAssigneeKind: "user",
+                defaultAssigneeRole: undefined,
+                defaultPriorityId: undefined,
+                defaultCategoryId: undefined,
+                isRequired: true,
+                isPrerequisite: false,
+                prerequisiteCondition: undefined
+              });
+              setIsAddTaskDialogOpen(true);
+            }}
+            onEditTask={handleEditTask}
+            onDeleteTask={(taskId) => {
+              const task = templateTasks.find(t => t.id === taskId);
+              if (task) handleDeleteTask(task);
+            }}
+            onRemoveStage={handleRemoveStage}
+          />
         </CardContent>
       </Card>
 
-      {/* Template Tasks */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Template Tasks</CardTitle>
-          <Dialog open={isAddTaskDialogOpen} onOpenChange={setIsAddTaskDialogOpen}>
-            <DialogTrigger asChild>
-              <div className="relative">
-                <Button 
-                  data-testid="button-add-template-task"
-                  disabled={templateStages.length === 0}
-                  className={templateStages.length === 0 ? "cursor-not-allowed" : ""}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Task
-                </Button>
-                {templateStages.length === 0 && (
-                  <div className="absolute -top-10 left-0 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 hover:opacity-100 pointer-events-none transition-opacity">
-                    Add a stage first
-                  </div>
-                )}
-              </div>
-            </DialogTrigger>
-            <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Add Task to Template</DialogTitle>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      {/* Add Stage Dialog */}
+      <Dialog open={isAddStageDialogOpen} onOpenChange={setIsAddStageDialogOpen}>
+        <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Stage to Template</DialogTitle>
+          </DialogHeader>
+          <AddStageForm 
+            templateId={templateId!} 
+            hiringStages={hiringStages}
+            templateStages={templateStages}
+            templateTasks={templateTasks}
+            taskDefinitions={taskDefinitions}
+            taskPriorities={taskPriorities}
+            taskCategories={taskCategories}
+            users={users}
+            createStageWithTaskMutation={createStageWithTaskMutation}
+            onClose={() => setIsAddStageDialogOpen(false)} 
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Task Dialog - uses the existing dialog state and form */}
+      <Dialog open={isAddTaskDialogOpen} onOpenChange={setIsAddTaskDialogOpen}>
+        <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Task to Template</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
                     control={form.control}
                     name="taskDefId"
@@ -1613,92 +1673,6 @@ export default function TemplateDetailPage() {
               </Form>
             </DialogContent>
           </Dialog>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Task</TableHead>
-                <TableHead>Stage</TableHead>
-                <TableHead>Phase</TableHead>
-                <TableHead>Due Rule</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Default Assignee</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {templateTasks.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    No tasks configured for this template. Add tasks from the library.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                templateTasks.map((task: TemplateTask) => (
-                  <TableRow key={task.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <span>{getTaskDefinitionName(task.taskDefId)}</span>
-                        {(task as any).isPrerequisite && (
-                          <Badge variant="secondary" className="text-xs">
-                            ⚡ Prerequisite
-                          </Badge>
-                        )}
-                      </div>
-                      {(task as any).isPrerequisite && (task as any).prerequisiteCondition && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Condition: {(task as any).prerequisiteCondition === 'requires_pt' ? 'Requires P&T' : 'Always apply'}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>{getStageName(task.stageId)}</TableCell>
-                    <TableCell>{getStagePhaseLabel(task.stageId)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <span>{formatDueRule(task)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {getPriorityName(task.defaultPriorityId)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <User className="w-4 h-4 text-muted-foreground" />
-                        <span>{getUserName(task.defaultAssigneeUserId)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditTask(task)}
-                          data-testid={`button-edit-template-task-${task.id}`}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteTask(task)}
-                          disabled={archiveTemplateTaskMutation.isPending}
-                          data-testid={`button-archive-template-task-${task.id}`}
-                        >
-                          <Archive className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
 
       {/* Confirmation dialog for deleting last task in stage */}
       <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
