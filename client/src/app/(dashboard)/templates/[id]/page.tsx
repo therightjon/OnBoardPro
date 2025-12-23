@@ -4,7 +4,7 @@
  * Belongs: UI composition, data fetching, optimistic UX, and form state for template editing. Domain validation remains server-side.
  * Conventions: Reuse shared hooks/components where possible, avoid duplicating server rules, and keep mutation invalidations centralized.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
@@ -76,7 +76,7 @@ const templateTaskSchema = z.object({
   defaultCategoryId: z.string().optional(),
   isRequired: z.boolean().optional(),
   isPrerequisite: z.boolean().optional(),
-  prerequisiteCondition: z.enum(["requires_pt", "always"]).optional(),
+  prerequisiteCondition: z.enum(["requires_pt", "always"]).nullable().optional(),
 }).superRefine((data, ctx) => {
   const loiRules = ["on_loi_date", "days_before_loi", "days_after_loi"];
   const nonLoiRules = ["on_loo_date", "days_before_loo", "days_after_loo", "on_loo_accepted_date", "days_before_loo_accepted", "days_after_loo_accepted", "on_loo_issued_date", "days_before_loo_issued", "days_after_loo_issued", "days_before_start", "on_start_date", "days_after_start", "days_before_stage", "days_after_stage", "fixed_date"];
@@ -577,6 +577,7 @@ export default function TemplateDetailPage() {
       defaultPriorityId: data.defaultPriorityId === "none" ? undefined : data.defaultPriorityId,
       defaultCategoryId: data.defaultCategoryId === "none" ? undefined : data.defaultCategoryId,
       isRequired: !!data.isRequired,
+      prerequisiteCondition: data.isPrerequisite ? data.prerequisiteCondition : undefined,
     };
 
     // Race-condition guard: prevent adding a task definition already on the template
@@ -605,6 +606,7 @@ export default function TemplateDetailPage() {
       fixedDate: data.fixedDate === "" ? undefined : data.fixedDate,
       dueRuleValue: data.dueRuleType === "fixed_date" ? undefined : data.dueRuleValue,
       isRequired: !!data.isRequired,
+      prerequisiteCondition: data.isPrerequisite ? data.prerequisiteCondition : undefined,
     };
     updateTemplateTaskMutation.mutate(processedData);
   };
@@ -614,8 +616,10 @@ export default function TemplateDetailPage() {
     return taskDef?.name || "Unknown Task";
   };
 
-  // Existing task definition IDs for this template (used to prevent duplicates)
-  const existingTaskDefIds = new Set(templateTasks.map(t => t.taskDefId));
+  // Existing task definition IDs for the entire template (used to prevent duplicates within the template)
+  const existingTaskDefIds = new Set(
+    templateTasks.map(t => t.taskDefId)
+  );
   const availableTaskDefinitionsForAdd = taskDefinitions.filter(
     (td) => !td.archived && !existingTaskDefIds.has(td.id)
   );
@@ -2062,9 +2066,24 @@ function AddStageForm({
     !templateStages.some(ts => ts.stageId === stage.id)
   );
 
-  // Exclude task definitions that are already added to this template
-  const existingTaskDefIds = new Set(templateTasks.map(t => t.taskDefId));
-  const availableTaskDefinitions = taskDefinitions.filter(td => !td.archived && !existingTaskDefIds.has(td.id));
+  // Exclude task definitions that are already in the SELECTED stage
+  // (allow same task in different stages)
+  const existingTaskDefIdsInStage = useMemo(() => {
+    if (!selectedStageId) return new Set<string>();
+    
+    const existingStage = templateStages.find(ts => ts.stageId === selectedStageId);
+    if (!existingStage) return new Set<string>(); // Stage doesn't exist yet
+    
+    return new Set(
+      templateTasks
+        .filter(t => t.templateStageId === existingStage.id)
+        .map(t => t.taskDefId)
+    );
+  }, [selectedStageId, templateStages, templateTasks]);
+  
+  const availableTaskDefinitions = taskDefinitions.filter(
+    td => !td.archived && !existingTaskDefIdsInStage.has(td.id)
+  );
   const filteredTaskDefinitions = availableTaskDefinitions.filter(td =>
     td.name.toLowerCase().includes(taskSearch.trim().toLowerCase())
   );
@@ -2091,14 +2110,19 @@ function AddStageForm({
       return;
     }
 
-    // Race-condition guard: exclude tasks that have been added since dialog opened
-    const existingIds = new Set(templateTasks.map(t => t.taskDefId));
-    const uniqueTaskIds = selectedTaskIds.filter(id => !existingIds.has(id));
+    // Race-condition guard: exclude tasks that have been added to this specific stage since dialog opened
+    // Note: Since we're adding a NEW stage, we check if the stage already exists with tasks
+    const existingStageIds = new Set(
+      templateStages
+        .filter(ts => ts.stageId === selectedStageId)
+        .flatMap(ts => templateTasks.filter(t => t.templateStageId === ts.id).map(t => t.taskDefId))
+    );
+    const uniqueTaskIds = selectedTaskIds.filter(id => !existingStageIds.has(id));
 
     if (uniqueTaskIds.length === 0) {
       toast({
         title: "Nothing to add",
-        description: "All selected tasks are already in this template.",
+        description: "All selected tasks are already in this stage.",
         variant: "destructive",
       });
       return;
@@ -2108,7 +2132,7 @@ function AddStageForm({
       const removed = selectedTaskIds.length - uniqueTaskIds.length;
       toast({
         title: "Some tasks skipped",
-        description: `${removed} already-added task(s) were excluded.`,
+        description: `${removed} already-added task(s) in this stage were excluded.`,
       });
     }
     
@@ -2160,7 +2184,7 @@ function AddStageForm({
 
   // Form is valid when: stage is selected, at least one new task is selected, and fixed_date has a date value
   const hasValidDueRuleValue = dueRuleType !== 'fixed_date' || (dueRuleValue && typeof dueRuleValue === 'string' && dueRuleValue.trim() !== '');
-  const isFormValid = selectedStageId && selectedTaskIds.some(id => !existingTaskDefIds.has(id)) && hasValidDueRuleValue;
+  const isFormValid = selectedStageId && selectedTaskIds.some(id => !existingTaskDefIdsInStage.has(id)) && hasValidDueRuleValue;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -2332,7 +2356,7 @@ function AddStageForm({
             </div>
             {!['on_start_date', 'on_loo_date', 'on_loi_date', 'on_loo_accepted_date', 'on_loo_issued_date'].includes(dueRuleType) && (
               <div>
-                <label className="block text-xs font-medium mb-1">
+                <label className="block text-xs font-medium mb-1 text-foreground">
                   {dueRuleType === 'fixed_date' ? 'Date' : 'Days'}
                 </label>
                 {dueRuleType === 'fixed_date' ? (
@@ -2340,7 +2364,7 @@ function AddStageForm({
                     type="date"
                     value={dueRuleValue as string}
                     onChange={(e) => setDueRuleValue(e.target.value)}
-                    className="w-full h-8 px-2 border rounded text-sm"
+                    className="w-full h-8 px-2 border rounded text-sm bg-background text-foreground border-input"
                   />
                 ) : (
                   <input
@@ -2348,7 +2372,7 @@ function AddStageForm({
                     value={(dueRuleValue as number) ?? 0}
                     onChange={(e) => setDueRuleValue(parseInt(e.target.value) || 0)}
                     placeholder="0"
-                    className="w-full h-8 px-2 border rounded text-sm"
+                    className="w-full h-8 px-2 border rounded text-sm bg-background text-foreground border-input"
                   />
                 )}
               </div>

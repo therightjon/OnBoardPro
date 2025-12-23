@@ -27,10 +27,7 @@ export class TemplateTaskRepository extends BaseRepository {
     return await this.db
       .select()
       .from(templateTasks)
-      .where(and(
-        eq(templateTasks.templateId, templateId),
-        eq(templateTasks.archived, false)
-      ))
+      .where(eq(templateTasks.templateId, templateId))
       .orderBy(asc(templateTasks.createdAt));
   }
 
@@ -56,6 +53,20 @@ export class TemplateTaskRepository extends BaseRepository {
    * @throws Error if template stage not found when templateStageId not provided
    */
   async createTemplateTask(insertTask: InsertTemplateTask): Promise<TemplateTask> {
+    // Check for duplicate taskDefId within the same template
+    const [existingTask] = await this.db
+      .select({ id: templateTasks.id })
+      .from(templateTasks)
+      .where(and(
+        eq(templateTasks.templateId, insertTask.templateId),
+        eq(templateTasks.taskDefId, insertTask.taskDefId)
+      ))
+      .limit(1);
+    
+    if (existingTask) {
+      throw new Error("This task definition is already in the template");
+    }
+
     let templateStageId = insertTask.templateStageId;
     if (!templateStageId) {
       const [stage] = await this.db
@@ -171,7 +182,6 @@ export class TemplateTaskRepository extends BaseRepository {
           .set({ orderIndex: sql`order_index - 1`, updatedAt: new Date() })
           .where(and(
             eq(templateTasks.templateStageId, currentTask.templateStageId),
-            eq(templateTasks.archived, false),
             sql`order_index > ${currentTask.orderIndex}`
           ));
 
@@ -181,7 +191,6 @@ export class TemplateTaskRepository extends BaseRepository {
           .set({ orderIndex: sql`order_index + 1`, updatedAt: new Date() })
           .where(and(
             eq(templateTasks.templateStageId, targetTemplateStageId),
-            eq(templateTasks.archived, false),
             sql`order_index >= ${newIndex}`
           ));
 
@@ -214,7 +223,6 @@ export class TemplateTaskRepository extends BaseRepository {
             .set({ orderIndex: sql`order_index - 1`, updatedAt: new Date() })
             .where(and(
               eq(templateTasks.templateStageId, targetTemplateStageId),
-              eq(templateTasks.archived, false),
               sql`order_index > ${oldIndex}`,
               sql`order_index <= ${newIndex}`
             ));
@@ -225,7 +233,6 @@ export class TemplateTaskRepository extends BaseRepository {
             .set({ orderIndex: sql`order_index + 1`, updatedAt: new Date() })
             .where(and(
               eq(templateTasks.templateStageId, targetTemplateStageId),
-              eq(templateTasks.archived, false),
               sql`order_index >= ${newIndex}`,
               sql`order_index < ${oldIndex}`
             ));

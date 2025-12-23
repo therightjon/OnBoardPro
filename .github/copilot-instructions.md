@@ -119,3 +119,5 @@ OpenAPI spec at `server/docs/openapi-spec.ts`. Swagger UI at `/api/docs`.
 - Only extend when needed—never replace or invent new patterns unless no suitable option exists
 - Follow existing naming conventions and file organization
 - Maintain full consistency with the current system
+- Ensure all new code is fully typed with TypeScript
+- First, comprehensively review and plan. Then make a to-do list. Review it, and check off that to-do list after every fix. If confused about anything, ask questions before making changes.

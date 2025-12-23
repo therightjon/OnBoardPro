@@ -125,8 +125,7 @@ export class TemplateStageRepository extends BaseRepository {
    */
   async deleteTemplateStage(id: string): Promise<void> {
     await this.db
-      .update(templateStages)
-      .set({ isActive: false, updatedAt: new Date() })
+      .delete(templateStages)
       .where(eq(templateStages.id, id));
   }
 

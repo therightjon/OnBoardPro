@@ -96,10 +96,7 @@ export class TemplateRepository extends BaseRepository {
       const sourceTasks = await this.db
         .select()
         .from(templateTasks)
-        .where(and(
-          eq(templateTasks.templateId, cloneFromTemplateId),
-          eq(templateTasks.archived, false)
-        ));
+        .where(eq(templateTasks.templateId, cloneFromTemplateId));
 
       if (sourceTasks.length > 0) {
         const tasksToClone = sourceTasks.map(task => {
@@ -217,10 +214,7 @@ export class TemplateRepository extends BaseRepository {
       .leftJoin(templateStages, eq(templateStages.templateId, templates.id))
       .leftJoin(
         templateTasks,
-        and(
-          eq(templateTasks.templateStageId, templateStages.id),
-          eq(templateTasks.archived, false)
-        )
+        eq(templateTasks.templateStageId, templateStages.id)
       )
       .where(eq(templates.id, id))
       .groupBy(templates.id);
