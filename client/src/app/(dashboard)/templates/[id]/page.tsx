@@ -1954,7 +1954,13 @@ function PipelineEstimateSection({
               <div>
                 <h4 className="font-medium mb-2">Phase checkpoints</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {estimate.perPhase.map((phase: any) => (
+                  {[...estimate.perPhase]
+                    .sort((a: any, b: any) => {
+                      // Sort by phase order: pre_hire first, onboarding second
+                      const phaseOrder: Record<string, number> = { pre_hire: 0, onboarding: 1 };
+                      return (phaseOrder[a.phase] ?? 99) - (phaseOrder[b.phase] ?? 99);
+                    })
+                    .map((phase: any) => (
                     <div key={phase.phase} className="p-3 bg-muted/40 rounded-lg border border-muted/60">
                       <div className="text-sm text-muted-foreground">
                         {formatPhaseLabel(phase.phase)}

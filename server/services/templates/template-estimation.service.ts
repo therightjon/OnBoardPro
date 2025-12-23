@@ -300,9 +300,14 @@ export class TemplateEstimationService {
       }
     }
 
+    // Phase ordering: pre_hire comes before onboarding
+    const phaseOrder: Record<string, number> = { pre_hire: 0, onboarding: 1 };
+    const getPhaseOrder = (phase: string | null | undefined): number => 
+      phaseOrder[phase ?? ''] ?? 99;
+
     // Convert maps to sorted arrays for output
     const perPhase = Array.from(perPhaseMap.values())
-      .sort((a, b) => a.phase.localeCompare(b.phase))
+      .sort((a, b) => getPhaseOrder(a.phase) - getPhaseOrder(b.phase))
       .map(summary => ({
         phase: summary.phase,
         taskCount: summary.taskCount,
@@ -310,7 +315,12 @@ export class TemplateEstimationService {
       }));
 
     const perStage = Array.from(perStageMap.values())
-      .sort((a, b) => a.latestOffsetDays - b.latestOffsetDays)
+      .sort((a, b) => {
+        // Sort by phase first (pre_hire before onboarding), then by latestOffsetDays
+        const phaseCompare = getPhaseOrder(a.phase) - getPhaseOrder(b.phase);
+        if (phaseCompare !== 0) return phaseCompare;
+        return a.latestOffsetDays - b.latestOffsetDays;
+      })
       .map(stage => ({
         stageId: stage.stageId,
         stageName: stage.stageName,

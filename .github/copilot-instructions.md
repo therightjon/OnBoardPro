@@ -118,3 +118,4 @@ OpenAPI spec at `server/docs/openapi-spec.ts`. Swagger UI at `/api/docs`.
 - Reuse existing components, hooks, forms, and utilities
 - Only extend when needed—never replace or invent new patterns unless no suitable option exists
 - Follow existing naming conventions and file organization
+- Maintain full consistency with the current system
