@@ -31,6 +31,7 @@ import { TemplateStatusControl } from "@/features/templates/components/template-
 import { TemplateStagesList } from "@/features/templates/components/TemplateStagesList";
 import { PerStageMiniBar } from "@/features/templates/components/PerStageMiniBar";
 import { AutoSelectCombobox } from "@/shared/components/inputs/AutoSelectCombobox";
+import { DatePicker, formatDateForApi } from "@/shared/components/inputs/DatePicker";
 import type { 
   Template, 
   TemplateTask,
@@ -1829,36 +1830,42 @@ function PipelineEstimateSection({
             <label className="text-sm font-medium text-muted-foreground mb-1 block">
               LOI Date (override)
             </label>
-            <Input
-              type="date"
+            <DatePicker
               value={loiDate}
-              onChange={(e) => setLoiDate(e.target.value)}
-              data-testid="input-estimate-loi-date"
+              onChange={(date) => setLoiDate(formatDateForApi(date) || '')}
+              placeholder="Select LOI date"
+              testId="input-estimate-loi-date"
               className="w-full sm:w-auto"
+              showClear
+              onClear={() => setLoiDate('')}
             />
           </div>
           <div className="flex-1">
             <label className="text-sm font-medium text-muted-foreground mb-1 block">
               LOO Accepted (override)
             </label>
-            <Input
-              type="date"
+            <DatePicker
               value={looDate}
-              onChange={(e) => setLooDate(e.target.value)}
-              data-testid="input-estimate-loo-date"
+              onChange={(date) => setLooDate(formatDateForApi(date) || '')}
+              placeholder="Select LOO date"
+              testId="input-estimate-loo-date"
               className="w-full sm:w-auto"
+              showClear
+              onClear={() => setLooDate('')}
             />
           </div>
           <div className="flex-1">
             <label className="text-sm font-medium text-muted-foreground mb-1 block">
               Anticipated Start (override)
             </label>
-            <Input
-              type="date"
+            <DatePicker
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              data-testid="input-estimate-anticipated-start"
+              onChange={(date) => setStartDate(formatDateForApi(date) || '')}
+              placeholder="Select start date"
+              testId="input-estimate-anticipated-start"
               className="w-full sm:w-auto"
+              showClear
+              onClear={() => setStartDate('')}
             />
           </div>
         </div>
