@@ -5,13 +5,15 @@
  * Handles stage transitions tracking and candidate-specific template stage storage.
  */
 
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
   candidateStageHistory,
   candidateTemplateStages,
+  candidateTasks,
   hiringStages,
   users,
+  auditLog,
   type CandidateTemplateStage,
   type InsertCandidateTemplateStage,
 } from "@shared/schemas";
@@ -27,14 +29,16 @@ export class CandidateStageRepository extends BaseRepository {
    *
    * Returns a chronological history of all stage transitions for a candidate,
    * including the stage moved to, the stage moved from, and who made the change.
+   * Also includes prerequisite task status changes as timeline events.
    *
    * @param candidateId - Candidate ID
-   * @returns Array of stage history entries with full stage and user details
+   * @returns Array of stage history entries with full stage and user details, plus prerequisite task events
    */
   async getCandidateStageHistory(candidateId: string): Promise<any[]> {
     const fromStages = alias(hiringStages, 'from_hs');
 
-    const rows = await this.db
+    // Get stage transition history
+    const stageTransitions = await this.db
       .select({
         id: candidateStageHistory.id,
         changedAt: candidateStageHistory.changedAt,
@@ -62,7 +66,57 @@ export class CandidateStageRepository extends BaseRepository {
       .where(eq(candidateStageHistory.candidateId, candidateId))
       .orderBy(asc(candidateStageHistory.changedAt), asc(hiringStages.orderIndex), asc(candidateStageHistory.createdAt));
 
-    return rows;
+    // Get prerequisite task status change events from audit log
+    const prerequisiteTaskEvents = await this.db
+      .select({
+        id: auditLog.id,
+        occurredAt: auditLog.occurredAt,
+        eventType: auditLog.eventType,
+        details: auditLog.details,
+        taskTitle: candidateTasks.title,
+        taskId: candidateTasks.id,
+        actor: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName
+        }
+      })
+      .from(auditLog)
+      .innerJoin(candidateTasks, and(
+        eq(auditLog.taskId, candidateTasks.id),
+        eq(candidateTasks.isPrerequisiteTask, true)
+      ))
+      .leftJoin(users, eq(auditLog.actorId, users.id))
+      .where(and(
+        eq(auditLog.candidateId, candidateId),
+        eq(auditLog.eventType, 'task_updated'),
+        sql`${auditLog.details}::jsonb ? 'changes'`,
+        sql`${auditLog.details}::jsonb->'changes' ? 'status'`
+      ))
+      .orderBy(asc(auditLog.occurredAt));
+
+    // Transform prerequisite task events to match timeline format
+    const taskTimelineEvents = prerequisiteTaskEvents.map(event => ({
+      id: event.id,
+      type: 'prerequisite_task_update',
+      changedAt: event.occurredAt,
+      createdAt: event.occurredAt,
+      taskTitle: event.taskTitle,
+      taskId: event.taskId,
+      statusChange: (event.details as any)?.changes?.status,
+      changedBy: event.actor
+    }));
+
+    // Transform stage transitions to timeline format
+    const stageTimelineEvents = stageTransitions.map(transition => ({
+      ...transition,
+      type: 'stage_transition'
+    }));
+
+    // Merge and sort by time (newest first for display, but we'll sort in frontend)
+    const allEvents = [...stageTimelineEvents, ...taskTimelineEvents];
+
+    return allEvents;
   }
 
   /**

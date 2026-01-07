@@ -1507,31 +1507,71 @@ export default function CandidateDetailPage() {
                       </div>
                       )}
                       {sortedHistory.map((entry: any, index: number) => {
-                        const regressed = (entry?.fromStage?.orderIndex ?? 0) > (entry?.stage?.orderIndex ?? 0);
+                        const isTaskEvent = entry.type === 'prerequisite_task_update';
+                        const regressed = !isTaskEvent && (entry?.fromStage?.orderIndex ?? 0) > (entry?.stage?.orderIndex ?? 0);
+
+                        // Helper to format status display
+                        const formatStatus = (status: string) => {
+                          const statusMap: Record<string, string> = {
+                            'todo': 'To Do',
+                            'in_progress': 'In Progress',
+                            'blocked': 'Blocked',
+                            'done': 'Done',
+                            'canceled': 'Canceled'
+                          };
+                          return statusMap[status] || status;
+                        };
+
                         return (
                       <div key={entry.id} className="flex items-start space-x-4">
                         <div className="flex flex-col items-center">
-                        <div className="w-3 h-3 bg-primary rounded-full"></div>
+                        <div className={`w-3 h-3 rounded-full ${isTaskEvent ? 'bg-amber-500' : 'bg-primary'}`}></div>
                         {index < sortedHistory.length - 1 && (
                           <div className="w-px h-8 bg-border mt-2"></div>
                         )}
                         </div>
                         <div className="flex-1 pb-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">{entry.stage?.name || 'Unknown Stage'}</h4>
-                          <Badge variant="outline">
-                          {entry.changedAt ? format(new Date(entry.changedAt), "MMM d, yyyy") : 'Unknown Date'}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Changed by: {entry.changedBy ? `${entry.changedBy.firstName} ${entry.changedBy.lastName}` : 'Unknown User'}
-                        </p>
-                        {regressed && (
-                          <p className="text-xs text-muted-foreground mt-1">Stage regressed due to a task reopening in a prior stage</p>
+                        {isTaskEvent ? (
+                          // Prerequisite task update event
+                          <>
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-amber-700 dark:text-amber-400">
+                              {entry.taskTitle}
+                            </h4>
+                            <Badge variant="outline">
+                            {entry.changedAt ? format(new Date(entry.changedAt), "MMM d, yyyy") : 'Unknown Date'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Status changed: {entry.statusChange?.before ? formatStatus(entry.statusChange.before) : 'Unknown'} → {entry.statusChange?.after ? formatStatus(entry.statusChange.after) : 'Unknown'}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-0.5">
+                            Changed by: {entry.changedBy ? `${entry.changedBy.firstName} ${entry.changedBy.lastName}` : 'Unknown User'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {entry.changedAt ? format(new Date(entry.changedAt), "h:mm a") : ''}
+                          </p>
+                          </>
+                        ) : (
+                          // Stage transition event
+                          <>
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium">{entry.stage?.name || 'Unknown Stage'}</h4>
+                            <Badge variant="outline">
+                            {entry.changedAt ? format(new Date(entry.changedAt), "MMM d, yyyy") : 'Unknown Date'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Changed by: {entry.changedBy ? `${entry.changedBy.firstName} ${entry.changedBy.lastName}` : 'Unknown User'}
+                          </p>
+                          {regressed && (
+                            <p className="text-xs text-muted-foreground mt-1">Stage regressed due to a task reopening in a prior stage</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {entry.changedAt ? format(new Date(entry.changedAt), "h:mm a") : ''}
+                          </p>
+                          </>
                         )}
-                        <p className="text-xs text-muted-foreground">
-                          {entry.changedAt ? format(new Date(entry.changedAt), "h:mm a") : ''}
-                        </p>
                         </div>
                       </div>
                         );
