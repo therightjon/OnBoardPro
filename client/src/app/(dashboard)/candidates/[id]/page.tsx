@@ -1186,9 +1186,10 @@ export default function CandidateDetailPage() {
 
               {/* Pipeline Duration Estimate */}
               {(candidate as any).templateAppliedFromId && (
-                <CandidatePipelineEstimate 
+                <CandidatePipelineEstimate
                   candidateId={(candidate as any).id}
                   status={(candidate as any).status}
+                  templateAppliedAt={(candidate as any).templateAppliedAt}
                 />
               )}
             </div>
@@ -1508,7 +1509,8 @@ export default function CandidateDetailPage() {
                       )}
                       {sortedHistory.map((entry: any, index: number) => {
                         const isTaskEvent = entry.type === 'prerequisite_task_update';
-                        const regressed = !isTaskEvent && (entry?.fromStage?.orderIndex ?? 0) > (entry?.stage?.orderIndex ?? 0);
+                        const isLooEvent = entry.type === 'loo_sent' || entry.type === 'loo_accepted' || entry.type === 'loo_declined';
+                        const regressed = !isTaskEvent && !isLooEvent && (entry?.fromStage?.orderIndex ?? 0) > (entry?.stage?.orderIndex ?? 0);
 
                         // Helper to format status display
                         const formatStatus = (status: string) => {
@@ -1522,16 +1524,65 @@ export default function CandidateDetailPage() {
                           return statusMap[status] || status;
                         };
 
+                        // LOO event configuration
+                        const looEventConfig: Record<string, { label: string; color: string; dotColor: string; description: string }> = {
+                          'loo_sent': {
+                            label: 'Letter of Offer Sent',
+                            color: 'text-blue-700 dark:text-blue-400',
+                            dotColor: 'bg-blue-500',
+                            description: 'Letter of Offer was sent to the candidate'
+                          },
+                          'loo_accepted': {
+                            label: 'Letter of Offer Accepted',
+                            color: 'text-green-700 dark:text-green-400',
+                            dotColor: 'bg-green-500',
+                            description: 'Candidate accepted the Letter of Offer'
+                          },
+                          'loo_declined': {
+                            label: 'Letter of Offer Declined',
+                            color: 'text-red-700 dark:text-red-400',
+                            dotColor: 'bg-red-500',
+                            description: 'Candidate declined the Letter of Offer'
+                          }
+                        };
+
+                        const looConfig = isLooEvent && entry.type ? looEventConfig[entry.type] : null;
+
                         return (
                       <div key={entry.id} className="flex items-start space-x-4">
                         <div className="flex flex-col items-center">
-                        <div className={`w-3 h-3 rounded-full ${isTaskEvent ? 'bg-amber-500' : 'bg-primary'}`}></div>
+                        <div className={`w-3 h-3 rounded-full ${
+                          isLooEvent && looConfig ? looConfig.dotColor :
+                          isTaskEvent ? 'bg-amber-500' :
+                          'bg-primary'
+                        }`}></div>
                         {index < sortedHistory.length - 1 && (
                           <div className="w-px h-8 bg-border mt-2"></div>
                         )}
                         </div>
                         <div className="flex-1 pb-4">
-                        {isTaskEvent ? (
+                        {isLooEvent && looConfig ? (
+                          // LOO event
+                          <>
+                          <div className="flex items-center justify-between">
+                            <h4 className={`font-medium ${looConfig.color}`}>
+                              {looConfig.label}
+                            </h4>
+                            <Badge variant="outline">
+                            {formatUtcDate(entry.changedAt)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {looConfig.description}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-0.5">
+                            {entry.changedBy ? `${entry.changedBy.firstName} ${entry.changedBy.lastName}` : 'System'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {entry.changedAt ? format(new Date(entry.changedAt), "h:mm a") : ''}
+                          </p>
+                          </>
+                        ) : isTaskEvent ? (
                           // Prerequisite task update event
                           <>
                           <div className="flex items-center justify-between">
@@ -1539,7 +1590,7 @@ export default function CandidateDetailPage() {
                               {entry.taskTitle}
                             </h4>
                             <Badge variant="outline">
-                            {entry.changedAt ? format(new Date(entry.changedAt), "MMM d, yyyy") : 'Unknown Date'}
+                            {formatUtcDate(entry.changedAt)}
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground mt-1">
@@ -1558,7 +1609,7 @@ export default function CandidateDetailPage() {
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium">{entry.stage?.name || 'Unknown Stage'}</h4>
                             <Badge variant="outline">
-                            {entry.changedAt ? format(new Date(entry.changedAt), "MMM d, yyyy") : 'Unknown Date'}
+                            {formatUtcDate(entry.changedAt)}
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground mt-1">
@@ -1707,7 +1758,7 @@ export default function CandidateDetailPage() {
 }
 
 // Candidate Pipeline Duration Estimate Component
-function CandidatePipelineEstimate({ candidateId, status }: { candidateId: string; status?: string }) {
+function CandidatePipelineEstimate({ candidateId, status, templateAppliedAt }: { candidateId: string; status?: string; templateAppliedAt?: string | null }) {
   const { data: estimate, isLoading, error } = useQuery({
     queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }],
     queryFn: async () => {
@@ -1753,7 +1804,19 @@ function CandidatePipelineEstimate({ candidateId, status }: { candidateId: strin
     );
   }
 
+  // Don't show "All tasks completed" if template hasn't been applied yet
+  // This prevents showing completion when only prerequisite tasks exist
   if (!estimate || estimate.remainingTasks === 0) {
+    if (!templateAppliedAt) {
+      return (
+        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="text-sm font-medium text-blue-800 dark:text-blue-200">
+            Awaiting template expansion after Letter of Offer acceptance
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="mt-4 p-3 bg-green-50 dark:bg-emerald-950 rounded-lg border border-green-200 dark:border-emerald-700">
         <div className="text-sm font-medium text-green-800 dark:text-emerald-300">

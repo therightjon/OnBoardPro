@@ -95,6 +95,34 @@ export class CandidateStageRepository extends BaseRepository {
       ))
       .orderBy(asc(auditLog.occurredAt));
 
+    // Get LOO events (sent, accepted, declined) from audit log
+    const looEvents = await this.db
+      .select({
+        id: auditLog.id,
+        occurredAt: auditLog.occurredAt,
+        eventType: auditLog.eventType,
+        details: auditLog.details,
+        actor: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName
+        }
+      })
+      .from(auditLog)
+      .leftJoin(users, eq(auditLog.actorId, users.id))
+      .where(and(
+        eq(auditLog.candidateId, candidateId),
+        eq(auditLog.eventType, 'candidate_updated'),
+        sql`${auditLog.details}::jsonb ? 'changes'`,
+        sql`(
+          ${auditLog.details}::jsonb->'changes' ? 'offerLetterIssuedAt' OR
+          ${auditLog.details}::jsonb->'changes' ? 'offerLetterAcceptedAt' OR
+          (${auditLog.details}::jsonb->'changes' ? 'status' AND
+           ${auditLog.details}::jsonb->'changes'->'status'->>'after' = 'offer_declined')
+        )`
+      ))
+      .orderBy(asc(auditLog.occurredAt));
+
     // Transform prerequisite task events to match timeline format
     const taskTimelineEvents = prerequisiteTaskEvents.map(event => ({
       id: event.id,
@@ -107,6 +135,28 @@ export class CandidateStageRepository extends BaseRepository {
       changedBy: event.actor
     }));
 
+    // Transform LOO events to match timeline format
+    const looTimelineEvents = looEvents.map(event => {
+      const changes = (event.details as any)?.changes || {};
+      let looEventType: 'loo_sent' | 'loo_accepted' | 'loo_declined' | null = null;
+
+      if (changes.offerLetterIssuedAt) {
+        looEventType = 'loo_sent';
+      } else if (changes.offerLetterAcceptedAt) {
+        looEventType = 'loo_accepted';
+      } else if (changes.status?.after === 'offer_declined') {
+        looEventType = 'loo_declined';
+      }
+
+      return {
+        id: event.id,
+        type: looEventType,
+        changedAt: event.occurredAt,
+        createdAt: event.occurredAt,
+        changedBy: event.actor
+      };
+    }).filter(event => event.type !== null);
+
     // Transform stage transitions to timeline format
     const stageTimelineEvents = stageTransitions.map(transition => ({
       ...transition,
@@ -114,7 +164,7 @@ export class CandidateStageRepository extends BaseRepository {
     }));
 
     // Merge and sort by time (newest first for display, but we'll sort in frontend)
-    const allEvents = [...stageTimelineEvents, ...taskTimelineEvents];
+    const allEvents = [...stageTimelineEvents, ...taskTimelineEvents, ...looTimelineEvents];
 
     return allEvents;
   }

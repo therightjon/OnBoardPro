@@ -31,6 +31,16 @@ export async function advanceStageIfComplete({
       return { advanced: false, blocked: true, blockers: candidateRecord.blockerSummary } as any;
     }
 
+    // Guardrail: Do not advance if template is selected but not yet applied
+    // Before template expansion, only prerequisite tasks exist and should not trigger stage advancement
+    // Template expansion happens when LOO is accepted, after which normal advancement can resume
+    if (candidateRecord.templateAppliedFromId && !candidateRecord.templateAppliedAt) {
+      return {
+        advanced: false,
+        reason: "Template selected but not yet applied. Stage advancement will resume after Letter of Offer acceptance and template expansion."
+      };
+    }
+
     // Get template-specific stages if candidate has a template applied
     let stages;
     if (candidateRecord.templateAppliedFromId) {

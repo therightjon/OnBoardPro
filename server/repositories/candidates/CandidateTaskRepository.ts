@@ -65,6 +65,10 @@ export class CandidateTaskRepository extends BaseRepository {
       whereConditions.push(eq(candidateTasks.status, filters.status));
     }
 
+    if (filters?.isPrerequisiteTask !== undefined) {
+      whereConditions.push(eq(candidateTasks.isPrerequisiteTask, filters.isPrerequisiteTask));
+    }
+
     // Add candidate status filtering for My Tasks queries
     if (filters?.assigneeId) {
       // Handle new individual flags if provided

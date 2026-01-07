@@ -202,7 +202,7 @@ router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res
 
     // Fetch candidate using service
     const candidateService = getCandidateService();
-    const candidate = await candidateService.getCandidate(req.params.id, authContext);
+    let candidate = await candidateService.getCandidate(req.params.id, authContext);
     if (!candidate) {
       return res.status(404).json({ message: "Candidate not found" });
     }
@@ -214,6 +214,48 @@ router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res
 
     if (!authorized) {
       return; // Response already sent
+    }
+
+    // Auto-expand template if LOO is accepted but template not yet applied
+    // This handles cases where template expansion was missed or failed previously
+    const needsTemplateExpansion =
+      candidate.offerLetterAcceptedAt &&
+      candidate.templateAppliedFromId &&
+      !candidate.templateAppliedAt;
+
+    if (needsTemplateExpansion) {
+      try {
+        console.log('Auto-expanding template on GET (missed expansion):', {
+          candidateId: candidate.id,
+          templateId: candidate.templateAppliedFromId
+        });
+
+        const templateExpansionService = getTemplateExpansionService();
+        const expansionResult = await templateExpansionService.expandTemplate(
+          candidate.templateAppliedFromId,
+          candidate.id,
+          req.user!.id
+        );
+
+        // Publish taskCreated events
+        await publishTemplateTaskCreatedEvents(
+          expansionResult.createdTasks,
+          req.user?.id
+        );
+
+        console.log('Template auto-expanded on GET:', {
+          taskCount: expansionResult.createdCount
+        });
+
+        // Refetch candidate to get updated data
+        const refreshed = await candidateService.getCandidate(req.params.id, authContext);
+        if (refreshed) {
+          candidate = refreshed;
+        }
+      } catch (expansionError: any) {
+        console.error('Failed to auto-expand template on GET:', expansionError);
+        // Don't fail the request - just log the error
+      }
     }
 
     // Sanitize response if candidate viewing their own record
@@ -629,9 +671,20 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
       updateData.offerLetterAcceptedAt
     );
     console.log('shouldApplyTemplate result:', shouldApplyTemplate);
-    
+
+    // Fallback: Also check if LOO is already accepted but template hasn't been applied yet
+    // This handles edge cases where template expansion failed previously or code wasn't deployed
+    const needsTemplateApplied = !shouldApplyTemplate &&
+      fullCandidate.offerLetterAcceptedAt &&
+      fullCandidate.templateAppliedFromId &&
+      !fullCandidate.templateAppliedAt;
+
+    if (needsTemplateApplied) {
+      console.log('Fallback: LOO is already accepted but template not applied, applying now');
+    }
+
     let templateExpansionResult = null;
-    if (shouldApplyTemplate && fullCandidate.templateAppliedFromId) {
+    if ((shouldApplyTemplate || needsTemplateApplied) && fullCandidate.templateAppliedFromId) {
       try {
         console.log('Auto-applying deferred template on LOO acceptance:', { 
           candidateId: fullCandidate.id, 

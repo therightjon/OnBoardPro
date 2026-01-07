@@ -183,10 +183,14 @@ export class TemplateExpansionService {
       throw new Error("Candidate already has a template applied");
     }
 
-    // Check if candidate has existing tasks
-    const existingTasks = await this.candidateTaskRepo.getCandidateTasks({ candidateId });
+    // Check if candidate has existing NON-PREREQUISITE tasks
+    // Prerequisite tasks are expected to exist before template expansion (created at candidate creation)
+    const existingTasks = await this.candidateTaskRepo.getCandidateTasks({
+      candidateId,
+      isPrerequisiteTask: false
+    });
     if (existingTasks.length > 0) {
-      throw new Error("Candidate already has tasks. Cannot apply template.");
+      throw new Error("Candidate already has non-prerequisite tasks. Cannot apply template.");
     }
 
     // Get the template
@@ -391,12 +395,32 @@ export class TemplateExpansionService {
     // ========================================================================
 
     // Record initial stage history if we have an initial stage
+    // Use letterOfIntentDate as the changedAt timestamp since that's when the candidate
+    // actually entered the LOI stage (not when template was expanded)
     if (initialStage) {
+      // Parse date-only strings at UTC noon to avoid timezone day-boundary issues
+      // e.g., "2025-12-01" at UTC midnight shows as Nov 30 in PST, but noon is safe
+      let initialStageTimestamp: Date;
+      if (candidate.letterOfIntentDate) {
+        const dateStr = String(candidate.letterOfIntentDate);
+        const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (dateOnlyRegex.test(dateStr)) {
+          // Date-only string: parse as UTC noon to avoid day boundary shift
+          const [year, month, day] = dateStr.split('-').map(Number);
+          initialStageTimestamp = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        } else {
+          // Full timestamp: use as-is
+          initialStageTimestamp = new Date(dateStr);
+        }
+      } else {
+        initialStageTimestamp = candidate.createdAt;
+      }
+
       await this.db.insert(candidateStageHistory).values({
         candidateId: candidateId,
         fromStageId: null,
         toStageId: initialStage.stageId,
-        changedAt: new Date(),
+        changedAt: initialStageTimestamp,
         changedBy: currentUserId,
         createdAt: new Date(),
         updatedAt: new Date(),
