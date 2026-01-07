@@ -6,6 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/components/ui/tooltip";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -51,6 +57,8 @@ interface HiringProgressProps {
   currentStagePhase?: "pre_hire" | "onboarding" | null;
   /** When true, shows the candidate as fully onboarded (all tasks completed) */
   isFullyOnboarded?: boolean;
+  /** Number of incomplete prerequisite tasks */
+  incompletePrerequisiteTaskCount?: number;
   className?: string;
 }
 
@@ -97,6 +105,7 @@ export function HiringProgress({
   candidate,
   currentStagePhase,
   isFullyOnboarded = false,
+  incompletePrerequisiteTaskCount = 0,
   className,
 }: HiringProgressProps) {
   const { toast } = useToast();
@@ -300,6 +309,7 @@ export function HiringProgress({
                           <Button
                             size="sm"
                             onClick={primaryAction.onClick}
+                            disabled={!candidate.offerLetterIssuedAt && incompletePrerequisiteTaskCount > 0}
                             className="gap-1.5"
                             data-testid={`button-hiring-progress-${candidate.offerLetterIssuedAt ? 'loo-accepted' : 'send-loo'}`}
                           >
@@ -309,10 +319,17 @@ export function HiringProgress({
                         </div>
                       )}
                     </div>
-                    
+
                     {stepDate && (
                       <p className="mt-0.5 text-sm text-muted-foreground">
                         {stepDate}
+                      </p>
+                    )}
+
+                    {/* Show prerequisite message when button is disabled */}
+                    {isOnboardingStep && !candidate.offerLetterIssuedAt && incompletePrerequisiteTaskCount > 0 && (
+                      <p className="mt-2 text-xs text-amber-600 dark:text-amber-500">
+                        Complete {incompletePrerequisiteTaskCount} prerequisite {incompletePrerequisiteTaskCount === 1 ? 'task' : 'tasks'} before sending LOO
                       </p>
                     )}
 

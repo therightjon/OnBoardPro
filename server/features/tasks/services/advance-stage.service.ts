@@ -101,6 +101,7 @@ export async function advanceStageIfComplete({
       const stageId = stages[curIndex].id;
 
       // Check if this stage has any open required tasks
+      // Exclude prerequisite tasks since they exist before template expansion
       const openReq = await db
         .select({ count: sql<number>`count(*)` })
         .from(candidateTasks)
@@ -109,6 +110,7 @@ export async function advanceStageIfComplete({
             eq(candidateTasks.candidateId, candidateId),
             eq(candidateTasks.stageId, stageId),
             eq(candidateTasks.required, true),
+            eq(candidateTasks.isPrerequisiteTask, false),
             eq(candidateTasks.archived, false),
             sql`${candidateTasks.status} NOT IN ('done','canceled')`
           )
@@ -202,6 +204,7 @@ export async function recomputeCandidateStageState({
   const currentIdx = stages.findIndex(s => s.id === cand.currentStageId) ?? 0;
 
   // Find open tasks for this candidate
+  // Exclude prerequisite tasks since they exist before template expansion
   const openTasks = await db
     .select({
       id: candidateTasks.id,
@@ -214,6 +217,7 @@ export async function recomputeCandidateStageState({
     .from(candidateTasks)
     .where(and(
       eq(candidateTasks.candidateId, candidateId),
+      eq(candidateTasks.isPrerequisiteTask, false),
       eq(candidateTasks.archived, false),
       inArray(candidateTasks.status, ['todo', 'in_progress', 'blocked'] as any)
     ));

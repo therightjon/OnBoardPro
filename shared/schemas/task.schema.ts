@@ -68,6 +68,7 @@ export const candidateTasks = pgTable("candidate_tasks", {
   cancelReason: text("cancel_reason"),
   notes: text("notes"),
   required: boolean("required").default(true).notNull(),
+  isPrerequisiteTask: boolean("is_prerequisite_task").default(false).notNull(),
   archived: boolean("archived").default(false).notNull(),
   stageOrderIndex: integer("stage_order_index"),
   updatedBy: uuid("updated_by").references(() => users.id),

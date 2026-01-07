@@ -175,7 +175,7 @@ router.post("/auth/login", async (req, res, next) => {
         };
         
         // Remove sensitive fields before persisting
-        delete enrichedUser.passwordHash;
+        (enrichedUser as any).passwordHash = undefined;
         delete (enrichedUser as any).password;
 
         if (req.session) {
@@ -203,7 +203,7 @@ router.post("/auth/login", async (req, res, next) => {
         }
         
         req.user = enrichedUser as any;
-        req.isAuthenticated = () => true;
+        (req as any).isAuthenticated = () => true;
         await resetLoginLimit({ identifier: email || username, ip: req.ip });
         res.status(200).json({ user: enrichedUser });
       } catch (hydrationError) {
@@ -216,7 +216,7 @@ router.post("/auth/login", async (req, res, next) => {
           divisionScopes: [],
           managedCandidateIds: []
         };
-        delete basicUser.passwordHash;
+        (basicUser as any).passwordHash = undefined;
         delete (basicUser as any).password;
 
         if (req.session) {
@@ -243,7 +243,7 @@ router.post("/auth/login", async (req, res, next) => {
         }
 
         req.user = basicUser as any;
-        req.isAuthenticated = () => true;
+        (req as any).isAuthenticated = () => true;
         await resetLoginLimit({ identifier: email || username, ip: req.ip });
         res.status(200).json({ user: basicUser });
       }

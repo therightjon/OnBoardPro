@@ -15,6 +15,7 @@
     "db:clear": "tsx scripts/clear-database.ts",
     "db:clear:dry-run": "tsx scripts/clear-database.ts --dry-run",
     "user:set-password": "tsx scripts/setPassword.ts",
+    "script:clear-candidates": "tsx scripts/clear-candidates.ts",
     "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "cross-env NODE_ENV=test SKIP_AUTH_SETUP=1 tsx --test 'server/tests/{auth,routes,repositories,db,services,utils}/**/*.test.ts'",
     "test:frontend": "vitest run",
@@ -86,7 +87,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "wouter": "^3.3.5",
-    "zod": "^3.25.1",
+    "zod": "^3.25.76",
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {

@@ -71,7 +71,7 @@ router.post("/templates", requireAuth, requireRole(["system_admin", "hr_staff"])
     res.status(201).json(template);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: error.issues });
     }
     // Unique constraint: template name (case-insensitive)
     const pgError = error?.cause ?? error;
@@ -623,7 +623,7 @@ router.patch("/templates/:templateId/template-tasks/reorder", requireAuth, requi
     res.json(updatedTask);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: error.issues });
     }
     next(error);
   }

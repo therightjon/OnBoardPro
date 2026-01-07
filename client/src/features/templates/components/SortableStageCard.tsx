@@ -77,7 +77,7 @@ export function SortableStageCard({
 
           {/* Order Index Badge */}
           <Badge variant="outline" className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
-            {stage.orderIndex + 1}
+            {stage.orderIndex}
           </Badge>
 
           {/* Stage Info */}

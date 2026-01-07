@@ -36,14 +36,14 @@ export const parseAsLocalDate = (dateStr: string | Date | null | undefined): Dat
 
 /**
  * Format a Date object to YYYY-MM-DD string for API submission
- * Uses UTC components since Calendar component creates dates at UTC midnight
+ * Uses local components since react-day-picker v8 creates dates at local midnight
  */
 export const formatDateForApi = (date: Date | null | undefined): string | null => {
   if (!date) return null;
-  // Use UTC components to get the calendar date that was selected
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
+  // Use local components to get the calendar date that was selected
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 

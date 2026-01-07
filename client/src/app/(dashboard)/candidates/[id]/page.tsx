@@ -268,6 +268,13 @@ export default function CandidateDetailPage() {
     [candidateTasks, orderMap]
   );
 
+  // Calculate incomplete prerequisite tasks count
+  const incompletePrerequisiteTaskCount = useMemo(() => {
+    return tasksWithOrder.filter((t: any) =>
+      t.isPrerequisiteTask && t.status !== 'done' && !t.archived
+    ).length;
+  }, [tasksWithOrder]);
+
   const assigneeLookup = useMemo(() => {
     const map = new Map<string, { id: string; firstName: string; lastName: string }>();
     (assignableUsers as any[]).forEach((u: any) => {
@@ -416,8 +423,13 @@ export default function CandidateDetailPage() {
   }, [tasksWithOrder, candidateStages]);
 
   // Compute onboarding completion: all tasks are either done or canceled
+  // Exclude prerequisite tasks from completion calculation as they are pre-LOO requirements
   const allTasksFlat = useMemo(() => (Object.values(tasksByStage).flat() as any[]), [tasksByStage]);
-  const taskSummary = summarizeCandidateTasks(allTasksFlat);
+  const onboardingTasks = useMemo(() =>
+    allTasksFlat.filter((t: any) => !t.isPrerequisiteTask),
+    [allTasksFlat]
+  );
+  const taskSummary = summarizeCandidateTasks(onboardingTasks);
   const hasAnyTasks = allTasksFlat.length > 0;
 
   // Automatically set status to completed when onboarding is complete (excluding canceled/archived/offer_declined)
@@ -459,7 +471,8 @@ export default function CandidateDetailPage() {
   const candidateStatusKey = resolvedStatus.status === 'unknown'
     ? ((candidate as any)?.status || 'draft')
     : resolvedStatus.status;
-  const fullyOnboarded = isCandidateFullyOnboarded(candidate as any, allTasksFlat);
+  // Only consider non-prerequisite tasks for full onboarding status
+  const fullyOnboarded = isCandidateFullyOnboarded(candidate as any, onboardingTasks);
   const taskStatusDisabled = fullyOnboarded ||
     !['draft', 'active', 'on_hold'].includes(candidateStatusKey);
   const assigneeSelectLocked = taskStatusDisabled || !!assigneeError;
@@ -1231,6 +1244,7 @@ export default function CandidateDetailPage() {
         }}
         currentStagePhase={candidatePhase === "onboarding" ? "onboarding" : "pre_hire"}
         isFullyOnboarded={fullyOnboarded}
+        incompletePrerequisiteTaskCount={incompletePrerequisiteTaskCount}
       />
 
       {/* Tasks and Timeline Tabs */}

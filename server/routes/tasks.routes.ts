@@ -287,7 +287,7 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
 
     const parsed = insertCandidateTaskSchema.safeParse(body);
     if (!parsed.success) {
-      return res.status(400).json({ message: "Invalid data", errors: parsed.error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: parsed.error.issues });
     }
     const validatedData = parsed.data;
 
@@ -309,7 +309,6 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
       const taskDef = await refDataService.createTaskDefinition({
         name: body.title,
         description: body.description || null,
-        archived: false,
         createdBy: req.user!.id
       });
       validatedData.taskDefId = taskDef.id;
@@ -336,7 +335,7 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
     });
   } catch (error) {
     if (error instanceof ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: error.issues });
     }
     next(error);
   }
@@ -566,7 +565,7 @@ router.post("/tasks/bulk-update", requireAuth, requireRole(["system_admin", "hr_
     res.json({ updated });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid payload", errors: error.errors });
+      return res.status(400).json({ message: "Invalid payload", errors: error.issues });
     }
     next(error);
   }

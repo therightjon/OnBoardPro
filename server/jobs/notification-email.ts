@@ -19,6 +19,7 @@ import {
   markDigestFailure,
   rescheduleDigest
 } from "../features/email/outbox.service";
+import type { DigestCapableFrequency } from "../features/email/outbox.service";
 import { getOrCreateTransport } from "../features/email/smtp-settings.service";
 import { renderImmediateEmail, renderDigestEmail } from "../features/email/templates";
 
@@ -312,7 +313,7 @@ function shouldRunDigest(frequency: "hourly" | "daily" | "weekly", now: Date): b
   return diffMs >= 6 * 24 * 60 * 60 * 1000;
 }
 
-async function processDigest(frequency: "hourly" | "daily" | "weekly") {
+async function processDigest(frequency: DigestCapableFrequency) {
   const now = new Date();
   let windowStart: Date;
   if (frequency === "hourly") {
@@ -430,7 +431,7 @@ async function runDigestWorker() {
   const now = new Date();
 
   try {
-    for (const frequency of ["hourly", "daily", "weekly"] as const) {
+    for (const frequency of ["hourly", "daily"] as DigestCapableFrequency[]) {
       if (shouldRunDigest(frequency, now)) {
         await processDigest(frequency);
       }

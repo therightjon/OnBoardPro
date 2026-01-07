@@ -152,6 +152,7 @@ export const candidateTypes = pgTable("candidate_types", {
 export const facultyRanks = pgTable("faculty_ranks", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
+  requiresPT: boolean("requires_pt").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });

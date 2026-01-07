@@ -428,9 +428,7 @@ export class TemplateExpansionService {
     tasksSkipped: number;
   }> {
     // Get candidate with facultyRank relation for condition evaluation
-    const candidate = await this.candidateRepo.getCandidate(candidateId, {
-      includeFacultyRank: true
-    }) as CandidateWithRank | null;
+    const candidate = await this.candidateRepo.getCandidate(candidateId) as CandidateWithRank | null;
 
     if (!candidate) {
       throw new Error("Candidate not found");
@@ -593,9 +591,9 @@ export class TemplateExpansionService {
         pendingAnchor: dueComputation.pendingAnchor,
         status: "todo" as const,
         required: (templateTask as any).isRequired ?? true,
-        isPrerequisiteTask: true, // Mark as prerequisite task
         archived: false,
         dueSoonNotifiedAt: null,
+        isPrerequisiteTask: true,
       });
     }
 

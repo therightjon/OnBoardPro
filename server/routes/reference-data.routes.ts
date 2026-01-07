@@ -32,7 +32,7 @@ router.post("/task-definitions", requireAuth, requireRole(["system_admin", "hr_s
     res.status(201).json(taskDef);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: error.issues });
     }
     next(error);
   }
@@ -78,7 +78,7 @@ router.post("/hiring-stages", requireAuth, requireRole(["system_admin", "hr_staf
     res.status(201).json(stage);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: error.issues });
     }
     next(error);
   }

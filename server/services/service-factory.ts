@@ -418,6 +418,7 @@ export interface IServiceFactory {
   getAuthProviderService(): AuthProviderService;
   getDashboardService(): DashboardService;
   getAuthorizationService(): AuthorizationService;
+  getAuditService(): AuditService;
 }
 
 // Export a singleton instance - mutable for testing

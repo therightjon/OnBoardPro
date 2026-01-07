@@ -31,7 +31,7 @@ import { TemplateStatusControl } from "@/features/templates/components/template-
 import { TemplateStagesWithTasks } from "@/features/templates/components/TemplateStagesWithTasks";
 import { PerStageMiniBar } from "@/features/templates/components/PerStageMiniBar";
 import { AutoSelectCombobox } from "@/shared/components/inputs/AutoSelectCombobox";
-import { DatePicker, formatDateForApi } from "@/shared/components/inputs/DatePicker";
+import { DatePicker, formatDateForApi, parseAsLocalDate } from "@/shared/components/inputs/DatePicker";
 import type { 
   Template, 
   TemplateTask,
@@ -1786,7 +1786,9 @@ function PipelineEstimateSection({
   const otherNonEstimableTasks = estimate?.nonEstimable?.filter((item: any) => item.reason !== 'missing_anchor') ?? [];
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    const date = parseAsLocalDate(dateStr);
+    if (!date) return 'Invalid date';
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -2200,20 +2202,12 @@ function AddStageForm({
     !templateStages.some(ts => ts.stageId === stage.id)
   );
 
-  // Exclude task definitions that are already in the SELECTED stage
-  // (allow same task in different stages)
+  // Exclude task definitions that are already in ANY stage of the template
   const existingTaskDefIdsInStage = useMemo(() => {
-    if (!selectedStageId) return new Set<string>();
-    
-    const existingStage = templateStages.find(ts => ts.stageId === selectedStageId);
-    if (!existingStage) return new Set<string>(); // Stage doesn't exist yet
-    
     return new Set(
-      templateTasks
-        .filter(t => t.templateStageId === existingStage.id)
-        .map(t => t.taskDefId)
+      templateTasks.map(t => t.taskDefId)
     );
-  }, [selectedStageId, templateStages, templateTasks]);
+  }, [templateTasks]);
   
   const availableTaskDefinitions = taskDefinitions.filter(
     td => !td.archived && !existingTaskDefIdsInStage.has(td.id)

@@ -361,27 +361,27 @@ export function DivisionsSection() {
                   <TableRow>
                     <SortableTableHeader
                       label="Name"
-                      sortKey="name"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="name"
+                      direction={sortState.key === "name" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <SortableTableHeader
                       label="Department"
-                      sortKey="department"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="department"
+                      direction={sortState.key === "department" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <SortableTableHeader
                       label="Status"
-                      sortKey="status"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="status"
+                      direction={sortState.key === "status" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <SortableTableHeader
                       label="Created"
-                      sortKey="createdAt"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="createdAt"
+                      direction={sortState.key === "createdAt" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>

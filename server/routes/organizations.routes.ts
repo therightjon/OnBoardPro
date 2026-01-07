@@ -35,7 +35,7 @@ router.post("/departments", requireAuth, requireRole(["system_admin", "hr_staff"
     res.status(201).json(department);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: error.issues });
     }
     next(error);
   }
@@ -59,7 +59,7 @@ router.patch("/departments/:id", requireAuth, requireRole(["system_admin", "hr_s
     res.json(department);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: error.issues });
     }
     next(error);
   }
@@ -147,7 +147,7 @@ router.post("/divisions", requireAuth, requireRole(["system_admin", "hr_staff"])
     res.status(201).json(division);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: error.issues });
     }
     next(error);
   }
@@ -171,7 +171,7 @@ router.patch("/divisions/:id", requireAuth, requireRole(["system_admin", "hr_sta
     res.json(division);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: error.issues });
     }
     next(error);
   }

@@ -161,6 +161,17 @@ export class TemplateEstimationService {
   ) {}
 
   /**
+   * Format a Date object as a date-only string (YYYY-MM-DD)
+   * Uses UTC components to avoid timezone shifts
+   */
+  private formatDateOnly(date: Date): string {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
    * Estimate timeline for a template
    *
    * Calculates the complete timeline for a template based on:
@@ -399,12 +410,12 @@ export class TemplateEstimationService {
       templateId,
       taskCount: tasksQuery.length,
       anchors: {
-        loi: anchors.loi ? anchors.loi.toISOString() : null,
-        loo: anchors.loo ? anchors.loo.toISOString() : null,
-        start: anchors.start ? anchors.start.toISOString() : null,
+        loi: anchors.loi ? this.formatDateOnly(anchors.loi) : null,
+        loo: anchors.loo ? this.formatDateOnly(anchors.loo) : null,
+        start: anchors.start ? this.formatDateOnly(anchors.start) : null,
       },
-      baselineDate: baselineDate ? baselineDate.toISOString() : null,
-      lastDueDate: maxDueDate ? maxDueDate.toISOString() : null,
+      baselineDate: baselineDate ? this.formatDateOnly(baselineDate) : null,
+      lastDueDate: maxDueDate ? this.formatDateOnly(maxDueDate) : null,
       totalCalendarDays: maxCalendarOffset,
       totalBusinessDays,
       leadTimes,

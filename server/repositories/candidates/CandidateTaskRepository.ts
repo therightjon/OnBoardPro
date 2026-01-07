@@ -113,6 +113,7 @@ export class CandidateTaskRepository extends BaseRepository {
         phase_snapshot: candidateTasks.phaseSnapshot,
         status: candidateTasks.status,
         required: candidateTasks.required,
+        is_prerequisite_task: candidateTasks.isPrerequisiteTask,
         cancel_reason: candidateTasks.cancelReason,
         due_soon_notified_at: candidateTasks.dueSoonNotifiedAt,
         updated_at: candidateTasks.updatedAt,
@@ -148,6 +149,7 @@ export class CandidateTaskRepository extends BaseRepository {
       pendingAnchor: task.pending_anchor,
       templateStageId: task.template_stage_id,
       phaseSnapshot: task.phase_snapshot,
+      isPrerequisiteTask: task.is_prerequisite_task,
       assignee: task.assignee_firstName || task.assignee_lastName ? {
         id: task.assignee_id,
         firstName: task.assignee_firstName,

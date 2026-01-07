@@ -190,7 +190,7 @@ export class AuthService {
       updateData.authProvider = 'local'; // Keep as local if already set
     }
     
-    await userService.updateUser({ id: user.id, data: updateData });
+    await userService.updateUser({ id: user.id, data: updateData as any });
   }
   
   /**

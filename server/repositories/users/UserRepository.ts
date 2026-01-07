@@ -68,7 +68,7 @@ export class UserRepository extends BaseRepository {
     const mentionKey = await generateMentionKey(this.db, insertUser);
     const [user] = await this.db
       .insert(users)
-      .values({ ...insertUser, mentionKey })
+      .values({ ...insertUser, mentionKey } as any)
       .returning();
     return user;
   }

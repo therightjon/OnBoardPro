@@ -7,6 +7,7 @@
  * Current supported conditions:
  * - requires_pt: Task only created for faculty ranks that require P&T approval
  * - always: Task always created regardless of candidate attributes
+ * - null/undefined: Defaults to 'always' for backward compatibility
  */
 
 import type { Candidate, FacultyRank } from "@shared/schemas";
@@ -38,8 +39,10 @@ export class PrerequisiteConditionsService {
     condition: PrerequisiteCondition | null | undefined,
     candidate: CandidateWithRank
   ): boolean {
+    // If no condition specified, default to 'always' (backward compatibility)
+    // This allows prerequisite tasks without explicit conditions to be created
     if (!condition) {
-      return false;
+      return true;
     }
 
     switch (condition) {

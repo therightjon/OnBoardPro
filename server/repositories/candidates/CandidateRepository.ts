@@ -251,7 +251,8 @@ export class CandidateRepository extends BaseRepository {
         },
         facultyRank: {
           id: facultyRanks.id,
-          name: facultyRanks.name
+          name: facultyRanks.name,
+          requiresPT: facultyRanks.requiresPT
         },
         // Use snapshot if available, otherwise get from templates table (for deferred template)
         templateNameSnapshot: sql<string>`COALESCE(${candidates.templateNameSnapshot}, ${templates.name})`,

@@ -481,13 +481,5 @@ export class TemplateService {
     return this.templateRepo.getTemplateReadiness(id);
   }
 
-  /**
-   * Estimate template completion time based on tasks
-   */
-  async estimateTemplate(id: string): Promise<{
-    totalDays: number;
-    taskCount: number;
-  }> {
-    return this.templateRepo.estimateTemplate(id);
-  }
 }
+

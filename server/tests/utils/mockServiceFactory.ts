@@ -875,6 +875,14 @@ export class MockServiceFactory {
       filterCandidates: (candidates: any[]) => candidates
     };
   }
+
+  getAuditService(): any {
+    return {
+      createAuditLog: () => Promise.resolve(),
+      getAuditLogs: () => Promise.resolve([]),
+      getAuditLog: () => Promise.resolve(null)
+    };
+  }
 }
 
 // Export singleton for tests

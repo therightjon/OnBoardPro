@@ -43,7 +43,7 @@ const userSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Valid email is required"),
-  passwordHash: z.string().optional(),
+  passwordHash: z.string(),
   role: z.string().min(1, "Role is required"),
   status: z.string().min(1, "Status is required"),
   departmentId: z.string().min(1, "Department is required"),
@@ -64,7 +64,7 @@ const createUserSchema = userSchema.extend({
 });
 
 const editUserSchema = userSchema.extend({
-  passwordHash: passwordValidation.or(z.literal("")),
+  passwordHash: z.string().optional(),
 });
 
 const inviteSchema = z.object({
@@ -76,7 +76,7 @@ const inviteSchema = z.object({
   divisionId: z.string().optional(),
 });
 
-type UserForm = z.infer<typeof userSchema>;
+type UserForm = z.infer<typeof createUserSchema> | z.infer<typeof editUserSchema>;
 type InviteForm = z.infer<typeof inviteSchema>;
 
 // ============================================================================

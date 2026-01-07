@@ -25,17 +25,6 @@ import {
 } from "./index";
 import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../../../services/login-rate-limit";
 
-declare global {
-  namespace Express {
-    interface User extends SelectUser {
-      roles?: string[];
-      departmentScopes?: string[];
-      divisionScopes?: string[];
-      managedCandidateIds?: string[];
-    }
-  }
-}
-
 declare module "express-session" {
   interface SessionData {
     inviteToken?: string;

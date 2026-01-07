@@ -243,22 +243,22 @@ export function HiringStagesSection() {
                   <TableRow>
                     <SortableTableHeader
                       label="Name"
-                      sortKey="name"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="name"
+                      direction={sortState.key === "name" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <TableHead>Description</TableHead>
                     <SortableTableHeader
                       label="Order"
-                      sortKey="orderIndex"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="orderIndex"
+                      direction={sortState.key === "orderIndex" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <SortableTableHeader
                       label="Status"
-                      sortKey="status"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="status"
+                      direction={sortState.key === "status" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>

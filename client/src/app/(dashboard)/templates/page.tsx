@@ -55,7 +55,7 @@ const templateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   candidateTypeId: z.string().min(1, "Candidate type is required"),
   description: z.string().optional(),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean(),
   cloneFromTemplateId: z.string().optional(),
 });
 

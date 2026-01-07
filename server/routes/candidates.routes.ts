@@ -362,7 +362,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
       templateAppliedFromId: req.body.templateId ?? req.body.templateAppliedFromId
     });
     if (!parsed.success) {
-      return res.status(400).json({ message: "Invalid data", errors: parsed.error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: parsed.error.issues });
     }
     const validatedData = parsed.data;
     
@@ -475,7 +475,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
     res.status(201).json(response);
   } catch (error) {
     if (error instanceof ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: error.issues });
     }
     if (error instanceof CandidateValidationError) {
       return res.status(400).json({ message: error.message });
@@ -758,7 +758,7 @@ router.patch("/candidates/:id/status", requireAuth, requireRole(["system_admin",
     res.json({ ...result.candidate, cascaded: result.cascaded });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid status payload", errors: error.errors });
+      return res.status(400).json({ message: "Invalid status payload", errors: error.issues });
     }
     next(error);
   }
@@ -872,9 +872,9 @@ router.post("/candidates/:id/restore", requireAuth, requireRole(["system_admin",
       await candidateService.updateCandidate({
         id: req.params.id,
         data: {
-          offerLetterIssuedAt: payload.offerLetterIssuedAt!,
-          offerLetterAcceptedAt: payload.offerLetterAcceptedAt ?? null,
-          anticipatedStartDate: payload.anticipatedStartDate!,
+          offerLetterIssuedAt: payload.offerLetterIssuedAt!.toISOString(),
+          offerLetterAcceptedAt: payload.offerLetterAcceptedAt ? payload.offerLetterAcceptedAt.toISOString() : null,
+          anticipatedStartDate: payload.anticipatedStartDate!.toISOString(),
         },
         actorId: req.user?.id,
         authContext
