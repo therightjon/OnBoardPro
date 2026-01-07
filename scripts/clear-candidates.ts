@@ -141,10 +141,13 @@ async function clearCandidates(shouldConfirm: boolean = true) {
 
     // 9. Delete notification outbox entries related to candidates
     console.log("Deleting notification outbox entries...");
-    const deletedOutbox = await db
-      .delete(notificationOutbox)
-      .where(inArray(notificationOutbox.notificationId, deletedNotifications.map(n => n.id)))
-      .returning({ id: notificationOutbox.id });
+    let deletedOutbox = { length: 0 };
+    if (deletedNotifications.length > 0) {
+      deletedOutbox = await db
+        .delete(notificationOutbox)
+        .where(inArray(notificationOutbox.notificationId, deletedNotifications.map(n => n.id)))
+        .returning({ id: notificationOutbox.id });
+    }
     console.log(`✓ Deleted ${deletedOutbox.length} notification outbox entries\n`);
 
     // 10. Finally, delete candidates
