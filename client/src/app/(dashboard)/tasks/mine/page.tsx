@@ -18,7 +18,7 @@ import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
 import { useAuth } from "@/features/auth/hooks/use-auth.tsx";
 import { Link } from "wouter";
 import type { CandidateTask, Candidate } from "@shared/schemas";
-import { mergeUserPreferences, type UserPreferencesDTO } from "@shared/preferences";
+import { useLocalStorage } from "@/shared/hooks/use-local-storage";
 import { PaginationControls } from "@/shared/components/pagination-controls";
 import { SortableTableHeader } from "@/shared/components/sortable-table-header";
 import { useSortableTable } from "@/shared/hooks/use-sortable-table";
@@ -31,9 +31,9 @@ export default function MyTasksPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [openTaskComments, setOpenTaskComments] = useState<{ id: string; title?: string; candidateId: string } | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
-  const [showCanceled, setShowCanceled] = useState(false);
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [showArchived, setShowArchived] = useLocalStorage("my-tasks-show-archived", false);
+  const [showCanceled, setShowCanceled] = useLocalStorage("my-tasks-show-canceled", false);
+  const [showCompleted, setShowCompleted] = useLocalStorage("my-tasks-show-completed", false);
   const [currentPage, setCurrentPage] = useState(1);
   const { user } = useAuth();
 
@@ -59,58 +59,6 @@ export default function MyTasksPage() {
       />
     );
   }
-
-  // User preferences query
-  const { data: preferences } = useQuery<UserPreferencesDTO>({
-    // Include user id in key to avoid sharing prefs between sessions
-    queryKey: ["/api/me/preferences", user?.id],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/me/preferences");
-      return response.json();
-    },
-    enabled: !!user,
-  });
-
-  // Update preferences mutation
-  const updatePreferencesMutation = useMutation({
-    mutationFn: async (newPreferences: any) => {
-      const res = await apiRequest("PATCH", "/api/me/preferences", newPreferences);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/me/preferences"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/mine"] });
-    }
-  });
-
-  // Initialize toggle states from preferences
-  useEffect(() => {
-    if (preferences) {
-      const merged = mergeUserPreferences(preferences);
-      setShowArchived(!!merged.mytasksShowArchived);
-      setShowCanceled(!!merged.mytasksShowCanceled);
-      setShowCompleted(!!merged.mytasksShowCompleted);
-    }
-  }, [preferences]);
-
-  // Handle toggle changes with preference persistence
-  const handleToggleChange = (type: 'archived' | 'canceled' | 'completed', value: boolean) => {
-    const updates: any = {};
-    
-    if (type === 'archived') {
-      setShowArchived(value);
-      updates.mytasksShowArchived = value;
-    } else if (type === 'canceled') {
-      setShowCanceled(value);
-      updates.mytasksShowCanceled = value;
-    } else if (type === 'completed') {
-      setShowCompleted(value);
-      updates.mytasksShowCompleted = value;
-    }
-    
-    // Persist to backend
-    updatePreferencesMutation.mutate(updates);
-  };
 
   // Removed task update mutation (dialog removed). Status changes are handled inline via TaskStatusCell.
 
@@ -423,10 +371,10 @@ export default function MyTasksPage() {
             {/* Toggle Switches */}
             <div className="flex flex-col xs:flex-row flex-wrap gap-3 xs:gap-4">
               <div className="flex items-center space-x-2">
-                <Switch 
-                  id="show-archived" 
+                <Switch
+                  id="show-archived"
                   checked={showArchived}
-                  onCheckedChange={(value) => handleToggleChange('archived', value)}
+                  onCheckedChange={setShowArchived}
                   data-testid="switch-show-archived"
                 />
                 <Label htmlFor="show-archived" className="text-sm font-medium">
@@ -434,10 +382,10 @@ export default function MyTasksPage() {
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <Switch 
-                  id="show-canceled" 
+                <Switch
+                  id="show-canceled"
                   checked={showCanceled}
-                  onCheckedChange={(value) => handleToggleChange('canceled', value)}
+                  onCheckedChange={setShowCanceled}
                   data-testid="switch-show-canceled"
                 />
                 <Label htmlFor="show-canceled" className="text-sm font-medium">
@@ -445,10 +393,10 @@ export default function MyTasksPage() {
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <Switch 
-                  id="show-completed" 
+                <Switch
+                  id="show-completed"
                   checked={showCompleted}
-                  onCheckedChange={(value) => handleToggleChange('completed', value)}
+                  onCheckedChange={setShowCompleted}
                   data-testid="switch-show-completed"
                 />
                 <Label htmlFor="show-completed" className="text-sm font-medium">
