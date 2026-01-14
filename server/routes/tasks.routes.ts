@@ -6,7 +6,7 @@
  * Conventions: Apply sensitive rate limiting on read endpoints, enforce role guards on writes, keep pagination/filter behavior documented.
  */
 import { Router } from "express";
-import { z, ZodError } from "zod/v4";
+import { z, ZodError } from "zod";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { sensitiveRateLimiter } from "../middleware/rate-limiter";
 import { insertCandidateTaskSchema } from "@shared/schemas";

@@ -6,7 +6,7 @@
  * Conventions: Enforce auth/rate-limit first, build auth context via AuthorizationService, publish events via services/utils.
  */
 import { Router } from "express";
-import { z, ZodError } from "zod/v4";
+import { z, ZodError } from "zod";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { sensitiveRateLimiter } from "../middleware/rate-limiter";
 import { db } from "../db/connection";
@@ -232,7 +232,7 @@ router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res
 
         const templateExpansionService = getTemplateExpansionService();
         const expansionResult = await templateExpansionService.expandTemplate(
-          candidate.templateAppliedFromId,
+          candidate.templateAppliedFromId!, // Already checked truthy in needsTemplateExpansion
           candidate.id,
           req.user!.id
         );

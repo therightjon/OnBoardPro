@@ -23,14 +23,14 @@ export class UserValidationError extends Error {
 }
 
 export interface CreateUserInput {
-  data: InsertUser & { passwordHash?: string; roles?: UserRole[] };
+  data: InsertUser & { passwordHash?: string | null; roles?: UserRole[] };
   actorId?: string;
   requestId?: string;
 }
 
 export interface UpdateUserInput {
   id: string;
-  data: Partial<User> & { passwordHash?: string };
+  data: Partial<User> & { passwordHash?: string | null };
   actorId?: string;
   requestId?: string;
 }
