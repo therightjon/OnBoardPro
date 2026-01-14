@@ -16,10 +16,18 @@ function resolveIp(req: any): string {
   return typeof ip === "string" ? ip : "";
 }
 
+// Skip rate limiting in test mode to avoid database dependencies and test isolation issues
+const isTestMode = process.env.NODE_ENV === "test" || process.env.SKIP_AUTH_SETUP === "1";
+
 export function createRateLimiter(options: RateLimiterOptions): RequestHandler {
   const { windowMs, max, name, keyGenerator, message } = options;
 
   return async function rateLimiter(req: any, res: any, next: any) {
+    // In test mode, skip rate limiting entirely
+    if (isTestMode) {
+      return next();
+    }
+
     const key = keyGenerator ? keyGenerator(req) ?? "" : resolveIp(req);
     if (!key) return next();
 

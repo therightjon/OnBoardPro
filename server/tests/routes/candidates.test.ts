@@ -6,6 +6,12 @@ import { createAuthedAgent } from "../utils/testAgent";
 import { setServiceFactoryForTesting, resetServiceFactory } from "../utils/mockServiceFactory";
 import type { MockServiceFactory } from "../utils/mockServiceFactory";
 
+/** Format date to YYYY-MM-DD format required by the API */
+function formatDateForApi(date?: Date): string {
+  const d = date ?? new Date();
+  return d.toISOString().split('T')[0];
+}
+
 async function setupTest(t: any, userId: string) {
   const env = await createAuthTestEnvironment();
   const resetStorage = env.useAsGlobalStorage();
@@ -32,7 +38,7 @@ describe("Candidate API - Create Operations", () => {
       divisionId: AUTH_FIXTURE_IDS.divisions.alpha,
       candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
       facultyRankId: AUTH_FIXTURE_IDS.facultyRanks.instructor,
-      letterOfIntentDate: new Date().toISOString(),
+      letterOfIntentDate: formatDateForApi(),
       templateId: AUTH_FIXTURE_IDS.templates.onboarding
     };
 
@@ -62,7 +68,7 @@ describe("Candidate API - Create Operations", () => {
       email: "john.doe@example.com",
       departmentId: "00000000-0000-0000-0000-000000000000", // Invalid department
       candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
-      letterOfIntentDate: new Date().toISOString(),
+      letterOfIntentDate: formatDateForApi(),
       templateId: AUTH_FIXTURE_IDS.templates.onboarding
     };
 
@@ -95,7 +101,7 @@ describe("Candidate API - Create Operations", () => {
       email: "alpha.primary@example.com", // Duplicate email from fixtures
       departmentId: AUTH_FIXTURE_IDS.departments.alpha,
       candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
-      letterOfIntentDate: new Date().toISOString(),
+      letterOfIntentDate: formatDateForApi(),
       templateId: AUTH_FIXTURE_IDS.templates.onboarding
     };
 
@@ -114,7 +120,7 @@ describe("Candidate API - Create Operations", () => {
       email: "john.doe@example.com",
       departmentId: AUTH_FIXTURE_IDS.departments.alpha,
       candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
-      letterOfIntentDate: new Date().toISOString(),
+      letterOfIntentDate: formatDateForApi(),
       templateId: AUTH_FIXTURE_IDS.templates.onboarding
     };
 
@@ -337,7 +343,7 @@ describe("Candidate API - Delete Operations", () => {
       email: "todelete@example.com",
       departmentId: AUTH_FIXTURE_IDS.departments.alpha,
       candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
-      letterOfIntentDate: new Date().toISOString(),
+      letterOfIntentDate: formatDateForApi(),
       templateId: AUTH_FIXTURE_IDS.templates.onboarding
     };
 

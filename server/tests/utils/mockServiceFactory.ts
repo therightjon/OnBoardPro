@@ -725,7 +725,8 @@ export class MockServiceFactory {
   getTemplateExpansionService(): any {
     return {
       expandTemplate: () => Promise.resolve({ tasks: [], stages: [] }),
-      expandTemplateForCandidate: () => Promise.resolve({ tasks: [], stages: [] })
+      expandTemplateForCandidate: () => Promise.resolve({ tasks: [], stages: [] }),
+      expandPrerequisites: () => Promise.resolve({ tasksCreated: 0, tasks: [] })
     };
   }
 
