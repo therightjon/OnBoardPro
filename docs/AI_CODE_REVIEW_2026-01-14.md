@@ -438,7 +438,7 @@ Several places bypassed the repository layer with direct `db.*` calls, breaking 
 **Files:** 10+ route files
 **Severity:** MEDIUM
 **Category:** Code Duplication
-**Status:** 🆕 NEW
+**Status:** ✅ FIXED
 
 **Issue:**
 Same error handling duplicated everywhere:
@@ -451,19 +451,34 @@ Same error handling duplicated everywhere:
 }
 ```
 
-**Fix:** Create validation middleware:
-```typescript
-export function validateBody<T>(schema: ZodSchema<T>) {
-  return (req, res, next) => {
-    const result = schema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ message: "Invalid data", errors: result.error.issues });
-    }
-    req.validatedBody = result.data;
-    next();
-  };
-}
-```
+**Resolution Applied:**
+1. Created new [server/middleware/validation.ts](server/middleware/validation.ts) with:
+   - `validateBody<T>(schema)` - Middleware to validate request body against Zod schema
+   - `validateQuery<T>(schema)` - Middleware to validate query parameters
+   - `validateParams<T>(schema)` - Middleware to validate URL parameters
+   - `isZodError(error)` - Type guard helper for catch blocks
+   - `handleZodError(res, error)` - Express response helper for manual error handling
+   - `formatZodError(error)` - Utility to format ZodError into standard response
+2. Updated Express type definitions in [server/types/express.d.ts](server/types/express.d.ts) to include `validatedBody`, `validatedQuery`, `validatedParams`
+3. Refactored 6 route files to use the new utilities:
+   - `organizations.routes.ts` - Uses `validateBody` for POST, `isZodError` for PATCH
+   - `reference-data.routes.ts` - Uses `validateBody` for all POST endpoints
+   - `templates.routes.ts` - Uses `isZodError` helper for complex validation
+   - `tasks.routes.ts` - Uses `isZodError` helper for complex validation
+   - `candidates.routes.ts` - Uses `isZodError` helper for complex validation
+   - `auth.routes.ts` - Uses `isZodError` helper (preserves custom `error.flatten()` format)
+
+**Files Created/Modified:**
+- [server/middleware/validation.ts](server/middleware/validation.ts) - New validation middleware
+- [server/types/express.d.ts](server/types/express.d.ts) - Added validated data properties
+- [server/routes/organizations.routes.ts](server/routes/organizations.routes.ts) - Refactored
+- [server/routes/reference-data.routes.ts](server/routes/reference-data.routes.ts) - Refactored
+- [server/routes/templates.routes.ts](server/routes/templates.routes.ts) - Refactored
+- [server/routes/tasks.routes.ts](server/routes/tasks.routes.ts) - Refactored
+- [server/routes/candidates.routes.ts](server/routes/candidates.routes.ts) - Refactored
+- [server/routes/auth.routes.ts](server/routes/auth.routes.ts) - Refactored
+
+**Verification:** ✅ All 211 backend tests pass, all 96 frontend tests pass, Codacy analysis clean
 
 ---
 
@@ -649,7 +664,8 @@ The score improved due to fixing the Zod incompatibility, LDAP injection vulnera
 | #8 Weak Email Validation | MEDIUM | Trivial | ✅ **RESOLVED** |
 | #10 Weak Common Password List | MEDIUM | Easy | ✅ **RESOLVED** |
 | #11 Excessive `any` Types | MEDIUM | Easy | ✅ **RESOLVED** |
-| #7, #9, #12-15 Medium Issues | MEDIUM | Easy-Medium | **P2 - This Month** |
+| #15 Repeated ZodError Handling | MEDIUM | Easy | ✅ **RESOLVED** |
+| #7, #9, #12-14 Medium Issues | MEDIUM | Easy-Medium | **P2 - This Month** |
 | #16-21 Low Issues | LOW | Trivial-Easy | **P3 - Backlog** |
 
 ---
@@ -672,7 +688,7 @@ The score improved due to fixing the Zod incompatibility, LDAP injection vulnera
 
 ### This Month
 7. ~~Add React ErrorBoundary to frontend~~ ✅ DONE
-8. Implement validation middleware to reduce duplication
+8. ~~Implement validation middleware to reduce duplication~~ ✅ DONE
 9. Split large page components
 10. Add maximum session duration
 11. ~~Expand common password list~~ ✅ DONE (10,000+ passwords from SecLists)

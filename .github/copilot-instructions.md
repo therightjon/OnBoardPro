@@ -53,6 +53,32 @@ Role-based + scope-based (department/division). Six roles: `system_admin`, `hr_s
 
 ## Key Patterns
 
+### Request Validation
+Use validation middleware from `server/middleware/validation.ts` for consistent error handling:
+```typescript
+import { validateBody, isZodError, handleZodError } from '../middleware/validation';
+import { insertCandidateSchema } from '@shared/schemas';
+
+// Option 1: Use validateBody middleware for simple validation
+router.post("/items", validateBody(insertItemSchema), async (req, res, next) => {
+  const validatedData = req.validatedBody as typeof insertItemSchema._type;
+  // ... use validatedData
+});
+
+// Option 2: Use isZodError helper for complex flows (e.g., .partial(), additional logic)
+router.patch("/items/:id", async (req, res, next) => {
+  try {
+    const validatedData = schema.partial().parse(req.body);
+    // ... business logic
+  } catch (error) {
+    if (isZodError(error)) {
+      return handleZodError(res, error);
+    }
+    next(error);
+  }
+});
+```
+
 ### Password Security
 Use shared utilities from `server/utils/passwords.ts`:
 ```typescript

@@ -6,9 +6,10 @@
  * Conventions: Enforce auth/rate-limit first, build auth context via AuthorizationService, publish events via services/utils.
  */
 import { Router } from "express";
-import { z, ZodError } from "zod";
+import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { sensitiveRateLimiter } from "../middleware/rate-limiter";
+import { isZodError, handleZodError } from "../middleware/validation";
 import { db } from "../db/connection";
 import { insertCandidateSchema } from "@shared/schemas";
 import {
@@ -516,8 +517,8 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
 
     res.status(201).json(response);
   } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.issues });
+    if (isZodError(error)) {
+      return handleZodError(res, error);
     }
     if (error instanceof CandidateValidationError) {
       return res.status(400).json({ message: error.message });
@@ -810,7 +811,7 @@ router.patch("/candidates/:id/status", requireAuth, requireRole(["system_admin",
 
     res.json({ ...result.candidate, cascaded: result.cascaded });
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (isZodError(error)) {
       return res.status(400).json({ message: "Invalid status payload", errors: error.issues });
     }
     next(error);

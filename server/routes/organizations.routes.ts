@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../middleware/authorization";
+import { validateBody, isZodError, handleZodError } from "../middleware/validation";
 import { getOrganizationService } from "../services/service-factory";
 import { insertDepartmentSchema, insertDivisionSchema } from "@shared/schemas";
-import { z } from "zod";
 
 const router = Router();
 
@@ -27,16 +27,13 @@ router.get("/departments", requireAuth, async (req, res, next) => {
  * POST /api/departments
  * Creates a new department
  */
-router.post("/departments", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+router.post("/departments", requireAuth, requireRole(["system_admin", "hr_staff"]), validateBody(insertDepartmentSchema), async (req, res, next) => {
   try {
-    const validatedData = insertDepartmentSchema.parse(req.body);
+    const validatedData = req.validatedBody as typeof insertDepartmentSchema._type;
     const orgService = getOrganizationService();
     const department = await orgService.createDepartment(validatedData, req.user?.id, req.id);
     res.status(201).json(department);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.issues });
-    }
     next(error);
   }
 });
@@ -58,8 +55,8 @@ router.patch("/departments/:id", requireAuth, requireRole(["system_admin", "hr_s
 
     res.json(department);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.issues });
+    if (isZodError(error)) {
+      return handleZodError(res, error);
     }
     next(error);
   }
@@ -139,16 +136,13 @@ router.get("/divisions", requireAuth, requireRole(["system_admin", "hr_staff", "
  * POST /api/divisions
  * Creates a new division
  */
-router.post("/divisions", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+router.post("/divisions", requireAuth, requireRole(["system_admin", "hr_staff"]), validateBody(insertDivisionSchema), async (req, res, next) => {
   try {
-    const validatedData = insertDivisionSchema.parse(req.body);
+    const validatedData = req.validatedBody as typeof insertDivisionSchema._type;
     const orgService = getOrganizationService();
     const division = await orgService.createDivision(validatedData, req.user?.id, req.id);
     res.status(201).json(division);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.issues });
-    }
     next(error);
   }
 });
@@ -170,8 +164,8 @@ router.patch("/divisions/:id", requireAuth, requireRole(["system_admin", "hr_sta
 
     res.json(division);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.issues });
+    if (isZodError(error)) {
+      return handleZodError(res, error);
     }
     next(error);
   }

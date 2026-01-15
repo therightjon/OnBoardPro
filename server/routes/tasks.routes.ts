@@ -6,9 +6,10 @@
  * Conventions: Apply sensitive rate limiting on read endpoints, enforce role guards on writes, keep pagination/filter behavior documented.
  */
 import { Router } from "express";
-import { z, ZodError } from "zod";
+import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { sensitiveRateLimiter } from "../middleware/rate-limiter";
+import { isZodError, handleZodError } from "../middleware/validation";
 import { insertCandidateTaskSchema } from "@shared/schemas";
 import {
   fetchTaskWithAccess,
@@ -334,8 +335,8 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
       dueDate: task.dueAt ?? null
     });
   } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.issues });
+    if (isZodError(error)) {
+      return handleZodError(res, error);
     }
     next(error);
   }
@@ -461,8 +462,8 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
       try {
         // Publish candidateStageChanged event
         await eventBus.publish(candidateStageChanged(existingTask.candidateId, {
-          previousStageId: advancement.fromStageId,
-          newStageId: advancement.toStageId,
+          previousStageId: advancement.fromStageId ?? null,
+          newStageId: advancement.toStageId ?? null,
           stageName: advancement.toStageName || 'Unknown',
           automated: true // Stage changed automatically due to task completion
         }, {
@@ -564,7 +565,7 @@ router.post("/tasks/bulk-update", requireAuth, requireRole(["system_admin", "hr_
 
     res.json({ updated });
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (isZodError(error)) {
       return res.status(400).json({ message: "Invalid payload", errors: error.issues });
     }
     next(error);

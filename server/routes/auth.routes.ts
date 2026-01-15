@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import passport from "passport";
 import { requireAuth, requireRole } from "../middleware/authorization";
+import { isZodError } from "../middleware/validation";
 import { appRoleEnum } from "@shared/schemas";
 import { generateInviteToken, getInviteBaseUrl, sendInviteEmail } from "../utils/invitation.utils";
 import { logAuthorizationFailure } from "../utils/authorization.utils";
@@ -370,7 +371,7 @@ router.post(
         expiresAt: invitation.expiresAt
       });
     } catch (error) {
-      if (error instanceof z.ZodError) {
+      if (isZodError(error)) {
         return res.status(400).json({
           message: "Invalid data",
           errors: error.flatten()

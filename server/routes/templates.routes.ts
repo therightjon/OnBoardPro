@@ -6,8 +6,8 @@
  * Conventions: Restrict to admin roles, keep ordering/reorder logic clear, and align request/response shapes with OpenAPI.
  */
 import { Router } from "express";
-import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/authorization";
+import { isZodError, handleZodError } from "../middleware/validation";
 import {
   insertTemplateSchema,
   insertTemplateStageSchema
@@ -70,8 +70,8 @@ router.post("/templates", requireAuth, requireRole(["system_admin", "hr_staff"])
 
     res.status(201).json(template);
   } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.issues });
+    if (isZodError(error)) {
+      return handleZodError(res, error);
     }
     // Unique constraint: template name (case-insensitive)
     const pgError = error?.cause ?? error;
@@ -622,8 +622,8 @@ router.patch("/templates/:templateId/template-tasks/reorder", requireAuth, requi
 
     res.json(updatedTask);
   } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.issues });
+    if (isZodError(error)) {
+      return handleZodError(res, error);
     }
     next(error);
   }

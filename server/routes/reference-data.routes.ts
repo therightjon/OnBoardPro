@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { z } from "zod";
 import { getReferenceDataService } from "../services/service-factory";
 import { requireAuth, requireRole } from "../middleware/authorization";
+import { validateBody } from "../middleware/validation";
 import {
   insertHiringStageSchema,
   insertTaskDefinitionSchema
@@ -20,9 +20,9 @@ router.get("/task-definitions", requireAuth, requireRole(["system_admin", "hr_st
   }
 });
 
-router.post("/task-definitions", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+router.post("/task-definitions", requireAuth, requireRole(["system_admin", "hr_staff"]), validateBody(insertTaskDefinitionSchema), async (req, res, next) => {
   try {
-    const validatedData = insertTaskDefinitionSchema.parse(req.body);
+    const validatedData = req.validatedBody as typeof insertTaskDefinitionSchema._type;
     const referenceDataService = getReferenceDataService();
     const taskDef = await referenceDataService.createTaskDefinition({
       name: validatedData.name,
@@ -31,9 +31,6 @@ router.post("/task-definitions", requireAuth, requireRole(["system_admin", "hr_s
     });
     res.status(201).json(taskDef);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.issues });
-    }
     next(error);
   }
 });
@@ -65,9 +62,9 @@ router.get("/hiring-stages", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/hiring-stages", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+router.post("/hiring-stages", requireAuth, requireRole(["system_admin", "hr_staff"]), validateBody(insertHiringStageSchema), async (req, res, next) => {
   try {
-    const validatedData = insertHiringStageSchema.parse(req.body);
+    const validatedData = req.validatedBody as typeof insertHiringStageSchema._type;
     const referenceDataService = getReferenceDataService();
     const stage = await referenceDataService.createHiringStage({
       name: validatedData.name,
@@ -77,9 +74,6 @@ router.post("/hiring-stages", requireAuth, requireRole(["system_admin", "hr_staf
     });
     res.status(201).json(stage);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.issues });
-    }
     next(error);
   }
 });

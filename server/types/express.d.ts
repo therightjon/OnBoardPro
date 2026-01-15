@@ -18,6 +18,11 @@ declare global {
         divisionScopes: string[];
         managedCandidateIds: string[];
       };
+      
+      // Validated data from validation middleware (server/middleware/validation.ts)
+      validatedBody?: unknown;
+      validatedQuery?: unknown;
+      validatedParams?: unknown;
     }
 
     interface User extends SelectUser {
