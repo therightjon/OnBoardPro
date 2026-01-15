@@ -30,7 +30,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Badge } from "@/shared/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { PaginationControls } from "@/shared/components/pagination-controls";
@@ -565,6 +565,9 @@ export function UsersSection() {
                 <DialogContent className="max-h-min max-w-[95vw] w-full sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>Invite Users</DialogTitle>
+                    <DialogDescription className="sr-only">
+                      Send an invitation email to add new users to the system.
+                    </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={inviteForm.handleSubmit(onInviteSubmit)} className="space-y-4" data-testid="form-send-invite">
                     <div className="space-y-2">
@@ -687,6 +690,9 @@ export function UsersSection() {
                 <DialogContent className="max-w-[95vw] w-full sm:max-w-md max-h-[90vh] sm:max-h-min overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>{editingUser ? "Edit User" : "Create New User"}</DialogTitle>
+                    <DialogDescription className="sr-only">
+                      {editingUser ? "Update user details and permissions." : "Create a new user account with role and department assignments."}
+                    </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={userForm.handleSubmit(onUserSubmit)} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -1170,6 +1176,9 @@ export function UsersSection() {
         <DialogContent className="max-w-[95vw] w-full sm:max-w-md max-h-[90vh] sm:max-h-min overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Disable User</DialogTitle>
+            <DialogDescription className="sr-only">
+              Disable this user's account and optionally reassign their tasks.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-orange-50 dark:bg-orange-950 p-4 rounded-lg">

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -368,6 +368,9 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
       <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl lg:max-w-3xl max-h-[90vh] sm:max-h-min overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Candidate</DialogTitle>
+          <DialogDescription className="sr-only">
+            Create a new candidate with contact information, department assignment, and onboarding template.
+          </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>

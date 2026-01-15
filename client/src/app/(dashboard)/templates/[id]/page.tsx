@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/components/ui/form";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
@@ -875,6 +875,9 @@ export default function TemplateDetailPage() {
         <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Stage to Template</DialogTitle>
+            <DialogDescription className="sr-only">
+              Select a hiring stage and configure tasks to add to this template.
+            </DialogDescription>
           </DialogHeader>
           <AddStageForm 
             templateId={templateId!} 
@@ -896,6 +899,9 @@ export default function TemplateDetailPage() {
         <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Task to Template</DialogTitle>
+            <DialogDescription className="sr-only">
+              Select a task definition and configure settings to add to this template.
+            </DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -1293,6 +1299,9 @@ export default function TemplateDetailPage() {
             <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Edit Template Task</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Update the task definition, assignment, priority, and due date settings.
+                </DialogDescription>
               </DialogHeader>
               <Form {...editForm}>
                 <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">

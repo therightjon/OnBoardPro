@@ -24,7 +24,7 @@ import { Label } from "@/shared/components/ui/label";
 import { Badge } from "@/shared/components/ui/badge";
 import { Switch } from "@/shared/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
 
 // Schema
 const hiringStageSchema = insertHiringStageSchema.pick({
@@ -165,6 +165,9 @@ export function HiringStagesSection() {
             <DialogContent className="max-w-md max-h-min">
               <DialogHeader>
                 <DialogTitle>{editingStage ? "Edit Hiring Stage" : "Create Hiring Stage"}</DialogTitle>
+                <DialogDescription className="sr-only">
+                  {editingStage ? "Update hiring stage details." : "Create a new hiring stage for your workflow."}
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                 <div>

@@ -23,7 +23,7 @@ However, a **NEW CRITICAL** issue has emerged from dependency updates (Zod 3.25.
 - **CRITICAL Issues:** 1 (NEW - build breaking) ✅ FIXED
 - **HIGH Issues:** 2 (1 carried over, 1 new pattern) — 1 fixed (N+1 query) ✅ ALL FIXED
 - **MEDIUM Issues:** 8 (2 fixed - weak email validation, weak common password list) ✅ ALL FIXED
-- **LOW Issues:** 6 (1 fixed - icon-only buttons) ✅ 1 FIXED
+- **LOW Issues:** 6 (2 fixed - icon-only buttons, dialog descriptions) ✅ 2 FIXED
 - **INFO Items:** 4
 
 ### Changes Since Last Review
@@ -540,6 +540,55 @@ Added `aria-label` attributes to all icon-only buttons across the codebase to im
 ```
 
 **Verification:** ✅ All 307 tests pass (211 backend + 96 frontend), TypeScript checks pass
+
+---
+
+### 18a. **Missing `DialogDescription` for Radix UI Dialog Accessibility**
+**Files:** Various dialog components
+**Severity:** LOW
+**Category:** Accessibility
+**Status:** ✅ FIXED
+
+**Issue:**
+Radix UI's `DialogContent` component requires a visible `DialogDescription` or `aria-describedby` attribute for screen reader accessibility. Without it, React logs a console warning:
+```
+Warning: Missing 'description' or 'aria-describedby' for {DialogContent}.
+```
+
+**Resolution Applied:**
+Added visually-hidden `DialogDescription` elements to all dialogs missing them, using the established pattern with `className="sr-only"` for screen-reader-only text.
+
+**Files Modified:**
+- [client/src/features/candidates/components/new-candidate-dialog.tsx](client/src/features/candidates/components/new-candidate-dialog.tsx) - Added sr-only DialogDescription for new candidate form
+- [client/src/features/tasks/components/task-status-cell.tsx](client/src/features/tasks/components/task-status-cell.tsx) - Added sr-only DialogDescription for cancel task confirmation
+- [client/src/features/settings/components/DepartmentsSection.tsx](client/src/features/settings/components/DepartmentsSection.tsx) - Added sr-only DialogDescription for create/edit department
+- [client/src/features/settings/components/DivisionsSection.tsx](client/src/features/settings/components/DivisionsSection.tsx) - Added sr-only DialogDescription for create/edit division
+- [client/src/features/settings/components/HiringStagesSection.tsx](client/src/features/settings/components/HiringStagesSection.tsx) - Added sr-only DialogDescription for create/edit stage
+- [client/src/features/settings/components/UsersSection.tsx](client/src/features/settings/components/UsersSection.tsx) - Added sr-only DialogDescription for 3 dialogs (invite users, create/edit user, disable user)
+- [client/src/app/(dashboard)/templates/page.tsx](client/src/app/(dashboard)/templates/page.tsx) - Added sr-only DialogDescription for create template
+- [client/src/app/(dashboard)/tasks/page.tsx](client/src/app/(dashboard)/tasks/page.tsx) - Added sr-only DialogDescription for 2 dialogs (create/edit task definition)
+- [client/src/app/(dashboard)/templates/[id]/page.tsx](client/src/app/(dashboard)/templates/[id]/page.tsx) - Added sr-only DialogDescription for 3 dialogs (add stage, add task, edit task)
+- [client/src/shared/components/ui/command.tsx](client/src/shared/components/ui/command.tsx) - Added sr-only DialogTitle and DialogDescription for CommandDialog
+
+**Pattern Used:**
+```tsx
+// Before
+<DialogContent>
+  <DialogHeader>
+    <DialogTitle>Create New Item</DialogTitle>
+  </DialogHeader>
+
+// After
+<DialogContent>
+  <DialogHeader>
+    <DialogTitle>Create New Item</DialogTitle>
+    <DialogDescription className="sr-only">
+      Fill in the form below to create a new item.
+    </DialogDescription>
+  </DialogHeader>
+```
+
+**Verification:** ✅ All 307 tests pass (211 backend + 96 frontend), TypeScript checks pass, no console warnings
 
 ---
 

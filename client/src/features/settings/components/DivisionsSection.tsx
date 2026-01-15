@@ -24,7 +24,7 @@ import { Label } from "@/shared/components/ui/label";
 import { Badge } from "@/shared/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
 
 // Schema
 const divisionSchema = insertDivisionSchema.pick({ name: true, departmentId: true });
@@ -221,6 +221,9 @@ export function DivisionsSection() {
                 <DialogTitle>
                   {editingDivision ? "Edit Division" : "Create Division"}
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  {editingDivision ? "Update division name and department." : "Create a new division within a department."}
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                 <div>

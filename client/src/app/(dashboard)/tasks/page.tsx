@@ -5,7 +5,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Badge } from "@/shared/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -257,6 +257,9 @@ export default function TasksPage() {
           <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>
+              <DialogDescription className="sr-only">
+                Create a new task definition with name and description.
+              </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -544,6 +547,9 @@ export default function TasksPage() {
           <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Task Definition</DialogTitle>
+              <DialogDescription className="sr-only">
+                Update the task definition name, description, and archive status.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
