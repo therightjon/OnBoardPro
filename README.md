@@ -88,7 +88,8 @@ Env validation lives in `server/config/env.ts`. Required or common keys:
 - Path aliases: `@` → `client/src`, `@shared` → `shared`, `@assets` → `attached_assets`.
 - API docs: Swagger UI served at `/api/docs`; canonical JSON at `/api/docs.json` (single OpenAPI source in `server/docs/openapi-spec.ts`).
 - Background jobs: deadline scanner, email notification sender, notification cleanup (toggle via env flags).
-- Rate limiting: default and “sensitive” limiters applied in routers (see `server/middleware/rate-limiter.ts`).- Password security: Consolidated utilities in `server/utils/passwords.ts` for hashing (bcrypt/scrypt) and constant-time comparison to prevent timing attacks.
+- Rate limiting: default and "sensitive" limiters applied in routers (see `server/middleware/rate-limiter.ts`).
+- Password security: Consolidated utilities in `server/utils/passwords.ts` for hashing (bcrypt/scrypt), constant-time comparison to prevent timing attacks, and a 10,000+ entry common password blocklist sourced from [SecLists](https://github.com/danielmiessler/SecLists).
 ## Testing
 - Backend tests use `tsx --test` (see `server/tests/**`). Requires `NODE_ENV=test` and typically `SKIP_AUTH_SETUP=1` for isolated routes.
 - Frontend tests run with Vitest + happy-dom (`client/tests/setup.ts`).

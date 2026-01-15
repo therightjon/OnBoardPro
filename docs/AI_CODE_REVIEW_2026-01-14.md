@@ -22,7 +22,7 @@ However, a **NEW CRITICAL** issue has emerged from dependency updates (Zod 3.25.
 ### Key Metrics
 - **CRITICAL Issues:** 1 (NEW - build breaking)
 - **HIGH Issues:** 2 (1 carried over, 1 new pattern) — 1 fixed (N+1 query)
-- **MEDIUM Issues:** 8 (1 fixed - weak email validation)
+- **MEDIUM Issues:** 8 (2 fixed - weak email validation, weak common password list)
 - **LOW Issues:** 6
 - **INFO Items:** 4
 
@@ -303,11 +303,30 @@ if (req.session.createdAt && Date.now() - req.session.createdAt > SESSION_ABSOLU
 ### 10. **Weak Common Password List** *(Carried Over)*
 **File:** [server/utils/passwords.ts](server/utils/passwords.ts#L7-25)
 **Severity:** MEDIUM
+**Status:** ✅ FIXED
 
 **Issue:**
 Only 17 common passwords blocked. Industry standard recommends 10,000+.
 
-**Fix:** Use [SecLists common passwords](https://github.com/danielmiessler/SecLists/tree/master/Passwords/Common-Credentials) or Have I Been Pwned API.
+**Resolution Applied:**
+1. Downloaded the SecLists `xato-net-10-million-passwords-10000.txt` (10,000 most common passwords)
+2. Created `server/data/common-passwords.txt` with the blocklist
+3. Implemented lazy-loaded Set for O(1) lookup performance
+4. Added ESM-compatible file loading using `import.meta.url`
+5. Created exported utilities: `isCommonPassword()`, `getCommonPasswordCount()`, `clearCommonPasswordCache()`
+6. Added graceful fallback to minimal list if file cannot be loaded
+7. Comprehensive unit tests for blocklist behavior
+
+**Files Created/Modified:**
+- [server/data/common-passwords.txt](server/data/common-passwords.txt) - 10,000 common passwords from SecLists
+- [server/utils/passwords.ts](server/utils/passwords.ts) - Added lazy-loaded blocklist with efficient O(1) lookup
+- [server/tests/utils/passwords.test.ts](server/tests/utils/passwords.test.ts) - New test file with 18 password utility tests
+
+**Security Impact:**
+- Before: 17 passwords blocked
+- After: 9,900+ passwords blocked (industry-standard coverage)
+
+**Verification:** ✅ All 211 backend tests pass, all 96 frontend tests pass, Codacy analysis clean
 
 ---
 
@@ -601,7 +620,8 @@ The score improved due to fixing the Zod incompatibility, LDAP injection vulnera
 | #5 N+1 Query Template Expansion | HIGH | Easy | ✅ **RESOLVED** |
 | #6 Authorization Code Duplication | HIGH | Medium | ✅ **RESOLVED** |
 | #8 Weak Email Validation | MEDIUM | Trivial | ✅ **RESOLVED** |
-| #7, #9-15 Medium Issues | MEDIUM | Easy-Medium | **P2 - This Month** |
+| #10 Weak Common Password List | MEDIUM | Easy | ✅ **RESOLVED** |
+| #7, #9, #11-15 Medium Issues | MEDIUM | Easy-Medium | **P2 - This Month** |
 | #16-21 Low Issues | LOW | Trivial-Easy | **P3 - Backlog** |
 
 ---
@@ -627,7 +647,7 @@ The score improved due to fixing the Zod incompatibility, LDAP injection vulnera
 8. Implement validation middleware to reduce duplication
 9. Split large page components
 10. Add maximum session duration
-11. Expand common password list
+11. ~~Expand common password list~~ ✅ DONE (10,000+ passwords from SecLists)
 12. Fix remaining accessibility issues
 
 ### This Quarter

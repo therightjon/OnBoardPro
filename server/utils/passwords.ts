@@ -1,29 +1,90 @@
 import { randomBytes, scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import { readFileSync } from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import bcrypt from "bcrypt";
 
 const scryptAsync = promisify(scrypt);
 
-// Minimal banlist to block very common passwords
-const COMMON_PASSWORDS = new Set([
-  "password",
-  "password1",
-  "password123",
-  "123456",
-  "123456789",
-  "qwerty",
-  "abc123",
-  "letmein",
-  "welcome",
-  "admin",
-  "iloveyou",
-  "monkey",
-  "dragon",
-  "football",
-  "baseball",
-  "111111",
-  "123123"
-]);
+// ESM-compatible __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+/**
+ * Lazy-loaded Set of 10,000+ common passwords from SecLists.
+ * Source: https://github.com/danielmiessler/SecLists/blob/master/Passwords/Common-Credentials/xato-net-10-million-passwords-10000.txt
+ *
+ * The password list is loaded once on first access and cached for O(1) lookups.
+ */
+let commonPasswordsCache: Set<string> | null = null;
+
+function loadCommonPasswords(): Set<string> {
+  if (commonPasswordsCache) {
+    return commonPasswordsCache;
+  }
+
+  const passwordFilePath = join(__dirname, "../data/common-passwords.txt");
+  try {
+    const content = readFileSync(passwordFilePath, "utf-8");
+    const passwords = content
+      .split("\n")
+      .map((line) => line.trim().toLowerCase())
+      .filter((line) => line.length > 0);
+    commonPasswordsCache = new Set(passwords);
+    console.log(`Loaded ${commonPasswordsCache.size} common passwords from blocklist`);
+  } catch (error) {
+    // Fallback to minimal list if file cannot be read
+    console.warn(
+      `Warning: Could not load common passwords file at ${passwordFilePath}. Using minimal fallback list.`,
+      error
+    );
+    commonPasswordsCache = new Set([
+      "password",
+      "password1",
+      "password123",
+      "123456",
+      "123456789",
+      "qwerty",
+      "abc123",
+      "letmein",
+      "welcome",
+      "admin",
+      "iloveyou",
+      "monkey",
+      "dragon",
+      "football",
+      "baseball",
+      "111111",
+      "123123",
+    ]);
+  }
+  return commonPasswordsCache;
+}
+
+/**
+ * Check if a password is in the common passwords blocklist.
+ * Uses case-insensitive matching.
+ */
+export function isCommonPassword(password: string): boolean {
+  const commonPasswords = loadCommonPasswords();
+  return commonPasswords.has(password.toLowerCase());
+}
+
+/**
+ * Get the count of passwords in the blocklist.
+ * Useful for testing and diagnostics.
+ */
+export function getCommonPasswordCount(): number {
+  return loadCommonPasswords().size;
+}
+
+/**
+ * Clear the cached password list (primarily for testing).
+ */
+export function clearCommonPasswordCache(): void {
+  commonPasswordsCache = null;
+}
 
 export function validatePasswordPolicy(password: string): string[] {
   const errors: string[] = [];
@@ -33,7 +94,7 @@ export function validatePasswordPolicy(password: string): string[] {
   if (!/[a-z]/.test(password)) errors.push("Password must include a lowercase letter");
   if (!/[0-9]/.test(password)) errors.push("Password must include a number");
   if (!/[^A-Za-z0-9]/.test(password)) errors.push("Password must include a special character");
-  if (COMMON_PASSWORDS.has(password.toLowerCase())) errors.push("Password is too common");
+  if (isCommonPassword(password)) errors.push("Password is too common");
   return errors;
 }
 
