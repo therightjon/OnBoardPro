@@ -24,7 +24,7 @@ import { Label } from "@/shared/components/ui/label";
 import { Badge } from "@/shared/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
 
 // Schemas
 const departmentSchema = insertDepartmentSchema.pick({ name: true });
@@ -172,6 +172,7 @@ function DepartmentTable({
                       variant="ghost"
                       size="sm"
                       onClick={() => onEdit(dept)}
+                      aria-label={`Edit ${dept.name}`}
                       data-testid={`button-edit-department-${dept.id}`}
                     >
                       <Edit className="w-4 h-4" />
@@ -181,6 +182,7 @@ function DepartmentTable({
                         variant="ghost"
                         size="sm"
                         onClick={() => onRestore(dept)}
+                        aria-label={`Restore ${dept.name}`}
                         data-testid={`button-restore-department-${dept.id}`}
                       >
                         <RotateCcw className="w-4 h-4" />
@@ -190,6 +192,7 @@ function DepartmentTable({
                         variant="ghost"
                         size="sm"
                         onClick={() => onArchive(dept)}
+                        aria-label={`Archive ${dept.name}`}
                         data-testid={`button-archive-department-${dept.id}`}
                       >
                         <Archive className="w-4 h-4" />
@@ -388,6 +391,9 @@ export function DepartmentsSection() {
                 <DialogTitle>
                   {editingDepartment ? "Edit Department" : "Create Department"}
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  {editingDepartment ? "Update department name." : "Create a new department for your organization."}
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                 <div>

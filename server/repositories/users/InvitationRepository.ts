@@ -236,4 +236,18 @@ export class InvitationRepository extends BaseRepository {
 
     return rows as InvitationWithOrganization[];
   }
+
+  /**
+   * Delete an invitation
+   * Used to cancel a pending invitation
+   * @param id - Invitation ID
+   * @returns Deleted invitation or null if not found
+   */
+  async deleteInvitation(id: string): Promise<Invitation | null> {
+    const [deleted] = await this.db
+      .delete(invitations)
+      .where(eq(invitations.id, id))
+      .returning();
+    return deleted ?? null;
+  }
 }

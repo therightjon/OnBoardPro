@@ -6,7 +6,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Badge } from "@/shared/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/shared/components/ui/alert-dialog";
 import { Label } from "@/shared/components/ui/label";
 import { Switch } from "@/shared/components/ui/switch";
@@ -31,11 +31,31 @@ const PAGE_SIZE = 5;
 
 type TemplateSortKey = "name" | "candidateType" | "status" | "createdAt" | "updatedAt";
 
+function normalizeErrorMessage(error: unknown): string {
+  const fallback = "Something went wrong";
+  if (!error) return fallback;
+  if (typeof error === "string") return error;
+
+  const asAny = error as any;
+
+  // Try to get message from error.message (already parsed by throwIfResNotOk)
+  if (typeof asAny.message === "string" && asAny.message.trim()) {
+    return asAny.message;
+  }
+
+  // Fallback: try to extract from body if parsing failed
+  if (asAny.parsedBody?.message) {
+    return asAny.parsedBody.message;
+  }
+
+  return fallback;
+}
+
 const templateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   candidateTypeId: z.string().min(1, "Candidate type is required"),
   description: z.string().optional(),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean(),
   cloneFromTemplateId: z.string().optional(),
 });
 
@@ -100,7 +120,7 @@ export default function TemplatesPage() {
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: normalizeErrorMessage(error),
         variant: "destructive",
       });
     },
@@ -228,6 +248,9 @@ export default function TemplatesPage() {
             <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl max-h-[90vh] sm:max-h-min overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Template</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Create a new onboarding template with candidate type, stages, and tasks.
+                </DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -438,12 +461,12 @@ export default function TemplatesPage() {
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <Link href={`/templates/${template.id}`}>
-                          <Button variant="ghost" size="sm" data-testid={`button-view-template-${template.id}`}>
+                          <Button variant="ghost" size="sm" aria-label={`View ${template.name}`} data-testid={`button-view-template-${template.id}`}>
                             <Eye className="w-4 h-4" />
                           </Button>
                         </Link>
                         <Link href={`/templates/${template.id}`}>
-                          <Button variant="ghost" size="sm" data-testid={`button-edit-template-${template.id}`}>
+                          <Button variant="ghost" size="sm" aria-label={`Edit ${template.name}`} data-testid={`button-edit-template-${template.id}`}>
                             <Edit className="w-4 h-4" />
                           </Button>
                         </Link>
@@ -453,6 +476,7 @@ export default function TemplatesPage() {
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
+                                aria-label={`Delete ${template.name}`}
                                 data-testid={`button-delete-template-${template.id}`}
                                 className="text-destructive hover:text-destructive"
                               >

@@ -36,10 +36,15 @@ export const parseAsLocalDate = (dateStr: string | Date | null | undefined): Dat
 
 /**
  * Format a Date object to YYYY-MM-DD string for API submission
+ * Uses local components since react-day-picker v8 creates dates at local midnight
  */
 export const formatDateForApi = (date: Date | null | undefined): string | null => {
   if (!date) return null;
-  return format(date, "yyyy-MM-dd");
+  // Use local components to get the calendar date that was selected
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 interface DatePickerProps {

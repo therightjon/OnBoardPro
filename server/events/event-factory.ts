@@ -11,11 +11,16 @@ import type {
   CandidateCreatedEvent,
   CandidateStatusChangedEvent,
   CandidateStageChangedEvent,
+  CandidateArchivedEvent,
+  CandidateRestoredEvent,
+  CandidateFollowedEvent,
+  CandidateUnfollowedEvent,
   TemplateAppliedEvent,
   TaskCreatedEvent,
   TaskAssignedEvent,
   TaskStatusChangedEvent,
   TaskCompletedEvent,
+  TaskDeletedEvent,
   CommentCreatedEvent,
   TemplateCreatedEvent,
   TemplateUpdatedEvent,
@@ -165,8 +170,8 @@ export function candidateArchived(
     reason?: string;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): CandidateArchivedEvent {
+  return createBaseEvent<CandidateArchivedEvent>(
     "candidate.archived",
     candidateId,
     "candidate",
@@ -324,8 +329,8 @@ export function taskDeleted(
     reason?: string;
   },
   context?: EventContext
-) {
-  return createBaseEvent(
+): TaskDeletedEvent {
+  return createBaseEvent<TaskDeletedEvent>(
     "task.deleted",
     taskId,
     "candidate_task",
@@ -374,8 +379,8 @@ export function candidateFollowed(
   candidateId: string,
   userId: string,
   context?: EventContext
-) {
-  return createBaseEvent(
+): CandidateFollowedEvent {
+  return createBaseEvent<CandidateFollowedEvent>(
     "candidate.followed",
     candidateId,
     "candidate",
@@ -391,8 +396,8 @@ export function candidateUnfollowed(
   candidateId: string,
   userId: string,
   context?: EventContext
-) {
-  return createBaseEvent(
+): CandidateUnfollowedEvent {
+  return createBaseEvent<CandidateUnfollowedEvent>(
     "candidate.unfollowed",
     candidateId,
     "candidate",

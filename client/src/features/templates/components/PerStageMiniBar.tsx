@@ -3,6 +3,11 @@ import * as React from 'react';
 
 type Stage = { stageId: string; stageName: string; latestOffsetDays: number; latestDate?: string; phase?: string | null };
 
+// Phase ordering: pre_hire comes before onboarding
+const phaseOrder: Record<string, number> = { pre_hire: 0, onboarding: 1 };
+const getPhaseOrder = (phase: string | null | undefined): number => 
+  phaseOrder[phase ?? ''] ?? 99;
+
 export function PerStageMiniBar({ stages }: { stages: Stage[] }) {
   if (!stages?.length) {
     return <p className="text-sm text-muted-foreground">No stage timing available.</p>;
@@ -14,7 +19,12 @@ export function PerStageMiniBar({ stages }: { stages: Stage[] }) {
     <div className="space-y-2" role="list" aria-label="Stage duration overview">
       {stages
         .slice()
-        .sort((a, b) => a.latestOffsetDays - b.latestOffsetDays)
+        .sort((a, b) => {
+          // Sort by phase first (pre_hire before onboarding), then by latestOffsetDays
+          const phaseCompare = getPhaseOrder(a.phase) - getPhaseOrder(b.phase);
+          if (phaseCompare !== 0) return phaseCompare;
+          return a.latestOffsetDays - b.latestOffsetDays;
+        })
         .map((s) => {
           const pct = Math.max(0, Math.min(100, Math.round((s.latestOffsetDays / max) * 100)));
           return (

@@ -16,10 +16,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
-import { ArrowLeft, Edit, Calendar, User, Mail, Building, Clock, Users, CheckCircle, MoreHorizontal, Archive, RotateCcw, ChevronDown } from "lucide-react";
+import { ArrowLeft, Edit, Calendar, User, Mail, Building, Clock, Users, CheckCircle, MoreHorizontal, Archive, RotateCcw } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { format } from "date-fns";
 import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
@@ -30,8 +29,15 @@ import { CommentsTab } from "@/features/comments/components/comments-tab";
 // Lazy load heavy dialogs to reduce initial bundle size
 const EditCandidateDialog = lazy(() => import("@/features/candidates/components/edit-candidate-dialog").then(m => ({ default: m.EditCandidateDialog })));
 const ArchiveCandidateDialog = lazy(() => import("@/features/candidates/components/archive-candidate-dialog").then(m => ({ default: m.ArchiveCandidateDialog })));
-import { candidateStatusBadgeClass, isCandidateFullyOnboarded, resolveCandidateStatus, summarizeCandidateTasks, type ResolvedCandidateStatus } from "@/features/candidates/utils/status";
-import { HiringProgress } from "@/features/candidates/components/hiring-progress";
+import { 
+  EditableStatusBadge, 
+  CandidatePipelineEstimate,
+  HiringProgress,
+  isCandidateFullyOnboarded, 
+  resolveCandidateStatus, 
+  summarizeCandidateTasks, 
+  canArchiveCandidate
+} from "@/features/candidates";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
@@ -268,6 +274,13 @@ export default function CandidateDetailPage() {
     [candidateTasks, orderMap]
   );
 
+  // Calculate incomplete prerequisite tasks count
+  const incompletePrerequisiteTaskCount = useMemo(() => {
+    return tasksWithOrder.filter((t: any) =>
+      t.isPrerequisiteTask && t.status !== 'done' && !t.archived
+    ).length;
+  }, [tasksWithOrder]);
+
   const assigneeLookup = useMemo(() => {
     const map = new Map<string, { id: string; firstName: string; lastName: string }>();
     (assignableUsers as any[]).forEach((u: any) => {
@@ -416,8 +429,13 @@ export default function CandidateDetailPage() {
   }, [tasksWithOrder, candidateStages]);
 
   // Compute onboarding completion: all tasks are either done or canceled
+  // Exclude prerequisite tasks from completion calculation as they are pre-LOO requirements
   const allTasksFlat = useMemo(() => (Object.values(tasksByStage).flat() as any[]), [tasksByStage]);
-  const taskSummary = summarizeCandidateTasks(allTasksFlat);
+  const onboardingTasks = useMemo(() =>
+    allTasksFlat.filter((t: any) => !t.isPrerequisiteTask),
+    [allTasksFlat]
+  );
+  const taskSummary = summarizeCandidateTasks(onboardingTasks);
   const hasAnyTasks = allTasksFlat.length > 0;
 
   // Automatically set status to completed when onboarding is complete (excluding canceled/archived/offer_declined)
@@ -459,7 +477,8 @@ export default function CandidateDetailPage() {
   const candidateStatusKey = resolvedStatus.status === 'unknown'
     ? ((candidate as any)?.status || 'draft')
     : resolvedStatus.status;
-  const fullyOnboarded = isCandidateFullyOnboarded(candidate as any, allTasksFlat);
+  // Only consider non-prerequisite tasks for full onboarding status
+  const fullyOnboarded = isCandidateFullyOnboarded(candidate as any, onboardingTasks);
   const taskStatusDisabled = fullyOnboarded ||
     !['draft', 'active', 'on_hold'].includes(candidateStatusKey);
   const assigneeSelectLocked = taskStatusDisabled || !!assigneeError;
@@ -680,223 +699,6 @@ export default function CandidateDetailPage() {
     );
   }
 
-  const EditableStatusBadge = ({ candidate, user, tasks, onStatusChange, resolvedStatus, onRequestRestore }: { 
-    candidate: any; 
-    user: any; 
-    tasks: any[];
-    onStatusChange: () => void;
-    resolvedStatus: ResolvedCandidateStatus;
-    onRequestRestore: () => void;
-  }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-    const [pendingStatus, setPendingStatus] = useState<string>('');
-    const { toast } = useToast();
-
-    const updateStatusMutation = useMutation({
-      mutationFn: async ({ status, closeOpenTasks }: { status: string; closeOpenTasks?: boolean }) => {
-        const response = await apiRequest('PATCH', `/api/candidates/${candidate.id}/status`, { status, closeOpenTasks });
-        return response.json();
-      },
-      onSuccess: (data) => {
-        // Invalidate relevant caches
-        queryClient.invalidateQueries({ queryKey: ['candidate', candidate.id] });
-        queryClient.invalidateQueries({ queryKey: ['/api/candidates'] });
-        queryClient.invalidateQueries({ queryKey: ['candidateTasks', candidate.id] });
-        invalidateMyTasks(queryClient);
-
-        // Show cascade results if tasks were closed
-        if (data.cascaded?.closedTasks > 0) {
-          toast({
-            title: "Status updated with task closure",
-            description: `Candidate status updated successfully. Closed ${data.cascaded.closedTasks} task(s).`,
-          });
-        } else {
-          toast({
-            title: "Status updated",
-            description: "Candidate status has been updated successfully.",
-          });
-        }
-        
-        onStatusChange();
-        setIsOpen(false);
-        setShowConfirmDialog(false);
-      },
-      onError: (error: any) => {
-        setShowConfirmDialog(false);
-        toast({
-          title: "Unable to update status",
-          description: error.message || "Please try again or contact support if the issue persists.",
-        });
-      }
-    });
-
-    const getValidTransitions = (currentStatus: string) => {
-      const transitions: Record<string, { value: string; label: string; destructive?: boolean }[]> = {
-        'draft': [
-          { value: 'active', label: 'Active' },
-          { value: 'on_hold', label: 'On Hold' },
-          { value: 'canceled', label: 'Canceled', destructive: true },
-          { value: 'archived', label: 'Archived', destructive: true }
-        ],
-        'active': [
-          { value: 'on_hold', label: 'On Hold' },
-          { value: 'completed', label: 'Completed' },
-          { value: 'canceled', label: 'Canceled', destructive: true },
-          { value: 'archived', label: 'Archived', destructive: true }
-        ],
-        'on_hold': [
-          { value: 'active', label: 'Active' },
-          { value: 'canceled', label: 'Canceled', destructive: true },
-          { value: 'archived', label: 'Archived', destructive: true }
-        ],
-        'completed': [
-          { value: 'archived', label: 'Archived', destructive: true }
-        ],
-        'canceled': [
-          { value: 'archived', label: 'Archived', destructive: true },
-          { value: 'active', label: 'Restore to Active' }
-        ],
-        'offer_declined': [
-          { value: 'archived', label: 'Archived', destructive: true },
-          { value: 'active', label: 'Restore to Active' }
-        ],
-        'archived': [
-          { value: 'active', label: 'Restore to Active' }
-        ]
-      };
-      return transitions[currentStatus] || [];
-    };
-
-    const handleStatusSelect = (newStatus: string) => {
-      if (candidate.archived && newStatus === 'active' && onRequestRestore) {
-        setIsOpen(false);
-        onRequestRestore();
-        return;
-      }
-
-      const transitions = getValidTransitions(candidate.status);
-      const transition = transitions.find(t => t.value === newStatus);
-      
-      setPendingStatus(newStatus);
-      
-      if (transition?.destructive) {
-        setShowConfirmDialog(true);
-      } else {
-        // Direct update for non-destructive transitions
-        updateStatusMutation.mutate({ status: newStatus });
-      }
-    };
-
-    const handleConfirmStatusChange = (closeOpenTasks = false) => {
-      updateStatusMutation.mutate({ 
-        status: pendingStatus, 
-        closeOpenTasks 
-      });
-    };
-
-    // Only show editable for authorized roles and when not already fully onboarded
-    const canEdit = (user?.role === 'system_admin' || user?.role === 'hr_staff') 
-      && candidate?.status !== 'completed'
-      && !fullyOnboarded;
-    
-    if (!canEdit) {
-      return (
-        <Badge className={candidateStatusBadgeClass(resolvedStatus.status)} data-testid="badge-candidate-status">
-          {resolvedStatus.label.toUpperCase()}
-        </Badge>
-      );
-    }
-
-    const validTransitions = getValidTransitions(candidate.status);
-    
-    // Check if there are incomplete required tasks
-    const hasIncompleteRequiredTasks = tasks.some(
-      task => task.required && task.status !== 'done'
-    );
-    
-    return (
-      <>
-        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-          <DropdownMenuTrigger asChild>
-            <button 
-              className={`${candidateStatusBadgeClass(resolvedStatus.status)} inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity`}
-              data-testid="button-status-dropdown"
-              disabled={updateStatusMutation.isPending}
-            >
-              {resolvedStatus.label.toUpperCase()}
-              <ChevronDown className="w-3 h-3 ml-1" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" data-testid="dropdown-status-options">
-            {validTransitions.map((transition) => {
-              const isCompleted = transition.value === 'completed';
-              const isDisabled = isCompleted && hasIncompleteRequiredTasks;
-              
-              if (isDisabled) {
-                return (
-                  <div
-                    key={transition.value}
-                    className="px-2 py-1.5 text-sm text-muted-foreground cursor-not-allowed"
-                    data-testid={`option-status-${transition.value}-disabled`}
-                  >
-                    <div>{transition.label}</div>
-                    <div className="text-xs mt-1">Complete all required tasks first</div>
-                  </div>
-                );
-              }
-              
-              return (
-                <DropdownMenuItem
-                  key={transition.value}
-                  onClick={() => handleStatusSelect(transition.value)}
-                  className={transition.destructive ? "text-destructive focus:text-destructive" : ""}
-                  data-testid={`option-status-${transition.value}`}
-                >
-                  {transition.label}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Confirmation Dialog for Destructive Actions */}
-        <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-          <AlertDialogContent data-testid="dialog-confirm-status">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to change the candidate status to "{pendingStatus.replace('_', ' ')}"?
-                {pendingStatus === 'canceled' && " You can optionally close all open tasks."}
-                {pendingStatus === 'archived' && " This will archive the candidate and all their data."}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel data-testid="button-cancel-status">Cancel</AlertDialogCancel>
-              {pendingStatus === 'canceled' && (
-                <AlertDialogAction
-                  onClick={() => handleConfirmStatusChange(true)}
-                  className="bg-orange-600 hover:bg-orange-700"
-                  data-testid="button-confirm-status-close-tasks"
-                >
-                  Cancel & Close Tasks
-                </AlertDialogAction>
-              )}
-              <AlertDialogAction
-                onClick={() => handleConfirmStatusChange(false)}
-                className={pendingStatus === 'archived' ? "bg-destructive hover:bg-destructive/90" : ""}
-                data-testid="button-confirm-status"
-              >
-                {pendingStatus === 'canceled' ? 'Cancel Only' : 'Confirm'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-      </>
-    );
-  };
-
   return (
     <div className="space-y-3 xs:space-y-4 sm:space-y-6 max-w-none xs:max-w-[350px] sm:max-w-4xl lg:max-w-6xl mx-auto">
       {/* Header */}
@@ -921,6 +723,7 @@ export default function CandidateDetailPage() {
             }}
             resolvedStatus={resolvedStatus}
             onRequestRestore={() => setIsArchiveDialogOpen(true)}
+            fullyOnboarded={fullyOnboarded}
           />
           {resolvedStatus.isArchived && (
             <Badge variant="destructive" data-testid="badge-archived">
@@ -944,13 +747,13 @@ export default function CandidateDetailPage() {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="min-h-[44px] min-w-[44px]" data-testid="button-more-actions">
+                  <Button variant="outline" size="icon" className="min-h-[44px] min-w-[44px]" aria-label="More actions" data-testid="button-more-actions">
                     <MoreHorizontal className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {(candidate as any).archived ? (
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => setIsArchiveDialogOpen(true)}
                       data-testid="menu-restore-candidate"
                     >
@@ -958,9 +761,10 @@ export default function CandidateDetailPage() {
                       Restore Candidate
                     </DropdownMenuItem>
                   ) : (
-                    <DropdownMenuItem 
-                      onClick={() => setIsArchiveDialogOpen(true)}
-                      className="text-destructive focus:text-destructive"
+                    <DropdownMenuItem
+                      onClick={() => canArchiveCandidate(candidate) && setIsArchiveDialogOpen(true)}
+                      className={canArchiveCandidate(candidate) ? "text-destructive focus:text-destructive" : "opacity-50 cursor-not-allowed"}
+                      disabled={!canArchiveCandidate(candidate)}
                       data-testid="menu-archive-candidate"
                     >
                       <Archive className="w-4 h-4 mr-2" />
@@ -1173,9 +977,10 @@ export default function CandidateDetailPage() {
 
               {/* Pipeline Duration Estimate */}
               {(candidate as any).templateAppliedFromId && (
-                <CandidatePipelineEstimate 
+                <CandidatePipelineEstimate
                   candidateId={(candidate as any).id}
                   status={(candidate as any).status}
+                  templateAppliedAt={(candidate as any).templateAppliedAt}
                 />
               )}
             </div>
@@ -1231,6 +1036,7 @@ export default function CandidateDetailPage() {
         }}
         currentStagePhase={candidatePhase === "onboarding" ? "onboarding" : "pre_hire"}
         isFullyOnboarded={fullyOnboarded}
+        incompletePrerequisiteTaskCount={incompletePrerequisiteTaskCount}
       />
 
       {/* Tasks and Timeline Tabs */}
@@ -1493,31 +1299,121 @@ export default function CandidateDetailPage() {
                       </div>
                       )}
                       {sortedHistory.map((entry: any, index: number) => {
-                        const regressed = (entry?.fromStage?.orderIndex ?? 0) > (entry?.stage?.orderIndex ?? 0);
+                        const isTaskEvent = entry.type === 'prerequisite_task_update';
+                        const isLooEvent = entry.type === 'loo_sent' || entry.type === 'loo_accepted' || entry.type === 'loo_declined';
+                        const regressed = !isTaskEvent && !isLooEvent && (entry?.fromStage?.orderIndex ?? 0) > (entry?.stage?.orderIndex ?? 0);
+
+                        // Helper to format status display
+                        const formatStatus = (status: string) => {
+                          const statusMap: Record<string, string> = {
+                            'todo': 'To Do',
+                            'in_progress': 'In Progress',
+                            'blocked': 'Blocked',
+                            'done': 'Done',
+                            'canceled': 'Canceled'
+                          };
+                          return statusMap[status] || status;
+                        };
+
+                        // LOO event configuration
+                        const looEventConfig: Record<string, { label: string; color: string; dotColor: string; description: string }> = {
+                          'loo_sent': {
+                            label: 'Letter of Offer Sent',
+                            color: 'text-blue-700 dark:text-blue-400',
+                            dotColor: 'bg-blue-500',
+                            description: 'Letter of Offer was sent to the candidate'
+                          },
+                          'loo_accepted': {
+                            label: 'Letter of Offer Accepted',
+                            color: 'text-green-700 dark:text-green-400',
+                            dotColor: 'bg-green-500',
+                            description: 'Candidate accepted the Letter of Offer'
+                          },
+                          'loo_declined': {
+                            label: 'Letter of Offer Declined',
+                            color: 'text-red-700 dark:text-red-400',
+                            dotColor: 'bg-red-500',
+                            description: 'Candidate declined the Letter of Offer'
+                          }
+                        };
+
+                        const looConfig = isLooEvent && entry.type ? looEventConfig[entry.type] : null;
+
                         return (
                       <div key={entry.id} className="flex items-start space-x-4">
                         <div className="flex flex-col items-center">
-                        <div className="w-3 h-3 bg-primary rounded-full"></div>
+                        <div className={`w-3 h-3 rounded-full ${
+                          isLooEvent && looConfig ? looConfig.dotColor :
+                          isTaskEvent ? 'bg-amber-500' :
+                          'bg-primary'
+                        }`}></div>
                         {index < sortedHistory.length - 1 && (
                           <div className="w-px h-8 bg-border mt-2"></div>
                         )}
                         </div>
                         <div className="flex-1 pb-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">{entry.stage?.name || 'Unknown Stage'}</h4>
-                          <Badge variant="outline">
-                          {entry.changedAt ? format(new Date(entry.changedAt), "MMM d, yyyy") : 'Unknown Date'}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Changed by: {entry.changedBy ? `${entry.changedBy.firstName} ${entry.changedBy.lastName}` : 'Unknown User'}
-                        </p>
-                        {regressed && (
-                          <p className="text-xs text-muted-foreground mt-1">Stage regressed due to a task reopening in a prior stage</p>
+                        {isLooEvent && looConfig ? (
+                          // LOO event
+                          <>
+                          <div className="flex items-center justify-between">
+                            <h4 className={`font-medium ${looConfig.color}`}>
+                              {looConfig.label}
+                            </h4>
+                            <Badge variant="outline">
+                            {formatUtcDate(entry.changedAt)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {looConfig.description}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-0.5">
+                            {entry.changedBy ? `${entry.changedBy.firstName} ${entry.changedBy.lastName}` : 'System'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {entry.changedAt ? format(new Date(entry.changedAt), "h:mm a") : ''}
+                          </p>
+                          </>
+                        ) : isTaskEvent ? (
+                          // Prerequisite task update event
+                          <>
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-amber-700 dark:text-amber-400">
+                              {entry.taskTitle}
+                            </h4>
+                            <Badge variant="outline">
+                            {formatUtcDate(entry.changedAt)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Status changed: {entry.statusChange?.before ? formatStatus(entry.statusChange.before) : 'Unknown'} → {entry.statusChange?.after ? formatStatus(entry.statusChange.after) : 'Unknown'}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-0.5">
+                            Changed by: {entry.changedBy ? `${entry.changedBy.firstName} ${entry.changedBy.lastName}` : 'Unknown User'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {entry.changedAt ? format(new Date(entry.changedAt), "h:mm a") : ''}
+                          </p>
+                          </>
+                        ) : (
+                          // Stage transition event
+                          <>
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium">{entry.stage?.name || 'Unknown Stage'}</h4>
+                            <Badge variant="outline">
+                            {formatUtcDate(entry.changedAt)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Changed by: {entry.changedBy ? `${entry.changedBy.firstName} ${entry.changedBy.lastName}` : 'Unknown User'}
+                          </p>
+                          {regressed && (
+                            <p className="text-xs text-muted-foreground mt-1">Stage regressed due to a task reopening in a prior stage</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {entry.changedAt ? format(new Date(entry.changedAt), "h:mm a") : ''}
+                          </p>
+                          </>
                         )}
-                        <p className="text-xs text-muted-foreground">
-                          {entry.changedAt ? format(new Date(entry.changedAt), "h:mm a") : ''}
-                        </p>
                         </div>
                       </div>
                         );
@@ -1647,110 +1543,6 @@ export default function CandidateDetailPage() {
           candidateId={(candidate as any).id}
           onClose={() => setOpenTaskComments(null)}
         />
-      )}
-    </div>
-  );
-}
-
-// Candidate Pipeline Duration Estimate Component
-function CandidatePipelineEstimate({ candidateId, status }: { candidateId: string; status?: string }) {
-  const { data: estimate, isLoading, error } = useQuery({
-    queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        businessDays: 'true'
-      });
-      const response = await apiRequest('GET', `/api/candidates/${candidateId}/estimate?${params}`);
-      return response.json();
-    },
-    enabled: !!candidateId
-  });
-
-  const formatDate = (dateStr?: string | null) => formatUtcDate(dateStr);
-
-  if (isLoading) {
-    return (
-      <div className="mt-4 p-3 bg-muted/20 rounded-lg">
-        <div className="text-sm text-muted-foreground">
-          Calculating pipeline estimate...
-        </div>
-      </div>
-    );
-  }
-
-  if (error || estimate?.error) {
-    return (
-      <div className="mt-4 p-3 bg-muted/20 rounded-lg">
-        <div className="text-sm text-muted-foreground">
-          Pipeline estimate unavailable
-        </div>
-      </div>
-    );
-  }
-
-  // If candidate is canceled, show a canceled message instead of completion
-  if (status === 'canceled') {
-    return (
-      <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800">
-        <div className="text-sm font-medium text-orange-800 dark:text-orange-200">
-          Candidate canceled — task estimates are not applicable.
-        </div>
-      </div>
-    );
-  }
-
-  if (!estimate || estimate.remainingTasks === 0) {
-    return (
-      <div className="mt-4 p-3 bg-green-50 dark:bg-emerald-950 rounded-lg border border-green-200 dark:border-emerald-700">
-        <div className="text-sm font-medium text-green-800 dark:text-emerald-300">
-          🎉 All tasks completed!
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-4 p-0 bg-muted/20 rounded-lg">
-      <h4 className="text-sm font-medium text-foreground mb-3 ml-7">Pipeline Duration Estimate</h4>
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="flex items-start space-x-3">
-          <CheckCircle className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-          <div>
-            <div className="text-xs text-muted-foreground mb-1">Remaining Tasks</div>
-            <div className="font-medium" data-testid="text-remaining-tasks">
-              {estimate.remainingTasks} of {estimate.taskCount}
-            </div>
-          </div>
-        </div>
-        {estimate.totalBusinessDays !== null && (
-          <div className="flex items-start space-x-3">
-            <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Business Days</div>
-              <div className="font-medium" data-testid="text-business-days">
-                {estimate.totalBusinessDays}
-              </div>
-            </div>
-          </div>
-        )}
-        {estimate.lastDueDate && (
-          <div className="col-span-2 flex items-start space-x-3">
-            <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Est. Completion</div>
-              <div className="font-medium" data-testid="text-completion-date">
-                {formatDate(estimate.lastDueDate)}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      {estimate.nonEstimable && estimate.nonEstimable.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-border">
-          <div className="text-xs text-amber-700 dark:text-amber-400">
-            {estimate.nonEstimable.length} task(s) without due dates not included
-          </div>
-        </div>
       )}
     </div>
   );

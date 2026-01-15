@@ -11,9 +11,9 @@
 import type { User, InsertUser, UserRole, UserIdentity, InsertUserIdentity } from "@shared/schemas";
 import type { UserRepository } from "../../repositories/users/UserRepository";
 import type { UserIdentityRepository } from "../../repositories/users/UserIdentityRepository";
-import type { AuthorizationContext } from "../authorization/policy-types";
 import { eventBus, userCreated, userRoleChanged } from "../../events";
 import { writeAuditLog } from "../shared/audit-logger";
+import { assertPasswordPolicy, hashPassword } from "../../utils/passwords";
 
 export class UserValidationError extends Error {
   constructor(message: string) {
@@ -23,14 +23,14 @@ export class UserValidationError extends Error {
 }
 
 export interface CreateUserInput {
-  data: InsertUser & { passwordHash?: string; roles?: UserRole[] };
+  data: InsertUser & { passwordHash?: string | null; roles?: UserRole[] };
   actorId?: string;
   requestId?: string;
 }
 
 export interface UpdateUserInput {
   id: string;
-  data: Partial<User> & { passwordHash?: string };
+  data: Partial<User> & { passwordHash?: string | null };
   actorId?: string;
   requestId?: string;
 }
@@ -68,19 +68,6 @@ export class UserService {
   ) {}
 
   /**
-   * Hash password using scrypt
-   */
-  private async hashPassword(password: string): Promise<string> {
-    const { scrypt, randomBytes } = await import('crypto');
-    const { promisify } = await import('util');
-    const scryptAsync = promisify(scrypt);
-
-    const salt = randomBytes(16).toString("hex");
-    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-    return `${buf.toString("hex")}.${salt}`;
-  }
-
-  /**
    * Create a new user
    * Business rules:
    * - Email must be unique
@@ -92,7 +79,7 @@ export class UserService {
     const { data, actorId } = input;
 
     // Business Rule: Check for duplicate email
-    const existingUser = await this.userRepo.getUserByEmail(data.email);
+    const existingUser = await this.userRepo.getUserByEmail(data.email as string);
     if (existingUser) {
       throw new UserValidationError("Email already exists");
     }
@@ -100,7 +87,12 @@ export class UserService {
     // Hash password if provided
     const userData = { ...data };
     if (userData.passwordHash) {
-      userData.passwordHash = await this.hashPassword(userData.passwordHash);
+      try {
+        assertPasswordPolicy(userData.passwordHash);
+      } catch (error: any) {
+        throw new UserValidationError(error?.message || "Password does not meet policy");
+      }
+      userData.passwordHash = await hashPassword(userData.passwordHash);
     }
 
     // Extract roles before creating user
@@ -111,8 +103,9 @@ export class UserService {
     const user = await this.userRepo.createUser(userData as InsertUser);
 
     // Set roles if provided
+    let roleNames: string[] | undefined;
     if (roles && Array.isArray(roles)) {
-      const roleNames = roles.map((r: any) => typeof r === "string" ? r : r.role).filter(Boolean) as string[];
+      roleNames = roles.map((r: any) => typeof r === "string" ? r : r.role).filter(Boolean) as string[];
       await this.userRepo.setUserRoles(user.id, roleNames);
     }
 
@@ -148,7 +141,12 @@ export class UserService {
     // Hash password if being updated
     const updateData = { ...data };
     if (updateData.passwordHash) {
-      updateData.passwordHash = await this.hashPassword(updateData.passwordHash);
+      try {
+        assertPasswordPolicy(updateData.passwordHash);
+      } catch (error: any) {
+        throw new UserValidationError(error?.message || "Password does not meet policy");
+      }
+      updateData.passwordHash = await hashPassword(updateData.passwordHash);
     }
 
     const user = await this.userRepo.updateUser(id, updateData);
@@ -228,7 +226,7 @@ export class UserService {
     const result = {
       success: repoResult.success,
       tasksReassigned: repoResult.tasksReassigned ?? 0,
-      taskCount: (repoResult as any).taskCount ?? 0
+      taskCount: typeof taskCount === 'number' ? taskCount : 0
     };
 
     await writeAuditLog({

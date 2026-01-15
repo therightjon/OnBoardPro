@@ -31,7 +31,8 @@ import {
   SystemPreferencesSection,
   UsersSection,
   AuthenticationSettingsSection,
-  SmtpSettingsCard
+  SmtpSettingsCard,
+  SecuritySettingsSection
 } from "@/features/settings";
 
 // ============================================================================
@@ -101,6 +102,7 @@ function SystemTab() {
   return (
     <div className="space-y-6">
       <SmtpSettingsCard />
+      <SecuritySettingsSection />
       <SystemPreferencesSection />
     </div>
   );

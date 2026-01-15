@@ -83,6 +83,7 @@ function SortableRow({ id, stageId, name, phase, index, isPending, onRemove }: {
         size="sm"
         onClick={() => onRemove(id)}
         disabled={isPending}
+        aria-label={`Remove ${name}`}
         data-testid={`button-remove-stage-${id}`}
       >
         <Archive className="w-4 h-4" />
@@ -197,6 +198,7 @@ export function TemplateStagesList({ templateId, stages }: TemplateStagesListPro
               size="sm"
               onClick={() => handleRemoveStage(stage.templateStageId)}
               disabled={removeMutation.isPending}
+              aria-label={`Remove ${stage.stageName}`}
               data-testid={`button-remove-stage-${stage.templateStageId}`}
             >
               <Archive className="w-4 h-4" />

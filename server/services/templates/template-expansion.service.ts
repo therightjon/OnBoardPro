@@ -15,11 +15,10 @@
  * in the Storage class expandTemplate method.
  */
 
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   candidateTasks,
   candidateStageHistory,
-  taskPriorities,
   type InsertCandidateTask,
   type TemplateStage,
 } from "@shared/schemas";
@@ -27,7 +26,10 @@ import type { db as DbType } from "../../db/connection";
 import type { Pool } from "pg";
 import {
   type AnchorDates,
+  resolveLoiAnchor,
   resolveLooAnchor,
+  resolveLooIssuedAnchor,
+  resolveLooAcceptedAnchor,
   resolveStartAnchor,
   computeDueFromRule,
 } from "../../utils/date.utils";
@@ -35,6 +37,10 @@ import type {
   TemplateExpansionResult,
   TemplateExpansionTask,
 } from "../../repositories/base/types";
+import {
+  PrerequisiteConditionsService,
+  type CandidateWithRank,
+} from "./prerequisite-conditions.service";
 
 // Repository imports
 import { TemplateRepository } from "../../repositories/templates/TemplateRepository";
@@ -61,6 +67,7 @@ export class TemplateExpansionService {
   private readonly candidateTaskRepo: CandidateTaskRepository;
   private readonly taskDefinitionRepo: TaskDefinitionRepository;
   private readonly referenceDataRepo: ReferenceDataRepository;
+  private readonly prerequisiteConditionsService: PrerequisiteConditionsService;
 
   /**
    * Creates a new TemplateExpansionService
@@ -95,6 +102,7 @@ export class TemplateExpansionService {
     this.candidateTaskRepo = candidateTaskRepo;
     this.taskDefinitionRepo = taskDefinitionRepo;
     this.referenceDataRepo = referenceDataRepo;
+    this.prerequisiteConditionsService = new PrerequisiteConditionsService();
   }
 
   /**
@@ -174,10 +182,14 @@ export class TemplateExpansionService {
       throw new Error("Candidate already has a template applied");
     }
 
-    // Check if candidate has existing tasks
-    const existingTasks = await this.candidateTaskRepo.getCandidateTasks({ candidateId });
+    // Check if candidate has existing NON-PREREQUISITE tasks
+    // Prerequisite tasks are expected to exist before template expansion (created at candidate creation)
+    const existingTasks = await this.candidateTaskRepo.getCandidateTasks({
+      candidateId,
+      isPrerequisiteTask: false
+    });
     if (existingTasks.length > 0) {
-      throw new Error("Candidate already has tasks. Cannot apply template.");
+      throw new Error("Candidate already has non-prerequisite tasks. Cannot apply template.");
     }
 
     // Get the template
@@ -199,10 +211,11 @@ export class TemplateExpansionService {
       templateStageMap.set(stage.id, stage);
     }
 
-    // Get template tasks
-    const templateTasksList = await this.templateTaskRepo.getTemplateTasks(templateId);
+    // Get template tasks (exclude prerequisites - they expand separately)
+    const allTemplateTasks = await this.templateTaskRepo.getTemplateTasks(templateId);
+    const templateTasksList = allTemplateTasks.filter(task => !task.isPrerequisite);
     if (templateTasksList.length === 0) {
-      throw new Error("Template has no tasks defined");
+      throw new Error("Template has no non-prerequisite tasks defined");
     }
 
     // Get task definitions for all template tasks
@@ -215,7 +228,10 @@ export class TemplateExpansionService {
     // ========================================================================
 
     const anchors: AnchorDates = {
-      loo: resolveLooAnchor(candidate),
+      loi: null, // Not available during LOO expansion
+      loo: resolveLooAnchor(candidate), // Generic fallback
+      loo_issued: resolveLooIssuedAnchor(candidate), // Explicit issued
+      loo_accepted: resolveLooAcceptedAnchor(candidate), // Explicit accepted
       start: resolveStartAnchor(candidate),
     };
 
@@ -231,6 +247,10 @@ export class TemplateExpansionService {
     if (!fallbackCategoryId && templateTasksList.some((task) => !task.defaultCategoryId)) {
       throw new Error("No default task category configured");
     }
+
+    // Batch-load all priorities upfront to avoid N+1 queries
+    const taskPrioritiesList = await this.referenceDataRepo.getTaskPriorities();
+    const priorityMap = new Map(taskPrioritiesList.map((p) => [p.id, p.name]));
 
     for (let i = 0; i < templateTasksList.length; i++) {
       const templateTask = templateTasksList[i];
@@ -249,17 +269,10 @@ export class TemplateExpansionService {
         anchors
       );
 
-      // Get default priority name
-      let priority = "medium";
-      if (templateTask.defaultPriorityId) {
-        const priorityRecord = await this.db
-          .select()
-          .from(taskPriorities)
-          .where(eq(taskPriorities.id, templateTask.defaultPriorityId));
-        if (priorityRecord[0]) {
-          priority = priorityRecord[0].name;
-        }
-      }
+      // Get default priority name from pre-loaded map
+      const priority = templateTask.defaultPriorityId
+        ? priorityMap.get(templateTask.defaultPriorityId) ?? "medium"
+        : "medium";
 
       let defaultAssigneeKind = templateTask.defaultAssigneeKind ?? "user";
       let defaultAssigneeUserId =
@@ -378,12 +391,32 @@ export class TemplateExpansionService {
     // ========================================================================
 
     // Record initial stage history if we have an initial stage
+    // Use letterOfIntentDate as the changedAt timestamp since that's when the candidate
+    // actually entered the LOI stage (not when template was expanded)
     if (initialStage) {
+      // Parse date-only strings at UTC noon to avoid timezone day-boundary issues
+      // e.g., "2025-12-01" at UTC midnight shows as Nov 30 in PST, but noon is safe
+      let initialStageTimestamp: Date;
+      if (candidate.letterOfIntentDate) {
+        const dateStr = String(candidate.letterOfIntentDate);
+        const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (dateOnlyRegex.test(dateStr)) {
+          // Date-only string: parse as UTC noon to avoid day boundary shift
+          const [year, month, day] = dateStr.split('-').map(Number);
+          initialStageTimestamp = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        } else {
+          // Full timestamp: use as-is
+          initialStageTimestamp = new Date(dateStr);
+        }
+      } else {
+        initialStageTimestamp = candidate.createdAt;
+      }
+
       await this.db.insert(candidateStageHistory).values({
         candidateId: candidateId,
         fromStageId: null,
         toStageId: initialStage.stageId,
-        changedAt: new Date(),
+        changedAt: initialStageTimestamp,
         changedBy: currentUserId,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -391,5 +424,212 @@ export class TemplateExpansionService {
     }
 
     return { createdCount: tasksToCreate.length, createdTasks };
+  }
+
+  /**
+   * Expand prerequisite tasks immediately on candidate creation
+   *
+   * Prerequisite tasks are template tasks that:
+   * - Have isPrerequisite = true
+   * - Use LOI date as their anchor (not LOO/Start)
+   * - Are created when candidate is created (not when LOO is accepted)
+   * - Are subject to conditional logic (e.g., "only for Associate Professor+")
+   *
+   * @param candidateId - ID of the candidate
+   * @param templateId - ID of the template to expand prerequisites from
+   * @returns Result containing number of tasks created and conditions met
+   */
+  async expandPrerequisites(
+    candidateId: string,
+    templateId: string
+  ): Promise<{
+    tasksCreated: number;
+    conditionsMet: string[];
+    tasksSkipped: number;
+  }> {
+    // Get candidate with facultyRank relation for condition evaluation
+    const candidate = await this.candidateRepo.getCandidate(candidateId) as CandidateWithRank | null;
+
+    if (!candidate) {
+      throw new Error("Candidate not found");
+    }
+
+    // Prevent duplicate expansion
+    if (candidate.templatePrerequisitesExpandedAt) {
+      throw new Error('Template prerequisites already expanded for this candidate');
+    }
+
+    // Ensure we have an LOI date for prerequisite anchor
+    if (!candidate.letterOfIntentDate) {
+      throw new Error('Candidate must have a Letter of Intent date to expand prerequisites');
+    }
+
+    // Get all prerequisite tasks from template
+    const allTemplateTasks = await this.templateTaskRepo.getTemplateTasks(templateId);
+    const prereqTasks = allTemplateTasks.filter(task => task.isPrerequisite);
+
+    if (prereqTasks.length === 0) {
+      // No prerequisites defined, mark as expanded
+      await this.candidateRepo.updateCandidate(candidateId, {
+        templatePrerequisitesExpandedAt: new Date()
+      });
+      return { tasksCreated: 0, conditionsMet: [], tasksSkipped: 0 };
+    }
+
+    // Filter by conditions that apply to this candidate
+    const applicableTasks: typeof prereqTasks = [];
+    const conditionsMet = new Set<string>();
+    let tasksSkipped = 0;
+
+    for (const task of prereqTasks) {
+      const conditionMet = this.prerequisiteConditionsService.evaluateCondition(
+        task.prerequisiteCondition as any,
+        candidate
+      );
+
+      if (conditionMet) {
+        applicableTasks.push(task);
+        if (task.prerequisiteCondition) {
+          conditionsMet.add(task.prerequisiteCondition);
+        }
+      } else {
+        tasksSkipped++;
+      }
+    }
+
+    if (applicableTasks.length === 0) {
+      // No conditions met, mark prerequisites as expanded (empty expansion)
+      await this.candidateRepo.updateCandidate(candidateId, {
+        templatePrerequisitesExpandedAt: new Date()
+      });
+      return {
+        tasksCreated: 0,
+        conditionsMet: [],
+        tasksSkipped
+      };
+    }
+
+    // Get task definitions for applicable tasks
+    const taskDefs = await Promise.all(
+      applicableTasks.map((tt) => this.taskDefinitionRepo.getTaskDefinition(tt.taskDefId))
+    );
+
+    // Get template stages map
+    const templateStagesList = await this.templateStageRepo.getTemplateStages(templateId);
+    const templateStageMap = new Map<string, TemplateStage>();
+    for (const stage of templateStagesList) {
+      templateStageMap.set(stage.id, stage);
+    }
+
+    // Set up anchors for LOI-based due date computation
+    const anchors: AnchorDates = {
+      loi: resolveLoiAnchor(candidate),
+      loo: null, // Not available yet for prerequisites
+      loo_issued: null, // Not available yet for prerequisites
+      loo_accepted: null, // Not available yet for prerequisites
+      start: null, // Not available yet for prerequisites
+    };
+
+    // Get fallback category
+    const taskCategoriesList = await this.referenceDataRepo.getTaskCategories();
+    const fallbackCategoryId = taskCategoriesList[0]?.id ?? null;
+
+    if (!fallbackCategoryId && applicableTasks.some((task) => !task.defaultCategoryId)) {
+      throw new Error("No default task category configured");
+    }
+
+    // Batch-load all priorities upfront to avoid N+1 queries
+    const taskPrioritiesList = await this.referenceDataRepo.getTaskPriorities();
+    const priorityMap = new Map(taskPrioritiesList.map((p) => [p.id, p.name]));
+
+    // Create tasks using LOI as anchor
+    const tasksToCreate: InsertCandidateTask[] = [];
+
+    for (let i = 0; i < applicableTasks.length; i++) {
+      const templateTask = applicableTasks[i];
+      const taskDef = taskDefs[i];
+      const templateStage = templateStageMap.get(templateTask.templateStageId ?? "");
+
+      if (!templateStage) {
+        throw new Error(`Template stage missing for task ${templateTask.id}`);
+      }
+
+      if (!taskDef) continue;
+
+      const dueComputation = computeDueFromRule(
+        templateTask.dueRuleType,
+        templateTask.dueRuleValue,
+        templateTask.fixedDate,
+        anchors
+      );
+
+      // Get default priority name from pre-loaded map
+      const priority = templateTask.defaultPriorityId
+        ? priorityMap.get(templateTask.defaultPriorityId) ?? "medium"
+        : "medium";
+
+      let defaultAssigneeKind = templateTask.defaultAssigneeKind ?? "user";
+      let defaultAssigneeUserId =
+        defaultAssigneeKind === "user" ? templateTask.defaultAssigneeUserId ?? null : null;
+      let defaultAssigneeRole =
+        defaultAssigneeKind === "role" ? templateTask.defaultAssigneeRole ?? null : null;
+
+      // Handle candidate.self role resolution
+      let resolvedAt: Date | null = null;
+      if (defaultAssigneeKind === "role" && defaultAssigneeRole === "candidate.self") {
+        if (candidate.linkedUserId) {
+          defaultAssigneeUserId = candidate.linkedUserId;
+          defaultAssigneeRole = null;
+          defaultAssigneeKind = "user";
+          resolvedAt = new Date();
+        }
+      } else if (defaultAssigneeKind === "user" && defaultAssigneeUserId) {
+        resolvedAt = new Date();
+      }
+
+      tasksToCreate.push({
+        candidateId,
+        taskDefId: templateTask.taskDefId,
+        title: taskDef.name,
+        description: taskDef.description,
+        stageId: templateTask.stageId,
+        templateStageId: templateTask.templateStageId,
+        phaseSnapshot: templateStage.phase ?? null,
+        assigneeKind: defaultAssigneeKind,
+        assigneeUserId: defaultAssigneeUserId,
+        assigneeRole: defaultAssigneeRole,
+        assigneeResolvedAt: resolvedAt,
+        priority: priority as "low" | "medium" | "high" | "critical",
+        categoryId: templateTask.defaultCategoryId || fallbackCategoryId,
+        dueAt: dueComputation.dueAt,
+        dueRuleType: templateTask.dueRuleType,
+        dueRuleValue: templateTask.dueRuleValue ?? null,
+        fixedDate: templateTask.fixedDate ?? null,
+        pendingAnchor: dueComputation.pendingAnchor,
+        status: "todo" as const,
+        required: (templateTask as any).isRequired ?? true,
+        archived: false,
+        dueSoonNotifiedAt: null,
+        isPrerequisiteTask: true,
+      });
+    }
+
+    // Bulk insert tasks
+    if (tasksToCreate.length > 0) {
+      await this.db
+        .insert(candidateTasks)
+        .values(tasksToCreate);
+    }
+
+    // Mark prerequisites as expanded
+    await this.candidateRepo.updateCandidate(candidateId, {
+      templatePrerequisitesExpandedAt: new Date()
+    });
+
+    return {
+      tasksCreated: tasksToCreate.length,
+      conditionsMet: Array.from(conditionsMet),
+      tasksSkipped
+    };
   }
 }

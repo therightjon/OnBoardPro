@@ -1,8 +1,7 @@
-import { and, eq, gte, inArray } from "drizzle-orm";
-import { db } from "../../../db/connection";
-import { notifications, users, userPreferences, type InsertNotification } from "@shared/schemas";
+import { type InsertNotification } from "@shared/schemas";
 import { mergeUserPreferences, type DigestFrequency } from "@shared/preferences";
 import { enqueueNotificationEmails } from "../../email/outbox.service";
+import { getUserRepository, getNotificationRepository } from "../../../services/service-factory";
 
 type NotificationVisibility = "internal" | "external";
 export type NotificationEventType =
@@ -71,18 +70,8 @@ export async function resolveMentionedUsers(keys: string[]): Promise<MentionedUs
   const normalized = Array.from(new Set(keys.map(normalizeMentionKey))).filter(Boolean);
   if (!normalized.length) return [];
 
-  const rows = await db
-    .select({
-      id: users.id,
-      mentionKey: users.mentionKey,
-      role: users.role,
-      status: users.status,
-      active: users.active
-    })
-    .from(users)
-    .where(inArray(users.mentionKey, normalized));
-
-  return rows;
+  const userRepo = getUserRepository();
+  return await userRepo.getUsersByMentionKeys(normalized);
 }
 
 export interface RecipientWithPreferences {
@@ -202,21 +191,13 @@ export async function createNotifications(args: CreateNotificationsArgs): Promis
     return { created: 0, updated: 0, notifiedUserIds: [], skipped: [] };
   }
 
-  const rows = await db
-    .select({
-      id: users.id,
-      role: users.role,
-      status: users.status,
-      active: users.active,
-      preferences: userPreferences
-    })
-    .from(users)
-    .leftJoin(userPreferences, eq(userPreferences.userId, users.id))
-    .where(inArray(users.id, uniqueRecipientIds));
+  // Use repository to get users with preferences
+  const userRepo = getUserRepository();
+  const rows = await userRepo.getUsersWithPreferences(uniqueRecipientIds);
 
   const normalizedRecipients: RecipientWithPreferences[] = rows.map((row) => {
     const preferencesInput = row.preferences
-      ? (({ userId: _userId, updatedAt: _updatedAt, ...rest }) => rest)(row.preferences)
+      ? (({ userId: _userId, updatedAt: _updatedAt, ...rest }) => rest)(row.preferences as any)
       : undefined;
     const preferences = mergeUserPreferences(preferencesInput as any);
     return {
@@ -249,21 +230,15 @@ export async function createNotifications(args: CreateNotificationsArgs): Promis
   const since = new Date(now.getTime() - COALESCE_WINDOW_MS);
   const eligibleIds = eligible.map((row) => row.userId);
 
-  const existing = await db
-    .select({
-      id: notifications.id,
-      userId: notifications.userId,
-      payload: notifications.payload,
-      createdAt: notifications.createdAt
-    })
-    .from(notifications)
-    .where(and(
-      inArray(notifications.userId, eligibleIds),
-      eq(notifications.type, type),
-      eq(notifications.entityType, entity.type),
-      eq(notifications.entityId, entity.id),
-      gte(notifications.createdAt, since)
-    ));
+  // Use repository to find existing notifications for coalescing
+  const notificationRepo = getNotificationRepository();
+  const existing = await notificationRepo.findNotificationsForCoalescing({
+    userIds: eligibleIds,
+    type,
+    entityType: entity.type,
+    entityId: entity.id,
+    since
+  });
 
   const { updates, inserts } = computeNotificationCoalescing({
     recipientIds: eligibleIds,
@@ -279,34 +254,11 @@ export async function createNotifications(args: CreateNotificationsArgs): Promis
     timestamp: now,
   });
 
-  let insertedRows: Array<{ id: string; userId: string; createdAt: Date }> = [];
-
-  await db.transaction(async (trx) => {
-    if (updates.length > 0) {
-      for (const update of updates) {
-        await trx
-          .update(notifications)
-          .set({
-            payload: update.payload,
-            isRead: false,
-            readAt: null,
-            createdAt: now
-          })
-          .where(eq(notifications.id, update.id));
-      }
-    }
-
-    if (inserts.length > 0) {
-      const inserted = await trx
-        .insert(notifications)
-        .values(inserts)
-        .returning({
-          id: notifications.id,
-          userId: notifications.userId,
-          createdAt: notifications.createdAt,
-        });
-      insertedRows = inserted;
-    }
+  // Use repository for bulk upsert
+  const insertedRows = await notificationRepo.bulkUpsertNotifications({
+    updates,
+    inserts,
+    now
   });
 
   if (insertedRows.length > 0) {

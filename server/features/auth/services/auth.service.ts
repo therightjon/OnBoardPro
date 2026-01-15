@@ -8,50 +8,40 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
-import { scrypt, timingSafeEqual } from "crypto";
-import { promisify } from "util";
-import bcrypt from "bcrypt";
 import { getUserService } from "../../../services/service-factory";
 import { User as SelectUser } from "@shared/schemas";
 import { z } from "zod";
 import connectPg from "connect-pg-simple";
 import { pool } from "../../../config/database.config";
-import { 
+import {
   initializeAuthProviders, 
   providerRegistry, 
   authService, 
   getAvailableProviders,
   validateProviderConfigurations
 } from "./index";
-
-declare global {
-  namespace Express {
-    interface User extends SelectUser {
-      roles?: string[];
-      departmentScopes?: string[];
-      divisionScopes?: string[];
-      managedCandidateIds?: string[];
-    }
-  }
-}
+import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../../../services/login-rate-limit";
+import { comparePasswords } from "../../../utils/passwords";
 
 declare module "express-session" {
   interface SessionData {
     inviteToken?: string;
     inviteTokenEmail?: string;
     inviteTokenIssuedAt?: string;
+    csrfSecret?: string;
+    lastActivity?: number;
+    createdAt?: number;
   }
 }
 
 const PostgresSessionStore = connectPg(session);
 
-const scryptAsync = promisify(scrypt);
-
 /**
  * Hydrate a SelectUser with roles and scope metadata for session use.
  * Side effects: fetches roles/department/division/managed candidate scopes in parallel.
+ * Exported for reuse in test login and other session initialization paths.
  */
-async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
+export async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
   const userService = getUserService();
   const [roles, departmentScopes, divisionScopes, managedCandidateIds] = await Promise.all([
     userService.getUserRoles(user.id),
@@ -76,45 +66,6 @@ async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
 }
 
 /**
- * Compare supplied password against stored hash.
- * Handles bcrypt (legacy) and scrypt (new format); returns false on format errors to avoid timing leaks.
- */
-async function comparePasswords(supplied: string, stored: string) {
-  try {
-    // Check if it's a bcrypt hash (existing format)
-    if (stored.startsWith('$2')) {
-      return await bcrypt.compare(supplied, stored);
-    }
-    
-    // Handle scrypt format (new format)
-    const parts = stored.split(".");
-    if (parts.length !== 2) {
-      console.error("Invalid stored password format - missing salt or hash");
-      return false;
-    }
-    
-    const [hashed, salt] = parts;
-    if (!hashed || !salt) {
-      console.error("Invalid stored password format - empty hash or salt");
-      return false;
-    }
-    
-    const hashedBuf = Buffer.from(hashed, "hex");
-    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-    
-    if (hashedBuf.length !== suppliedBuf.length) {
-      console.error("Buffer length mismatch in password comparison");
-      return false;
-    }
-    
-    return timingSafeEqual(hashedBuf, suppliedBuf);
-  } catch (error) {
-    console.error("Error comparing passwords:", error);
-    return false;
-  }
-}
-
-/**
  * Initialize authentication for the Express app.
  * Sets up passport strategies, session store, provider registry, and user serialization.
  * Throws if required secrets are missing or providers fail to initialize.
@@ -134,16 +85,19 @@ export async function setupAuth(app: Express) {
     throw new Error("SESSION_SECRET environment variable is required");
   }
 
+  const TEN_HOURS_MS = 10 * 60 * 60 * 1000;
+
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Refresh cookie on each response while active
     store: new PostgresSessionStore({
       pool,
       createTableIfMissing: true
     }),
     cookie: {
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: TEN_HOURS_MS, // 10 hours
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       sameSite: 'strict', // Prevent CSRF attacks
@@ -196,18 +150,93 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  app.post("/api/login", passport.authenticate("local"), async (req, res) => {
+  app.post("/api/login", async (req, res, next) => {
     try {
-      // Track last login time
-      if (req.user && req.user.id) {
-        const userService = getUserService();
-        await userService.updateLastLogin(req.user.id);
+      const identifier = typeof req.body?.email === "string"
+        ? req.body.email
+        : typeof req.body?.username === "string"
+          ? req.body.username
+          : "";
+      const clientIp = req.ip || req.headers["x-forwarded-for"] || req.connection?.remoteAddress || "";
+
+      const limitCheck = await checkLoginLimits({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+      if (!limitCheck.allowed) {
+        if (limitCheck.retryAfterSeconds) {
+          res.setHeader("Retry-After", String(limitCheck.retryAfterSeconds));
+        }
+        return res.status(limitCheck.status).json({ message: limitCheck.message });
       }
-      res.status(200).json(req.user);
+
+      passport.authenticate("local", async (err: any, user: any, info: any) => {
+        if (err) return next(err);
+        if (!user) {
+          await recordLoginFailure({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+          return res.status(401).json({ message: info?.message || "Authentication failed" });
+        }
+
+        try {
+          const authenticatedUser = user;
+
+          // Preserve invitation-related session data and CSRF secret across regeneration
+          const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
+
+          // Regenerate session and restore data atomically to prevent race conditions
+          await new Promise<void>((resolve, reject) => {
+            req.session.regenerate((regenErr) => {
+              if (regenErr) return reject(regenErr);
+
+              // Restore session data immediately in callback to ensure CSRF protection works
+              if (inviteToken) req.session.inviteToken = inviteToken;
+              if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
+              if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+              if (csrfSecret) req.session.csrfSecret = csrfSecret;
+
+              resolve();
+            });
+          });
+
+          // Promisify login to ensure proper sequencing
+          await new Promise<void>((resolve, reject) => {
+            req.login(authenticatedUser, (loginErr) => {
+              if (loginErr) return reject(loginErr);
+              resolve();
+            });
+          });
+
+          const now = Date.now();
+          req.session.createdAt = now;
+          req.session.lastActivity = now;
+
+          // Explicitly save session to ensure all data is persisted
+          await new Promise<void>((resolve, reject) => {
+            req.session.save((saveErr) => {
+              if (saveErr) {
+                console.error('Session save error:', saveErr);
+                return reject(saveErr);
+              }
+              resolve();
+            });
+          });
+
+          // Track last login time (best-effort)
+          if (authenticatedUser.id) {
+            try {
+              const userService = getUserService();
+              await userService.updateLastLogin(authenticatedUser.id);
+            } catch (updateErr) {
+              console.error('Failed to update last login:', updateErr);
+            }
+          }
+
+          await resetLoginLimit({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+
+          res.status(200).json(req.user);
+        } catch (error) {
+          next(error);
+        }
+      })(req, res, next);
     } catch (error) {
-      // Don't fail login if last login update fails
-      console.error('Failed to update last login:', error);
-      res.status(200).json(req.user);
+      next(error);
     }
   });
 
@@ -274,18 +303,57 @@ export async function setupAuth(app: Express) {
       }
 
       // Log the user in using passport
-      hydrateAuthUser(signInResult.user!).then((sessionUser) => {
-        req.login(sessionUser, (err) => {
-          if (err) {
-            console.error('Login error:', err);
-            return res.status(500).json({ message: "Login failed" });
-          }
+      hydrateAuthUser(signInResult.user!).then(async (sessionUser) => {
+        try {
+          const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
+
+          // Regenerate session and restore data atomically to prevent race conditions
+          await new Promise<void>((resolve, reject) => {
+            req.session?.regenerate((err) => {
+              if (err) return reject(err);
+
+              // Restore session data immediately in callback to ensure CSRF protection works
+              if (inviteToken) req.session.inviteToken = inviteToken;
+              if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
+              if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+              if (csrfSecret) req.session.csrfSecret = csrfSecret;
+
+              resolve();
+            });
+          });
+
+          // Promisify login to ensure proper sequencing
+          await new Promise<void>((resolve, reject) => {
+            req.login(sessionUser, (loginErr) => {
+              if (loginErr) return reject(loginErr);
+              resolve();
+            });
+          });
+
+          const now = Date.now();
+          req.session.createdAt = now;
+          req.session.lastActivity = now;
+
+          // Explicitly save session to ensure all data is persisted
+          await new Promise<void>((resolve, reject) => {
+            req.session.save((saveErr) => {
+              if (saveErr) {
+                console.error('Session save error:', saveErr);
+                return reject(saveErr);
+              }
+              resolve();
+            });
+          });
+
           res.json({
             user: sessionUser,
             isNewUser: signInResult.isNewUser,
             assignedRoles: signInResult.assignedRoles
           });
-        });
+        } catch (error) {
+          console.error('Login error:', error);
+          res.status(500).json({ message: "Login failed" });
+        }
       }).catch((error) => {
         console.error('Authentication error:', error);
         res.status(500).json({ message: "Internal server error" });

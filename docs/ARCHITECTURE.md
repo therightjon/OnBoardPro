@@ -304,6 +304,7 @@ server/
 │   └── authMetrics.ts               # Authorization metrics
 │
 ├── utils/                           # Utility functions
+│   ├── passwords.ts                 # Password hashing & verification
 │   ├── error-handler.ts             # Error handling & custom errors
 │   ├── authorization.utils.ts       # Authorization helpers
 │   ├── notification.utils.ts        # Notification helpers
@@ -541,7 +542,9 @@ smtp_settings            # SMTP configuration (encrypted secrets)
 │              Session Management                         │
 │                                                         │
 │  • PostgreSQL session store                             │
-│  • 7-day cookie expiration                              │
+│  • 10-hour cookie expiration (rolling)                  │
+│  • Idle timeout: 2 hours (configurable)                 │
+│  • Absolute timeout: 24 hours (configurable)            │
 │  • Secure, httpOnly, sameSite=strict                    │
 │  • Domain-specific cookies                              │
 └─────────────────────────────────────────────────────────┘
@@ -550,9 +553,11 @@ smtp_settings            # SMTP configuration (encrypted secrets)
 **Security Features:**
 - ✅ **CSRF protection** (sameSite cookies)
 - ✅ **XSS protection** (Helmet security headers)
-- ✅ **Rate limiting** (IP-based)
-- ✅ **Password hashing** (bcrypt + scrypt)
+- ✅ **Rate limiting** (IP-based with trusted proxy support)
+- ✅ **Password hashing** (bcrypt + scrypt via `server/utils/passwords.ts`)
+- ✅ **Constant-time password comparison** (prevents timing attacks)
 - ✅ **Session encryption** (PostgreSQL store)
+- ✅ **Session timeouts** (idle + absolute via `server/middleware/session-timeout.ts`)
 
 ---
 

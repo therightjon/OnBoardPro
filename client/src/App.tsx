@@ -8,14 +8,17 @@ import { AuthProvider } from "@/features/auth/hooks/use-auth";
 import { ThemeProvider } from "@/shared/components/layout/theme-provider";
 import { ProtectedRoute } from "./lib/protected-route";
 import { Sidebar } from "@/shared/components/layout/sidebar";
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useCallback } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Sheet, SheetContent } from "@/shared/components/ui/sheet";
 import { Menu, Loader2 } from "lucide-react";
+import { ErrorBoundary } from "react-error-boundary";
+import { ErrorFallback } from "@/shared/components/layout/error-fallback";
 
 // Lazy load pages for code splitting - reduces initial bundle size
 const NotFound = lazy(() => import("./app/not-found"));
 const AuthPage = lazy(() => import("./app/auth/page"));
+const AcceptInvitePage = lazy(() => import("./app/auth/accept-invite/page"));
 const Dashboard = lazy(() => import("./app/(dashboard)/page"));
 const CandidatesPage = lazy(() => import("./app/(dashboard)/candidates/page"));
 const CandidateDetailPage = lazy(() => import("./app/(dashboard)/candidates/[id]/page"));
@@ -100,6 +103,7 @@ function Router() {
       <Switch>
         {/* Public routes */}
         <Route path="/auth" component={AuthPage} />
+        <Route path="/accept-invite" component={AcceptInvitePage} />
         
         {/* Protected routes */}
         <ProtectedRoute path="/" component={() => (
@@ -170,18 +174,25 @@ function Router() {
 }
 
 function App() {
+  // Reset query cache when error boundary resets to clear any stale error states
+  const handleReset = useCallback(() => {
+    queryClient.clear();
+  }, []);
+
   return (
-    <ThemeProvider defaultTheme="light" storageKey="onboardpro-ui-theme">
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <SonnerToaster richColors />
-            <Router />
-          </TooltipProvider>
-        </AuthProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <ErrorBoundary FallbackComponent={ErrorFallback} onReset={handleReset}>
+      <ThemeProvider defaultTheme="light" storageKey="onboardpro-ui-theme">
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <SonnerToaster richColors />
+              <Router />
+            </TooltipProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

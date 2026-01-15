@@ -159,7 +159,7 @@ export class InvitationService {
   async resendInvitation(email: string, invitedBy?: string): Promise<CreateInvitationResult | null> {
     // Find the existing invitation
     const existing = await this.invitationRepo.findValidPendingInviteForIdentifier(email);
-    
+
     if (!existing) {
       return null;
     }
@@ -174,5 +174,28 @@ export class InvitationService {
       firstName: existing.firstName,
       lastName: existing.lastName
     });
+  }
+
+  /**
+   * Cancel a pending invitation
+   * Deletes the invitation from the database
+   */
+  async cancelInvitation(invitationId: string, actorId?: string, requestId?: string): Promise<boolean> {
+    const invitation = await this.invitationRepo.deleteInvitation(invitationId);
+
+    if (invitation) {
+      await writeAuditLog({
+        actorId,
+        resourceType: "invitation",
+        resourceId: invitationId,
+        action: "delete",
+        eventType: "invitation_canceled",
+        requestId,
+        details: { email: invitation.email }
+      });
+      return true;
+    }
+
+    return false;
   }
 }

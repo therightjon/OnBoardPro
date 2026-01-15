@@ -7,6 +7,7 @@ import {
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schemas";
 import { getQueryFn, apiRequest, queryClient } from "../../../lib/queryClient";
 import { useToast } from "../../../shared/hooks/use-toast";
+import { clearCsrfTokenCache } from "../../../lib/csrf";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -38,6 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
+      // Clear CSRF token cache after login to fetch fresh token with new session
+      clearCsrfTokenCache();
     },
     onError: (error: Error) => {
       toast({

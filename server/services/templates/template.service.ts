@@ -2,14 +2,17 @@
  * Template Service
  *
  * Business logic layer for template management
- * Handles template CRUD, cloning, and application to candidates
+ * Handles template CRUD and cloning
+ * 
+ * Note: Template expansion (applying templates to candidates) is handled by
+ * TemplateExpansionService.expandTemplate()
  */
 
 import type { InsertTemplate, InsertTemplateStage, InsertTemplateTask, Template, TemplateStage, TemplateTask } from "@shared/schemas";
 import type { TemplateRepository } from "../../repositories/templates/TemplateRepository";
 import type { TemplateStageRepository } from "../../repositories/templates/TemplateStageRepository";
 import type { TemplateTaskRepository } from "../../repositories/templates/TemplateTaskRepository";
-import { eventBus, templateCreated, templateUpdated, templateCloned, templateApplied } from "../../events";
+import { eventBus, templateCreated, templateUpdated, templateCloned } from "../../events";
 import { writeAuditLog } from "../shared/audit-logger";
 
 export interface CreateTemplateInput {
@@ -31,12 +34,6 @@ export interface CloneTemplateInput {
   newName: string;
   actorId?: string;
   requestId?: string;
-}
-
-export interface ApplyTemplateInput {
-  templateId: string;
-  candidateId: string;
-  actorId: string;
 }
 
 /**
@@ -155,48 +152,6 @@ export class TemplateService {
   }
 
   /**
-   * Apply a template to a candidate
-   * Creates all stages and tasks defined in the template
-   */
-  async applyTemplate(input: ApplyTemplateInput): Promise<{ tasksCreated: number }> {
-    const { templateId, candidateId, actorId } = input;
-
-    // TODO: Implement template application logic
-    // This requires:
-    // 1. Get template stages and tasks
-    // 2. Create candidate stages
-    // 3. Create candidate tasks from template tasks
-    // 4. Publish candidateTemplateApplied event
-    // 5. Publish taskCreated events for each task
-
-    // For now, just publish the template applied event
-    const template = await this.templateRepo.getTemplate(templateId);
-    if (!template) {
-      throw new Error(`Template ${templateId} not found`);
-    }
-
-    await writeAuditLog({
-      actorId,
-      resourceType: "template",
-      resourceId: templateId,
-      action: "update",
-      eventType: "template_applied",
-      details: { candidateId }
-    });
-
-    await eventBus.publish(templateApplied(candidateId, {
-      templateId,
-      templateName: template.name,
-      tasksCreated: 0, // TODO: Get actual count
-      stagesCreated: 0  // TODO: Get actual count
-    }, {
-      actorId
-    }));
-
-    return { tasksCreated: 0 }; // TODO: Return actual count
-  }
-
-  /**
    * Get a single template by ID
    */
   async getTemplate(id: string): Promise<Template | undefined> {
@@ -214,33 +169,94 @@ export class TemplateService {
    * Archive a template (soft delete)
    */
   async archiveTemplate(id: string, actorId?: string): Promise<void> {
+    // Get template name before archiving for potential event payload
+    const template = await this.templateRepo.getTemplate(id);
+    
     await this.templateRepo.archiveTemplate(id);
     await writeAuditLog({
       actorId,
       resourceType: "template",
       resourceId: id,
       action: "archive",
-      eventType: "template_archived"
+      eventType: "template_archived",
+      details: { templateName: template?.name }
     });
-    // TODO: Publish templateArchived event
+    // Note: TemplateArchivedEvent type not yet created - tracked in TODO_TRACKING.md
   }
 
-  /**
-   * Check if a template is ready to be activated
-   */
+   /**
+    * Check if a template is ready to be activated
+    */
   async checkTemplateReadiness(id: string): Promise<{ ready: boolean; reason?: string }> {
-    const readiness = await this.templateRepo.getTemplateReadiness(id);
+    // Ensure each active stage has at least one active task
+    const stages = await this.stageRepo.getTemplateStages(id);
+    const stageIdSet = new Set(stages.map(stage => stage.id));
 
-    if (readiness.active_stage_count === 0) {
+    if (stages.length === 0) {
       return {
         ready: false,
         reason: 'Template must have at least one stage'
       };
     }
 
-    // TODO: Add more readiness checks
-    // - Each stage should have at least one task
-    // - All required fields should be filled
+    const tasks = await this.taskRepo.getTemplateTasks(id);
+    const tasksByStage = new Map<string, number>();
+
+    for (const task of tasks) {
+      if (!stageIdSet.has(task.templateStageId)) continue;
+      const currentCount = tasksByStage.get(task.templateStageId) ?? 0;
+      tasksByStage.set(task.templateStageId, currentCount + 1);
+    }
+
+    const stageWithoutTasks = stages.find(stage => (tasksByStage.get(stage.id) ?? 0) === 0);
+    if (stageWithoutTasks) {
+      return {
+        ready: false,
+        reason: 'Each stage should have at least one task'
+      };
+    }
+
+    // Validate required task fields for readiness
+    const relativeDueRuleTypes = new Set([
+      'days_before_loo',
+      'days_after_loo',
+      'days_before_start',
+      'days_after_start',
+      'days_before_stage',
+      'days_after_stage'
+    ]);
+
+    const missingRequiredFields = tasks.some(task => {
+      if (!stageIdSet.has(task.templateStageId)) {
+        return false;
+      }
+
+      const needsDueValue = relativeDueRuleTypes.has(task.dueRuleType);
+      if (needsDueValue && task.dueRuleValue == null) {
+        return true;
+      }
+
+      if (task.dueRuleType === 'fixed_date' && !task.fixedDate) {
+        return true;
+      }
+
+      if (task.defaultAssigneeKind === 'user' && !task.defaultAssigneeUserId) {
+        return true;
+      }
+
+      if (task.defaultAssigneeKind === 'role' && !task.defaultAssigneeRole) {
+        return true;
+      }
+
+      return false;
+    });
+
+    if (missingRequiredFields) {
+      return {
+        ready: false,
+        reason: 'All required fields should be filled'
+      };
+    }
 
     return { ready: true };
   }
@@ -365,6 +381,50 @@ export class TemplateService {
     return this.stageRepo.reorderTemplateStages(templateId, stageIdsInOrder);
   }
 
+  /**
+   * Reorder a template task (within stage or move to different stage)
+   */
+  async reorderTemplateTask(input: {
+    taskId: string;
+    targetStageId: string;
+    targetTemplateStageId: string;
+    newIndex: number;
+    actorId?: string;
+  }): Promise<TemplateTask | undefined> {
+    const { taskId, targetStageId, targetTemplateStageId, newIndex, actorId } = input;
+    
+    // Get the task to check if it's moving stages
+    const task = await this.taskRepo.getTemplateTask(taskId);
+    if (!task) return undefined;
+
+    const isMovingStages = task.templateStageId !== targetTemplateStageId;
+
+    // Reorder tasks in the repository
+    const updatedTask = await this.taskRepo.reorderTemplateTask({
+      taskId,
+      targetStageId,
+      targetTemplateStageId,
+      newIndex
+    });
+
+    if (updatedTask && actorId) {
+      await writeAuditLog({
+        actorId,
+        resourceType: "template_task",
+        resourceId: taskId,
+        action: "update",
+        eventType: "crud",
+        details: {
+          action: isMovingStages ? "moved_to_stage" : "reordered",
+          targetStageId,
+          newIndex
+        }
+      });
+    }
+
+    return updatedTask;
+  }
+
   // ============================================================================
   // Template Readiness & Estimation
   // ============================================================================
@@ -380,13 +440,5 @@ export class TemplateService {
     return this.templateRepo.getTemplateReadiness(id);
   }
 
-  /**
-   * Estimate template completion time based on tasks
-   */
-  async estimateTemplate(id: string): Promise<{
-    totalDays: number;
-    taskCount: number;
-  }> {
-    return this.templateRepo.estimateTemplate(id);
-  }
 }
+

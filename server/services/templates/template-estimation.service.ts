@@ -27,6 +27,9 @@ import {
   MS_PER_DAY,
   ensureDate,
   computeDueFromRule,
+  resolveLoiAnchor,
+  resolveLooIssuedAnchor,
+  resolveLooAcceptedAnchor,
 } from "../../utils/date.utils";
 import { countBusinessDays } from "../../utils/business-day.utils";
 import type { CandidateRepository } from "../../repositories/candidates/CandidateRepository";
@@ -35,6 +38,8 @@ import type { CandidateRepository } from "../../repositories/candidates/Candidat
  * Options for template estimation
  */
 export interface EstimateTemplateOptions {
+  /** Letter of intent date (can override candidate's date) - for prerequisite tasks */
+  loiDate?: string | null;
   /** Letter of offer date (can override candidate's date) */
   looDate?: string | null;
   /** Start date (can override candidate's date) */
@@ -80,12 +85,30 @@ export interface StageSummary {
 }
 
 /**
+ * Lead time requirements by anchor type
+ * Represents the maximum number of days before each anchor that tasks are due
+ */
+export interface LeadTimeByAnchor {
+  /** Maximum days before LOI date that a task is due */
+  loi: number;
+  /** Maximum days before LOO date that a task is due */
+  loo: number;
+  /** Maximum days before LOO issued date that a task is due */
+  looIssued: number;
+  /** Maximum days before LOO accepted date that a task is due */
+  looAccepted: number;
+  /** Maximum days before start date that a task is due */
+  start: number;
+}
+
+/**
  * Template estimation result
  */
 export interface TemplateEstimationResult {
   templateId: string;
   taskCount: number;
   anchors: {
+    loi: string | null;
     loo: string | null;
     start: string | null;
   };
@@ -93,6 +116,8 @@ export interface TemplateEstimationResult {
   lastDueDate: string | null;
   totalCalendarDays: number;
   totalBusinessDays: number | null;
+  /** Lead time requirements - max days before each anchor that tasks are due */
+  leadTimes: LeadTimeByAnchor;
   nonEstimable: NonEstimableTask[];
   perPhase: PhaseSummary[];
   perStage: StageSummary[];
@@ -136,6 +161,17 @@ export class TemplateEstimationService {
   ) {}
 
   /**
+   * Format a Date object as a date-only string (YYYY-MM-DD)
+   * Uses UTC components to avoid timezone shifts
+   */
+  private formatDateOnly(date: Date): string {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
    * Estimate timeline for a template
    *
    * Calculates the complete timeline for a template based on:
@@ -157,16 +193,19 @@ export class TemplateEstimationService {
     templateId: string,
     options: EstimateTemplateOptions = {}
   ): Promise<TemplateEstimationResult> {
-    const { looDate, startDate, candidateId, businessDays: includeBusinessDays = false } = options;
+    const { loiDate, looDate, startDate, candidateId, businessDays: includeBusinessDays = false } = options;
 
     // Resolve anchor dates from options or candidate
     let candidate: Candidate | undefined;
-    if ((!looDate || !startDate) && candidateId) {
+    if ((!loiDate || !looDate || !startDate) && candidateId) {
       candidate = await this.candidateRepository.getCandidate(candidateId) ?? undefined;
     }
 
     const anchors: AnchorDates = {
+      loi: ensureDate(loiDate ?? (candidate ? resolveLoiAnchor(candidate) : null)),
       loo: ensureDate(looDate ?? candidate?.offerLetterAcceptedAt ?? candidate?.offerLetterIssuedAt ?? null),
+      loo_issued: ensureDate(looDate ? looDate : candidate?.offerLetterIssuedAt ?? null),
+      loo_accepted: ensureDate(looDate ? looDate : candidate?.offerLetterAcceptedAt ?? null),
       start: ensureDate(startDate ?? candidate?.anticipatedStartDate ?? null),
     };
 
@@ -191,7 +230,7 @@ export class TemplateEstimationService {
       ));
 
     // Calculate baseline date (earliest anchor date)
-    const baselineCandidates = [anchors.loo, anchors.start].filter((date): date is Date => !!date);
+    const baselineCandidates = [anchors.loi, anchors.loo, anchors.start].filter((date): date is Date => !!date);
     const baselineDate = baselineCandidates.length
       ? new Date(Math.min(...baselineCandidates.map(date => date.getTime())))
       : null;
@@ -202,6 +241,15 @@ export class TemplateEstimationService {
     const perPhaseMap = new Map<string, { phase: string; taskCount: number; lastDueDate: Date | null }>();
     const perStageMap = new Map<string, { stageId: string; stageName: string; phase: string | null; taskCount: number; latestOffsetDays: number; lastDueDate: Date | null }>();
 
+    // Initialize lead time tracking
+    const leadTimes: LeadTimeByAnchor = {
+      loi: 0,
+      loo: 0,
+      looIssued: 0,
+      looAccepted: 0,
+      start: 0
+    };
+
     let maxCalendarOffset = 0;
     let maxDueDate: Date | null = null;
 
@@ -209,6 +257,26 @@ export class TemplateEstimationService {
     for (const task of tasksQuery) {
       const phaseKey = task.stagePhase ?? "pre_hire";
       const dueComputation = computeDueFromRule(task.dueRuleType, task.dueRuleValue, task.fixedDate, anchors);
+
+      // Track lead times (days before anchor dates)
+      const dueValue = task.dueRuleValue ?? 0;
+      switch (task.dueRuleType) {
+        case "days_before_loi":
+          leadTimes.loi = Math.max(leadTimes.loi, dueValue);
+          break;
+        case "days_before_loo":
+          leadTimes.loo = Math.max(leadTimes.loo, dueValue);
+          break;
+        case "days_before_loo_issued":
+          leadTimes.looIssued = Math.max(leadTimes.looIssued, dueValue);
+          break;
+        case "days_before_loo_accepted":
+          leadTimes.looAccepted = Math.max(leadTimes.looAccepted, dueValue);
+          break;
+        case "days_before_start":
+          leadTimes.start = Math.max(leadTimes.start, dueValue);
+          break;
+      }
 
       // Detect stage-relative tasks (cannot be estimated without stage dates)
       if (task.dueRuleType === "days_before_stage" || task.dueRuleType === "days_after_stage") {
@@ -291,9 +359,14 @@ export class TemplateEstimationService {
       }
     }
 
+    // Phase ordering: pre_hire comes before onboarding
+    const phaseOrder: Record<string, number> = { pre_hire: 0, onboarding: 1 };
+    const getPhaseOrder = (phase: string | null | undefined): number => 
+      phaseOrder[phase ?? ''] ?? 99;
+
     // Convert maps to sorted arrays for output
     const perPhase = Array.from(perPhaseMap.values())
-      .sort((a, b) => a.phase.localeCompare(b.phase))
+      .sort((a, b) => getPhaseOrder(a.phase) - getPhaseOrder(b.phase))
       .map(summary => ({
         phase: summary.phase,
         taskCount: summary.taskCount,
@@ -301,7 +374,12 @@ export class TemplateEstimationService {
       }));
 
     const perStage = Array.from(perStageMap.values())
-      .sort((a, b) => a.latestOffsetDays - b.latestOffsetDays)
+      .sort((a, b) => {
+        // Sort by phase first (pre_hire before onboarding), then by latestOffsetDays
+        const phaseCompare = getPhaseOrder(a.phase) - getPhaseOrder(b.phase);
+        if (phaseCompare !== 0) return phaseCompare;
+        return a.latestOffsetDays - b.latestOffsetDays;
+      })
       .map(stage => ({
         stageId: stage.stageId,
         stageName: stage.stageName,
@@ -332,13 +410,15 @@ export class TemplateEstimationService {
       templateId,
       taskCount: tasksQuery.length,
       anchors: {
-        loo: anchors.loo ? anchors.loo.toISOString() : null,
-        start: anchors.start ? anchors.start.toISOString() : null,
+        loi: anchors.loi ? this.formatDateOnly(anchors.loi) : null,
+        loo: anchors.loo ? this.formatDateOnly(anchors.loo) : null,
+        start: anchors.start ? this.formatDateOnly(anchors.start) : null,
       },
-      baselineDate: baselineDate ? baselineDate.toISOString() : null,
-      lastDueDate: maxDueDate ? maxDueDate.toISOString() : null,
+      baselineDate: baselineDate ? this.formatDateOnly(baselineDate) : null,
+      lastDueDate: maxDueDate ? this.formatDateOnly(maxDueDate) : null,
       totalCalendarDays: maxCalendarOffset,
       totalBusinessDays,
+      leadTimes,
       nonEstimable: formattedNonEstimable,
       perPhase,
       perStage,

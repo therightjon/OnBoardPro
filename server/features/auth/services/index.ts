@@ -125,3 +125,4 @@ export function getAvailableProviders() {
 
 // Export for use in other modules
 export { authConfig, authService };
+export { hydrateAuthUser } from "./auth.service";

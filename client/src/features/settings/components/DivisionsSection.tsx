@@ -24,7 +24,7 @@ import { Label } from "@/shared/components/ui/label";
 import { Badge } from "@/shared/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
 
 // Schema
 const divisionSchema = insertDivisionSchema.pick({ name: true, departmentId: true });
@@ -221,6 +221,9 @@ export function DivisionsSection() {
                 <DialogTitle>
                   {editingDivision ? "Edit Division" : "Create Division"}
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  {editingDivision ? "Update division name and department." : "Create a new division within a department."}
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                 <div>
@@ -361,27 +364,27 @@ export function DivisionsSection() {
                   <TableRow>
                     <SortableTableHeader
                       label="Name"
-                      sortKey="name"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="name"
+                      direction={sortState.key === "name" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <SortableTableHeader
                       label="Department"
-                      sortKey="department"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="department"
+                      direction={sortState.key === "department" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <SortableTableHeader
                       label="Status"
-                      sortKey="status"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="status"
+                      direction={sortState.key === "status" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <SortableTableHeader
                       label="Created"
-                      sortKey="createdAt"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="createdAt"
+                      direction={sortState.key === "createdAt" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
@@ -403,6 +406,7 @@ export function DivisionsSection() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEditDivision(div)}
+                            aria-label={`Edit ${div.name}`}
                             data-testid={`button-edit-division-${div.id}`}
                           >
                             <Edit className="w-4 h-4" />
@@ -412,6 +416,7 @@ export function DivisionsSection() {
                               variant="ghost"
                               size="sm"
                               onClick={() => setRestoringDivision(div)}
+                              aria-label={`Restore ${div.name}`}
                               data-testid={`button-restore-division-${div.id}`}
                             >
                               <RotateCcw className="w-4 h-4" />
@@ -421,6 +426,7 @@ export function DivisionsSection() {
                               variant="ghost"
                               size="sm"
                               onClick={() => setArchivingDivision(div)}
+                              aria-label={`Archive ${div.name}`}
                               data-testid={`button-archive-division-${div.id}`}
                             >
                               <Archive className="w-4 h-4" />

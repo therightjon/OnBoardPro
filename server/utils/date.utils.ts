@@ -7,7 +7,7 @@
 
 import type { Candidate } from "@shared/schemas";
 
-export type AnchorKey = 'loo' | 'start';
+export type AnchorKey = 'loi' | 'loo' | 'loo_issued' | 'loo_accepted' | 'start';
 export type AnchorDates = Record<AnchorKey, Date | null>;
 
 export const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -44,6 +44,13 @@ export function ensureDate(input?: Date | string | null): Date | null {
 }
 
 /**
+ * Resolve the Letter of Intent (LOI) anchor date for a candidate
+ */
+export function resolveLoiAnchor(candidate: Candidate): Date | null {
+  return ensureDate(candidate.letterOfIntentDate);
+}
+
+/**
  * Resolve the Letter of Offer (LOO) anchor date for a candidate
  * Uses accepted date if available, falls back to issued date
  */
@@ -53,6 +60,22 @@ export function resolveLooAnchor(candidate: Candidate): Date | null {
     ensureDate((candidate as any).offerLetterIssuedAt) ??
     ensureDate((candidate as any).looDate)
   );
+}
+
+/**
+ * Resolve the LOO Issued anchor date for a candidate
+ * Returns only the issued date, does not fall back to accepted
+ */
+export function resolveLooIssuedAnchor(candidate: Candidate): Date | null {
+  return ensureDate((candidate as any).offerLetterIssuedAt);
+}
+
+/**
+ * Resolve the LOO Accepted anchor date for a candidate
+ * Returns only the accepted date, does not fall back to issued
+ */
+export function resolveLooAcceptedAnchor(candidate: Candidate): Date | null {
+  return ensureDate((candidate as any).offerLetterAcceptedAt);
 }
 
 /**
@@ -86,18 +109,46 @@ export function computeDueFromRule(
   };
 
   switch (ruleType) {
+    // LOI-based rules
+    case "on_loi_date":
+      return applyAnchor("loi", 0);
+    case "days_before_loi":
+      return applyAnchor("loi", -1 * (ruleValue ?? 0));
+    case "days_after_loi":
+      return applyAnchor("loi", ruleValue ?? 0);
+
+    // LOO-based rules (generic - uses fallback)
     case "on_loo_date":
       return applyAnchor("loo", 0);
     case "days_before_loo":
       return applyAnchor("loo", -1 * (ruleValue ?? 0));
     case "days_after_loo":
       return applyAnchor("loo", ruleValue ?? 0);
+
+    // LOO Accepted-based rules
+    case "on_loo_accepted_date":
+      return applyAnchor("loo_accepted", 0);
+    case "days_before_loo_accepted":
+      return applyAnchor("loo_accepted", -1 * (ruleValue ?? 0));
+    case "days_after_loo_accepted":
+      return applyAnchor("loo_accepted", ruleValue ?? 0);
+
+    // LOO Issued-based rules
+    case "on_loo_issued_date":
+      return applyAnchor("loo_issued", 0);
+    case "days_before_loo_issued":
+      return applyAnchor("loo_issued", -1 * (ruleValue ?? 0));
+    case "days_after_loo_issued":
+      return applyAnchor("loo_issued", ruleValue ?? 0);
+
+    // Start date-based rules
     case "on_start_date":
       return applyAnchor("start", 0);
     case "days_before_start":
       return applyAnchor("start", -1 * (ruleValue ?? 0));
     case "days_after_start":
       return applyAnchor("start", ruleValue ?? 0);
+
     case "fixed_date": {
       const date = ensureDate(fixedDate);
       if (!date) {

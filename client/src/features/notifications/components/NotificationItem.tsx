@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { NotificationRecord } from "../types";
@@ -9,7 +10,7 @@ interface NotificationItemProps {
   compact?: boolean;
 }
 
-export function NotificationItem({ notification, onSelect, compact = false }: NotificationItemProps) {
+function NotificationItemComponent({ notification, onSelect, compact = false }: NotificationItemProps) {
   const display = mapNotificationToDisplay(notification);
   const Icon = display.icon;
   const createdAt = new Date(notification.createdAt);
@@ -48,3 +49,18 @@ export function NotificationItem({ notification, onSelect, compact = false }: No
     </button>
   );
 }
+
+/**
+ * Memoized notification item component to prevent unnecessary re-renders.
+ * Only re-renders when notification ID, read status, or callback functions change.
+ */
+export const NotificationItem = memo(NotificationItemComponent, (prevProps, nextProps) => {
+  // Compare notification properties that affect rendering
+  return (
+    prevProps.notification.id === nextProps.notification.id &&
+    prevProps.notification.isRead === nextProps.notification.isRead &&
+    prevProps.notification.createdAt === nextProps.notification.createdAt &&
+    prevProps.compact === nextProps.compact &&
+    prevProps.onSelect === nextProps.onSelect
+  );
+});

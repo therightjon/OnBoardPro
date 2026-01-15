@@ -1,5 +1,6 @@
 import { auditLog, type NewAuditLogEntry } from "@shared/schemas";
 import { db } from "../../db/connection";
+import { logger } from "../../utils/logger";
 
 export type AuditResourceType =
   | "candidate"
@@ -60,6 +61,6 @@ export async function writeAuditLog(params: AuditLogParams): Promise<void> {
     await db.insert(auditLog).values(payload).execute();
   } catch (error) {
     // Auditing should never block business logic
-    console.error("Failed to write audit log", error);
+    logger.error("Failed to write audit log", error);
   }
 }
