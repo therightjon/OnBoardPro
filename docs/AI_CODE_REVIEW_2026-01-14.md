@@ -284,7 +284,7 @@ This approach:
 **File:** [server/middleware/session-timeout.ts](server/middleware/session-timeout.ts)
 **Severity:** MEDIUM
 **CWE:** CWE-613
-**Status:** ✅ FIXED
+**Status:** ✅ FIXED (with Admin UI)
 
 **Issue:**
 Only idle timeout (2 hours) enforced. Rolling sessions could theoretically stay active indefinitely.
@@ -295,26 +295,37 @@ Only idle timeout (2 hours) enforced. Rolling sessions could theoretically stay 
 3. Added `createdAt` timestamp to `SessionData` interface, set on login
 4. Updated both login paths (local and provider) in auth.service.ts to set `createdAt`
 5. Added comprehensive unit tests in [server/tests/middleware/session-timeout.test.ts](server/tests/middleware/session-timeout.test.ts)
+6. **Added Admin UI:** Created Settings > System > Security Settings section for `system_admin` role to configure session timeouts via database
 
 **Security Improvements:**
 - **Idle timeout** (default 2 hours): Rolling timeout that resets on each request
 - **Absolute timeout** (default 24 hours): Hard limit on session duration regardless of activity
-- Configurable via environment variables
+- Configurable via environment variables (fallback defaults) OR Settings UI (database, system_admin only)
+- Settings cached for 1 minute to minimize database reads
 
 **Files Modified:**
 - [server/config/env.ts](server/config/env.ts) - Added `SESSION_IDLE_TIMEOUT_HOURS`, `SESSION_ABSOLUTE_TIMEOUT_HOURS`
-- [server/middleware/session-timeout.ts](server/middleware/session-timeout.ts) - Added absolute timeout enforcement
+- [server/middleware/session-timeout.ts](server/middleware/session-timeout.ts) - Uses cached DB settings with env fallback
 - [server/features/auth/services/auth.service.ts](server/features/auth/services/auth.service.ts) - Added `createdAt` to SessionData and login paths
+- [server/services/settings/system-settings.service.ts](server/services/settings/system-settings.service.ts) - Added `SecuritySettings` interface and caching
+- [server/routes/settings.routes.ts](server/routes/settings.routes.ts) - Added `GET/PATCH /api/settings/security` (system_admin only)
+- [client/src/features/settings/components/SecuritySettingsSection.tsx](client/src/features/settings/components/SecuritySettingsSection.tsx) - New component
+- [client/src/features/settings/index.ts](client/src/features/settings/index.ts) - Export new component
+- [client/src/app/(dashboard)/settings/page.tsx](client/src/app/(dashboard)/settings/page.tsx) - Added to SystemTab
 - [server/tests/middleware/session-timeout.test.ts](server/tests/middleware/session-timeout.test.ts) - New test file (11 tests)
+
+**Configuration Ranges:**
+- **Idle timeout:** 0.1 to 24 hours (6 minutes to 1 day)
+- **Absolute timeout:** 1 to 168 hours (1 hour to 1 week)
 
 **Usage:**
 ```bash
-# Customize timeouts (defaults shown):
+# Environment variable defaults (fallback when DB setting not configured):
 SESSION_IDLE_TIMEOUT_HOURS=2
 SESSION_ABSOLUTE_TIMEOUT_HOURS=24
 ```
 
-**Verification:** ✅ All 222 backend tests pass (211 existing + 11 new), Codacy analysis clean
+**Verification:** ✅ All 307 tests pass (211 backend + 96 frontend), Codacy analysis clean
 
 ---
 

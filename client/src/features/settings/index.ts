@@ -15,6 +15,7 @@ export { HiringStagesSection } from "./components/HiringStagesSection";
 export { SystemPreferencesSection } from "./components/SystemPreferencesSection";
 export { UsersSection } from "./components/UsersSection";
 export { SmtpSettingsCard } from "./components/SmtpSettingsCard";
+export { SecuritySettingsSection } from "./components/SecuritySettingsSection";
 export { 
   AuthenticationProvidersSection, 
   LdapSettingsSection, 
