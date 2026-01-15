@@ -442,15 +442,37 @@ No React ErrorBoundary wrapping the application. Runtime errors crash the entire
 **Files:** [client/src/app/(dashboard)/templates/[id]/page.tsx](client/src/app/(dashboard)/templates/[id]/page.tsx) (2,527 lines), [client/src/app/(dashboard)/candidates/[id]/page.tsx](client/src/app/(dashboard)/candidates/[id]/page.tsx) (1,874 lines)
 **Severity:** MEDIUM
 **Category:** Maintainability
-**Status:** 🆕 NEW
+**Status:** ✅ FIXED
 
 **Issue:**
 Page components exceed maintainable size. Difficult to test, review, and modify.
 
-**Fix:**
-- Extract form handling into custom hooks
-- Split dialogs/modals into separate components
-- Create task-specific card components
+**Resolution Applied:**
+1. **Templates page refactored** from 2,527 → 638 lines (75% reduction):
+   - Extracted `PipelineEstimateSection` component (~400 lines) - displays pipeline duration estimates with lead times and per-stage breakdowns
+   - Extracted `AddStageForm` component (~300 lines) - form for adding new stages with batch task selection
+   - Created unified `TemplateTaskFormDialog` component (~550 lines) - combines Add/Edit task dialogs that shared 90% code
+   - Created barrel export at `features/templates/index.ts`
+
+2. **Candidates page refactored** from 1,874 → 1,549 lines (17% reduction):
+   - Extracted `EditableStatusBadge` component (~220 lines) - status dropdown with confirmation dialogs
+   - Extracted `CandidatePipelineEstimate` component (~140 lines) - remaining tasks and estimated completion
+   - Created barrel export at `features/candidates/index.ts`
+
+**Files Created:**
+- [client/src/features/templates/components/PipelineEstimateSection.tsx](../client/src/features/templates/components/PipelineEstimateSection.tsx)
+- [client/src/features/templates/components/AddStageForm.tsx](../client/src/features/templates/components/AddStageForm.tsx)
+- [client/src/features/templates/components/TemplateTaskFormDialog.tsx](../client/src/features/templates/components/TemplateTaskFormDialog.tsx)
+- [client/src/features/candidates/components/editable-status-badge.tsx](../client/src/features/candidates/components/editable-status-badge.tsx)
+- [client/src/features/candidates/components/candidate-pipeline-estimate.tsx](../client/src/features/candidates/components/candidate-pipeline-estimate.tsx)
+- [client/src/features/candidates/index.ts](../client/src/features/candidates/index.ts)
+
+**Files Modified:**
+- [client/src/app/(dashboard)/templates/[id]/page.tsx](../client/src/app/(dashboard)/templates/[id]/page.tsx) - Reduced from 2,527 to 638 lines
+- [client/src/app/(dashboard)/candidates/[id]/page.tsx](../client/src/app/(dashboard)/candidates/[id]/page.tsx) - Reduced from 1,874 to 1,549 lines
+- [client/src/features/templates/index.ts](../client/src/features/templates/index.ts) - Updated exports
+
+**Verification:** ✅ All 307 tests pass (211 backend + 96 frontend), TypeScript checks pass, Codacy analysis clean
 
 ---
 

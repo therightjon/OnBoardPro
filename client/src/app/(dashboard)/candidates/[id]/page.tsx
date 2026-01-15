@@ -16,10 +16,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
-import { ArrowLeft, Edit, Calendar, User, Mail, Building, Clock, Users, CheckCircle, MoreHorizontal, Archive, RotateCcw, ChevronDown } from "lucide-react";
+import { ArrowLeft, Edit, Calendar, User, Mail, Building, Clock, Users, CheckCircle, MoreHorizontal, Archive, RotateCcw } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { format } from "date-fns";
 import { TaskStatusCell } from "@/features/tasks/components/task-status-cell";
@@ -30,8 +29,15 @@ import { CommentsTab } from "@/features/comments/components/comments-tab";
 // Lazy load heavy dialogs to reduce initial bundle size
 const EditCandidateDialog = lazy(() => import("@/features/candidates/components/edit-candidate-dialog").then(m => ({ default: m.EditCandidateDialog })));
 const ArchiveCandidateDialog = lazy(() => import("@/features/candidates/components/archive-candidate-dialog").then(m => ({ default: m.ArchiveCandidateDialog })));
-import { candidateStatusBadgeClass, isCandidateFullyOnboarded, resolveCandidateStatus, summarizeCandidateTasks, canArchiveCandidate, type ResolvedCandidateStatus } from "@/features/candidates/utils/status";
-import { HiringProgress } from "@/features/candidates/components/hiring-progress";
+import { 
+  EditableStatusBadge, 
+  CandidatePipelineEstimate,
+  HiringProgress,
+  isCandidateFullyOnboarded, 
+  resolveCandidateStatus, 
+  summarizeCandidateTasks, 
+  canArchiveCandidate
+} from "@/features/candidates";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
@@ -693,222 +699,6 @@ export default function CandidateDetailPage() {
     );
   }
 
-  const EditableStatusBadge = ({ candidate, user, tasks, onStatusChange, resolvedStatus, onRequestRestore }: { 
-    candidate: any; 
-    user: any; 
-    tasks: any[];
-    onStatusChange: () => void;
-    resolvedStatus: ResolvedCandidateStatus;
-    onRequestRestore: () => void;
-  }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-    const [pendingStatus, setPendingStatus] = useState<string>('');
-    const { toast } = useToast();
-
-    const updateStatusMutation = useMutation({
-      mutationFn: async ({ status, closeOpenTasks }: { status: string; closeOpenTasks?: boolean }) => {
-        const response = await apiRequest('PATCH', `/api/candidates/${candidate.id}/status`, { status, closeOpenTasks });
-        return response.json();
-      },
-      onSuccess: (data) => {
-        // Invalidate relevant caches
-        queryClient.invalidateQueries({ queryKey: ['candidate', candidate.id] });
-        queryClient.invalidateQueries({ queryKey: ['/api/candidates'] });
-        queryClient.invalidateQueries({ queryKey: ['candidateTasks', candidate.id] });
-        invalidateMyTasks(queryClient);
-
-        // Show cascade results if tasks were closed
-        if (data.cascaded?.closedTasks > 0) {
-          toast({
-            title: "Status updated with task closure",
-            description: `Candidate status updated successfully. Closed ${data.cascaded.closedTasks} task(s).`,
-          });
-        } else {
-          toast({
-            title: "Status updated",
-            description: "Candidate status has been updated successfully.",
-          });
-        }
-        
-        onStatusChange();
-        setIsOpen(false);
-        setShowConfirmDialog(false);
-      },
-      onError: (error: any) => {
-        setShowConfirmDialog(false);
-        toast({
-          title: "Unable to update status",
-          description: error.message || "Please try again or contact support if the issue persists.",
-        });
-      }
-    });
-
-    const getValidTransitions = (currentStatus: string) => {
-      const transitions: Record<string, { value: string; label: string; destructive?: boolean }[]> = {
-        'draft': [
-          { value: 'active', label: 'Active' },
-          { value: 'on_hold', label: 'On Hold' },
-          { value: 'canceled', label: 'Canceled', destructive: true },
-          { value: 'archived', label: 'Archived', destructive: true }
-        ],
-        'active': [
-          { value: 'on_hold', label: 'On Hold' },
-          { value: 'completed', label: 'Completed' },
-          { value: 'canceled', label: 'Canceled', destructive: true },
-          { value: 'archived', label: 'Archived', destructive: true }
-        ],
-        'on_hold': [
-          { value: 'active', label: 'Active' },
-          { value: 'canceled', label: 'Canceled', destructive: true },
-          { value: 'archived', label: 'Archived', destructive: true }
-        ],
-        'completed': [
-          { value: 'archived', label: 'Archived', destructive: true }
-        ],
-        'canceled': [
-          { value: 'active', label: 'Restore to Active' }
-        ],
-        'offer_declined': [
-          { value: 'archived', label: 'Archived', destructive: true },
-          { value: 'active', label: 'Restore to Active' }
-        ],
-        'archived': [
-          { value: 'active', label: 'Restore to Active' }
-        ]
-      };
-      return transitions[currentStatus] || [];
-    };
-
-    const handleStatusSelect = (newStatus: string) => {
-      if (candidate.archived && newStatus === 'active' && onRequestRestore) {
-        setIsOpen(false);
-        onRequestRestore();
-        return;
-      }
-
-      const transitions = getValidTransitions(candidate.status);
-      const transition = transitions.find(t => t.value === newStatus);
-      
-      setPendingStatus(newStatus);
-      
-      if (transition?.destructive) {
-        setShowConfirmDialog(true);
-      } else {
-        // Direct update for non-destructive transitions
-        updateStatusMutation.mutate({ status: newStatus });
-      }
-    };
-
-    const handleConfirmStatusChange = (closeOpenTasks = false) => {
-      updateStatusMutation.mutate({ 
-        status: pendingStatus, 
-        closeOpenTasks 
-      });
-    };
-
-    // Only show editable for authorized roles and when not already fully onboarded
-    const canEdit = (user?.role === 'system_admin' || user?.role === 'hr_staff') 
-      && candidate?.status !== 'completed'
-      && !fullyOnboarded;
-    
-    if (!canEdit) {
-      return (
-        <Badge className={candidateStatusBadgeClass(resolvedStatus.status)} data-testid="badge-candidate-status">
-          {resolvedStatus.label.toUpperCase()}
-        </Badge>
-      );
-    }
-
-    const validTransitions = getValidTransitions(candidate.status);
-    
-    // Check if there are incomplete required tasks
-    const hasIncompleteRequiredTasks = tasks.some(
-      task => task.required && task.status !== 'done'
-    );
-    
-    return (
-      <>
-        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-          <DropdownMenuTrigger asChild>
-            <button 
-              className={`${candidateStatusBadgeClass(resolvedStatus.status)} inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity`}
-              data-testid="button-status-dropdown"
-              disabled={updateStatusMutation.isPending}
-            >
-              {resolvedStatus.label.toUpperCase()}
-              <ChevronDown className="w-3 h-3 ml-1" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" data-testid="dropdown-status-options">
-            {validTransitions.map((transition) => {
-              const isCompleted = transition.value === 'completed';
-              const isDisabled = isCompleted && hasIncompleteRequiredTasks;
-              
-              if (isDisabled) {
-                return (
-                  <div
-                    key={transition.value}
-                    className="px-2 py-1.5 text-sm text-muted-foreground cursor-not-allowed"
-                    data-testid={`option-status-${transition.value}-disabled`}
-                  >
-                    <div>{transition.label}</div>
-                    <div className="text-xs mt-1">Complete all required tasks first</div>
-                  </div>
-                );
-              }
-              
-              return (
-                <DropdownMenuItem
-                  key={transition.value}
-                  onClick={() => handleStatusSelect(transition.value)}
-                  className={transition.destructive ? "text-destructive focus:text-destructive" : ""}
-                  data-testid={`option-status-${transition.value}`}
-                >
-                  {transition.label}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Confirmation Dialog for Destructive Actions */}
-        <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-          <AlertDialogContent data-testid="dialog-confirm-status">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to change the candidate status to "{pendingStatus.replace('_', ' ')}"?
-                {pendingStatus === 'canceled' && " You can optionally close all open tasks."}
-                {pendingStatus === 'archived' && " This will archive the candidate and all their data."}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel data-testid="button-cancel-status">Cancel</AlertDialogCancel>
-              {pendingStatus === 'canceled' && (
-                <AlertDialogAction
-                  onClick={() => handleConfirmStatusChange(true)}
-                  className="bg-orange-600 hover:bg-orange-700"
-                  data-testid="button-confirm-status-close-tasks"
-                >
-                  Cancel & Close Tasks
-                </AlertDialogAction>
-              )}
-              <AlertDialogAction
-                onClick={() => handleConfirmStatusChange(false)}
-                className={pendingStatus === 'archived' ? "bg-destructive hover:bg-destructive/90" : ""}
-                data-testid="button-confirm-status"
-              >
-                {pendingStatus === 'canceled' ? 'Cancel Only' : 'Confirm'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-      </>
-    );
-  };
-
   return (
     <div className="space-y-3 xs:space-y-4 sm:space-y-6 max-w-none xs:max-w-[350px] sm:max-w-4xl lg:max-w-6xl mx-auto">
       {/* Header */}
@@ -933,6 +723,7 @@ export default function CandidateDetailPage() {
             }}
             resolvedStatus={resolvedStatus}
             onRequestRestore={() => setIsArchiveDialogOpen(true)}
+            fullyOnboarded={fullyOnboarded}
           />
           {resolvedStatus.isArchived && (
             <Badge variant="destructive" data-testid="badge-archived">
@@ -1752,122 +1543,6 @@ export default function CandidateDetailPage() {
           candidateId={(candidate as any).id}
           onClose={() => setOpenTaskComments(null)}
         />
-      )}
-    </div>
-  );
-}
-
-// Candidate Pipeline Duration Estimate Component
-function CandidatePipelineEstimate({ candidateId, status, templateAppliedAt }: { candidateId: string; status?: string; templateAppliedAt?: string | null }) {
-  const { data: estimate, isLoading, error } = useQuery({
-    queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        businessDays: 'true'
-      });
-      const response = await apiRequest('GET', `/api/candidates/${candidateId}/estimate?${params}`);
-      return response.json();
-    },
-    enabled: !!candidateId
-  });
-
-  const formatDate = (dateStr?: string | null) => formatUtcDate(dateStr);
-
-  if (isLoading) {
-    return (
-      <div className="mt-4 p-3 bg-muted/20 rounded-lg">
-        <div className="text-sm text-muted-foreground">
-          Calculating pipeline estimate...
-        </div>
-      </div>
-    );
-  }
-
-  if (error || estimate?.error) {
-    return (
-      <div className="mt-4 p-3 bg-muted/20 rounded-lg">
-        <div className="text-sm text-muted-foreground">
-          Pipeline estimate unavailable
-        </div>
-      </div>
-    );
-  }
-
-  // If candidate is canceled, show a canceled message instead of completion
-  if (status === 'canceled') {
-    return (
-      <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800">
-        <div className="text-sm font-medium text-orange-800 dark:text-orange-200">
-          Candidate canceled — task estimates are not applicable.
-        </div>
-      </div>
-    );
-  }
-
-  // Don't show "All tasks completed" if template hasn't been applied yet
-  // This prevents showing completion when only prerequisite tasks exist
-  if (!estimate || estimate.remainingTasks === 0) {
-    if (!templateAppliedAt) {
-      return (
-        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-          <div className="text-sm font-medium text-blue-800 dark:text-blue-200">
-            Awaiting template expansion after Letter of Offer acceptance
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="mt-4 p-3 bg-green-50 dark:bg-emerald-950 rounded-lg border border-green-200 dark:border-emerald-700">
-        <div className="text-sm font-medium text-green-800 dark:text-emerald-300">
-          🎉 All tasks completed!
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-4 p-0 bg-muted/20 rounded-lg">
-      <h4 className="text-sm font-medium text-foreground mb-3 ml-7">Pipeline Duration Estimate</h4>
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="flex items-start space-x-3">
-          <CheckCircle className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-          <div>
-            <div className="text-xs text-muted-foreground mb-1">Remaining Tasks</div>
-            <div className="font-medium" data-testid="text-remaining-tasks">
-              {estimate.remainingTasks} of {estimate.taskCount}
-            </div>
-          </div>
-        </div>
-        {estimate.totalBusinessDays !== null && (
-          <div className="flex items-start space-x-3">
-            <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Business Days</div>
-              <div className="font-medium" data-testid="text-business-days">
-                {estimate.totalBusinessDays}
-              </div>
-            </div>
-          </div>
-        )}
-        {estimate.lastDueDate && (
-          <div className="col-span-2 flex items-start space-x-3">
-            <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Est. Completion</div>
-              <div className="font-medium" data-testid="text-completion-date">
-                {formatDate(estimate.lastDueDate)}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      {estimate.nonEstimable && estimate.nonEstimable.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-border">
-          <div className="text-xs text-amber-700 dark:text-amber-400">
-            {estimate.nonEstimable.length} task(s) without due dates not included
-          </div>
-        </div>
       )}
     </div>
   );
