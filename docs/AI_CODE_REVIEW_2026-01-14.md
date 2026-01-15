@@ -23,7 +23,7 @@ However, a **NEW CRITICAL** issue has emerged from dependency updates (Zod 3.25.
 - **CRITICAL Issues:** 1 (NEW - build breaking) ✅ FIXED
 - **HIGH Issues:** 2 (1 carried over, 1 new pattern) — 1 fixed (N+1 query) ✅ ALL FIXED
 - **MEDIUM Issues:** 8 (2 fixed - weak email validation, weak common password list) ✅ ALL FIXED
-- **LOW Issues:** 6 (2 fixed - icon-only buttons, dialog descriptions) ✅ 3 FIXED (icon-only buttons, dialog descriptions, React.memo)
+- **LOW Issues:** 6 (2 fixed - icon-only buttons, dialog descriptions) ✅ 4 FIXED (icon-only buttons, dialog descriptions, React.memo, debug logging)
 - **INFO Items:** 4
 
 ### Changes Since Last Review
@@ -662,11 +662,54 @@ List item components (`NotificationItem` and `CommentItem`) were re-rendering un
 ---
 
 ### 21. **Debug Logging in Production Code**
-**File:** [server/services/templates/template-estimation.service.ts](server/services/templates/template-estimation.service.ts)
+**Files:** Multiple route and utility files
 **Severity:** LOW
-**Status:** 🆕 NEW
+**Status:** ✅ FIXED
 
-Contains `console.log` debug statements that shouldn't be in production.
+**Issue:**
+Debug `console.log` statements scattered across production code, causing log noise and potential information leakage.
+
+**Resolution Applied:**
+1. Created [server/utils/logger.ts](server/utils/logger.ts) - Lightweight environment-aware logging utility:
+   - `logger.debug()` - Development-only verbose logs (suppressed in production/tests)
+   - `logger.info()` - General operational messages
+   - `logger.warn()` - Warning conditions
+   - `logger.error()` - Error conditions with stack trace support
+   - Configurable via `LOG_LEVEL` environment variable
+   - Automatically suppresses all logs during tests (`NODE_ENV=test`)
+
+2. Removed debug console.log statements from:
+   - [server/routes/search.routes.ts](server/routes/search.routes.ts) - Removed 6 debug logs (search queries and result counts)
+   - [server/routes/candidates.routes.ts](server/routes/candidates.routes.ts) - Replaced 14 debug logs with `logger.debug()` for template operations
+   - [server/routes/tasks.routes.ts](server/routes/tasks.routes.ts) - Replaced 1 debug log with `logger.debug()` for stage advancement
+   - [server/utils/passwords.ts](server/utils/passwords.ts) - Replaced loading log with `logger.info()` and warning with `logger.warn()`
+   - [server/repositories/templates/TemplateStageRepository.ts](server/repositories/templates/TemplateStageRepository.ts) - Replaced 1 debug log with `logger.debug()`
+
+**Logger Usage:**
+```typescript
+import { logger } from '../utils/logger';
+
+// Debug-level (development only)
+logger.debug('Template applied', { taskCount: 5, candidateId: 'abc123' });
+
+// Info-level (production visible)
+logger.info('Server started', { port: 5000 });
+
+// Set log level via environment variable
+// LOG_LEVEL=debug|info|warn|error|silent (default: info in prod, debug in dev)
+```
+
+**Files Created:**
+- [server/utils/logger.ts](server/utils/logger.ts) - New logging utility
+
+**Files Modified:**
+- [server/routes/search.routes.ts](server/routes/search.routes.ts) - Removed debug logs
+- [server/routes/candidates.routes.ts](server/routes/candidates.routes.ts) - Uses `logger.debug()`
+- [server/routes/tasks.routes.ts](server/routes/tasks.routes.ts) - Uses `logger.debug()`
+- [server/utils/passwords.ts](server/utils/passwords.ts) - Uses `logger.info()` and `logger.warn()`
+- [server/repositories/templates/TemplateStageRepository.ts](server/repositories/templates/TemplateStageRepository.ts) - Uses `logger.debug()`
+
+**Verification:** ✅ All 211 backend tests pass, TypeScript checks pass, Codacy analysis clean
 
 ---
 
@@ -780,8 +823,9 @@ The score improved due to fixing the Zod incompatibility, LDAP injection vulnera
 | #11 Excessive `any` Types | MEDIUM | Easy | ✅ **RESOLVED** |
 | #15 Repeated ZodError Handling | MEDIUM | Easy | ✅ **RESOLVED** |
 | #7, #9, #12-14 Medium Issues | MEDIUM | Easy-Medium | **P2 - This Month** |
-| #16-19, #21 Low Issues | LOW | Trivial-Easy | **P3 - Backlog** |
+| #16-19 Low Issues | LOW | Trivial-Easy | **P3 - Backlog** |
 | #20 Incomplete TODO Comments | LOW | Medium | ✅ **RESOLVED** (10/15 fixed, 5 tracked) |
+| #21 Debug Logging | LOW | Easy | ✅ **RESOLVED** |
 
 ---
 

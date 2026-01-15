@@ -94,6 +94,19 @@ const isValid = await comparePasswords(supplied, stored);
 const errors = validatePasswordPolicy(password); // 12+ chars, mixed case, number, special char
 ```
 
+### Logging
+Use environment-aware logger from `server/utils/logger.ts` instead of `console.log`:
+```typescript
+import { logger } from '../utils/logger';
+
+logger.debug('Detailed info', { key: 'value' });  // Dev only, silent in prod/test
+logger.info('Operation completed', { count: 5 }); // Always visible
+logger.warn('Deprecated API used');               // Always visible
+logger.error('Failed to connect', error);         // Always visible, includes stack in dev
+```
+
+Log levels: `LOG_LEVEL=debug|info|warn|error|silent` (defaults: `debug` in dev, `info` in prod, `silent` in test).
+
 ### Service Factory (DI)
 Services instantiated via `server/services/service-factory.ts`. Use `get*Service()` in routes:
 ```typescript

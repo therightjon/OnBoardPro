@@ -14,6 +14,7 @@ import {
   type InsertTemplateStage,
 } from "@shared/schemas";
 import { BaseRepository } from "../base/BaseRepository";
+import { logger } from "../../utils/logger";
 
 /**
  * Repository for managing template stages
@@ -87,7 +88,7 @@ export class TemplateStageRepository extends BaseRepository {
 
     // Log for debugging
     if (result.rowCount && result.rowCount > 0) {
-      console.log(`Auto-activated template ${insertStage.templateId}`);
+      logger.debug('Auto-activated template', { templateId: insertStage.templateId });
     }
 
     // Return the created/updated stage

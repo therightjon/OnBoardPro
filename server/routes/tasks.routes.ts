@@ -39,6 +39,7 @@ import { authorizationService } from "../services/authorization";
 import { eventBus, candidateStageChanged, taskCreated, taskAssigned, taskStatusChanged, taskCompleted, commentCreated } from "../events";
 import { getTaskService, getCommentService, getUserService, getReferenceDataService, getCandidateService } from "../services/service-factory";
 import { writeAuditLog } from "../services/shared/audit-logger";
+import { logger } from "../utils/logger";
 
 const router = Router();
 
@@ -450,7 +451,10 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
 
       // Log advancement for debugging (optional)
       if (advancement.advanced) {
-        console.log(`Candidate ${existingTask.candidateId} advanced to stage ${advancement.toStageName}`);
+        logger.debug('Candidate advanced to new stage', { 
+          candidateId: existingTask.candidateId, 
+          toStageName: advancement.toStageName 
+        });
       }
     }
 

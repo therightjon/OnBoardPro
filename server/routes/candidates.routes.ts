@@ -43,6 +43,7 @@ import { getCandidateService, getTaskService, getCommentService, getReferenceDat
 import { CandidateValidationError } from "../services/candidates/candidate.service";
 import { shouldAutoApplyTemplate } from "../utils/hiring-phase.utils";
 import { publishTemplateTaskCreatedEvents } from "../utils/template-event.utils";
+import { logger } from "../utils/logger";
 
 const router = Router();
 
@@ -226,7 +227,7 @@ router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res
 
     if (needsTemplateExpansion) {
       try {
-        console.log('Auto-expanding template on GET (missed expansion):', {
+        logger.debug('Auto-expanding template on GET (missed expansion)', {
           candidateId: candidate.id,
           templateId: candidate.templateAppliedFromId
         });
@@ -244,7 +245,7 @@ router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res
           req.user?.id
         );
 
-        console.log('Template auto-expanded on GET:', {
+        logger.debug('Template auto-expanded on GET', {
           taskCount: expansionResult.createdCount
         });
 
@@ -434,7 +435,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
     let prerequisiteExpansionResult = null;
     if (candidate.templateAppliedFromId && candidate.letterOfIntentDate) {
       try {
-        console.log('Expanding prerequisite tasks on candidate creation:', {
+        logger.debug('Expanding prerequisite tasks on candidate creation', {
           candidateId: candidate.id,
           templateId: candidate.templateAppliedFromId
         });
@@ -449,7 +450,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
         if (prerequisiteExpansionResult.tasksCreated > 0) {
           // Note: We'd need to get the actual tasks to publish events
           // For now, just log the expansion
-          console.log('Prerequisite tasks expanded successfully:', {
+          logger.debug('Prerequisite tasks expanded successfully', {
             tasksCreated: prerequisiteExpansionResult.tasksCreated,
             conditionsMet: prerequisiteExpansionResult.conditionsMet,
             tasksSkipped: prerequisiteExpansionResult.tasksSkipped
@@ -465,7 +466,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
     let templateExpansionResult = null;
     if (candidate.offerLetterAcceptedAt && candidate.templateAppliedFromId) {
       try {
-        console.log('Auto-applying template on candidate creation with LOO accepted:', {
+        logger.debug('Auto-applying template on candidate creation with LOO accepted', {
           candidateId: candidate.id,
           templateId: candidate.templateAppliedFromId
         });
@@ -483,7 +484,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
           req.user?.id
         );
 
-        console.log('Template auto-applied successfully on creation:', {
+        logger.debug('Template auto-applied successfully on creation', {
           taskCount: templateExpansionResult.createdCount
         });
       } catch (templateError: any) {
@@ -661,7 +662,7 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
 
     // Integration concerns: Auto-apply template when LOO is accepted (deferred template application)
     // Check if LOO acceptance is being set and template should be auto-applied
-    console.log('Checking LOO acceptance auto-apply:', {
+    logger.debug('Checking LOO acceptance auto-apply', {
       previousOfferLetterAcceptedAt: previousCandidate.offerLetterAcceptedAt,
       newOfferLetterAcceptedAt: updateData.offerLetterAcceptedAt,
       templateAppliedFromId: previousCandidate.templateAppliedFromId,
@@ -671,7 +672,7 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
       previousCandidate,
       updateData.offerLetterAcceptedAt
     );
-    console.log('shouldApplyTemplate result:', shouldApplyTemplate);
+    logger.debug('shouldApplyTemplate result', { shouldApplyTemplate });
 
     // Fallback: Also check if LOO is already accepted but template hasn't been applied yet
     // This handles edge cases where template expansion failed previously or code wasn't deployed
@@ -681,13 +682,13 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
       !fullCandidate.templateAppliedAt;
 
     if (needsTemplateApplied) {
-      console.log('Fallback: LOO is already accepted but template not applied, applying now');
+      logger.debug('Fallback: LOO is already accepted but template not applied, applying now');
     }
 
     let templateExpansionResult = null;
     if ((shouldApplyTemplate || needsTemplateApplied) && fullCandidate.templateAppliedFromId) {
       try {
-        console.log('Auto-applying deferred template on LOO acceptance:', { 
+        logger.debug('Auto-applying deferred template on LOO acceptance', { 
           candidateId: fullCandidate.id, 
           templateId: fullCandidate.templateAppliedFromId 
         });
@@ -704,7 +705,7 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
           req.user?.id
         );
         
-        console.log('Template auto-applied successfully:', { 
+        logger.debug('Template auto-applied successfully', { 
           taskCount: templateExpansionResult.createdCount 
         });
       } catch (templateError: any) {
@@ -1099,10 +1100,10 @@ router.post("/candidates/:id/apply-template", requireAuth, requireRole(["system_
   try {
     const { template_id } = req.body;
 
-    console.log('Applying template:', { candidateId: req.params.id, template_id, userId: req.user!.id });
+    logger.debug('Applying template', { candidateId: req.params.id, template_id, userId: req.user!.id });
 
     if (!template_id) {
-      console.log('Template application failed: template_id is required');
+      logger.debug('Template application failed: template_id is required');
       return res.status(400).json({ message: "template_id is required" });
     }
 
@@ -1132,7 +1133,7 @@ router.post("/candidates/:id/apply-template", requireAuth, requireRole(["system_
       console.error('Failed to dispatch template task assignment notifications:', notifyError);
     }
 
-    console.log('Template applied successfully:', { taskCount: expansion.createdCount });
+    logger.debug('Template applied successfully', { taskCount: expansion.createdCount });
     res.json({ message: "Template applied successfully", tasksCreated: expansion.createdCount });
   } catch (error: any) {
     console.error('Template application failed:', error);

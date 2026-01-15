@@ -4,6 +4,7 @@ import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import bcrypt from "bcrypt";
+import { logger } from "./logger";
 
 const scryptAsync = promisify(scrypt);
 
@@ -32,12 +33,12 @@ function loadCommonPasswords(): Set<string> {
       .map((line) => line.trim().toLowerCase())
       .filter((line) => line.length > 0);
     commonPasswordsCache = new Set(passwords);
-    console.log(`Loaded ${commonPasswordsCache.size} common passwords from blocklist`);
+    logger.info('Loaded common passwords from blocklist', { count: commonPasswordsCache.size });
   } catch (error) {
     // Fallback to minimal list if file cannot be read
-    console.warn(
-      `Warning: Could not load common passwords file at ${passwordFilePath}. Using minimal fallback list.`,
-      error
+    logger.warn(
+      `Could not load common passwords file at ${passwordFilePath}. Using minimal fallback list.`,
+      { error: error instanceof Error ? error.message : String(error) }
     );
     commonPasswordsCache = new Set([
       "password",

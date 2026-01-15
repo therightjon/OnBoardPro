@@ -166,11 +166,8 @@ router.get("/search/departments", requireAuth, async (req, res, next) => {
     }
     const { q } = req.query;
     const query = typeof q === 'string' ? q : '';
-
-    console.log('Searching departments with query:', query);
     const searchService = getSearchService();
     const results = await searchService.searchDepartments(query);
-    console.log('Department search results:', results.length, 'items');
     res.json({ items: results, query });
   } catch (error) {
     console.error('search departments error:', error);
@@ -186,11 +183,8 @@ router.get("/search/divisions", requireAuth, async (req, res, next) => {
     }
     const { q, departmentId } = req.query;
     const query = typeof q === 'string' ? q : '';
-
-    console.log('Searching divisions with query:', query, 'departmentId:', departmentId);
     const searchService = getSearchService();
     const results = await searchService.searchDivisions(query, typeof departmentId === 'string' ? departmentId : undefined);
-    console.log('Division search results:', results.length, 'items');
     res.json({ items: results, query });
   } catch (error) {
     console.error('search divisions error:', error);
@@ -208,15 +202,12 @@ router.get("/search/users", requireAuth, async (req, res, next) => {
   const role = (req.query.role ?? '').toString().trim();
   const departmentId = typeof req.query.departmentId === 'string' ? req.query.departmentId : undefined;
   const divisionId = typeof req.query.divisionId === 'string' ? req.query.divisionId : undefined;
-
-  console.log('Searching users with query:', q, 'role:', role, 'departmentId:', departmentId, 'divisionId:', divisionId);
   const searchService = getSearchService();
   const results = await searchService.searchUsers(q, {
     role: role || undefined,
     departmentId,
     divisionId
   });
-    console.log('User search results:', results.length, 'items');
     res.setHeader('Content-Type', 'application/json');
     res.status(200).json({ items: results, query: q });
   } catch (error) {
