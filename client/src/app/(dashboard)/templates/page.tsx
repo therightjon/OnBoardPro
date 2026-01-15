@@ -458,12 +458,12 @@ export default function TemplatesPage() {
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <Link href={`/templates/${template.id}`}>
-                          <Button variant="ghost" size="sm" data-testid={`button-view-template-${template.id}`}>
+                          <Button variant="ghost" size="sm" aria-label={`View ${template.name}`} data-testid={`button-view-template-${template.id}`}>
                             <Eye className="w-4 h-4" />
                           </Button>
                         </Link>
                         <Link href={`/templates/${template.id}`}>
-                          <Button variant="ghost" size="sm" data-testid={`button-edit-template-${template.id}`}>
+                          <Button variant="ghost" size="sm" aria-label={`Edit ${template.name}`} data-testid={`button-edit-template-${template.id}`}>
                             <Edit className="w-4 h-4" />
                           </Button>
                         </Link>
@@ -473,6 +473,7 @@ export default function TemplatesPage() {
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
+                                aria-label={`Delete ${template.name}`}
                                 data-testid={`button-delete-template-${template.id}`}
                                 className="text-destructive hover:text-destructive"
                               >

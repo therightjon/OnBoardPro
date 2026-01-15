@@ -172,6 +172,7 @@ function DepartmentTable({
                       variant="ghost"
                       size="sm"
                       onClick={() => onEdit(dept)}
+                      aria-label={`Edit ${dept.name}`}
                       data-testid={`button-edit-department-${dept.id}`}
                     >
                       <Edit className="w-4 h-4" />
@@ -181,6 +182,7 @@ function DepartmentTable({
                         variant="ghost"
                         size="sm"
                         onClick={() => onRestore(dept)}
+                        aria-label={`Restore ${dept.name}`}
                         data-testid={`button-restore-department-${dept.id}`}
                       >
                         <RotateCcw className="w-4 h-4" />
@@ -190,6 +192,7 @@ function DepartmentTable({
                         variant="ghost"
                         size="sm"
                         onClick={() => onArchive(dept)}
+                        aria-label={`Archive ${dept.name}`}
                         data-testid={`button-archive-department-${dept.id}`}
                       >
                         <Archive className="w-4 h-4" />

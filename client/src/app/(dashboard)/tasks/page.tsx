@@ -413,6 +413,7 @@ export default function TasksPage() {
                           size="sm" 
                           className="min-h-[44px] min-w-[44px] p-2"
                           onClick={() => handleEdit(taskDef)}
+                          aria-label={`Edit ${taskDef.name}`}
                           data-testid={`button-edit-task-def-${taskDef.id}`}
                         >
                           <Edit className="w-4 h-4" />
@@ -423,6 +424,7 @@ export default function TasksPage() {
                             size="sm"
                             className="min-h-[44px] min-w-[44px] p-2"
                             onClick={() => { setRestoringTaskDef(taskDef); setIsRestoreDialogOpen(true); }}
+                            aria-label={`Restore ${taskDef.name}`}
                             data-testid={`button-restore-task-def-${taskDef.id}`}
                           >
                             <RotateCcw className="w-4 h-4 text-muted-foreground" />
@@ -433,6 +435,7 @@ export default function TasksPage() {
                             size="sm" 
                             className="min-h-[44px] min-w-[44px] p-2"
                             onClick={() => { setArchivingTaskDef(taskDef); setIsArchiveDialogOpen(true); }}
+                            aria-label={`Archive ${taskDef.name}`}
                             data-testid={`button-archive-task-def-${taskDef.id}`}
                           >
                             <Archive className="w-4 h-4 text-muted-foreground" />

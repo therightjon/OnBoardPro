@@ -956,7 +956,7 @@ export default function CandidateDetailPage() {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="min-h-[44px] min-w-[44px]" data-testid="button-more-actions">
+                  <Button variant="outline" size="icon" className="min-h-[44px] min-w-[44px]" aria-label="More actions" data-testid="button-more-actions">
                     <MoreHorizontal className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>

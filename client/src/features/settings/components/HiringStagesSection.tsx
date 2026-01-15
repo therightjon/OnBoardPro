@@ -276,7 +276,7 @@ export function HiringStagesSection() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleEditStage(stage)}>
+                          <Button variant="ghost" size="sm" onClick={() => handleEditStage(stage)} aria-label={`Edit ${stage.name}`}>
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
@@ -284,6 +284,7 @@ export function HiringStagesSection() {
                             size="sm"
                             className="text-destructive"
                             onClick={() => setDeletingStage(stage)}
+                            aria-label={`Delete ${stage.name}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>

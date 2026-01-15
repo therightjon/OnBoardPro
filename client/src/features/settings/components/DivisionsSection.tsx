@@ -403,6 +403,7 @@ export function DivisionsSection() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEditDivision(div)}
+                            aria-label={`Edit ${div.name}`}
                             data-testid={`button-edit-division-${div.id}`}
                           >
                             <Edit className="w-4 h-4" />
@@ -412,6 +413,7 @@ export function DivisionsSection() {
                               variant="ghost"
                               size="sm"
                               onClick={() => setRestoringDivision(div)}
+                              aria-label={`Restore ${div.name}`}
                               data-testid={`button-restore-division-${div.id}`}
                             >
                               <RotateCcw className="w-4 h-4" />
@@ -421,6 +423,7 @@ export function DivisionsSection() {
                               variant="ghost"
                               size="sm"
                               onClick={() => setArchivingDivision(div)}
+                              aria-label={`Archive ${div.name}`}
                               data-testid={`button-archive-division-${div.id}`}
                             >
                               <Archive className="w-4 h-4" />

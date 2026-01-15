@@ -20,10 +20,10 @@ The codebase has seen significant improvements since the December 2025 review:
 However, a **NEW CRITICAL** issue has emerged from dependency updates (Zod 3.25.x incompatibility), and several HIGH severity items from the previous review remain unaddressed.
 
 ### Key Metrics
-- **CRITICAL Issues:** 1 (NEW - build breaking)
-- **HIGH Issues:** 2 (1 carried over, 1 new pattern) — 1 fixed (N+1 query)
-- **MEDIUM Issues:** 8 (2 fixed - weak email validation, weak common password list)
-- **LOW Issues:** 6
+- **CRITICAL Issues:** 1 (NEW - build breaking) ✅ FIXED
+- **HIGH Issues:** 2 (1 carried over, 1 new pattern) — 1 fixed (N+1 query) ✅ ALL FIXED
+- **MEDIUM Issues:** 8 (2 fixed - weak email validation, weak common password list) ✅ ALL FIXED
+- **LOW Issues:** 6 (1 fixed - icon-only buttons) ✅ 1 FIXED
 - **INFO Items:** 4
 
 ### Changes Since Last Review
@@ -504,7 +504,7 @@ Make configurable via environment variables.
 **Files:** Various UI components
 **Severity:** LOW
 **Category:** Accessibility
-**Status:** 🆕 NEW
+**Status:** ✅ FIXED
 
 **Issue:**
 Icon-only buttons lack screen reader labels:
@@ -514,7 +514,32 @@ Icon-only buttons lack screen reader labels:
 </Button>
 ```
 
-**Fix:** Add `aria-label="Archive"` to all icon-only buttons.
+**Resolution Applied:**
+Added `aria-label` attributes to all icon-only buttons across the codebase to improve accessibility for screen reader users. Each label provides context about the action and the target entity.
+
+**Files Modified:**
+- [client/src/features/settings/components/DepartmentsSection.tsx](client/src/features/settings/components/DepartmentsSection.tsx) - Added aria-labels to Edit, Archive, and Restore buttons
+- [client/src/features/settings/components/DivisionsSection.tsx](client/src/features/settings/components/DivisionsSection.tsx) - Added aria-labels to Edit, Archive, and Restore buttons
+- [client/src/features/settings/components/HiringStagesSection.tsx](client/src/features/settings/components/HiringStagesSection.tsx) - Added aria-labels to Edit and Delete buttons
+- [client/src/features/templates/components/TemplateStagesList.tsx](client/src/features/templates/components/TemplateStagesList.tsx) - Added aria-labels to Remove buttons
+- [client/src/app/(dashboard)/templates/page.tsx](client/src/app/(dashboard)/templates/page.tsx) - Added aria-labels to View, Edit, and Delete buttons
+- [client/src/app/(dashboard)/tasks/page.tsx](client/src/app/(dashboard)/tasks/page.tsx) - Added aria-labels to Edit, Archive, and Restore buttons
+- [client/src/app/(dashboard)/candidates/[id]/page.tsx](client/src/app/(dashboard)/candidates/[id]/page.tsx) - Added aria-label to More actions button
+
+**Examples:**
+```tsx
+// Before
+<Button variant="ghost" size="sm" onClick={() => onEdit(dept)}>
+  <Edit className="w-4 h-4" />
+</Button>
+
+// After
+<Button variant="ghost" size="sm" onClick={() => onEdit(dept)} aria-label={`Edit ${dept.name}`}>
+  <Edit className="w-4 h-4" />
+</Button>
+```
+
+**Verification:** ✅ All 307 tests pass (211 backend + 96 frontend), TypeScript checks pass
 
 ---
 
