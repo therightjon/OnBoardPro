@@ -232,4 +232,58 @@ export class CandidateStageRepository extends BaseRepository {
         });
     }
   }
+
+  /**
+   * Record stage transitions in history
+   *
+   * Inserts multiple stage transition records with incrementing timestamps
+   * to maintain deterministic chronological ordering.
+   *
+   * @param candidateId - Candidate ID
+   * @param transitions - Array of stage transitions to record
+   * @param changedBy - User ID who initiated the change
+   * @param baseTime - Base timestamp for transitions (incremented per transition)
+   */
+  async recordStageTransitions(
+    candidateId: string,
+    transitions: Array<{ fromStageId: string | null; toStageId: string }>,
+    changedBy: string,
+    baseTime: Date = new Date()
+  ): Promise<void> {
+    if (transitions.length === 0) return;
+
+    const values = transitions.map((t, idx) => {
+      const ts = new Date(baseTime.getTime() + idx); // +1ms per hop for ordering
+      return {
+        candidateId,
+        fromStageId: t.fromStageId,
+        toStageId: t.toStageId,
+        changedAt: ts,
+        changedBy,
+        createdAt: ts,
+        updatedAt: ts,
+      };
+    });
+
+    await this.db.insert(candidateStageHistory).values(values as any);
+  }
+
+  /**
+   * Get the last stage history entry for a candidate
+   *
+   * Used to infer the current stage when candidates.current_stage_id is not set.
+   *
+   * @param candidateId - Candidate ID
+   * @returns Last stage history entry or null
+   */
+  async getLastStageHistory(candidateId: string): Promise<{ toStageId: string } | null> {
+    const [lastHistory] = await this.db
+      .select({ toStageId: candidateStageHistory.toStageId })
+      .from(candidateStageHistory)
+      .where(eq(candidateStageHistory.candidateId, candidateId))
+      .orderBy(sql`${candidateStageHistory.changedAt} DESC`)
+      .limit(1);
+
+    return lastHistory ?? null;
+  }
 }

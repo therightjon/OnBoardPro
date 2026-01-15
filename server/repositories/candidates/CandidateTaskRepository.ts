@@ -426,4 +426,68 @@ export class CandidateTaskRepository extends BaseRepository {
 
     return reset.length;
   }
+
+  /**
+   * Count open required tasks for a candidate at a specific stage
+   *
+   * Used by stage advancement logic to determine if all required tasks
+   * are complete before moving to the next stage.
+   * Excludes prerequisite tasks since they exist before template expansion.
+   *
+   * @param candidateId - Candidate ID
+   * @param stageId - Stage ID to check
+   * @returns Number of open required tasks
+   */
+  async getOpenRequiredTaskCount(candidateId: string, stageId: string): Promise<number> {
+    const [result] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(candidateTasks)
+      .where(
+        and(
+          eq(candidateTasks.candidateId, candidateId),
+          eq(candidateTasks.stageId, stageId),
+          eq(candidateTasks.required, true),
+          eq(candidateTasks.isPrerequisiteTask, false),
+          eq(candidateTasks.archived, false),
+          sql`${candidateTasks.status} NOT IN ('done','canceled')`
+        )
+      );
+
+    return result?.count ?? 0;
+  }
+
+  /**
+   * Get all open tasks for a candidate (for stage blocking calculation)
+   *
+   * Returns open tasks with stage information for computing blocked state.
+   * Excludes prerequisite tasks since they exist before template expansion.
+   *
+   * @param candidateId - Candidate ID
+   * @returns Array of open tasks with stage info
+   */
+  async getOpenTasksForBlockerCalculation(candidateId: string): Promise<Array<{
+    id: string;
+    title: string;
+    stageId: string | null;
+    status: string;
+    required: boolean;
+    dueAt: Date | null;
+  }>> {
+    return await this.db
+      .select({
+        id: candidateTasks.id,
+        title: candidateTasks.title,
+        stageId: candidateTasks.stageId,
+        status: candidateTasks.status,
+        required: candidateTasks.required,
+        dueAt: candidateTasks.dueAt
+      })
+      .from(candidateTasks)
+      .where(and(
+        eq(candidateTasks.candidateId, candidateId),
+        eq(candidateTasks.isPrerequisiteTask, false),
+        eq(candidateTasks.archived, false),
+        inArray(candidateTasks.status, ['todo', 'in_progress', 'blocked'] as any)
+      ));
+  }
 }

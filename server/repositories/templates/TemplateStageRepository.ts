@@ -9,6 +9,7 @@ import { eq, and, asc, sql } from "drizzle-orm";
 import {
   templateStages,
   templates,
+  hiringStages,
   type TemplateStage,
   type InsertTemplateStage,
 } from "@shared/schemas";
@@ -184,5 +185,36 @@ export class TemplateStageRepository extends BaseRepository {
           ));
       }
     });
+  }
+
+  /**
+   * Get template stages with hiring stage info for stage advancement
+   *
+   * Returns active stages for a template with their hiring stage names.
+   * Used by stage advancement logic to determine stage ordering.
+   *
+   * @param templateId - Template ID
+   * @returns Array of stages with id, name, and orderIndex
+   */
+  async getTemplateStagesWithHiringInfo(templateId: string): Promise<Array<{
+    id: string;
+    name: string;
+    orderIndex: number;
+    templateStageId: string;
+  }>> {
+    return await this.db
+      .select({
+        id: hiringStages.id,
+        name: hiringStages.name,
+        orderIndex: templateStages.orderIndex,
+        templateStageId: templateStages.id
+      })
+      .from(templateStages)
+      .innerJoin(hiringStages, eq(templateStages.stageId, hiringStages.id))
+      .where(and(
+        eq(templateStages.templateId, templateId),
+        eq(templateStages.isActive, true)
+      ))
+      .orderBy(templateStages.orderIndex);
   }
 }

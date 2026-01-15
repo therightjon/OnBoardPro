@@ -5,7 +5,7 @@
  * role management, scope management, and user status control.
  */
 
-import { eq, and, or, ne, ilike, asc, sql } from "drizzle-orm";
+import { eq, and, or, ne, ilike, asc, sql, inArray } from "drizzle-orm";
 import {
   users,
   userRoles,
@@ -15,6 +15,7 @@ import {
   candidateTasks,
   departments,
   divisions,
+  userPreferences,
   type User,
   type InsertUser,
   type UserRole,
@@ -403,5 +404,67 @@ export class UserRepository extends BaseRepository {
       .from(managerCandidateScopes)
       .where(eq(managerCandidateScopes.managerId, managerId));
     return rows.map((row) => row.candidateId);
+  }
+
+  /**
+   * Resolve mentioned users by their mention keys
+   *
+   * Used by notification system to find users referenced in comments.
+   *
+   * @param mentionKeys - Array of mention key strings (normalized, lowercase)
+   * @returns Array of user info with id, mentionKey, role, status, active
+   */
+  async getUsersByMentionKeys(mentionKeys: string[]): Promise<Array<{
+    id: string;
+    mentionKey: string;
+    role: string;
+    status: string;
+    active: boolean;
+  }>> {
+    if (!mentionKeys.length) return [];
+    
+    const normalized = Array.from(new Set(mentionKeys)).filter(Boolean);
+    if (!normalized.length) return [];
+
+    return await this.db
+      .select({
+        id: users.id,
+        mentionKey: users.mentionKey,
+        role: users.role,
+        status: users.status,
+        active: users.active
+      })
+      .from(users)
+      .where(inArray(users.mentionKey, normalized));
+  }
+
+  /**
+   * Get users with their preferences for notification delivery
+   *
+   * Used by notification system to check user eligibility and preferences.
+   *
+   * @param userIds - Array of user IDs
+   * @returns Array of users with preferences
+   */
+  async getUsersWithPreferences(userIds: string[]): Promise<Array<{
+    id: string;
+    role: string;
+    status: string;
+    active: boolean;
+    preferences: typeof userPreferences.$inferSelect | null;
+  }>> {
+    if (!userIds.length) return [];
+
+    return await this.db
+      .select({
+        id: users.id,
+        role: users.role,
+        status: users.status,
+        active: users.active,
+        preferences: userPreferences
+      })
+      .from(users)
+      .leftJoin(userPreferences, eq(userPreferences.userId, users.id))
+      .where(inArray(users.id, userIds));
   }
 }

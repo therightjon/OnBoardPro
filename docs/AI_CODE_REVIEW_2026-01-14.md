@@ -410,15 +410,27 @@ Page components exceed maintainable size. Difficult to test, review, and modify.
 ---
 
 ### 14. **Direct Database Access Outside Repositories**
-**Files:** [server/events/handlers/notification-handler.ts](server/events/handlers/notification-handler.ts), [server/services/advance-stage.service.ts](server/services/advance-stage.service.ts)
+**Files:** [server/events/handlers/notification-handler.ts](server/events/handlers/notification-handler.ts), [server/features/tasks/services/advance-stage.service.ts](server/features/tasks/services/advance-stage.service.ts), [server/features/notifications/services/notify.ts](server/features/notifications/services/notify.ts)
 **Severity:** MEDIUM
 **Category:** Architecture
-**Status:** 🆕 NEW
+**Status:** ✅ FIXED
 
 **Issue:**
-Several places bypass the repository layer with direct `db.*` calls, breaking the layered architecture.
+Several places bypassed the repository layer with direct `db.*` calls, breaking the layered architecture.
 
-**Fix:** Move queries into appropriate repositories.
+**Resolution:**
+- Extended existing repositories with specific methods:
+  - `NotificationRepository`: Added `createNotification()`, `findNotificationsForCoalescing()`, `bulkUpsertNotifications()`
+  - `CandidateRepository`: Added `getCandidateForNotification()`, `getCandidateForStageAdvancement()`, `updateCandidateStage()`, `updateCandidateBlockedState()`
+  - `CandidateTaskRepository`: Added `getOpenRequiredTaskCount()`, `getOpenTasksForBlockerCalculation()`
+  - `CandidateStageRepository`: Added `recordStageTransitions()`, `getLastStageHistory()`
+  - `TemplateStageRepository`: Added `getTemplateStagesWithHiringInfo()`
+  - `UserRepository`: Added `getUsersByMentionKeys()`, `getUsersWithPreferences()`
+- Created new `StageAdvancementService` class at [server/services/candidates/stage-advancement.service.ts](server/services/candidates/stage-advancement.service.ts)
+- Refactored `notification-handler.ts`, `advance-stage.service.ts`, and `notify.ts` to use repositories via service-factory
+- Updated `IServiceFactory` interface and `ServiceFactory` class with new repository getters
+- Updated `MockServiceFactory` to implement the new interface methods for test compatibility
+- All 211 backend tests pass
 
 ---
 

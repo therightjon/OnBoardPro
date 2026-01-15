@@ -5,10 +5,11 @@
  * Provides methods to retrieve, mark as read, and manage notification states.
  */
 
-import { eq, and, or, inArray, desc, lt, sql } from "drizzle-orm";
+import { eq, and, or, inArray, desc, lt, sql, gte } from "drizzle-orm";
 import {
   notifications,
-  type Notification
+  type Notification,
+  type InsertNotification
 } from "@shared/schemas";
 import { BaseRepository } from "./base/BaseRepository";
 import type { db as DbType } from "../db/connection";
@@ -143,5 +144,143 @@ export class NotificationRepository extends BaseRepository {
       .returning({ id: notifications.id });
 
     return result.length;
+  }
+
+  /**
+   * Create a new notification
+   *
+   * Creates a notification record in the database with the specified parameters.
+   * This is used by event handlers to create notifications in response to domain events.
+   *
+   * @param params - Notification creation parameters
+   * @returns Promise resolving to the created notification ID
+   */
+  async createNotification(params: {
+    recipientUserId: string;
+    eventType: string;
+    title: string;
+    message: string;
+    actorUserId: string | null | undefined;
+    relatedEntityType: string;
+    relatedEntityId: string;
+    contextCandidateId: string | null;
+  }): Promise<string> {
+    // Map relatedEntityType to entityType enum
+    let entityType: 'candidate' | 'task' | 'comment' = 'task';
+    if (params.relatedEntityType === 'candidate') {
+      entityType = 'candidate';
+    } else if (params.relatedEntityType === 'comment') {
+      entityType = 'comment';
+    } else if (params.relatedEntityType === 'candidate_task') {
+      entityType = 'task';
+    }
+
+    const [inserted] = await this.db.insert(notifications).values({
+      userId: params.recipientUserId,
+      type: params.eventType,
+      entityType,
+      entityId: params.relatedEntityId,
+      payload: {
+        title: params.title,
+        message: params.message,
+        actorId: params.actorUserId,
+        contextCandidateId: params.contextCandidateId
+      },
+      isRead: false,
+      readAt: null,
+      deliveredChannels: []
+    }).returning({ id: notifications.id });
+
+    return inserted.id;
+  }
+
+  /**
+   * Find existing notifications for coalescing
+   *
+   * Searches for notifications within a time window that can be coalesced
+   * (same type, entity type/id, and recipient).
+   *
+   * @param params - Search parameters
+   * @returns Array of matching notifications
+   */
+  async findNotificationsForCoalescing(params: {
+    userIds: string[];
+    type: string;
+    entityType: 'candidate' | 'task' | 'comment';
+    entityId: string;
+    since: Date;
+  }): Promise<Array<{
+    id: string;
+    userId: string;
+    payload: Record<string, unknown> | null;
+    createdAt: Date;
+  }>> {
+    const results = await this.db
+      .select({
+        id: notifications.id,
+        userId: notifications.userId,
+        payload: notifications.payload,
+        createdAt: notifications.createdAt
+      })
+      .from(notifications)
+      .where(and(
+        inArray(notifications.userId, params.userIds),
+        eq(notifications.type, params.type),
+        eq(notifications.entityType, params.entityType),
+        eq(notifications.entityId, params.entityId),
+        gte(notifications.createdAt, params.since)
+      ));
+
+    return results.map(row => ({
+      ...row,
+      payload: row.payload as Record<string, unknown> | null
+    }));
+  }
+
+  /**
+   * Bulk create and update notifications with coalescing
+   *
+   * Performs all notification updates and inserts in a transaction.
+   * Used by the notification creation system for efficient bulk operations.
+   *
+   * @param params - Updates and inserts to perform
+   * @returns Inserted notification rows with id, userId, createdAt
+   */
+  async bulkUpsertNotifications(params: {
+    updates: Array<{ id: string; payload: Record<string, unknown> }>;
+    inserts: InsertNotification[];
+    now: Date;
+  }): Promise<Array<{ id: string; userId: string; createdAt: Date }>> {
+    let insertedRows: Array<{ id: string; userId: string; createdAt: Date }> = [];
+
+    await this.db.transaction(async (trx) => {
+      if (params.updates.length > 0) {
+        for (const update of params.updates) {
+          await trx
+            .update(notifications)
+            .set({
+              payload: update.payload,
+              isRead: false,
+              readAt: null,
+              createdAt: params.now
+            })
+            .where(eq(notifications.id, update.id));
+        }
+      }
+
+      if (params.inserts.length > 0) {
+        const inserted = await trx
+          .insert(notifications)
+          .values(params.inserts)
+          .returning({
+            id: notifications.id,
+            userId: notifications.userId,
+            createdAt: notifications.createdAt,
+          });
+        insertedRows = inserted;
+      }
+    });
+
+    return insertedRows;
   }
 }

@@ -614,4 +614,126 @@ export class CandidateRepository extends BaseRepository {
 
     return results;
   }
+
+  /**
+   * Get minimal candidate info for notification purposes
+   *
+   * Returns only the fields needed to generate notifications (id, name, managerId).
+   * Used by event handlers to avoid loading full candidate details.
+   *
+   * @param candidateId - Candidate ID
+   * @returns Minimal candidate info or null if not found
+   */
+  async getCandidateForNotification(candidateId: string): Promise<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    managerId: string | null;
+  } | null> {
+    const [candidate] = await this.db
+      .select({
+        id: candidates.id,
+        firstName: candidates.firstName,
+        lastName: candidates.lastName,
+        managerId: candidates.managerId
+      })
+      .from(candidates)
+      .where(eq(candidates.id, candidateId))
+      .limit(1);
+
+    return candidate ?? null;
+  }
+
+  /**
+   * Get candidate info for stage advancement
+   *
+   * Returns the fields needed for stage advancement logic.
+   * Used by stage advancement service to determine if advancement is possible.
+   *
+   * @param candidateId - Candidate ID
+   * @returns Candidate stage info or null if not found
+   */
+  async getCandidateForStageAdvancement(candidateId: string): Promise<{
+    id: string;
+    currentStageId: string | null;
+    templateAppliedFromId: string | null;
+    templateAppliedAt: Date | null;
+    isBlockedByPriorStage: boolean;
+    blockerSummary: Record<string, unknown> | null;
+  } | null> {
+    const [candidate] = await this.db
+      .select({
+        id: candidates.id,
+        currentStageId: candidates.currentStageId,
+        templateAppliedFromId: candidates.templateAppliedFromId,
+        templateAppliedAt: candidates.templateAppliedAt,
+        isBlockedByPriorStage: candidates.isBlockedByPriorStage,
+        blockerSummary: candidates.blockerSummary
+      })
+      .from(candidates)
+      .where(eq(candidates.id, candidateId))
+      .limit(1);
+
+    if (!candidate) return null;
+
+    return {
+      ...candidate,
+      blockerSummary: candidate.blockerSummary as Record<string, unknown> | null
+    };
+  }
+
+  /**
+   * Update candidate stage with history tracking
+   *
+   * Updates the candidate's current stage and records the transition.
+   * This is a transactional operation that updates both candidates and history tables.
+   *
+   * @param candidateId - Candidate ID
+   * @param toStageId - New stage ID
+   * @param updatedAt - Timestamp for the update
+   */
+  async updateCandidateStage(
+    candidateId: string,
+    toStageId: string,
+    updatedAt: Date = new Date()
+  ): Promise<void> {
+    await this.db
+      .update(candidates)
+      .set({ currentStageId: toStageId, updatedAt })
+      .where(eq(candidates.id, candidateId));
+  }
+
+  /**
+   * Update candidate blocked state
+   *
+   * Updates the candidate's blocked state and optionally regresses to an earlier stage.
+   * Used by the stage recomputation logic.
+   *
+   * @param candidateId - Candidate ID
+   * @param isBlocked - Whether the candidate is blocked
+   * @param blockerSummary - Summary of blockers
+   * @param newStageId - Optional new stage ID if regressing
+   */
+  async updateCandidateBlockedState(
+    candidateId: string,
+    isBlocked: boolean,
+    blockerSummary: Record<string, unknown> | null,
+    newStageId?: string
+  ): Promise<void> {
+    const now = new Date();
+    const updateData: Record<string, unknown> = {
+      isBlockedByPriorStage: isBlocked,
+      blockerSummary,
+      updatedAt: now
+    };
+
+    if (newStageId) {
+      updateData.currentStageId = newStageId;
+    }
+
+    await this.db
+      .update(candidates)
+      .set(updateData as any)
+      .where(eq(candidates.id, candidateId));
+  }
 }
