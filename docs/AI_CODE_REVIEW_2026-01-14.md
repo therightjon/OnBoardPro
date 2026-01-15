@@ -281,22 +281,40 @@ This approach:
 ---
 
 ### 9. **No Maximum Session Duration** *(Carried Over)*
-**File:** [server/features/auth/services/auth.service.ts](server/features/auth/services/auth.service.ts#L140-158)
+**File:** [server/middleware/session-timeout.ts](server/middleware/session-timeout.ts)
 **Severity:** MEDIUM
 **CWE:** CWE-613
+**Status:** ✅ FIXED
 
 **Issue:**
 Only idle timeout (2 hours) enforced. Rolling sessions could theoretically stay active indefinitely.
 
-**Fix:**
-```typescript
-const SESSION_ABSOLUTE_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours
+**Resolution Applied:**
+1. Added `SESSION_IDLE_TIMEOUT_HOURS` and `SESSION_ABSOLUTE_TIMEOUT_HOURS` to [server/config/env.ts](server/config/env.ts)
+2. Extended session-timeout middleware to enforce **absolute timeout** (default 24 hours) in addition to idle timeout
+3. Added `createdAt` timestamp to `SessionData` interface, set on login
+4. Updated both login paths (local and provider) in auth.service.ts to set `createdAt`
+5. Added comprehensive unit tests in [server/tests/middleware/session-timeout.test.ts](server/tests/middleware/session-timeout.test.ts)
 
-if (req.session.createdAt && Date.now() - req.session.createdAt > SESSION_ABSOLUTE_TIMEOUT) {
-  req.logout();
-  return res.status(401).json({ message: "Session expired" });
-}
+**Security Improvements:**
+- **Idle timeout** (default 2 hours): Rolling timeout that resets on each request
+- **Absolute timeout** (default 24 hours): Hard limit on session duration regardless of activity
+- Configurable via environment variables
+
+**Files Modified:**
+- [server/config/env.ts](server/config/env.ts) - Added `SESSION_IDLE_TIMEOUT_HOURS`, `SESSION_ABSOLUTE_TIMEOUT_HOURS`
+- [server/middleware/session-timeout.ts](server/middleware/session-timeout.ts) - Added absolute timeout enforcement
+- [server/features/auth/services/auth.service.ts](server/features/auth/services/auth.service.ts) - Added `createdAt` to SessionData and login paths
+- [server/tests/middleware/session-timeout.test.ts](server/tests/middleware/session-timeout.test.ts) - New test file (11 tests)
+
+**Usage:**
+```bash
+# Customize timeouts (defaults shown):
+SESSION_IDLE_TIMEOUT_HOURS=2
+SESSION_ABSOLUTE_TIMEOUT_HOURS=24
 ```
+
+**Verification:** ✅ All 222 backend tests pass (211 existing + 11 new), Codacy analysis clean
 
 ---
 
@@ -795,16 +813,16 @@ Total: 239 tests passing
 
 | Category | Previous (2025-12-12) | Current (2026-01-14) | Change |
 |----------|----------------------|----------------------|--------|
-| Session Management | 60/100 | 90/100 | +30 ✅ |
+| Session Management | 60/100 | 95/100 | +35 ✅ |
 | Password Handling | 70/100 | 85/100 | +15 ✅ |
 | Input Validation | 70/100 | 85/100 | +15 ✅ |
 | Rate Limiting | 75/100 | 90/100 | +15 ✅ |
 | Type Safety | 80/100 | 85/100 | +5 ✅ |
 | Build Health | 90/100 | 95/100 | +5 ✅ |
 
-**Overall Security Score: 88/100** (Previous: 78/100)
+**Overall Security Score: 89/100** (Previous: 78/100)
 
-The score improved due to fixing the Zod incompatibility, LDAP injection vulnerability, IP spoofing rate limit bypass, and improved type safety (removed excessive `any` casts in authorization service).
+The score improved due to fixing the Zod incompatibility, LDAP injection vulnerability, IP spoofing rate limit bypass, improved type safety (removed excessive `any` casts in authorization service), and **maximum session duration enforcement**.
 
 ---
 
@@ -819,10 +837,11 @@ The score improved due to fixing the Zod incompatibility, LDAP injection vulnera
 | #5 N+1 Query Template Expansion | HIGH | Easy | ✅ **RESOLVED** |
 | #6 Authorization Code Duplication | HIGH | Medium | ✅ **RESOLVED** |
 | #8 Weak Email Validation | MEDIUM | Trivial | ✅ **RESOLVED** |
+| #9 Maximum Session Duration | MEDIUM | Easy | ✅ **RESOLVED** |
 | #10 Weak Common Password List | MEDIUM | Easy | ✅ **RESOLVED** |
 | #11 Excessive `any` Types | MEDIUM | Easy | ✅ **RESOLVED** |
 | #15 Repeated ZodError Handling | MEDIUM | Easy | ✅ **RESOLVED** |
-| #7, #9, #12-14 Medium Issues | MEDIUM | Easy-Medium | **P2 - This Month** |
+| #7, #12-14 Medium Issues | MEDIUM | Easy-Medium | **P2 - This Month** |
 | #16-19 Low Issues | LOW | Trivial-Easy | **P3 - Backlog** |
 | #20 Incomplete TODO Comments | LOW | Medium | ✅ **RESOLVED** (10/15 fixed, 5 tracked) |
 | #21 Debug Logging | LOW | Easy | ✅ **RESOLVED** |
@@ -849,7 +868,7 @@ The score improved due to fixing the Zod incompatibility, LDAP injection vulnera
 7. ~~Add React ErrorBoundary to frontend~~ ✅ DONE
 8. ~~Implement validation middleware to reduce duplication~~ ✅ DONE
 9. Split large page components
-10. Add maximum session duration
+10. ~~Add maximum session duration~~ ✅ DONE (24-hour absolute + configurable idle timeout)
 11. ~~Expand common password list~~ ✅ DONE (10,000+ passwords from SecLists)
 12. Fix remaining accessibility issues
 
@@ -888,7 +907,7 @@ test('LDAP filter injection is escaped', async () => {
   expect(escaped).toBe('admin\\29\\28objectclass=\\2a');
 });
 
-// 3. Session absolute timeout
+// 3. Session absolute timeout ✅ IMPLEMENTED in server/tests/middleware/session-timeout.test.ts
 test('session expires after 24 hours regardless of activity', async () => {
   // Mock session creation 25 hours ago
   req.session.createdAt = Date.now() - (25 * 60 * 60 * 1000);

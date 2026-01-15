@@ -68,6 +68,7 @@ Env validation lives in `server/config/env.ts`. Required or common keys:
 - `PORT` (default `5000`)
 - `DATABASE_URL` (Postgres connection string; SSL auto-enabled for Neon hosts)
 - `SESSION_SECRET` (>=32 chars)
+- Session timeouts: `SESSION_IDLE_TIMEOUT_HOURS` (default `2`), `SESSION_ABSOLUTE_TIMEOUT_HOURS` (default `24`)
 - Proxy configuration: `TRUSTED_PROXIES` (comma-separated list of trusted proxy IPs, or `loopback` for localhost; required for proper client IP resolution behind load balancers)
 - Rate limits: `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX`, `SENSITIVE_RATE_LIMIT_WINDOW_MS`, `SENSITIVE_RATE_LIMIT_MAX`
 - Feature flags/jobs: `DISABLE_DEADLINE_SCANNER`, `DISABLE_EMAIL_JOBS`, `DISABLE_NOTIFICATION_CLEANUP`

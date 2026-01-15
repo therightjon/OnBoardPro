@@ -30,6 +30,7 @@ declare module "express-session" {
     inviteTokenIssuedAt?: string;
     csrfSecret?: string;
     lastActivity?: number;
+    createdAt?: number;
   }
 }
 
@@ -202,7 +203,9 @@ export async function setupAuth(app: Express) {
             });
           });
 
-          req.session.lastActivity = Date.now();
+          const now = Date.now();
+          req.session.createdAt = now;
+          req.session.lastActivity = now;
 
           // Explicitly save session to ensure all data is persisted
           await new Promise<void>((resolve, reject) => {
@@ -327,7 +330,9 @@ export async function setupAuth(app: Express) {
             });
           });
 
-          req.session.lastActivity = Date.now();
+          const now = Date.now();
+          req.session.createdAt = now;
+          req.session.lastActivity = now;
 
           // Explicitly save session to ensure all data is persisted
           await new Promise<void>((resolve, reject) => {

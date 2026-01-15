@@ -24,6 +24,12 @@ const envSchema = z.object({
   // When set, X-Forwarded-For header is trusted only from these proxies
   TRUSTED_PROXIES: z.string().optional(),
 
+  // Session Timeouts
+  // SESSION_IDLE_TIMEOUT_HOURS: Inactivity timeout in hours (default: 2)
+  // SESSION_ABSOLUTE_TIMEOUT_HOURS: Maximum session duration in hours (default: 24)
+  SESSION_IDLE_TIMEOUT_HOURS: z.coerce.number().min(0.1).default(2),
+  SESSION_ABSOLUTE_TIMEOUT_HOURS: z.coerce.number().min(1).default(24),
+
   // Background Jobs
   DISABLE_DEADLINE_SCANNER: z.string().optional(),
   DISABLE_EMAIL_JOBS: z.string().optional(),
