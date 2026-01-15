@@ -10,6 +10,7 @@ import { getInvitationService, getAuthProviderService, getUserService } from "..
 import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../services/login-rate-limit";
 import { comparePasswords } from "../utils/passwords";
 import { hydrateAuthUser } from "../features/auth/services";
+import { logger } from "../utils/logger";
 
 const router = Router();
 
@@ -76,7 +77,7 @@ router.post("/auth/login", async (req, res, next) => {
               await userService.updateLastLogin(user.id);
             } catch (error) {
               // Don't fail login if last login update fails
-              console.error('Failed to update last login:', error);
+              logger.error('Failed to update last login', error);
             }
           }
 
@@ -166,7 +167,7 @@ router.post("/auth/login", async (req, res, next) => {
         res.status(200).json({ user: enrichedUser });
       } catch (hydrationError) {
         // If hydration fails, fall back to basic user (test environment may not have all data)
-        console.error('User hydration error:', hydrationError);
+        logger.error('User hydration error', hydrationError);
         const basicUser = {
           ...user,
           roles: [user.role],
@@ -226,7 +227,7 @@ router.post("/auth/logout", (req, res, next) => {
     if (req.session) {
       req.session.destroy((destroyErr) => {
         if (destroyErr) {
-          console.error("Failed to destroy session during logout:", destroyErr);
+          logger.error("Failed to destroy session during logout", destroyErr);
         }
         req.user = undefined;
         res.sendStatus(200);
@@ -437,7 +438,7 @@ router.post("/invitations/accept", async (req: any, res, next) => {
     req.session.inviteTokenIssuedAt = new Date().toISOString();
     req.session.save((err: unknown) => {
       if (err) {
-        console.error("Failed to persist invitation token in session", err);
+        logger.error("Failed to persist invitation token in session", err);
         return res.status(500).json({ message: "Unable to store invite token" });
       }
       res.json({
@@ -594,7 +595,7 @@ router.put("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]),
       const { initializeAuthProviders } = await import('../features/auth/services');
       await initializeAuthProviders();
     } catch (e) {
-      console.error('Failed to reinitialize auth providers after LDAP settings update:', e);
+      logger.error('Failed to reinitialize auth providers after LDAP settings update', e);
     }
     res.json({ ok: true });
   } catch (error) {
@@ -619,20 +620,20 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
     const ldapMod: any = await import('ldapjs');
     const createClient: any = ldapMod?.createClient ?? ldapMod?.default?.createClient;
     if (typeof createClient !== 'function') {
-      console.error('ldapjs module shape unexpected:', Object.keys(ldapMod || {}));
+      logger.error('ldapjs module shape unexpected', undefined, { keys: Object.keys(ldapMod || {}) });
       return res.status(500).json({ ok: false, message: 'LDAP library load failed' });
     }
     const client = createClient({ url: cfg.url, connectTimeout: 10000, timeout: 10000 });
 
     const doTest = () => new Promise<{ ok: boolean; message: string }>((resolve) => {
       client.on('error', (err: any) => {
-        console.error('LDAP test connection error:', err);
+        logger.error('LDAP test connection error', err);
         resolve({ ok: false, message: 'Connection failed' });
       });
 
       client.bind(cfg.bindDn!, cfg.bindPassword!, (bindErr: any) => {
         if (bindErr) {
-          console.error('LDAP test bind error:', bindErr);
+          logger.error('LDAP test bind error', bindErr);
           client.destroy();
           resolve({ ok: false, message: 'Bind failed' });
           return;
@@ -641,7 +642,7 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
         const opts = { filter: cfg.userFilter || '(objectClass=person)', scope: 'base' as const };
         client.search(cfg.baseDn!, opts, (searchErr: any, searchRes: any) => {
           if (searchErr) {
-            console.error('LDAP test search error:', searchErr);
+            logger.error('LDAP test search error', searchErr);
             client.destroy();
             resolve({ ok: false, message: 'Search failed' });
             return;
@@ -651,7 +652,7 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
             resolve({ ok: true, message: 'OK' });
           });
           searchRes.on('error', (err: any) => {
-            console.error('LDAP test search result error:', err);
+            logger.error('LDAP test search result error', err);
             client.destroy();
             resolve({ ok: false, message: 'Search error' });
           });

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db } from "../db/connection";
 import { sql } from "drizzle-orm";
+import { logger } from "../utils/logger";
 
 const router = Router();
 
@@ -85,7 +86,7 @@ router.get("/health/ready", async (req, res) => {
     await db.execute(sql`SELECT 1`);
     res.status(200).send("OK");
   } catch (error) {
-    console.error("Readiness check failed:", error);
+    logger.error("Readiness check failed", error);
     res.status(503).send("Not Ready");
   }
 });

@@ -18,6 +18,7 @@ import {
   hasAnyRole,
   logAuthorizationFailure
 } from "../utils/authorization.utils";
+import { logger } from "../utils/logger";
 import { sanitizeTaskForCandidateUser } from "../utils/sanitization.utils";
 import {
   buildActorLabel,
@@ -39,7 +40,6 @@ import { authorizationService } from "../services/authorization";
 import { eventBus, candidateStageChanged, taskCreated, taskAssigned, taskStatusChanged, taskCompleted, commentCreated } from "../events";
 import { getTaskService, getCommentService, getUserService, getReferenceDataService, getCandidateService } from "../services/service-factory";
 import { writeAuditLog } from "../services/shared/audit-logger";
-import { logger } from "../utils/logger";
 
 const router = Router();
 
@@ -327,7 +327,7 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
     try {
       await emitDeadlinesIfNeeded(task.id, { actorId: req.user!.id });
     } catch (notifyError) {
-      console.error('Failed to emit deadlines:', notifyError);
+      logger.error('Failed to emit deadlines', notifyError);
     }
 
     res.status(201).json({
@@ -438,7 +438,7 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
     try {
       recompute = await recomputeCandidateStageState({ candidateId: existingTask.candidateId, invokerUserId: req.user!.id });
     } catch (e) {
-      console.error('recomputeCandidateStageState error:', e);
+      logger.error('recomputeCandidateStageState error', e);
     }
 
     // Check if stage should advance forward after task status change
@@ -474,7 +474,7 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
           actorId: req.user?.id
         }));
       } catch (notifyError) {
-        console.error('Failed to notify stage change:', notifyError);
+        logger.error('Failed to notify stage change', notifyError);
       }
     }
 

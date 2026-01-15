@@ -11,6 +11,7 @@
  */
 
 import type { Candidate, FacultyRank } from "@shared/schemas";
+import { logger } from "../../utils/logger";
 
 export type PrerequisiteCondition = 'requires_pt' | 'always';
 
@@ -53,7 +54,7 @@ export class PrerequisiteConditionsService {
         return true;
 
       default:
-        console.warn(`Unknown prerequisite condition: ${condition}`);
+        logger.warn(`Unknown prerequisite condition: ${condition}`);
         return false;
     }
   }

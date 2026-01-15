@@ -5,6 +5,7 @@ import { requireAuth } from "../middleware/authorization";
 import { appRoleEnum } from "@shared/schemas";
 import { reportAuthorizationFailure } from "../observability/authMetrics";
 import { writeAuditLog } from "../services/shared/audit-logger";
+import { logger } from "../utils/logger";
 
 const router = Router();
 
@@ -105,7 +106,7 @@ async function logAuthorizationFailure(params: {
       details
     });
   } catch (error) {
-    console.error("Failed to log authorization failure", error);
+    logger.error("Failed to log authorization failure", error);
   }
 }
 
@@ -170,7 +171,7 @@ router.get("/search/departments", requireAuth, async (req, res, next) => {
     const results = await searchService.searchDepartments(query);
     res.json({ items: results, query });
   } catch (error) {
-    console.error('search departments error:', error);
+    logger.error('search departments error', error);
     res.status(500).json({ error: 'SEARCH_DEPARTMENTS_FAILED', message: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -187,7 +188,7 @@ router.get("/search/divisions", requireAuth, async (req, res, next) => {
     const results = await searchService.searchDivisions(query, typeof departmentId === 'string' ? departmentId : undefined);
     res.json({ items: results, query });
   } catch (error) {
-    console.error('search divisions error:', error);
+    logger.error('search divisions error', error);
     res.status(500).json({ error: 'SEARCH_DIVISIONS_FAILED', message: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -211,7 +212,7 @@ router.get("/search/users", requireAuth, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     res.status(200).json({ items: results, query: q });
   } catch (error) {
-    console.error('search users error:', error);
+    logger.error('search users error', error);
     res.status(500).json({ error: 'SEARCH_USERS_FAILED', message: error instanceof Error ? error.message : 'Unknown error' });
   }
 });

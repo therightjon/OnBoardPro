@@ -20,6 +20,7 @@ import { CandidatePolicy } from "./CandidatePolicy";
 import { TaskPolicy } from "./TaskPolicy";
 import { reportAuthorizationFailure } from "../../observability/authMetrics";
 import { writeAuditLog, type AuditResourceType } from "../shared/audit-logger";
+import { logger } from "../../utils/logger";
 
 /**
  * Maps authorization ResourceType to AuditResourceType.
@@ -252,7 +253,7 @@ export class AuthorizationService {
         }
       });
     } catch (error) {
-      console.error("Failed to log authorization failure", error);
+      logger.error("Failed to log authorization failure", error);
     }
   }
 
