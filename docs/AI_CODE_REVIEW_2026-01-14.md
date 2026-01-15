@@ -334,10 +334,10 @@ Only 17 common passwords blocked. Industry standard recommends 10,000+.
 **File:** [server/services/authorization/authorization.service.ts](server/services/authorization/authorization.service.ts#L69-91)
 **Severity:** MEDIUM
 **Category:** Type Safety
-**Status:** 🆕 NEW
+**Status:** ✅ FIXED
 
 **Issue:**
-Uses `as any` casts when `Express.User` interface is properly defined:
+Used `as any` casts when `Express.User` interface was properly defined:
 
 ```typescript
 if (Array.isArray((user as any).roles)) {
@@ -348,7 +348,20 @@ if (Array.isArray((user as any).roles)) {
 if (Array.isArray((user as any).departmentScopes)) { ... }
 ```
 
-**Fix:** Import and use the extended `Express.User` type from [server/types/express.d.ts](server/types/express.d.ts).
+**Resolution Applied:**
+1. Removed all `(user as any)` casts since `Express.User` type already includes `roles`, `departmentScopes`, `divisionScopes`, and `managedCandidateIds` properties
+2. Added `toAuditResourceType()` helper function to properly map `ResourceType` to `AuditResourceType` instead of using `(failure.resourceType as any)`
+3. Replaced `req: any, res: any` parameters with properly typed `Request` and `Response` from Express
+4. Removed unused `Template` and `User` imports
+
+**Files Modified:**
+- [server/services/authorization/AuthorizationService.ts](server/services/authorization/AuthorizationService.ts) - Replaced all `any` casts with proper types
+
+**Type Safety Improvements:**
+- Before: 8 explicit `any` casts
+- After: 0 explicit `any` casts (excluding intentional generic `any` in resource parameter)
+
+**Verification:** ✅ All 211 backend tests pass, all 96 frontend tests pass, Codacy analysis clean
 
 ---
 
@@ -600,12 +613,12 @@ Total: 239 tests passing
 | Password Handling | 70/100 | 85/100 | +15 ✅ |
 | Input Validation | 70/100 | 85/100 | +15 ✅ |
 | Rate Limiting | 75/100 | 90/100 | +15 ✅ |
-| Type Safety | 80/100 | 80/100 | — |
+| Type Safety | 80/100 | 85/100 | +5 ✅ |
 | Build Health | 90/100 | 95/100 | +5 ✅ |
 
 **Overall Security Score: 88/100** (Previous: 78/100)
 
-The score improved due to fixing the Zod incompatibility, LDAP injection vulnerability, IP spoofing rate limit bypass, and maintaining type safety.
+The score improved due to fixing the Zod incompatibility, LDAP injection vulnerability, IP spoofing rate limit bypass, and improved type safety (removed excessive `any` casts in authorization service).
 
 ---
 
@@ -621,7 +634,8 @@ The score improved due to fixing the Zod incompatibility, LDAP injection vulnera
 | #6 Authorization Code Duplication | HIGH | Medium | ✅ **RESOLVED** |
 | #8 Weak Email Validation | MEDIUM | Trivial | ✅ **RESOLVED** |
 | #10 Weak Common Password List | MEDIUM | Easy | ✅ **RESOLVED** |
-| #7, #9, #11-15 Medium Issues | MEDIUM | Easy-Medium | **P2 - This Month** |
+| #11 Excessive `any` Types | MEDIUM | Easy | ✅ **RESOLVED** |
+| #7, #9, #12-15 Medium Issues | MEDIUM | Easy-Medium | **P2 - This Month** |
 | #16-21 Low Issues | LOW | Trivial-Easy | **P3 - Backlog** |
 
 ---

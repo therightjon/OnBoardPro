@@ -5,8 +5,8 @@
  * Uses policy-based access control to determine if users can perform actions on resources.
  */
 
-import type { Express } from "express";
-import type { Candidate, CandidateTask, Template, User } from "@shared/schemas";
+import type { Express, Request, Response } from "express";
+import type { Candidate, CandidateTask } from "@shared/schemas";
 import type { AuthorizationContext } from "../../repositories/base/types";
 import type {
   AuthorizationPolicy,
@@ -19,7 +19,27 @@ import type {
 import { CandidatePolicy } from "./CandidatePolicy";
 import { TaskPolicy } from "./TaskPolicy";
 import { reportAuthorizationFailure } from "../../observability/authMetrics";
-import { writeAuditLog } from "../shared/audit-logger";
+import { writeAuditLog, type AuditResourceType } from "../shared/audit-logger";
+
+/**
+ * Maps authorization ResourceType to AuditResourceType.
+ * Some resource types don't have a direct audit equivalent and default to "general".
+ */
+function toAuditResourceType(resourceType: ResourceType): AuditResourceType {
+  // Direct mappings where types overlap
+  const directMappings: Record<string, AuditResourceType> = {
+    candidate: "candidate",
+    candidate_task: "candidate_task",
+    template: "template",
+    template_task: "template_task",
+    user: "user",
+    department: "department",
+    division: "division",
+    comment: "comment",
+    settings: "settings"
+  };
+  return directMappings[resourceType] ?? "general";
+}
 
 /**
  * Main authorization service
@@ -65,30 +85,30 @@ export class AuthorizationService {
         roles.add(user.role);
       }
 
-      // Add additional roles
-      if (Array.isArray((user as any).roles)) {
-        for (const role of (user as any).roles) {
+      // Add additional roles (Express.User type includes roles array)
+      if (Array.isArray(user.roles)) {
+        for (const role of user.roles) {
           if (role) roles.add(role);
         }
       }
 
-      // Add department scopes
-      if (Array.isArray((user as any).departmentScopes)) {
-        for (const deptId of (user as any).departmentScopes) {
+      // Add department scopes (Express.User type includes departmentScopes array)
+      if (Array.isArray(user.departmentScopes)) {
+        for (const deptId of user.departmentScopes) {
           if (deptId) departmentIds.add(deptId);
         }
       }
 
-      // Add division scopes
-      if (Array.isArray((user as any).divisionScopes)) {
-        for (const divId of (user as any).divisionScopes) {
+      // Add division scopes (Express.User type includes divisionScopes array)
+      if (Array.isArray(user.divisionScopes)) {
+        for (const divId of user.divisionScopes) {
           if (divId) divisionIds.add(divId);
         }
       }
 
-      // Add managed candidate scopes
-      if (Array.isArray((user as any).managedCandidateIds)) {
-        for (const candidateId of (user as any).managedCandidateIds) {
+      // Add managed candidate scopes (Express.User type includes managedCandidateIds array)
+      if (Array.isArray(user.managedCandidateIds)) {
+        for (const candidateId of user.managedCandidateIds) {
           if (candidateId) managedCandidateIds.add(candidateId);
         }
       }
@@ -217,7 +237,7 @@ export class AuthorizationService {
         actorId: failure.userId,
         candidateId,
         taskId,
-        resourceType: (failure.resourceType as any) ?? "general",
+        resourceType: toAuditResourceType(failure.resourceType),
         resourceId: failure.resourceId,
         action: "access_denied",
         eventType: "authorization_denied",
@@ -246,8 +266,8 @@ export class AuthorizationService {
    * @returns True if authorized, false if response was sent
    */
   async authorizeCandidateOrRespond(
-    req: any,
-    res: any,
+    req: Request,
+    res: Response,
     context: AuthorizationContext,
     candidate: Candidate,
     action: Action
@@ -285,8 +305,8 @@ export class AuthorizationService {
    * @returns True if authorized, false if response was sent
    */
   async authorizeTaskOrRespond(
-    req: any,
-    res: any,
+    req: Request,
+    res: Response,
     context: AuthorizationContext,
     task: CandidateTask,
     candidate: Candidate,
@@ -321,7 +341,7 @@ export class AuthorizationService {
    * @param requiredRoles - Array of required roles
    * @returns True if user has required roles
    */
-  requireRoles(context: AuthorizationContext, res: any, requiredRoles: string[]): boolean {
+  requireRoles(context: AuthorizationContext, res: Response, requiredRoles: string[]): boolean {
     const hasRole = requiredRoles.some(role => context.roles.has(role));
 
     if (!hasRole) {
