@@ -369,25 +369,27 @@ if (Array.isArray((user as any).departmentScopes)) { ... }
 **File:** [client/src/App.tsx](client/src/App.tsx)
 **Severity:** MEDIUM
 **Category:** User Experience
-**Status:** 🆕 NEW
+**Status:** ✅ FIXED
 
 **Issue:**
 No React ErrorBoundary wrapping the application. Runtime errors crash the entire app.
 
-**Fix:**
-```tsx
-import { ErrorBoundary } from 'react-error-boundary';
+**Resolution Applied:**
+1. Installed `react-error-boundary` package
+2. Created [client/src/shared/components/layout/error-fallback.tsx](client/src/shared/components/layout/error-fallback.tsx) with:
+   - User-friendly error message with AlertTriangle icon
+   - Stack trace display in development mode only
+   - "Try Again" button that resets the error boundary and clears React Query cache
+   - "Go to Home" button for full navigation reset
+   - Responsive layout with proper accessibility (aria-labels)
+3. Wrapped the App component with `ErrorBoundary` using `FallbackComponent` pattern
+4. Added `onReset` handler to clear React Query cache when recovering from errors
 
-function App() {
-  return (
-    <ErrorBoundary fallback={<ErrorFallback />}>
-      <Router>
-        {/* ... */}
-      </Router>
-    </ErrorBoundary>
-  );
-}
-```
+**Files Created/Modified:**
+- [client/src/shared/components/layout/error-fallback.tsx](client/src/shared/components/layout/error-fallback.tsx) - New ErrorFallback component
+- [client/src/App.tsx](client/src/App.tsx) - Added ErrorBoundary wrapper
+
+**Verification:** ✅ TypeScript checks pass, all 96 frontend tests pass, Codacy analysis clean
 
 ---
 
@@ -657,7 +659,7 @@ The score improved due to fixing the Zod incompatibility, LDAP injection vulnera
 6. ~~Extract authorization helpers to single source~~ ✅ DONE
 
 ### This Month
-7. Add React ErrorBoundary to frontend
+7. ~~Add React ErrorBoundary to frontend~~ ✅ DONE
 8. Implement validation middleware to reduce duplication
 9. Split large page components
 10. Add maximum session duration
