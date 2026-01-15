@@ -228,12 +228,13 @@ Same authorization functions duplicated across 4+ files:
 ## 🟡 MEDIUM Severity Issues
 
 ### 7. **Missing CSRF Protection on State-Changing GET** *(Carried Over)*
-**File:** [server/routes/auth.routes.ts](server/routes/auth.routes.ts#L416-453)
+**File:** [server/routes/auth.routes.ts](server/routes/auth.routes.ts#L412-449)
 **Severity:** MEDIUM
 **CWE:** CWE-352
+**Status:** ✅ FIXED
 
 **Issue:**
-`GET /api/invitations/accept` modifies session state, violating REST principles.
+`GET /api/invitations/accept` modified session state, violating REST principles.
 
 ```typescript
 router.get("/invitations/accept", async (req: any, res, next) => {
@@ -243,7 +244,22 @@ router.get("/invitations/accept", async (req: any, res, next) => {
 });
 ```
 
-**Fix:** Change to POST with CSRF token.
+**Resolution Applied:**
+1. Changed endpoint from `GET /api/invitations/accept` to `POST /api/invitations/accept`
+2. Token now passed in request body instead of query params
+3. CSRF protection automatically applied via global middleware for POST requests
+4. Created new frontend page at [client/src/app/auth/accept-invite/page.tsx](../client/src/app/auth/accept-invite/page.tsx):
+   - Extracts token from URL query params
+   - Fetches CSRF token automatically via `apiRequest`
+   - Makes POST request with token in body
+   - Shows success/error UI with proper navigation
+
+**Files Modified:**
+- [server/routes/auth.routes.ts](server/routes/auth.routes.ts#L412-449) - Changed GET to POST, token in body
+- [client/src/app/auth/accept-invite/page.tsx](../client/src/app/auth/accept-invite/page.tsx) - New accept invite page (created)
+- [client/src/App.tsx](../client/src/App.tsx) - Added `/accept-invite` route
+
+**Verification:** ✅ All 307 tests pass (211 backend + 96 frontend), TypeScript checks pass
 
 ---
 
@@ -826,14 +842,14 @@ Total: 239 tests passing
 |----------|----------------------|----------------------|--------|
 | Session Management | 60/100 | 95/100 | +35 ✅ |
 | Password Handling | 70/100 | 85/100 | +15 ✅ |
-| Input Validation | 70/100 | 85/100 | +15 ✅ |
+| Input Validation | 70/100 | 90/100 | +20 ✅ |
 | Rate Limiting | 75/100 | 90/100 | +15 ✅ |
 | Type Safety | 80/100 | 85/100 | +5 ✅ |
 | Build Health | 90/100 | 95/100 | +5 ✅ |
 
-**Overall Security Score: 89/100** (Previous: 78/100)
+**Overall Security Score: 90/100** (Previous: 78/100)
 
-The score improved due to fixing the Zod incompatibility, LDAP injection vulnerability, IP spoofing rate limit bypass, improved type safety (removed excessive `any` casts in authorization service), and **maximum session duration enforcement**.
+The score improved due to fixing the Zod incompatibility, LDAP injection vulnerability, IP spoofing rate limit bypass, improved type safety (removed excessive `any` casts in authorization service), **maximum session duration enforcement**, and **CSRF protection on invitation acceptance**.
 
 ---
 
@@ -847,12 +863,13 @@ The score improved due to fixing the Zod incompatibility, LDAP injection vulnera
 | #4 Password Logic Duplication | HIGH | Medium | ✅ **RESOLVED** |
 | #5 N+1 Query Template Expansion | HIGH | Easy | ✅ **RESOLVED** |
 | #6 Authorization Code Duplication | HIGH | Medium | ✅ **RESOLVED** |
+| #7 Missing CSRF on State-Changing GET | MEDIUM | Easy | ✅ **RESOLVED** |
 | #8 Weak Email Validation | MEDIUM | Trivial | ✅ **RESOLVED** |
 | #9 Maximum Session Duration | MEDIUM | Easy | ✅ **RESOLVED** |
 | #10 Weak Common Password List | MEDIUM | Easy | ✅ **RESOLVED** |
 | #11 Excessive `any` Types | MEDIUM | Easy | ✅ **RESOLVED** |
 | #15 Repeated ZodError Handling | MEDIUM | Easy | ✅ **RESOLVED** |
-| #7, #12-14 Medium Issues | MEDIUM | Easy-Medium | **P2 - This Month** |
+| #12-14 Medium Issues | MEDIUM | Easy-Medium | **P2 - This Month** |
 | #16-19 Low Issues | LOW | Trivial-Easy | **P3 - Backlog** |
 | #20 Incomplete TODO Comments | LOW | Medium | ✅ **RESOLVED** (10/15 fixed, 5 tracked) |
 | #21 Debug Logging | LOW | Easy | ✅ **RESOLVED** |

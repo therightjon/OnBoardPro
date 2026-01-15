@@ -409,11 +409,12 @@ router.delete(
   }
 );
 
-// GET /api/invitations/accept - Accept an invitation
-router.get("/invitations/accept", async (req: any, res, next) => {
+// POST /api/invitations/accept - Accept an invitation
+// Changed from GET to POST to properly apply CSRF protection for this state-changing operation
+router.post("/invitations/accept", async (req: any, res, next) => {
   try {
-    const tokenParam = req.query?.token;
-    const token = Array.isArray(tokenParam) ? tokenParam[0] : tokenParam;
+    // Token now comes from request body instead of query params
+    const token = req.body?.token;
 
     if (!token || typeof token !== "string" || token.trim() === "") {
       return res.status(400).json({ message: "Invite token is required" });

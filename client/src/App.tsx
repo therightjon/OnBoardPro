@@ -18,6 +18,7 @@ import { ErrorFallback } from "@/shared/components/layout/error-fallback";
 // Lazy load pages for code splitting - reduces initial bundle size
 const NotFound = lazy(() => import("./app/not-found"));
 const AuthPage = lazy(() => import("./app/auth/page"));
+const AcceptInvitePage = lazy(() => import("./app/auth/accept-invite/page"));
 const Dashboard = lazy(() => import("./app/(dashboard)/page"));
 const CandidatesPage = lazy(() => import("./app/(dashboard)/candidates/page"));
 const CandidateDetailPage = lazy(() => import("./app/(dashboard)/candidates/[id]/page"));
@@ -102,6 +103,7 @@ function Router() {
       <Switch>
         {/* Public routes */}
         <Route path="/auth" component={AuthPage} />
+        <Route path="/accept-invite" component={AcceptInvitePage} />
         
         {/* Protected routes */}
         <ProtectedRoute path="/" component={() => (
