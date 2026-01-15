@@ -1,28 +1,91 @@
-import { randomBytes, scrypt } from "crypto";
+import { randomBytes, scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import { readFileSync } from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+import bcrypt from "bcrypt";
+import { logger } from "./logger";
 
 const scryptAsync = promisify(scrypt);
 
-// Minimal banlist to block very common passwords
-const COMMON_PASSWORDS = new Set([
-  "password",
-  "password1",
-  "password123",
-  "123456",
-  "123456789",
-  "qwerty",
-  "abc123",
-  "letmein",
-  "welcome",
-  "admin",
-  "iloveyou",
-  "monkey",
-  "dragon",
-  "football",
-  "baseball",
-  "111111",
-  "123123"
-]);
+// ESM-compatible __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+/**
+ * Lazy-loaded Set of 10,000+ common passwords from SecLists.
+ * Source: https://github.com/danielmiessler/SecLists/blob/master/Passwords/Common-Credentials/xato-net-10-million-passwords-10000.txt
+ *
+ * The password list is loaded once on first access and cached for O(1) lookups.
+ */
+let commonPasswordsCache: Set<string> | null = null;
+
+function loadCommonPasswords(): Set<string> {
+  if (commonPasswordsCache) {
+    return commonPasswordsCache;
+  }
+
+  const passwordFilePath = join(__dirname, "../data/common-passwords.txt");
+  try {
+    const content = readFileSync(passwordFilePath, "utf-8");
+    const passwords = content
+      .split("\n")
+      .map((line) => line.trim().toLowerCase())
+      .filter((line) => line.length > 0);
+    commonPasswordsCache = new Set(passwords);
+    logger.info('Loaded common passwords from blocklist', { count: commonPasswordsCache.size });
+  } catch (error) {
+    // Fallback to minimal list if file cannot be read
+    logger.warn(
+      `Could not load common passwords file at ${passwordFilePath}. Using minimal fallback list.`,
+      { error: error instanceof Error ? error.message : String(error) }
+    );
+    commonPasswordsCache = new Set([
+      "password",
+      "password1",
+      "password123",
+      "123456",
+      "123456789",
+      "qwerty",
+      "abc123",
+      "letmein",
+      "welcome",
+      "admin",
+      "iloveyou",
+      "monkey",
+      "dragon",
+      "football",
+      "baseball",
+      "111111",
+      "123123",
+    ]);
+  }
+  return commonPasswordsCache;
+}
+
+/**
+ * Check if a password is in the common passwords blocklist.
+ * Uses case-insensitive matching.
+ */
+export function isCommonPassword(password: string): boolean {
+  const commonPasswords = loadCommonPasswords();
+  return commonPasswords.has(password.toLowerCase());
+}
+
+/**
+ * Get the count of passwords in the blocklist.
+ * Useful for testing and diagnostics.
+ */
+export function getCommonPasswordCount(): number {
+  return loadCommonPasswords().size;
+}
+
+/**
+ * Clear the cached password list (primarily for testing).
+ */
+export function clearCommonPasswordCache(): void {
+  commonPasswordsCache = null;
+}
 
 export function validatePasswordPolicy(password: string): string[] {
   const errors: string[] = [];
@@ -32,7 +95,7 @@ export function validatePasswordPolicy(password: string): string[] {
   if (!/[a-z]/.test(password)) errors.push("Password must include a lowercase letter");
   if (!/[0-9]/.test(password)) errors.push("Password must include a number");
   if (!/[^A-Za-z0-9]/.test(password)) errors.push("Password must include a special character");
-  if (COMMON_PASSWORDS.has(password.toLowerCase())) errors.push("Password is too common");
+  if (isCommonPassword(password)) errors.push("Password is too common");
   return errors;
 }
 
@@ -47,4 +110,52 @@ export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
+}
+
+/**
+ * Compare supplied password against stored hash.
+ * Handles bcrypt (legacy) and scrypt (new format); returns false on format errors to avoid timing leaks.
+ * Uses constant-time comparison to prevent timing attacks.
+ */
+export async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
+  try {
+    // Check if it's a bcrypt hash (existing format)
+    if (stored.startsWith('$2')) {
+      return await bcrypt.compare(supplied, stored);
+    }
+
+    // Handle scrypt format (hash.salt)
+    // Salt may contain dots, so only split on first dot
+    const dotIndex = stored.indexOf(".");
+    // Continue processing even if format is wrong to maintain constant timing
+    const hashed = dotIndex > 0 ? stored.substring(0, dotIndex) : "";
+    const salt = dotIndex > 0 ? stored.substring(dotIndex + 1) : "dummysalt";
+
+    // Always compute hash even if inputs are invalid to maintain constant timing
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+
+    // Validate format after timing-sensitive operations
+    if (dotIndex <= 0 || !hashed || !salt) {
+      // Still return false but after performing the hash computation
+      return false;
+    }
+
+    const hashedBuf = Buffer.from(hashed, "hex");
+
+    if (hashedBuf.length !== suppliedBuf.length) {
+      // Length mismatch - return false after timing-sensitive operations
+      return false;
+    }
+
+    return timingSafeEqual(hashedBuf, suppliedBuf);
+  } catch (error) {
+    // Perform dummy operation to maintain timing even in error case
+    try {
+      await scryptAsync("dummy", "dummysalt", 64);
+    } catch {
+      // Ignore errors in dummy operation
+    }
+    console.error("Error comparing passwords:", error);
+    return false;
+  }
 }

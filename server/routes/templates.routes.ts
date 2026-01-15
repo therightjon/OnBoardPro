@@ -6,8 +6,8 @@
  * Conventions: Restrict to admin roles, keep ordering/reorder logic clear, and align request/response shapes with OpenAPI.
  */
 import { Router } from "express";
-import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/authorization";
+import { isZodError, handleZodError } from "../middleware/validation";
 import {
   insertTemplateSchema,
   insertTemplateStageSchema
@@ -69,9 +69,14 @@ router.post("/templates", requireAuth, requireRole(["system_admin", "hr_staff"])
     });
 
     res.status(201).json(template);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+  } catch (error: any) {
+    if (isZodError(error)) {
+      return handleZodError(res, error);
+    }
+    // Unique constraint: template name (case-insensitive)
+    const pgError = error?.cause ?? error;
+    if (`${pgError?.code}` === "23505" && pgError?.constraint === "templates_name_unique") {
+      return res.status(409).json({ message: "Template name already exists" });
     }
     next(error);
   }
@@ -192,9 +197,10 @@ router.get("/templates/:id/estimate", requireAuth, requireRole(["system_admin", 
   try {
     const template = await fetchTemplateWithAccess(req, res, req.params.id, "template:estimate");
     if (!template) return;
-    const { looDate, startDate, candidateId, businessDays } = req.query;
+    const { loiDate, looDate, startDate, candidateId, businessDays } = req.query;
     const templateEstimationService = getTemplateEstimationService();
     const estimate = await templateEstimationService.estimateTemplate(req.params.id, {
+      loiDate: loiDate as string | undefined,
       looDate: looDate as string | undefined,
       startDate: startDate as string | undefined,
       candidateId: candidateId as string | undefined,
@@ -585,6 +591,40 @@ router.post("/templates/:id/stages/create-with-task", requireAuth, requireRole([
     });
 
   } catch (error) {
+    next(error);
+  }
+});
+
+// Reorder template tasks (within stage or move to different stage)
+router.patch("/templates/:templateId/template-tasks/reorder", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
+  try {
+    const { templateId } = req.params;
+    const { taskId, targetStageId, targetTemplateStageId, newIndex } = req.body;
+
+    const templateService = getTemplateService();
+    
+    // Validate template exists and user has access
+    const template = await fetchTemplateWithAccess(req, res, templateId, "template:update");
+    if (!template) return;
+
+    // Reorder task using service
+    const updatedTask = await templateService.reorderTemplateTask({
+      taskId,
+      targetStageId,
+      targetTemplateStageId,
+      newIndex,
+      actorId: req.user?.id
+    });
+
+    if (!updatedTask) {
+      return res.status(404).json({ message: "Template task not found" });
+    }
+
+    res.json(updatedTask);
+  } catch (error: any) {
+    if (isZodError(error)) {
+      return handleZodError(res, error);
+    }
     next(error);
   }
 });

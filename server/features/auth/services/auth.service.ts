@@ -8,9 +8,6 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
-import { scrypt, timingSafeEqual } from "crypto";
-import { promisify } from "util";
-import bcrypt from "bcrypt";
 import { getUserService } from "../../../services/service-factory";
 import { User as SelectUser } from "@shared/schemas";
 import { z } from "zod";
@@ -24,17 +21,7 @@ import {
   validateProviderConfigurations
 } from "./index";
 import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../../../services/login-rate-limit";
-
-declare global {
-  namespace Express {
-    interface User extends SelectUser {
-      roles?: string[];
-      departmentScopes?: string[];
-      divisionScopes?: string[];
-      managedCandidateIds?: string[];
-    }
-  }
-}
+import { comparePasswords } from "../../../utils/passwords";
 
 declare module "express-session" {
   interface SessionData {
@@ -43,18 +30,18 @@ declare module "express-session" {
     inviteTokenIssuedAt?: string;
     csrfSecret?: string;
     lastActivity?: number;
+    createdAt?: number;
   }
 }
 
 const PostgresSessionStore = connectPg(session);
 
-const scryptAsync = promisify(scrypt);
-
 /**
  * Hydrate a SelectUser with roles and scope metadata for session use.
  * Side effects: fetches roles/department/division/managed candidate scopes in parallel.
+ * Exported for reuse in test login and other session initialization paths.
  */
-async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
+export async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
   const userService = getUserService();
   const [roles, departmentScopes, divisionScopes, managedCandidateIds] = await Promise.all([
     userService.getUserRoles(user.id),
@@ -76,45 +63,6 @@ async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
     divisionScopes: Array.from(divisionSet),
     managedCandidateIds: Array.from(managedSet)
   };
-}
-
-/**
- * Compare supplied password against stored hash.
- * Handles bcrypt (legacy) and scrypt (new format); returns false on format errors to avoid timing leaks.
- */
-async function comparePasswords(supplied: string, stored: string) {
-  try {
-    // Check if it's a bcrypt hash (existing format)
-    if (stored.startsWith('$2')) {
-      return await bcrypt.compare(supplied, stored);
-    }
-    
-    // Handle scrypt format (new format)
-    const parts = stored.split(".");
-    if (parts.length !== 2) {
-      console.error("Invalid stored password format - missing salt or hash");
-      return false;
-    }
-    
-    const [hashed, salt] = parts;
-    if (!hashed || !salt) {
-      console.error("Invalid stored password format - empty hash or salt");
-      return false;
-    }
-    
-    const hashedBuf = Buffer.from(hashed, "hex");
-    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-    
-    if (hashedBuf.length !== suppliedBuf.length) {
-      console.error("Buffer length mismatch in password comparison");
-      return false;
-    }
-    
-    return timingSafeEqual(hashedBuf, suppliedBuf);
-  } catch (error) {
-    console.error("Error comparing passwords:", error);
-    return false;
-  }
 }
 
 /**
@@ -232,34 +180,57 @@ export async function setupAuth(app: Express) {
           // Preserve invitation-related session data and CSRF secret across regeneration
           const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
 
-          req.session.regenerate(async (regenErr) => {
-            if (regenErr) return next(regenErr);
+          // Regenerate session and restore data atomically to prevent race conditions
+          await new Promise<void>((resolve, reject) => {
+            req.session.regenerate((regenErr) => {
+              if (regenErr) return reject(regenErr);
 
-            if (inviteToken) req.session.inviteToken = inviteToken;
-            if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
-            if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
-            if (csrfSecret) req.session.csrfSecret = csrfSecret;
+              // Restore session data immediately in callback to ensure CSRF protection works
+              if (inviteToken) req.session.inviteToken = inviteToken;
+              if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
+              if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+              if (csrfSecret) req.session.csrfSecret = csrfSecret;
 
-            req.login(authenticatedUser, async (loginErr) => {
-              if (loginErr) return next(loginErr);
-
-              req.session.lastActivity = Date.now();
-
-              // Track last login time (best-effort)
-              if (authenticatedUser.id) {
-                try {
-                  const userService = getUserService();
-                  await userService.updateLastLogin(authenticatedUser.id);
-                } catch (updateErr) {
-                  console.error('Failed to update last login:', updateErr);
-                }
-              }
-
-              await resetLoginLimit({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
-
-              res.status(200).json(req.user);
+              resolve();
             });
           });
+
+          // Promisify login to ensure proper sequencing
+          await new Promise<void>((resolve, reject) => {
+            req.login(authenticatedUser, (loginErr) => {
+              if (loginErr) return reject(loginErr);
+              resolve();
+            });
+          });
+
+          const now = Date.now();
+          req.session.createdAt = now;
+          req.session.lastActivity = now;
+
+          // Explicitly save session to ensure all data is persisted
+          await new Promise<void>((resolve, reject) => {
+            req.session.save((saveErr) => {
+              if (saveErr) {
+                console.error('Session save error:', saveErr);
+                return reject(saveErr);
+              }
+              resolve();
+            });
+          });
+
+          // Track last login time (best-effort)
+          if (authenticatedUser.id) {
+            try {
+              const userService = getUserService();
+              await userService.updateLastLogin(authenticatedUser.id);
+            } catch (updateErr) {
+              console.error('Failed to update last login:', updateErr);
+            }
+          }
+
+          await resetLoginLimit({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+
+          res.status(200).json(req.user);
         } catch (error) {
           next(error);
         }
@@ -332,35 +303,57 @@ export async function setupAuth(app: Express) {
       }
 
       // Log the user in using passport
-      hydrateAuthUser(signInResult.user!).then((sessionUser) => {
-        const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
+      hydrateAuthUser(signInResult.user!).then(async (sessionUser) => {
+        try {
+          const { inviteToken, inviteTokenEmail, inviteTokenIssuedAt, csrfSecret } = req.session || {};
 
-        req.session?.regenerate((err) => {
-          if (err) {
-            console.error('Login error:', err);
-            return res.status(500).json({ message: "Login failed" });
-          }
+          // Regenerate session and restore data atomically to prevent race conditions
+          await new Promise<void>((resolve, reject) => {
+            req.session?.regenerate((err) => {
+              if (err) return reject(err);
 
-          if (inviteToken) req.session.inviteToken = inviteToken;
-          if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
-          if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
-          if (csrfSecret) req.session.csrfSecret = csrfSecret;
+              // Restore session data immediately in callback to ensure CSRF protection works
+              if (inviteToken) req.session.inviteToken = inviteToken;
+              if (inviteTokenEmail) req.session.inviteTokenEmail = inviteTokenEmail;
+              if (inviteTokenIssuedAt) req.session.inviteTokenIssuedAt = inviteTokenIssuedAt;
+              if (csrfSecret) req.session.csrfSecret = csrfSecret;
 
-          req.login(sessionUser, (loginErr) => {
-            if (loginErr) {
-              console.error('Login error:', loginErr);
-              return res.status(500).json({ message: "Login failed" });
-            }
-
-            req.session.lastActivity = Date.now();
-
-            res.json({
-              user: sessionUser,
-              isNewUser: signInResult.isNewUser,
-              assignedRoles: signInResult.assignedRoles
+              resolve();
             });
           });
-        });
+
+          // Promisify login to ensure proper sequencing
+          await new Promise<void>((resolve, reject) => {
+            req.login(sessionUser, (loginErr) => {
+              if (loginErr) return reject(loginErr);
+              resolve();
+            });
+          });
+
+          const now = Date.now();
+          req.session.createdAt = now;
+          req.session.lastActivity = now;
+
+          // Explicitly save session to ensure all data is persisted
+          await new Promise<void>((resolve, reject) => {
+            req.session.save((saveErr) => {
+              if (saveErr) {
+                console.error('Session save error:', saveErr);
+                return reject(saveErr);
+              }
+              resolve();
+            });
+          });
+
+          res.json({
+            user: sessionUser,
+            isNewUser: signInResult.isNewUser,
+            assignedRoles: signInResult.assignedRoles
+          });
+        } catch (error) {
+          console.error('Login error:', error);
+          res.status(500).json({ message: "Login failed" });
+        }
       }).catch((error) => {
         console.error('Authentication error:', error);
         res.status(500).json({ message: "Internal server error" });

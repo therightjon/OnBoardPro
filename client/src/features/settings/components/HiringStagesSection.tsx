@@ -24,7 +24,7 @@ import { Label } from "@/shared/components/ui/label";
 import { Badge } from "@/shared/components/ui/badge";
 import { Switch } from "@/shared/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog";
 
 // Schema
 const hiringStageSchema = insertHiringStageSchema.pick({
@@ -162,9 +162,12 @@ export function HiringStagesSection() {
                 New Stage
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-min">
               <DialogHeader>
                 <DialogTitle>{editingStage ? "Edit Hiring Stage" : "Create Hiring Stage"}</DialogTitle>
+                <DialogDescription className="sr-only">
+                  {editingStage ? "Update hiring stage details." : "Create a new hiring stage for your workflow."}
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                 <div>
@@ -243,22 +246,22 @@ export function HiringStagesSection() {
                   <TableRow>
                     <SortableTableHeader
                       label="Name"
-                      sortKey="name"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="name"
+                      direction={sortState.key === "name" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <TableHead>Description</TableHead>
                     <SortableTableHeader
                       label="Order"
-                      sortKey="orderIndex"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="orderIndex"
+                      direction={sortState.key === "orderIndex" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <SortableTableHeader
                       label="Status"
-                      sortKey="status"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
+                      columnKey="status"
+                      direction={sortState.key === "status" ? sortState.direction : null}
+                      onSort={toggleSort}
                     />
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
@@ -276,7 +279,7 @@ export function HiringStagesSection() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleEditStage(stage)}>
+                          <Button variant="ghost" size="sm" onClick={() => handleEditStage(stage)} aria-label={`Edit ${stage.name}`}>
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
@@ -284,6 +287,7 @@ export function HiringStagesSection() {
                             size="sm"
                             className="text-destructive"
                             onClick={() => setDeletingStage(stage)}
+                            aria-label={`Delete ${stage.name}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>

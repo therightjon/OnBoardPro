@@ -39,7 +39,7 @@ export default function NotificationsPage() {
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     refetchInterval: 20_000,
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   });
 
   const markReadMutation = useMutation({

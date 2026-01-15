@@ -33,7 +33,7 @@ const authOptions = [
 const formSchema = z.object({
   enabled: z.boolean(),
   hostname: z.string().optional(),
-  port: z.union([z.number().int().min(1).max(65535), z.nan()]).transform((value) => Number.isNaN(value) ? undefined : value),
+  port: z.number().int().min(1).max(65535),
   security: z.enum(["none", "starttls", "ssl_tls"]),
   authType: z.enum(["none", "plain", "login", "cram_md5", "xoauth2"]),
   username: z.string().optional().nullable(),

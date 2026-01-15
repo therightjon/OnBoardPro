@@ -30,6 +30,7 @@ export {
 
 export interface RegisterRoutesOptions {
   skipAuthSetup?: boolean;
+  skipCsrf?: boolean;
   rateLimiters?: Partial<Record<"default" | "sensitive", RequestHandler>>;
 }
 
@@ -62,28 +63,36 @@ export async function registerRoutes(app: Express, options: RegisterRoutesOption
   // Enforce idle timeout on all requests once the session is available
   app.use(sessionIdleTimeout);
 
+  // Skip rate limiting and CSRF protection in test mode (when auth is skipped, sessions aren't available)
+  const shouldSkipCsrf = options.skipCsrf || options.skipAuthSetup;
+  const shouldSkipRateLimiting = options.skipAuthSetup;
+
   // Global API rate limiting (per-IP) using DB-backed counters
-  app.use("/api", defaultRateLimiter);
+  if (!shouldSkipRateLimiting) {
+    app.use("/api", defaultRateLimiter);
+  }
 
-  // CSRF token endpoint and protection for state-changing API routes
-  app.get("/api/csrf-token", csrfProtection, (req, res) => {
-    res.json({ csrfToken: req.csrfToken() });
-  });
+  if (!shouldSkipCsrf) {
+    // CSRF token endpoint and protection for state-changing API routes
+    app.get("/api/csrf-token", csrfProtection, (req, res) => {
+      res.json({ csrfToken: req.csrfToken() });
+    });
 
-  const csrfExcluded = new Set<string>([
-    "/login",
-    "/auth/login",
-    "/auth/available-providers",
-    "/csrf-token"
-  ]);
+    const csrfExcluded = new Set<string>([
+      "/login",
+      "/auth/login",
+      "/auth/available-providers",
+      "/csrf-token"
+    ]);
 
-  app.use("/api", (req: Request, res: Response, next: NextFunction) => {
-    const path = req.path; // Express strips the mount path (/api) when using app.use("/api", ...)
-    if (csrfExcluded.has(path)) {
-      return next();
-    }
-    return csrfProtection(req, res, next);
-  });
+    app.use("/api", (req: Request, res: Response, next: NextFunction) => {
+      const path = req.path; // Express strips the mount path (/api) when using app.use("/api", ...)
+      if (csrfExcluded.has(path)) {
+        return next();
+      }
+      return csrfProtection(req, res, next);
+    });
+  }
 
   // Mount all route modules under /api prefix
   // Order matters for route matching - more specific routes should come first

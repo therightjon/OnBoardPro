@@ -8,7 +8,7 @@ import {
 } from "@shared/schemas";
 import type { DigestFrequency } from "@shared/preferences";
 
-type DigestCapableFrequency = Exclude<DigestFrequency, "immediate">;
+export type DigestCapableFrequency = Exclude<DigestFrequency, "immediate">;
 
 export interface NotificationEmailCandidate {
   notificationId: string;

@@ -13,9 +13,7 @@ import type {
   CandidateStageChangedEvent,
   TemplateAppliedEvent
 } from "../event-types";
-import { db } from "../../db/connection";
-import { notifications } from "@shared/schemas";
-import { randomUUID } from "node:crypto";
+import { getNotificationRepository, getCandidateRepository } from "../../services/service-factory";
 
 /**
  * Register notification handlers with the event bus
@@ -77,10 +75,9 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
   eventBus.on<TaskCompletedEvent>("task.completed", async (event) => {
     const { candidateId, taskTitle, completedBy, wasOverdue } = event.payload;
 
-    // Get candidate to find manager
-    const candidate = await db.query.candidates.findFirst({
-      where: (candidates, { eq }) => eq(candidates.id, candidateId)
-    });
+    // Get candidate to find manager using repository
+    const candidateRepo = getCandidateRepository();
+    const candidate = await candidateRepo.getCandidateForNotification(candidateId);
 
     if (!candidate) {
       return;
@@ -105,7 +102,26 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
       });
     }
 
-    // TODO: Also notify followers (requires follower query)
+    // Notify followers
+    const { getCandidateService } = await import("../../services/service-factory");
+    const candidateService = getCandidateService();
+    const followers = await candidateService.getFollowers(candidateId);
+    
+    for (const follower of followers) {
+      // Don't notify the person who completed the task or the manager (already notified)
+      if (follower.userId !== completedBy && follower.userId !== candidate.managerId) {
+        await createNotification({
+          recipientUserId: follower.userId,
+          eventType: "task.completed",
+          title: "Task Completed",
+          message,
+          actorUserId: completedBy,
+          relatedEntityType: "candidate_task",
+          relatedEntityId: event.aggregateId,
+          contextCandidateId: candidateId
+        });
+      }
+    }
   });
 
   // Comment created -> notify mentioned users and watchers
@@ -236,10 +252,9 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
   eventBus.on<CandidateStageChangedEvent>("candidate.stage_changed", async (event) => {
     const { candidateId, stageName, automated } = event.payload;
 
-    // Get candidate to find manager
-    const candidate = await db.query.candidates.findFirst({
-      where: (candidates, { eq }) => eq(candidates.id, candidateId)
-    });
+    // Get candidate to find manager using repository
+    const candidateRepo = getCandidateRepository();
+    const candidate = await candidateRepo.getCandidateForNotification(candidateId);
 
     if (!candidate) {
       return;
@@ -264,17 +279,35 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
       });
     }
 
-    // TODO: Also notify followers
+    // Notify followers
+    const { getCandidateService } = await import("../../services/service-factory");
+    const candidateService = getCandidateService();
+    const followers = await candidateService.getFollowers(candidateId);
+    
+    for (const follower of followers) {
+      // Don't notify the actor or the manager (already notified)
+      if (follower.userId !== event.actorId && follower.userId !== candidate.managerId) {
+        await createNotification({
+          recipientUserId: follower.userId,
+          eventType: "candidate.statusChange",
+          title: "Candidate Stage Changed",
+          message,
+          actorUserId: event.actorId,
+          relatedEntityType: "candidate",
+          relatedEntityId: candidateId,
+          contextCandidateId: candidateId
+        });
+      }
+    }
   });
 
   // Template applied -> notify manager
   eventBus.on<TemplateAppliedEvent>("candidate.template_applied", async (event) => {
     const { candidateId, templateName, tasksCreated } = event.payload;
 
-    // Get candidate to find manager
-    const candidate = await db.query.candidates.findFirst({
-      where: (candidates, { eq }) => eq(candidates.id, candidateId)
-    });
+    // Get candidate to find manager using repository
+    const candidateRepo = getCandidateRepository();
+    const candidate = await candidateRepo.getCandidateForNotification(candidateId);
 
     if (!candidate || !candidate.managerId) {
       return;
@@ -296,7 +329,7 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
 }
 
 /**
- * Create a notification in the database
+ * Create a notification using the repository
  */
 async function createNotification(params: {
   recipientUserId: string;
@@ -309,32 +342,8 @@ async function createNotification(params: {
   contextCandidateId: string | null;
 }): Promise<void> {
   try {
-    // Map relatedEntityType to entityType enum
-    let entityType: 'candidate' | 'task' | 'comment' = 'task';
-    if (params.relatedEntityType === 'candidate') {
-      entityType = 'candidate';
-    } else if (params.relatedEntityType === 'comment') {
-      entityType = 'comment';
-    } else if (params.relatedEntityType === 'candidate_task') {
-      entityType = 'task';
-    }
-
-    await db.insert(notifications).values({
-      id: randomUUID(),
-      userId: params.recipientUserId,
-      type: params.eventType,
-      entityType,
-      entityId: params.relatedEntityId,
-      payload: {
-        title: params.title,
-        message: params.message,
-        actorId: params.actorUserId,
-        contextCandidateId: params.contextCandidateId
-      },
-      isRead: false,
-      readAt: null,
-      deliveredChannels: []
-    });
+    const notificationRepo = getNotificationRepository();
+    await notificationRepo.createNotification(params);
   } catch (error) {
     console.error("Failed to create notification:", error);
     // Don't throw - notification creation failure shouldn't break the event flow

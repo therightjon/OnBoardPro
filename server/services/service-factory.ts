@@ -40,6 +40,7 @@ import { SearchRepository } from "../repositories/SearchRepository";
 
 // Import services
 import { CandidateService } from "./candidates/candidate.service";
+import { StageAdvancementService } from "./candidates/stage-advancement.service";
 import { TaskService } from "./tasks/task.service";
 import { TaskDueDateService } from "./tasks/task-due-date.service";
 import { TemplateService } from "./templates/template.service";
@@ -98,6 +99,7 @@ export class ServiceFactory {
 
   // Service instances (singletons)
   protected candidateServiceInstance: CandidateService | null = null;
+  protected stageAdvancementServiceInstance: StageAdvancementService | null = null;
   protected taskServiceInstance: TaskService | null = null;
   protected taskDueDateServiceInstance: TaskDueDateService | null = null;
   protected templateServiceInstance: TemplateService | null = null;
@@ -163,6 +165,24 @@ export class ServiceFactory {
       );
     }
     return this.candidateServiceInstance;
+  }
+
+  /**
+   * Get StageAdvancementService instance
+   */
+  getStageAdvancementService(): StageAdvancementService {
+    if (!this.stageAdvancementServiceInstance) {
+      this.stageAdvancementServiceInstance = new StageAdvancementService(
+        db,
+        this.candidateRepo,
+        this.candidateTaskRepo,
+        this.candidateStageRepo,
+        this.templateStageRepo,
+        this.hiringStageRepo,
+        this.getSystemSettingsService()
+      );
+    }
+    return this.stageAdvancementServiceInstance;
   }
 
   /**
@@ -398,10 +418,55 @@ export class ServiceFactory {
     }
     return this.authorizationServiceInstance;
   }
+
+  // Repository getters (for use in event handlers and other contexts that need direct repository access)
+  
+  /**
+   * Get NotificationRepository instance
+   */
+  getNotificationRepository(): NotificationRepository {
+    return this.notificationRepo;
+  }
+
+  /**
+   * Get CandidateRepository instance
+   */
+  getCandidateRepository(): CandidateRepository {
+    return this.candidateRepo;
+  }
+
+  /**
+   * Get CandidateTaskRepository instance
+   */
+  getCandidateTaskRepository(): CandidateTaskRepository {
+    return this.candidateTaskRepo;
+  }
+
+  /**
+   * Get CandidateStageRepository instance
+   */
+  getCandidateStageRepository(): CandidateStageRepository {
+    return this.candidateStageRepo;
+  }
+
+  /**
+   * Get TemplateStageRepository instance
+   */
+  getTemplateStageRepository(): TemplateStageRepository {
+    return this.templateStageRepo;
+  }
+
+  /**
+   * Get UserRepository instance
+   */
+  getUserRepository(): UserRepository {
+    return this.userRepo;
+  }
 }
 
 export interface IServiceFactory {
   getCandidateService(): CandidateService;
+  getStageAdvancementService(): StageAdvancementService;
   getTaskService(): TaskService;
   getTaskDueDateService(): TaskDueDateService;
   getTemplateService(): TemplateService;
@@ -418,6 +483,14 @@ export interface IServiceFactory {
   getAuthProviderService(): AuthProviderService;
   getDashboardService(): DashboardService;
   getAuthorizationService(): AuthorizationService;
+  getAuditService(): AuditService;
+  // Repository getters
+  getNotificationRepository(): NotificationRepository;
+  getCandidateRepository(): CandidateRepository;
+  getCandidateTaskRepository(): CandidateTaskRepository;
+  getCandidateStageRepository(): CandidateStageRepository;
+  getTemplateStageRepository(): TemplateStageRepository;
+  getUserRepository(): UserRepository;
 }
 
 // Export a singleton instance - mutable for testing
@@ -458,6 +531,10 @@ export const serviceFactory = defaultFactory;
  * Contract: always returns the currently active factory instance (real or test double).
  */
 export const getCandidateService = () => activeFactory.getCandidateService();
+/**
+ * Convenience getter for stage advancement service (automatic stage progression).
+ */
+export const getStageAdvancementService = () => activeFactory.getStageAdvancementService();
 /**
  * Convenience getter for task service.
  */
@@ -526,3 +603,32 @@ export const getAuthorizationService = () => activeFactory.getAuthorizationServi
  * Convenience getter for audit service.
  */
 export const getAuditService = () => activeFactory.getAuditService();
+
+// Repository convenience getters
+
+/**
+ * Convenience getter for notification repository.
+ * Used by event handlers that need to create notifications directly.
+ */
+export const getNotificationRepository = () => activeFactory.getNotificationRepository();
+/**
+ * Convenience getter for candidate repository.
+ * Used when direct repository access is needed outside services.
+ */
+export const getCandidateRepository = () => activeFactory.getCandidateRepository();
+/**
+ * Convenience getter for candidate task repository.
+ */
+export const getCandidateTaskRepository = () => activeFactory.getCandidateTaskRepository();
+/**
+ * Convenience getter for candidate stage repository.
+ */
+export const getCandidateStageRepository = () => activeFactory.getCandidateStageRepository();
+/**
+ * Convenience getter for template stage repository.
+ */
+export const getTemplateStageRepository = () => activeFactory.getTemplateStageRepository();
+/**
+ * Convenience getter for user repository.
+ */
+export const getUserRepository = () => activeFactory.getUserRepository();

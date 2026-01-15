@@ -5,7 +5,7 @@
  * automatic template stage resolution, and task archiving.
  */
 
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 import {
   templateTasks,
   templateStages,
@@ -27,10 +27,7 @@ export class TemplateTaskRepository extends BaseRepository {
     return await this.db
       .select()
       .from(templateTasks)
-      .where(and(
-        eq(templateTasks.templateId, templateId),
-        eq(templateTasks.archived, false)
-      ))
+      .where(eq(templateTasks.templateId, templateId))
       .orderBy(asc(templateTasks.createdAt));
   }
 
@@ -56,6 +53,20 @@ export class TemplateTaskRepository extends BaseRepository {
    * @throws Error if template stage not found when templateStageId not provided
    */
   async createTemplateTask(insertTask: InsertTemplateTask): Promise<TemplateTask> {
+    // Check for duplicate taskDefId within the same template
+    const [existingTask] = await this.db
+      .select({ id: templateTasks.id })
+      .from(templateTasks)
+      .where(and(
+        eq(templateTasks.templateId, insertTask.templateId),
+        eq(templateTasks.taskDefId, insertTask.taskDefId)
+      ))
+      .limit(1);
+    
+    if (existingTask) {
+      throw new Error("This task definition is already in the template");
+    }
+
     let templateStageId = insertTask.templateStageId;
     if (!templateStageId) {
       const [stage] = await this.db
@@ -139,5 +150,106 @@ export class TemplateTaskRepository extends BaseRepository {
     await this.db
       .delete(templateTasks)
       .where(eq(templateTasks.id, id));
+  }
+
+  /**
+   * Reorder a template task within a stage or move to a different stage
+   * 
+   * @param params - Reorder parameters
+   * @returns Updated template task or undefined if not found
+   */
+  async reorderTemplateTask(params: {
+    taskId: string;
+    targetStageId: string;
+    targetTemplateStageId: string;
+    newIndex: number;
+  }): Promise<TemplateTask | undefined> {
+    const { taskId, targetStageId, targetTemplateStageId, newIndex } = params;
+
+    // Get current task
+    const currentTask = await this.getTemplateTask(taskId);
+    if (!currentTask) return undefined;
+
+    const isMovingStages = currentTask.templateStageId !== targetTemplateStageId;
+
+    // Use a transaction to ensure atomic updates
+    return await this.db.transaction(async (tx) => {
+      if (isMovingStages) {
+        // Moving to a different stage
+        // 1. Decrement order_index for tasks after the old position in the old stage
+        await tx
+          .update(templateTasks)
+          .set({ orderIndex: sql`order_index - 1`, updatedAt: new Date() })
+          .where(and(
+            eq(templateTasks.templateStageId, currentTask.templateStageId),
+            sql`order_index > ${currentTask.orderIndex}`
+          ));
+
+        // 2. Increment order_index for tasks at or after the new position in the target stage
+        await tx
+          .update(templateTasks)
+          .set({ orderIndex: sql`order_index + 1`, updatedAt: new Date() })
+          .where(and(
+            eq(templateTasks.templateStageId, targetTemplateStageId),
+            sql`order_index >= ${newIndex}`
+          ));
+
+        // 3. Update the task with new stage and position
+        const [updated] = await tx
+          .update(templateTasks)
+          .set({
+            stageId: targetStageId,
+            templateStageId: targetTemplateStageId,
+            orderIndex: newIndex,
+            updatedAt: new Date()
+          })
+          .where(eq(templateTasks.id, taskId))
+          .returning();
+
+        return updated || undefined;
+      } else {
+        // Reordering within the same stage
+        const oldIndex = currentTask.orderIndex;
+
+        if (oldIndex === newIndex) {
+          // No change needed
+          return currentTask;
+        }
+
+        if (oldIndex < newIndex) {
+          // Moving down: decrement tasks between old and new position
+          await tx
+            .update(templateTasks)
+            .set({ orderIndex: sql`order_index - 1`, updatedAt: new Date() })
+            .where(and(
+              eq(templateTasks.templateStageId, targetTemplateStageId),
+              sql`order_index > ${oldIndex}`,
+              sql`order_index <= ${newIndex}`
+            ));
+        } else {
+          // Moving up: increment tasks between new and old position
+          await tx
+            .update(templateTasks)
+            .set({ orderIndex: sql`order_index + 1`, updatedAt: new Date() })
+            .where(and(
+              eq(templateTasks.templateStageId, targetTemplateStageId),
+              sql`order_index >= ${newIndex}`,
+              sql`order_index < ${oldIndex}`
+            ));
+        }
+
+        // Update the task with new position
+        const [updated] = await tx
+          .update(templateTasks)
+          .set({
+            orderIndex: newIndex,
+            updatedAt: new Date()
+          })
+          .where(eq(templateTasks.id, taskId))
+          .returning();
+
+        return updated || undefined;
+      }
+    });
   }
 }

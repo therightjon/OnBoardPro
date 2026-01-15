@@ -10,7 +10,7 @@ import { Plus, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, Archive, RotateC
 import { Switch } from "@/shared/components/ui/switch";
 import { Label } from "@/shared/components/ui/label";
 import { Link, useLocation } from "wouter";
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogContent,
@@ -24,7 +24,8 @@ const NewCandidateDialog = lazy(() => import("@/features/candidates/components/n
 const ArchiveCandidateDialog = lazy(() => import("@/features/candidates/components/archive-candidate-dialog").then(m => ({ default: m.ArchiveCandidateDialog })));
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
-import { candidateStatusBadgeClass, resolveCandidateStatus } from "@/features/candidates/utils/status";
+import { candidateStatusBadgeClass, resolveCandidateStatus, canArchiveCandidate } from "@/features/candidates/utils/status";
+import { useLocalStorage } from "@/shared/hooks/use-local-storage";
 import type { Candidate, CandidateType, HiringStage } from "@shared/schemas";
 import { PaginationControls } from "@/shared/components/pagination-controls";
 
@@ -51,9 +52,9 @@ export default function CandidatesPage() {
   const [phaseFilter, setPhaseFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("createdAt");
   const [sortOrder, setSortOrder] = useState<string>("desc");
-  const [showArchived, setShowArchived] = useState(false);
-  const [showCanceled, setShowCanceled] = useState(false);
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [showArchived, setShowArchived] = useLocalStorage("candidates-show-archived", false);
+  const [showCanceled, setShowCanceled] = useLocalStorage("candidates-show-canceled", false);
+  const [showCompleted, setShowCompleted] = useLocalStorage("candidates-show-completed", false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isNewCandidateDialogOpen, setIsNewCandidateDialogOpen] = useState(false);
   const [archiveDialogCandidate, setArchiveDialogCandidate] = useState<any>(null);
@@ -566,7 +567,7 @@ const formatLooAge = (isoDate?: string | null) => {
                               View
                             </Button>
                           </Link>
-                          {user && ["system_admin", "hr_staff"].includes(user.role) && (
+                          {user && ["system_admin", "hr_staff"].includes(user.role) && (candidate.archived || canArchiveCandidate(candidate)) && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -709,7 +710,7 @@ const formatLooAge = (isoDate?: string | null) => {
                         View Details
                       </Button>
                     </Link>
-                    {user && ["system_admin", "hr_staff"].includes(user.role) && (
+                    {user && ["system_admin", "hr_staff"].includes(user.role) && (candidate.archived || canArchiveCandidate(candidate)) && (
                       <Button
                         variant="ghost"
                         size="sm"

@@ -6,9 +6,10 @@
  * Conventions: Apply sensitive rate limiting on read endpoints, enforce role guards on writes, keep pagination/filter behavior documented.
  */
 import { Router } from "express";
-import { z, ZodError } from "zod/v4";
+import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { sensitiveRateLimiter } from "../middleware/rate-limiter";
+import { isZodError, handleZodError } from "../middleware/validation";
 import { insertCandidateTaskSchema } from "@shared/schemas";
 import {
   fetchTaskWithAccess,
@@ -17,6 +18,7 @@ import {
   hasAnyRole,
   logAuthorizationFailure
 } from "../utils/authorization.utils";
+import { logger } from "../utils/logger";
 import { sanitizeTaskForCandidateUser } from "../utils/sanitization.utils";
 import {
   buildActorLabel,
@@ -287,7 +289,7 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
 
     const parsed = insertCandidateTaskSchema.safeParse(body);
     if (!parsed.success) {
-      return res.status(400).json({ message: "Invalid data", errors: parsed.error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: parsed.error.issues });
     }
     const validatedData = parsed.data;
 
@@ -309,7 +311,6 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
       const taskDef = await refDataService.createTaskDefinition({
         name: body.title,
         description: body.description || null,
-        archived: false,
         createdBy: req.user!.id
       });
       validatedData.taskDefId = taskDef.id;
@@ -326,7 +327,7 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
     try {
       await emitDeadlinesIfNeeded(task.id, { actorId: req.user!.id });
     } catch (notifyError) {
-      console.error('Failed to emit deadlines:', notifyError);
+      logger.error('Failed to emit deadlines', notifyError);
     }
 
     res.status(201).json({
@@ -335,8 +336,8 @@ router.post("/tasks", requireAuth, async (req, res, next) => {
       dueDate: task.dueAt ?? null
     });
   } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+    if (isZodError(error)) {
+      return handleZodError(res, error);
     }
     next(error);
   }
@@ -437,7 +438,7 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
     try {
       recompute = await recomputeCandidateStageState({ candidateId: existingTask.candidateId, invokerUserId: req.user!.id });
     } catch (e) {
-      console.error('recomputeCandidateStageState error:', e);
+      logger.error('recomputeCandidateStageState error', e);
     }
 
     // Check if stage should advance forward after task status change
@@ -450,7 +451,10 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
 
       // Log advancement for debugging (optional)
       if (advancement.advanced) {
-        console.log(`Candidate ${existingTask.candidateId} advanced to stage ${advancement.toStageName}`);
+        logger.debug('Candidate advanced to new stage', { 
+          candidateId: existingTask.candidateId, 
+          toStageName: advancement.toStageName 
+        });
       }
     }
 
@@ -462,15 +466,15 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
       try {
         // Publish candidateStageChanged event
         await eventBus.publish(candidateStageChanged(existingTask.candidateId, {
-          previousStageId: advancement.fromStageId,
-          newStageId: advancement.toStageId,
+          previousStageId: advancement.fromStageId ?? null,
+          newStageId: advancement.toStageId ?? null,
           stageName: advancement.toStageName || 'Unknown',
           automated: true // Stage changed automatically due to task completion
         }, {
           actorId: req.user?.id
         }));
       } catch (notifyError) {
-        console.error('Failed to notify stage change:', notifyError);
+        logger.error('Failed to notify stage change', notifyError);
       }
     }
 
@@ -565,8 +569,8 @@ router.post("/tasks/bulk-update", requireAuth, requireRole(["system_admin", "hr_
 
     res.json({ updated });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid payload", errors: error.errors });
+    if (isZodError(error)) {
+      return res.status(400).json({ message: "Invalid payload", errors: error.issues });
     }
     next(error);
   }

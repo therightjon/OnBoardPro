@@ -9,10 +9,12 @@ import { eq, and, asc, sql } from "drizzle-orm";
 import {
   templateStages,
   templates,
+  hiringStages,
   type TemplateStage,
   type InsertTemplateStage,
 } from "@shared/schemas";
 import { BaseRepository } from "../base/BaseRepository";
+import { logger } from "../../utils/logger";
 
 /**
  * Repository for managing template stages
@@ -86,7 +88,7 @@ export class TemplateStageRepository extends BaseRepository {
 
     // Log for debugging
     if (result.rowCount && result.rowCount > 0) {
-      console.log(`Auto-activated template ${insertStage.templateId}`);
+      logger.debug('Auto-activated template', { templateId: insertStage.templateId });
     }
 
     // Return the created/updated stage
@@ -125,8 +127,7 @@ export class TemplateStageRepository extends BaseRepository {
    */
   async deleteTemplateStage(id: string): Promise<void> {
     await this.db
-      .update(templateStages)
-      .set({ isActive: false, updatedAt: new Date() })
+      .delete(templateStages)
       .where(eq(templateStages.id, id));
   }
 
@@ -185,5 +186,36 @@ export class TemplateStageRepository extends BaseRepository {
           ));
       }
     });
+  }
+
+  /**
+   * Get template stages with hiring stage info for stage advancement
+   *
+   * Returns active stages for a template with their hiring stage names.
+   * Used by stage advancement logic to determine stage ordering.
+   *
+   * @param templateId - Template ID
+   * @returns Array of stages with id, name, and orderIndex
+   */
+  async getTemplateStagesWithHiringInfo(templateId: string): Promise<Array<{
+    id: string;
+    name: string;
+    orderIndex: number;
+    templateStageId: string;
+  }>> {
+    return await this.db
+      .select({
+        id: hiringStages.id,
+        name: hiringStages.name,
+        orderIndex: templateStages.orderIndex,
+        templateStageId: templateStages.id
+      })
+      .from(templateStages)
+      .innerJoin(hiringStages, eq(templateStages.stageId, hiringStages.id))
+      .where(and(
+        eq(templateStages.templateId, templateId),
+        eq(templateStages.isActive, true)
+      ))
+      .orderBy(templateStages.orderIndex);
   }
 }

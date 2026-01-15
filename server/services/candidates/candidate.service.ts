@@ -13,7 +13,7 @@ import type { CandidateFollowerRepository } from "../../repositories/candidates/
 import type { CandidateStageRepository } from "../../repositories/candidates/CandidateStageRepository";
 import type { TemplateRepository } from "../../repositories/templates/TemplateRepository";
 import type { AuthorizationContext } from "../../repositories/base/types";
-import { eventBus, candidateCreated, candidateStageChanged, candidateStatusChanged, templateApplied } from "../../events";
+import { eventBus, candidateCreated, candidateStageChanged, candidateStatusChanged, templateApplied, candidateArchived, candidateFollowed, candidateUnfollowed } from "../../events";
 import { writeAuditLog } from "../shared/audit-logger";
 
 export interface CreateCandidateInput {
@@ -114,10 +114,8 @@ export class CandidateService {
     }));
 
     // Apply template if requested
-    if (templateId) {
-      // TODO: Implement template application logic
-      // This should use a TemplateService or be handled separately
-    }
+    // Note: Template expansion is handled in routes via TemplateExpansionService.expandTemplate()
+    // The templateId is passed here for audit logging purposes only
 
     return candidate;
   }
@@ -175,11 +173,14 @@ export class CandidateService {
 
     // Detect and publish stage change event
     if (data.currentStageId && data.currentStageId !== existingCandidate.currentStageId) {
-      // TODO: Get stage name from repository
+      // Get stage name from repository
+      const newStage = await this.stageRepo.getCandidateTemplateStageById(data.currentStageId);
+      const stageName = newStage?.stageNameSnapshot ?? 'Unknown Stage';
+      
       await eventBus.publish(candidateStageChanged(id, {
         previousStageId: existingCandidate.currentStageId,
         newStageId: data.currentStageId,
-        stageName: 'Unknown', // TODO: Fetch stage name
+        stageName,
         automated: false
       }, {
         actorId
@@ -303,7 +304,9 @@ export class CandidateService {
         eventType: "candidate_archived",
         details: { archived: true }
       });
-      // TODO: Publish candidateArchived event
+      
+      // Publish candidateArchived event
+      await eventBus.publish(candidateArchived(id, {}, { actorId }));
     }
 
     return candidate;
@@ -325,7 +328,8 @@ export class CandidateService {
       details: { followerId: userId }
     });
 
-    // TODO: Publish candidateFollowed event
+    // Publish candidateFollowed event
+    await eventBus.publish(candidateFollowed(candidateId, userId, { actorId }));
   }
 
   /**
@@ -344,7 +348,8 @@ export class CandidateService {
       details: { followerId: userId }
     });
 
-    // TODO: Publish candidateUnfollowed event
+    // Publish candidateUnfollowed event
+    await eventBus.publish(candidateUnfollowed(candidateId, userId, { actorId }));
   }
 
   /**

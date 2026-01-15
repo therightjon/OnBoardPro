@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -6,7 +6,15 @@ import { useAuth } from '@/features/auth/hooks/use-auth';
 import { useEditComment, useDeleteComment } from '../api';
 import type { CommentDto } from '../types';
 
-export function CommentItem({ comment, candidateId, taskId, onReply, onDeleted }: { comment: CommentDto; candidateId: string; taskId?: string; onReply?: (parentId: string, lockedVisibility: 'internal'|'external') => void; onDeleted?: (id: string) => void }) {
+interface CommentItemProps {
+  comment: CommentDto;
+  candidateId: string;
+  taskId?: string;
+  onReply?: (parentId: string, lockedVisibility: 'internal' | 'external') => void;
+  onDeleted?: (id: string) => void;
+}
+
+function CommentItemComponent({ comment, candidateId, taskId, onReply, onDeleted }: CommentItemProps) {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(comment.body);
@@ -62,3 +70,23 @@ export function CommentItem({ comment, candidateId, taskId, onReply, onDeleted }
     </div>
   );
 }
+
+/**
+ * Memoized comment item component to prevent unnecessary re-renders.
+ * Only re-renders when comment data or callback functions change.
+ */
+export const CommentItem = memo(CommentItemComponent, (prevProps, nextProps) => {
+  // Compare comment properties that affect rendering
+  return (
+    prevProps.comment.id === nextProps.comment.id &&
+    prevProps.comment.body === nextProps.comment.body &&
+    prevProps.comment.isDeleted === nextProps.comment.isDeleted &&
+    prevProps.comment.createdAt === nextProps.comment.createdAt &&
+    prevProps.comment.visibility === nextProps.comment.visibility &&
+    prevProps.comment.author?.id === nextProps.comment.author?.id &&
+    prevProps.candidateId === nextProps.candidateId &&
+    prevProps.taskId === nextProps.taskId &&
+    prevProps.onReply === nextProps.onReply &&
+    prevProps.onDeleted === nextProps.onDeleted
+  );
+});

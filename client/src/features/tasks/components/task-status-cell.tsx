@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/queryClient';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Checkbox } from '@/shared/components/ui/checkbox';
@@ -174,6 +174,9 @@ export function TaskStatusCell({
       <DialogContent className='max-h-min'>
         <DialogHeader>
           <DialogTitle>Cancel Task</DialogTitle>
+          <DialogDescription className="sr-only">
+            Provide a reason for canceling this task. This action cannot be undone.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">

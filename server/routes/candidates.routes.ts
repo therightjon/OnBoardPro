@@ -6,9 +6,10 @@
  * Conventions: Enforce auth/rate-limit first, build auth context via AuthorizationService, publish events via services/utils.
  */
 import { Router } from "express";
-import { z, ZodError } from "zod/v4";
+import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/authorization";
 import { sensitiveRateLimiter } from "../middleware/rate-limiter";
+import { isZodError, handleZodError } from "../middleware/validation";
 import { db } from "../db/connection";
 import { insertCandidateSchema } from "@shared/schemas";
 import {
@@ -42,6 +43,7 @@ import { getCandidateService, getTaskService, getCommentService, getReferenceDat
 import { CandidateValidationError } from "../services/candidates/candidate.service";
 import { shouldAutoApplyTemplate } from "../utils/hiring-phase.utils";
 import { publishTemplateTaskCreatedEvents } from "../utils/template-event.utils";
+import { logger } from "../utils/logger";
 
 const router = Router();
 
@@ -202,7 +204,7 @@ router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res
 
     // Fetch candidate using service
     const candidateService = getCandidateService();
-    const candidate = await candidateService.getCandidate(req.params.id, authContext);
+    let candidate = await candidateService.getCandidate(req.params.id, authContext);
     if (!candidate) {
       return res.status(404).json({ message: "Candidate not found" });
     }
@@ -214,6 +216,48 @@ router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res
 
     if (!authorized) {
       return; // Response already sent
+    }
+
+    // Auto-expand template if LOO is accepted but template not yet applied
+    // This handles cases where template expansion was missed or failed previously
+    const needsTemplateExpansion =
+      candidate.offerLetterAcceptedAt &&
+      candidate.templateAppliedFromId &&
+      !candidate.templateAppliedAt;
+
+    if (needsTemplateExpansion) {
+      try {
+        logger.debug('Auto-expanding template on GET (missed expansion)', {
+          candidateId: candidate.id,
+          templateId: candidate.templateAppliedFromId
+        });
+
+        const templateExpansionService = getTemplateExpansionService();
+        const expansionResult = await templateExpansionService.expandTemplate(
+          candidate.templateAppliedFromId!, // Already checked truthy in needsTemplateExpansion
+          candidate.id,
+          req.user!.id
+        );
+
+        // Publish taskCreated events
+        await publishTemplateTaskCreatedEvents(
+          expansionResult.createdTasks,
+          req.user?.id
+        );
+
+        logger.debug('Template auto-expanded on GET', {
+          taskCount: expansionResult.createdCount
+        });
+
+        // Refetch candidate to get updated data
+        const refreshed = await candidateService.getCandidate(req.params.id, authContext);
+        if (refreshed) {
+          candidate = refreshed;
+        }
+      } catch (expansionError: any) {
+        console.error('Failed to auto-expand template on GET:', expansionError);
+        // Don't fail the request - just log the error
+      }
     }
 
     // Sanitize response if candidate viewing their own record
@@ -362,7 +406,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
       templateAppliedFromId: req.body.templateId ?? req.body.templateAppliedFromId
     });
     if (!parsed.success) {
-      return res.status(400).json({ message: "Invalid data", errors: parsed.error.errors });
+      return res.status(400).json({ message: "Invalid data", errors: parsed.error.issues });
     }
     const validatedData = parsed.data;
     
@@ -387,11 +431,42 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
       authContext
     });
 
+    // NEW: Expand prerequisite tasks if template and LOI date provided
+    let prerequisiteExpansionResult = null;
+    if (candidate.templateAppliedFromId && candidate.letterOfIntentDate) {
+      try {
+        logger.debug('Expanding prerequisite tasks on candidate creation', {
+          candidateId: candidate.id,
+          templateId: candidate.templateAppliedFromId
+        });
+
+        const templateExpansionService = getTemplateExpansionService();
+        prerequisiteExpansionResult = await templateExpansionService.expandPrerequisites(
+          candidate.id,
+          candidate.templateAppliedFromId
+        );
+
+        // Publish taskCreated events for prerequisite tasks
+        if (prerequisiteExpansionResult.tasksCreated > 0) {
+          // Note: We'd need to get the actual tasks to publish events
+          // For now, just log the expansion
+          logger.debug('Prerequisite tasks expanded successfully', {
+            tasksCreated: prerequisiteExpansionResult.tasksCreated,
+            conditionsMet: prerequisiteExpansionResult.conditionsMet,
+            tasksSkipped: prerequisiteExpansionResult.tasksSkipped
+          });
+        }
+      } catch (prerequisiteError: any) {
+        console.error('Failed to expand prerequisite tasks on creation:', prerequisiteError);
+        // Don't fail candidate creation - prerequisites can be expanded later
+      }
+    }
+
     // NEW: Auto-apply template if LOO is accepted at creation time
     let templateExpansionResult = null;
     if (candidate.offerLetterAcceptedAt && candidate.templateAppliedFromId) {
       try {
-        console.log('Auto-applying template on candidate creation with LOO accepted:', {
+        logger.debug('Auto-applying template on candidate creation with LOO accepted', {
           candidateId: candidate.id,
           templateId: candidate.templateAppliedFromId
         });
@@ -409,7 +484,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
           req.user?.id
         );
 
-        console.log('Template auto-applied successfully on creation:', {
+        logger.debug('Template auto-applied successfully on creation', {
           taskCount: templateExpansionResult.createdCount
         });
       } catch (templateError: any) {
@@ -428,18 +503,23 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
     }
 
     // Include template expansion metadata in response
-    const response = templateExpansionResult
-      ? {
-          ...responseCandidate,
-          templateAutoApplied: true,
-          tasksCreated: templateExpansionResult.createdCount
-        }
-      : responseCandidate;
+    const response: any = { ...responseCandidate };
+
+    if (templateExpansionResult) {
+      response.templateAutoApplied = true;
+      response.tasksCreated = templateExpansionResult.createdCount;
+    }
+
+    if (prerequisiteExpansionResult) {
+      response.prerequisiteTasksCreated = prerequisiteExpansionResult.tasksCreated;
+      response.prerequisiteConditionsMet = prerequisiteExpansionResult.conditionsMet;
+      response.prerequisiteTasksSkipped = prerequisiteExpansionResult.tasksSkipped;
+    }
 
     res.status(201).json(response);
   } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+    if (isZodError(error)) {
+      return handleZodError(res, error);
     }
     if (error instanceof CandidateValidationError) {
       return res.status(400).json({ message: error.message });
@@ -510,10 +590,8 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
         let value = req.body[field];
-        // Coerce date strings to Date objects for timestamp fields
-        if (dateFields.has(field) && value !== null) {
-          value = value ? new Date(value) : null;
-        }
+        // Date fields are now stored as strings (YYYY-MM-DD format)
+        // No conversion needed - they will be validated by the Zod schema
         updateData[field] = nullableIdFields.has(field) && value === '' ? null : value;
       }
     }
@@ -572,9 +650,9 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
     const anchorChanged = anchorFields.some((field) => {
       const beforeValue = (previousCandidate as any)[field];
       const afterValue = (fullCandidate as any)[field];
-      const before = beforeValue ? new Date(beforeValue as any).getTime() : null;
-      const after = afterValue ? new Date(afterValue as any).getTime() : null;
-      return before !== after;
+      // Compare date strings directly (format: YYYY-MM-DD)
+      // Null values are treated as empty strings for comparison
+      return (beforeValue ?? '') !== (afterValue ?? '');
     });
 
     if (anchorChanged) {
@@ -584,7 +662,7 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
 
     // Integration concerns: Auto-apply template when LOO is accepted (deferred template application)
     // Check if LOO acceptance is being set and template should be auto-applied
-    console.log('Checking LOO acceptance auto-apply:', {
+    logger.debug('Checking LOO acceptance auto-apply', {
       previousOfferLetterAcceptedAt: previousCandidate.offerLetterAcceptedAt,
       newOfferLetterAcceptedAt: updateData.offerLetterAcceptedAt,
       templateAppliedFromId: previousCandidate.templateAppliedFromId,
@@ -594,12 +672,23 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
       previousCandidate,
       updateData.offerLetterAcceptedAt
     );
-    console.log('shouldApplyTemplate result:', shouldApplyTemplate);
-    
+    logger.debug('shouldApplyTemplate result', { shouldApplyTemplate });
+
+    // Fallback: Also check if LOO is already accepted but template hasn't been applied yet
+    // This handles edge cases where template expansion failed previously or code wasn't deployed
+    const needsTemplateApplied = !shouldApplyTemplate &&
+      fullCandidate.offerLetterAcceptedAt &&
+      fullCandidate.templateAppliedFromId &&
+      !fullCandidate.templateAppliedAt;
+
+    if (needsTemplateApplied) {
+      logger.debug('Fallback: LOO is already accepted but template not applied, applying now');
+    }
+
     let templateExpansionResult = null;
-    if (shouldApplyTemplate && fullCandidate.templateAppliedFromId) {
+    if ((shouldApplyTemplate || needsTemplateApplied) && fullCandidate.templateAppliedFromId) {
       try {
-        console.log('Auto-applying deferred template on LOO acceptance:', { 
+        logger.debug('Auto-applying deferred template on LOO acceptance', { 
           candidateId: fullCandidate.id, 
           templateId: fullCandidate.templateAppliedFromId 
         });
@@ -616,7 +705,7 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
           req.user?.id
         );
         
-        console.log('Template auto-applied successfully:', { 
+        logger.debug('Template auto-applied successfully', { 
           taskCount: templateExpansionResult.createdCount 
         });
       } catch (templateError: any) {
@@ -693,6 +782,17 @@ router.patch("/candidates/:id/status", requireAuth, requireRole(["system_admin",
 
     const candidateService = getCandidateService();
     const authContext = authorizationService.buildContext(req.user);
+
+    // Prevent archiving canceled candidates - they are already in a terminal state
+    if (parsed.status === 'archived') {
+      const existing = await candidateService.getCandidate(req.params.id, authContext);
+      if (existing && existing.status === 'canceled') {
+        return res.status(400).json({
+          message: "Cannot archive a candidate that is already canceled. Canceled candidates are already in a terminal state."
+        });
+      }
+    }
+
     const result = await candidateService.updateCandidateStatus({
       id: req.params.id,
       newStatus: parsed.status,
@@ -712,8 +812,8 @@ router.patch("/candidates/:id/status", requireAuth, requireRole(["system_admin",
 
     res.json({ ...result.candidate, cascaded: result.cascaded });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid status payload", errors: error.errors });
+    if (isZodError(error)) {
+      return res.status(400).json({ message: "Invalid status payload", errors: error.issues });
     }
     next(error);
   }
@@ -728,6 +828,13 @@ router.delete("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_s
     const existing = await candidateService.getCandidate(req.params.id, authContext);
     if (!existing) {
       return res.status(404).json({ message: "Candidate not found" });
+    }
+
+    // Prevent archiving canceled candidates - they are already in a terminal state
+    if (existing.status === 'canceled') {
+      return res.status(400).json({
+        message: "Cannot archive a candidate that is already canceled. Canceled candidates are already in a terminal state."
+      });
     }
 
     // Archive using service, which will also update status
@@ -820,9 +927,9 @@ router.post("/candidates/:id/restore", requireAuth, requireRole(["system_admin",
       await candidateService.updateCandidate({
         id: req.params.id,
         data: {
-          offerLetterIssuedAt: payload.offerLetterIssuedAt!,
-          offerLetterAcceptedAt: payload.offerLetterAcceptedAt ?? null,
-          anticipatedStartDate: payload.anticipatedStartDate!,
+          offerLetterIssuedAt: payload.offerLetterIssuedAt!.toISOString(),
+          offerLetterAcceptedAt: payload.offerLetterAcceptedAt ? payload.offerLetterAcceptedAt.toISOString() : null,
+          anticipatedStartDate: payload.anticipatedStartDate!.toISOString(),
         },
         actorId: req.user?.id,
         authContext
@@ -993,10 +1100,10 @@ router.post("/candidates/:id/apply-template", requireAuth, requireRole(["system_
   try {
     const { template_id } = req.body;
 
-    console.log('Applying template:', { candidateId: req.params.id, template_id, userId: req.user!.id });
+    logger.debug('Applying template', { candidateId: req.params.id, template_id, userId: req.user!.id });
 
     if (!template_id) {
-      console.log('Template application failed: template_id is required');
+      logger.debug('Template application failed: template_id is required');
       return res.status(400).json({ message: "template_id is required" });
     }
 
@@ -1026,7 +1133,7 @@ router.post("/candidates/:id/apply-template", requireAuth, requireRole(["system_
       console.error('Failed to dispatch template task assignment notifications:', notifyError);
     }
 
-    console.log('Template applied successfully:', { taskCount: expansion.createdCount });
+    logger.debug('Template applied successfully', { taskCount: expansion.createdCount });
     res.json({ message: "Template applied successfully", tasksCreated: expansion.createdCount });
   } catch (error: any) {
     console.error('Template application failed:', error);

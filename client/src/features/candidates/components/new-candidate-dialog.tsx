@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -23,6 +23,7 @@ import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AutoSelectCombobox } from "@/shared/components/inputs/AutoSelectCombobox";
 import { searchDepartments, searchDivisions, searchManagers } from "@/lib/search";
+import { formatDateForApi } from "@/shared/components/inputs/DatePicker";
 import type { Template, CandidateType, Department, Division, User as UserType, TemplateTask, TaskDefinition, HiringStage } from "@shared/schemas";
 
 const newCandidateSchema = z.object({
@@ -283,12 +284,12 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
         managerId: data.managerId === "none" ? null : data.managerId || null,
         facultyRankId: data.facultyRankId || null,
         // NEW: Letter of Intent date is required
-        letterOfIntentDate: format(data.letterOfIntentDate, "yyyy-MM-dd"),
+        letterOfIntentDate: formatDateForApi(data.letterOfIntentDate),
         // LOO dates are optional at creation
-        offerLetterIssuedAt: data.offerLetterIssuedAt ? format(data.offerLetterIssuedAt, "yyyy-MM-dd") : null,
-        offerLetterAcceptedAt: data.offerLetterAcceptedAt ? format(data.offerLetterAcceptedAt, "yyyy-MM-dd") : null,
+        offerLetterIssuedAt: formatDateForApi(data.offerLetterIssuedAt),
+        offerLetterAcceptedAt: formatDateForApi(data.offerLetterAcceptedAt),
         // Anticipated start date is optional at creation
-        anticipatedStartDate: data.anticipatedStartDate ? format(data.anticipatedStartDate, "yyyy-MM-dd") : null,
+        anticipatedStartDate: formatDateForApi(data.anticipatedStartDate),
         // Template is required - will be stored as selected but not applied until LOO accepted
         templateId: data.templateId,
       };
@@ -367,6 +368,9 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
       <DialogContent className="max-w-[95vw] w-full sm:max-w-2xl lg:max-w-3xl max-h-[90vh] sm:max-h-min overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Candidate</DialogTitle>
+          <DialogDescription className="sr-only">
+            Create a new candidate with contact information, department assignment, and onboarding template.
+          </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
@@ -559,6 +563,72 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
 
               {/* Right Column */}
               <div className="flex flex-col gap-4">
+                <FormField
+                  control={form.control}
+                  name="templateId"
+                  render={({ field }: { field: any }) => (
+                    <FormItem>
+                      <FormLabel>Template *</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        disabled={!selectedCandidateTypeId}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full" data-testid="select-template">
+                            <SelectValue placeholder="Select template" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {filteredTemplates.length === 0 ? (
+                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                              No templates available for selected type
+                            </div>
+                          ) : (
+                            filteredTemplates.map((template) => (
+                              <SelectItem key={template.id} value={template.id}>
+                                {template.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Faculty Rank - only show for Faculty types */}
+                {isFacultyType && (
+                  <FormField
+                    control={form.control}
+                    name="facultyRankId"
+                    render={({ field }: { field: any }) => (
+                      <FormItem>
+                        <FormLabel>Faculty Rank {facultyRankRequired && "*"}</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full" data-testid="select-faculty-rank">
+                              <SelectValue placeholder="Select faculty rank" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {facultyRanks.map((rank) => (
+                              <SelectItem key={rank.id} value={rank.id}>
+                                {rank.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
                 {/* NEW: Letter of Intent Date - required at creation */}
                 <FormField
                   control={form.control}
@@ -836,81 +906,6 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                   }}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="templateId"
-                  render={({ field }: { field: any }) => (
-                    <FormItem>
-                      <FormLabel>Template *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        disabled={!selectedCandidateTypeId}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full" data-testid="select-template">
-                            <SelectValue placeholder="Select template" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {filteredTemplates.length === 0 ? (
-                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                              No templates available for selected type
-                            </div>
-                          ) : (
-                            filteredTemplates.map((template) => (
-                              <SelectItem key={template.id} value={template.id}>
-                                {template.name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                      {/* Info about deferred template application */}
-                      {selectedTemplateId && !selectedOfferLetterAccepted && (
-                        <div className="flex items-start gap-2 p-2 text-xs text-muted-foreground bg-muted/50 rounded-md mt-2">
-                          <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                          <span>
-                            Tasks will be generated when the Letter of Offer is accepted.
-                          </span>
-                        </div>
-                      )}
-                    </FormItem>
-                  )}
-                />
-
-                {/* Faculty Rank - only show for Faculty types */}
-                {isFacultyType && (
-                  <FormField
-                    control={form.control}
-                    name="facultyRankId"
-                    render={({ field }: { field: any }) => (
-                      <FormItem>
-                        <FormLabel>Faculty Rank {facultyRankRequired && "*"}</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full" data-testid="select-faculty-rank">
-                              <SelectValue placeholder="Select faculty rank" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {facultyRanks.map((rank) => (
-                              <SelectItem key={rank.id} value={rank.id}>
-                                {rank.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
                 {/* Preview Due Dates Panel */}
                 {previewDueDates.length > 0 && (
                   <Card>
@@ -949,23 +944,33 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isCreating}
-                data-testid="button-cancel"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isCreating || !form.formState.isValid}
-                data-testid="button-create-candidate"
-              >
-                {isCreating ? "Creating..." : "Create Candidate"}
-              </Button>
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+              {/* Info about deferred template application */}
+              <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>
+                  Tasks will be generated when the Letter of Offer is accepted.
+                </span>
+              </div>
+
+              <div className="flex flex-row gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={isCreating}
+                  data-testid="button-cancel"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isCreating || !form.formState.isValid}
+                  data-testid="button-create-candidate"
+                >
+                  {isCreating ? "Creating..." : "Create Candidate"}
+                </Button>
+              </div>
             </div>
           </form>
         </Form>

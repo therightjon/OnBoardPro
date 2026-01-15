@@ -725,7 +725,8 @@ export class MockServiceFactory {
   getTemplateExpansionService(): any {
     return {
       expandTemplate: () => Promise.resolve({ tasks: [], stages: [] }),
-      expandTemplateForCandidate: () => Promise.resolve({ tasks: [], stages: [] })
+      expandTemplateForCandidate: () => Promise.resolve({ tasks: [], stages: [] }),
+      expandPrerequisites: () => Promise.resolve({ tasksCreated: 0, tasks: [] })
     };
   }
 
@@ -873,6 +874,69 @@ export class MockServiceFactory {
       canModifyCandidate: () => true,
       canAccessTask: () => true,
       filterCandidates: (candidates: any[]) => candidates
+    };
+  }
+
+  getAuditService(): any {
+    return {
+      createAuditLog: () => Promise.resolve(),
+      getAuditLogs: () => Promise.resolve([]),
+      getAuditLog: () => Promise.resolve(null)
+    };
+  }
+
+  // ==========================================================================
+  // Repository Getters (for IServiceFactory interface compliance)
+  // ==========================================================================
+
+  getStageAdvancementService(): any {
+    return {
+      advanceStageIfComplete: () => Promise.resolve({ advanced: false }),
+      recomputeCandidateStageState: () => Promise.resolve({ updated: false })
+    };
+  }
+
+  getNotificationRepository(): any {
+    return {
+      createNotification: () => Promise.resolve(null),
+      findNotificationsForCoalescing: () => Promise.resolve([]),
+      bulkUpsertNotifications: () => Promise.resolve([])
+    };
+  }
+
+  getCandidateRepository(): any {
+    return {
+      getCandidateForNotification: (id: string) => this.getCandidate(id),
+      getCandidateForStageAdvancement: (id: string) => this.getCandidate(id),
+      updateCandidateStage: () => Promise.resolve(),
+      updateCandidateBlockedState: () => Promise.resolve()
+    };
+  }
+
+  getCandidateTaskRepository(): any {
+    return {
+      getOpenRequiredTaskCount: () => Promise.resolve(0),
+      getOpenTasksForBlockerCalculation: () => Promise.resolve([])
+    };
+  }
+
+  getCandidateStageRepository(): any {
+    return {
+      recordStageTransitions: () => Promise.resolve(),
+      getLastStageHistory: () => Promise.resolve(null)
+    };
+  }
+
+  getTemplateStageRepository(): any {
+    return {
+      getTemplateStagesWithHiringInfo: () => Promise.resolve([])
+    };
+  }
+
+  getUserRepository(): any {
+    return {
+      getUsersByMentionKeys: () => Promise.resolve([]),
+      getUsersWithPreferences: () => Promise.resolve([])
     };
   }
 }
