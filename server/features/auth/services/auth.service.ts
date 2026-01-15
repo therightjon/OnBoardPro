@@ -8,9 +8,6 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
-import { scrypt, timingSafeEqual } from "crypto";
-import { promisify } from "util";
-import bcrypt from "bcrypt";
 import { getUserService } from "../../../services/service-factory";
 import { User as SelectUser } from "@shared/schemas";
 import { z } from "zod";
@@ -24,6 +21,7 @@ import {
   validateProviderConfigurations
 } from "./index";
 import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../../../services/login-rate-limit";
+import { comparePasswords } from "../../../utils/passwords";
 
 declare module "express-session" {
   interface SessionData {
@@ -37,13 +35,12 @@ declare module "express-session" {
 
 const PostgresSessionStore = connectPg(session);
 
-const scryptAsync = promisify(scrypt);
-
 /**
  * Hydrate a SelectUser with roles and scope metadata for session use.
  * Side effects: fetches roles/department/division/managed candidate scopes in parallel.
+ * Exported for reuse in test login and other session initialization paths.
  */
-async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
+export async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
   const userService = getUserService();
   const [roles, departmentScopes, divisionScopes, managedCandidateIds] = await Promise.all([
     userService.getUserRoles(user.id),
@@ -65,53 +62,6 @@ async function hydrateAuthUser(user: SelectUser): Promise<Express.User> {
     divisionScopes: Array.from(divisionSet),
     managedCandidateIds: Array.from(managedSet)
   };
-}
-
-/**
- * Compare supplied password against stored hash.
- * Handles bcrypt (legacy) and scrypt (new format); returns false on format errors to avoid timing leaks.
- * Uses constant-time comparison to prevent timing attacks.
- */
-async function comparePasswords(supplied: string, stored: string) {
-  try {
-    // Check if it's a bcrypt hash (existing format)
-    if (stored.startsWith('$2')) {
-      return await bcrypt.compare(supplied, stored);
-    }
-
-    // Handle scrypt format (new format)
-    const parts = stored.split(".");
-    // Continue processing even if format is wrong to maintain constant timing
-    const hashed = parts[0] || "";
-    const salt = parts[1] || "dummysalt";
-
-    // Always compute hash even if inputs are invalid to maintain constant timing
-    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-
-    // Validate format after timing-sensitive operations
-    if (parts.length !== 2 || !hashed || !parts[1]) {
-      // Still return false but after performing the hash computation
-      return false;
-    }
-
-    const hashedBuf = Buffer.from(hashed, "hex");
-
-    if (hashedBuf.length !== suppliedBuf.length) {
-      // Length mismatch - return false after timing-sensitive operations
-      return false;
-    }
-
-    return timingSafeEqual(hashedBuf, suppliedBuf);
-  } catch (error) {
-    // Perform dummy operation to maintain timing even in error case
-    try {
-      await scryptAsync("dummy", "dummysalt", 64);
-    } catch {
-      // Ignore errors in dummy operation
-    }
-    console.error("Error comparing passwords:", error);
-    return false;
-  }
 }
 
 /**

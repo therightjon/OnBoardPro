@@ -6,13 +6,11 @@ import { appRoleEnum } from "@shared/schemas";
 import { generateInviteToken, getInviteBaseUrl, sendInviteEmail } from "../utils/invitation.utils";
 import { logAuthorizationFailure } from "../utils/authorization.utils";
 import { getInvitationService, getAuthProviderService, getUserService } from "../services/service-factory";
-import bcrypt from "bcrypt";
-import { scrypt, timingSafeEqual } from "crypto";
-import { promisify } from "util";
 import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../services/login-rate-limit";
+import { comparePasswords } from "../utils/passwords";
+import { hydrateAuthUser } from "../features/auth/services";
 
 const router = Router();
-const scryptAsync = promisify(scrypt);
 
 // ============================================
 // Authentication Endpoints (aliased from /api/*)
@@ -37,8 +35,8 @@ router.post("/auth/login", async (req, res, next) => {
     return res.status(400).json({ message: 'Email or username is required' });
   }
   
-  // Basic email format validation if email is provided
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  // Email format validation using Zod's .email() validator
+  if (email && !z.string().email().safeParse(email).success) {
     return res.status(400).json({ message: 'Invalid email format' });
   }
   
@@ -121,58 +119,17 @@ router.post("/auth/login", async (req, res, next) => {
         return res.status(401).json({ message: 'Account is not active' });
       }
       
-      // Verify password (supports both bcrypt and scrypt formats)
-      let validPassword = false;
-      try {
-        const storedHash = user.passwordHash;
-        
-        // Check if it's a bcrypt hash (starts with $2)
-        if (storedHash.startsWith('$2')) {
-          validPassword = await bcrypt.compare(password, storedHash);
-        } else {
-          // Handle scrypt format (hash.salt)
-          // Salt may contain dots, so only split on first dot
-          const dotIndex = storedHash.indexOf('.');
-          if (dotIndex > 0) {
-            const hashed = storedHash.substring(0, dotIndex);
-            const salt = storedHash.substring(dotIndex + 1);
-            
-            if (hashed && salt) {
-              const hashedBuf = Buffer.from(hashed, "hex");
-              const suppliedBuf = (await scryptAsync(password, salt, 64)) as Buffer;
-              
-              if (hashedBuf.length === suppliedBuf.length) {
-                validPassword = timingSafeEqual(hashedBuf, suppliedBuf);
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Password verification error:', error);
-        validPassword = false;
-      }
+      // Verify password using shared utility (supports both bcrypt and scrypt formats)
+      const validPassword = await comparePasswords(password, user.passwordHash);
       
       if (!validPassword) {
         await recordLoginFailure({ identifier: email || username, ip: req.ip });
         return res.status(401).json({ message: 'Invalid credentials' });
       }
       
-      // Hydrate user with roles and scopes (same as Passport does in production)
+      // Hydrate user with roles and scopes using shared utility
       try {
-        const [roles, departmentScopes, divisionScopes, managedCandidateIds] = await Promise.all([
-          userService.getUserRoles(user.id),
-          userService.getUserDepartmentScopeIds(user.id),
-          userService.getUserDivisionScopeIds(user.id),
-          userService.getManagerCandidateScopeIds(user.id)
-        ]);
-        
-        const enrichedUser = {
-          ...user,
-          roles: Array.from(new Set([user.role, ...roles.map((r: any) => r.role)])),
-          departmentScopes: Array.from(new Set(departmentScopes.filter(Boolean))),
-          divisionScopes: Array.from(new Set(divisionScopes.filter(Boolean))),
-          managedCandidateIds: Array.from(new Set(managedCandidateIds.filter(Boolean)))
-        };
+        const enrichedUser = await hydrateAuthUser(user);
         
         // Remove sensitive fields before persisting
         (enrichedUser as any).passwordHash = undefined;

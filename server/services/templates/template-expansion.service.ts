@@ -15,11 +15,10 @@
  * in the Storage class expandTemplate method.
  */
 
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   candidateTasks,
   candidateStageHistory,
-  taskPriorities,
   type InsertCandidateTask,
   type TemplateStage,
 } from "@shared/schemas";
@@ -249,6 +248,10 @@ export class TemplateExpansionService {
       throw new Error("No default task category configured");
     }
 
+    // Batch-load all priorities upfront to avoid N+1 queries
+    const taskPrioritiesList = await this.referenceDataRepo.getTaskPriorities();
+    const priorityMap = new Map(taskPrioritiesList.map((p) => [p.id, p.name]));
+
     for (let i = 0; i < templateTasksList.length; i++) {
       const templateTask = templateTasksList[i];
       const taskDef = taskDefs[i];
@@ -266,17 +269,10 @@ export class TemplateExpansionService {
         anchors
       );
 
-      // Get default priority name
-      let priority = "medium";
-      if (templateTask.defaultPriorityId) {
-        const priorityRecord = await this.db
-          .select()
-          .from(taskPriorities)
-          .where(eq(taskPriorities.id, templateTask.defaultPriorityId));
-        if (priorityRecord[0]) {
-          priority = priorityRecord[0].name;
-        }
-      }
+      // Get default priority name from pre-loaded map
+      const priority = templateTask.defaultPriorityId
+        ? priorityMap.get(templateTask.defaultPriorityId) ?? "medium"
+        : "medium";
 
       let defaultAssigneeKind = templateTask.defaultAssigneeKind ?? "user";
       let defaultAssigneeUserId =
@@ -542,6 +538,10 @@ export class TemplateExpansionService {
       throw new Error("No default task category configured");
     }
 
+    // Batch-load all priorities upfront to avoid N+1 queries
+    const taskPrioritiesList = await this.referenceDataRepo.getTaskPriorities();
+    const priorityMap = new Map(taskPrioritiesList.map((p) => [p.id, p.name]));
+
     // Create tasks using LOI as anchor
     const tasksToCreate: InsertCandidateTask[] = [];
 
@@ -563,17 +563,10 @@ export class TemplateExpansionService {
         anchors
       );
 
-      // Get default priority name
-      let priority = "medium";
-      if (templateTask.defaultPriorityId) {
-        const priorityRecord = await this.db
-          .select()
-          .from(taskPriorities)
-          .where(eq(taskPriorities.id, templateTask.defaultPriorityId));
-        if (priorityRecord[0]) {
-          priority = priorityRecord[0].name;
-        }
-      }
+      // Get default priority name from pre-loaded map
+      const priority = templateTask.defaultPriorityId
+        ? priorityMap.get(templateTask.defaultPriorityId) ?? "medium"
+        : "medium";
 
       let defaultAssigneeKind = templateTask.defaultAssigneeKind ?? "user";
       let defaultAssigneeUserId =

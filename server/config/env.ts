@@ -19,6 +19,11 @@ const envSchema = z.object({
   SENSITIVE_RATE_LIMIT_WINDOW_MS: z.coerce.number().optional(),
   SENSITIVE_RATE_LIMIT_MAX: z.coerce.number().default(60),
 
+  // Proxy Configuration
+  // Comma-separated list of trusted proxy IPs/CIDRs, or "loopback" for localhost only
+  // When set, X-Forwarded-For header is trusted only from these proxies
+  TRUSTED_PROXIES: z.string().optional(),
+
   // Background Jobs
   DISABLE_DEADLINE_SCANNER: z.string().optional(),
   DISABLE_EMAIL_JOBS: z.string().optional(),

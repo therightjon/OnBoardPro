@@ -68,6 +68,7 @@ Env validation lives in `server/config/env.ts`. Required or common keys:
 - `PORT` (default `5000`)
 - `DATABASE_URL` (Postgres connection string; SSL auto-enabled for Neon hosts)
 - `SESSION_SECRET` (>=32 chars)
+- Proxy configuration: `TRUSTED_PROXIES` (comma-separated list of trusted proxy IPs, or `loopback` for localhost; required for proper client IP resolution behind load balancers)
 - Rate limits: `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX`, `SENSITIVE_RATE_LIMIT_WINDOW_MS`, `SENSITIVE_RATE_LIMIT_MAX`
 - Feature flags/jobs: `DISABLE_DEADLINE_SCANNER`, `DISABLE_EMAIL_JOBS`, `DISABLE_NOTIFICATION_CLEANUP`
 - SMTP (optional): `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`
@@ -87,8 +88,7 @@ Env validation lives in `server/config/env.ts`. Required or common keys:
 - Path aliases: `@` → `client/src`, `@shared` → `shared`, `@assets` → `attached_assets`.
 - API docs: Swagger UI served at `/api/docs`; canonical JSON at `/api/docs.json` (single OpenAPI source in `server/docs/openapi-spec.ts`).
 - Background jobs: deadline scanner, email notification sender, notification cleanup (toggle via env flags).
-- Rate limiting: default and “sensitive” limiters applied in routers (see `server/middleware/rate-limiter.ts`).
-
+- Rate limiting: default and “sensitive” limiters applied in routers (see `server/middleware/rate-limiter.ts`).- Password security: Consolidated utilities in `server/utils/passwords.ts` for hashing (bcrypt/scrypt) and constant-time comparison to prevent timing attacks.
 ## Testing
 - Backend tests use `tsx --test` (see `server/tests/**`). Requires `NODE_ENV=test` and typically `SKIP_AUTH_SETUP=1` for isolated routes.
 - Frontend tests run with Vitest + happy-dom (`client/tests/setup.ts`).

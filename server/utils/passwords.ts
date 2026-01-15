@@ -1,5 +1,6 @@
-import { randomBytes, scrypt } from "crypto";
+import { randomBytes, scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import bcrypt from "bcrypt";
 
 const scryptAsync = promisify(scrypt);
 
@@ -47,4 +48,52 @@ export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
+}
+
+/**
+ * Compare supplied password against stored hash.
+ * Handles bcrypt (legacy) and scrypt (new format); returns false on format errors to avoid timing leaks.
+ * Uses constant-time comparison to prevent timing attacks.
+ */
+export async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
+  try {
+    // Check if it's a bcrypt hash (existing format)
+    if (stored.startsWith('$2')) {
+      return await bcrypt.compare(supplied, stored);
+    }
+
+    // Handle scrypt format (hash.salt)
+    // Salt may contain dots, so only split on first dot
+    const dotIndex = stored.indexOf(".");
+    // Continue processing even if format is wrong to maintain constant timing
+    const hashed = dotIndex > 0 ? stored.substring(0, dotIndex) : "";
+    const salt = dotIndex > 0 ? stored.substring(dotIndex + 1) : "dummysalt";
+
+    // Always compute hash even if inputs are invalid to maintain constant timing
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+
+    // Validate format after timing-sensitive operations
+    if (dotIndex <= 0 || !hashed || !salt) {
+      // Still return false but after performing the hash computation
+      return false;
+    }
+
+    const hashedBuf = Buffer.from(hashed, "hex");
+
+    if (hashedBuf.length !== suppliedBuf.length) {
+      // Length mismatch - return false after timing-sensitive operations
+      return false;
+    }
+
+    return timingSafeEqual(hashedBuf, suppliedBuf);
+  } catch (error) {
+    // Perform dummy operation to maintain timing even in error case
+    try {
+      await scryptAsync("dummy", "dummysalt", 64);
+    } catch {
+      // Ignore errors in dummy operation
+    }
+    console.error("Error comparing passwords:", error);
+    return false;
+  }
 }

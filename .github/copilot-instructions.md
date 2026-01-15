@@ -45,12 +45,28 @@ Event-driven via `EventBus` in `server/events/`. Services publish events (e.g., 
 Role-based + scope-based (department/division). Six roles: `system_admin`, `hr_staff`, `department_admin`, `division_leader`, `manager`, `candidate`. Use `authorizationService.getAuthContext(req.user)` for scope-aware queries.
 
 ### Multi-Provider Authentication
-- Local authentication with bcrypt
+- Local authentication with bcrypt/scrypt
 - LDAP integration (ldapjs)
 - OAuth providers (Google, Azure AD) via Passport.js
 - Auth code in `server/features/auth/`
+- Password utilities in `server/utils/passwords.ts` (hashing, comparison)
 
 ## Key Patterns
+
+### Password Security
+Use shared utilities from `server/utils/passwords.ts`:
+```typescript
+import { hashPassword, comparePasswords, validatePasswordPolicy } from '../utils/passwords';
+
+// Hash a new password
+const hash = await hashPassword(plaintext);
+
+// Verify a password (supports bcrypt and scrypt, constant-time comparison)
+const isValid = await comparePasswords(supplied, stored);
+
+// Validate password policy
+const errors = validatePasswordPolicy(password); // 12+ chars, mixed case, number, special char
+```
 
 ### Service Factory (DI)
 Services instantiated via `server/services/service-factory.ts`. Use `get*Service()` in routes:
