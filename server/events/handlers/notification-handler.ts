@@ -102,7 +102,26 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
       });
     }
 
-    // TODO: Also notify followers (requires follower query)
+    // Notify followers
+    const { getCandidateService } = await import("../../services/service-factory");
+    const candidateService = getCandidateService();
+    const followers = await candidateService.getFollowers(candidateId);
+    
+    for (const follower of followers) {
+      // Don't notify the person who completed the task or the manager (already notified)
+      if (follower.userId !== completedBy && follower.userId !== candidate.managerId) {
+        await createNotification({
+          recipientUserId: follower.userId,
+          eventType: "task.completed",
+          title: "Task Completed",
+          message,
+          actorUserId: completedBy,
+          relatedEntityType: "candidate_task",
+          relatedEntityId: event.aggregateId,
+          contextCandidateId: candidateId
+        });
+      }
+    }
   });
 
   // Comment created -> notify mentioned users and watchers
@@ -260,7 +279,26 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
       });
     }
 
-    // TODO: Also notify followers
+    // Notify followers
+    const { getCandidateService } = await import("../../services/service-factory");
+    const candidateService = getCandidateService();
+    const followers = await candidateService.getFollowers(candidateId);
+    
+    for (const follower of followers) {
+      // Don't notify the actor or the manager (already notified)
+      if (follower.userId !== event.actorId && follower.userId !== candidate.managerId) {
+        await createNotification({
+          recipientUserId: follower.userId,
+          eventType: "candidate.statusChange",
+          title: "Candidate Stage Changed",
+          message,
+          actorUserId: event.actorId,
+          relatedEntityType: "candidate",
+          relatedEntityId: candidateId,
+          contextCandidateId: candidateId
+        });
+      }
+    }
   });
 
   // Template applied -> notify manager

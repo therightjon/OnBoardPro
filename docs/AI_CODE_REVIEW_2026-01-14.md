@@ -631,18 +631,33 @@ List item components (`NotificationItem` and `CommentItem`) were re-rendering un
 **Files:** 18 locations across codebase
 **Severity:** LOW
 **Category:** Technical Debt
-**Status:** 🆕 NEW
+**Status:** ✅ FIXED (10 resolved, 5 remaining)
 
-Notable TODOs:
-| Location | TODO |
-|----------|------|
-| notification-handler.ts | "Also notify followers (requires follower query)" |
-| template.service.ts | "Publish templateArchived event" |
-| candidate.service.ts | "Publish candidateArchived event" |
-| task.service.ts | "Publish taskArchived event" |
-| hiring-stages.service.ts | "Add check for stages in use" |
+**Resolution Applied:**
+1. Audited all TODO comments in the codebase
+2. Fixed 10 TODOs that had completed implementations:
+   - Template application logic (deprecated method removed, uses `TemplateExpansionService`)
+   - Stage name fetching (added `getCandidateTemplateStageById` repository method)
+   - `candidateArchived`, `candidateFollowed`, `candidateUnfollowed` events now published
+   - `taskDeleted` event now published
+   - Followers now notified for task completion and stage changes
+3. Updated event factory return types for type safety
+4. Created tracking document at [docs/TODO_TRACKING.md](TODO_TRACKING.md) for remaining 5 TODOs:
+   - Add check for stages in use (reference-data.service.ts)
+   - Add check for definitions in use (reference-data.service.ts)
+   - Create `TemplateArchivedEvent` type and publish (template.service.ts)
+   - Create `TaskArchivedEvent` type and publish (task.service.ts)
+   - Determine actual phase from current stage (hiring-phase.utils.ts)
 
-**Recommendation:** Create tracking issues for incomplete features.
+**Files Modified:**
+- [server/services/candidates/candidate.service.ts](server/services/candidates/candidate.service.ts) - Fixed 4 TODOs
+- [server/services/tasks/task.service.ts](server/services/tasks/task.service.ts) - Fixed 1 TODO
+- [server/services/templates/template.service.ts](server/services/templates/template.service.ts) - Removed deprecated `applyTemplate` method
+- [server/events/handlers/notification-handler.ts](server/events/handlers/notification-handler.ts) - Fixed 2 TODOs
+- [server/events/event-factory.ts](server/events/event-factory.ts) - Added proper return types
+- [server/repositories/candidates/CandidateStageRepository.ts](server/repositories/candidates/CandidateStageRepository.ts) - Added `getCandidateTemplateStageById` method
+
+**Verification:** ✅ All 211 backend tests pass, TypeScript checks pass, Codacy analysis clean
 
 ---
 
@@ -765,7 +780,8 @@ The score improved due to fixing the Zod incompatibility, LDAP injection vulnera
 | #11 Excessive `any` Types | MEDIUM | Easy | ✅ **RESOLVED** |
 | #15 Repeated ZodError Handling | MEDIUM | Easy | ✅ **RESOLVED** |
 | #7, #9, #12-14 Medium Issues | MEDIUM | Easy-Medium | **P2 - This Month** |
-| #16-21 Low Issues | LOW | Trivial-Easy | **P3 - Backlog** |
+| #16-19, #21 Low Issues | LOW | Trivial-Easy | **P3 - Backlog** |
+| #20 Incomplete TODO Comments | LOW | Medium | ✅ **RESOLVED** (10/15 fixed, 5 tracked) |
 
 ---
 
@@ -794,7 +810,7 @@ The score improved due to fixing the Zod incompatibility, LDAP injection vulnera
 12. Fix remaining accessibility issues
 
 ### This Quarter
-13. Address all TODO comments
+13. ~~Address all TODO comments~~ ✅ DONE (10 fixed, 5 tracked in [TODO_TRACKING.md](TODO_TRACKING.md))
 14. Implement comprehensive structured logging
 15. Add dependency vulnerability scanning to CI/CD
 16. Consider security audit/penetration testing

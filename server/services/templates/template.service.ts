@@ -2,14 +2,17 @@
  * Template Service
  *
  * Business logic layer for template management
- * Handles template CRUD, cloning, and application to candidates
+ * Handles template CRUD and cloning
+ * 
+ * Note: Template expansion (applying templates to candidates) is handled by
+ * TemplateExpansionService.expandTemplate()
  */
 
 import type { InsertTemplate, InsertTemplateStage, InsertTemplateTask, Template, TemplateStage, TemplateTask } from "@shared/schemas";
 import type { TemplateRepository } from "../../repositories/templates/TemplateRepository";
 import type { TemplateStageRepository } from "../../repositories/templates/TemplateStageRepository";
 import type { TemplateTaskRepository } from "../../repositories/templates/TemplateTaskRepository";
-import { eventBus, templateCreated, templateUpdated, templateCloned, templateApplied } from "../../events";
+import { eventBus, templateCreated, templateUpdated, templateCloned } from "../../events";
 import { writeAuditLog } from "../shared/audit-logger";
 
 export interface CreateTemplateInput {
@@ -31,12 +34,6 @@ export interface CloneTemplateInput {
   newName: string;
   actorId?: string;
   requestId?: string;
-}
-
-export interface ApplyTemplateInput {
-  templateId: string;
-  candidateId: string;
-  actorId: string;
 }
 
 /**
@@ -155,48 +152,6 @@ export class TemplateService {
   }
 
   /**
-   * Apply a template to a candidate
-   * Creates all stages and tasks defined in the template
-   */
-  async applyTemplate(input: ApplyTemplateInput): Promise<{ tasksCreated: number }> {
-    const { templateId, candidateId, actorId } = input;
-
-    // TODO: Implement template application logic
-    // This requires:
-    // 1. Get template stages and tasks
-    // 2. Create candidate stages
-    // 3. Create candidate tasks from template tasks
-    // 4. Publish candidateTemplateApplied event
-    // 5. Publish taskCreated events for each task
-
-    // For now, just publish the template applied event
-    const template = await this.templateRepo.getTemplate(templateId);
-    if (!template) {
-      throw new Error(`Template ${templateId} not found`);
-    }
-
-    await writeAuditLog({
-      actorId,
-      resourceType: "template",
-      resourceId: templateId,
-      action: "update",
-      eventType: "template_applied",
-      details: { candidateId }
-    });
-
-    await eventBus.publish(templateApplied(candidateId, {
-      templateId,
-      templateName: template.name,
-      tasksCreated: 0, // TODO: Get actual count
-      stagesCreated: 0  // TODO: Get actual count
-    }, {
-      actorId
-    }));
-
-    return { tasksCreated: 0 }; // TODO: Return actual count
-  }
-
-  /**
    * Get a single template by ID
    */
   async getTemplate(id: string): Promise<Template | undefined> {
@@ -214,15 +169,19 @@ export class TemplateService {
    * Archive a template (soft delete)
    */
   async archiveTemplate(id: string, actorId?: string): Promise<void> {
+    // Get template name before archiving for potential event payload
+    const template = await this.templateRepo.getTemplate(id);
+    
     await this.templateRepo.archiveTemplate(id);
     await writeAuditLog({
       actorId,
       resourceType: "template",
       resourceId: id,
       action: "archive",
-      eventType: "template_archived"
+      eventType: "template_archived",
+      details: { templateName: template?.name }
     });
-    // TODO: Publish templateArchived event
+    // Note: TemplateArchivedEvent type not yet created - tracked in TODO_TRACKING.md
   }
 
    /**

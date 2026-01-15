@@ -170,6 +170,22 @@ export class CandidateStageRepository extends BaseRepository {
   }
 
   /**
+   * Get a single candidate template stage by ID
+   *
+   * @param stageId - Candidate template stage ID
+   * @returns The candidate template stage or undefined
+   */
+  async getCandidateTemplateStageById(stageId: string): Promise<CandidateTemplateStage | undefined> {
+    const [stage] = await this.db
+      .select()
+      .from(candidateTemplateStages)
+      .where(eq(candidateTemplateStages.id, stageId))
+      .limit(1);
+
+    return stage;
+  }
+
+  /**
    * Get candidate template stages (snapshot)
    *
    * Returns the candidate's specific template stage configuration.

@@ -8,7 +8,7 @@
 import type { InsertCandidateTask, CandidateTask } from "@shared/schemas";
 import type { CandidateTaskRepository } from "../../repositories/candidates/CandidateTaskRepository";
 import type { AuthorizationContext } from "../../repositories/base/types";
-import { eventBus, taskCreated, taskAssigned, taskStatusChanged, taskCompleted } from "../../events";
+import { eventBus, taskCreated, taskAssigned, taskStatusChanged, taskCompleted, taskDeleted } from "../../events";
 import { writeAuditLog } from "../shared/audit-logger";
 
 export interface CreateTaskInput {
@@ -226,32 +226,47 @@ export class TaskService {
    * Archive a task (soft delete)
    */
   async archiveTask(id: string, actorId?: string): Promise<void> {
+    // Get task details before archiving for event payload
+    const task = await this.taskRepo.getCandidateTask(id);
+    
     await this.taskRepo.archiveCandidateTask(id);
     await writeAuditLog({
       actorId,
       resourceType: "candidate_task",
       resourceId: id,
       taskId: id,
+      candidateId: task?.candidateId,
       action: "archive",
       eventType: "task_archived"
     });
-    // TODO: Publish taskArchived event
+    // Note: TaskArchivedEvent type not yet created - tracked in TODO_TRACKING.md
   }
 
   /**
    * Delete a task permanently
    */
   async deleteTask(id: string, actorId?: string): Promise<void> {
+    // Get task details before deletion for event payload
+    const task = await this.taskRepo.getCandidateTask(id);
+    
     await this.taskRepo.deleteCandidateTask(id);
     await writeAuditLog({
       actorId,
       resourceType: "candidate_task",
       resourceId: id,
       taskId: id,
+      candidateId: task?.candidateId,
       action: "delete",
       eventType: "task_deleted"
     });
-    // TODO: Publish taskDeleted event
+    
+    // Publish taskDeleted event
+    if (task) {
+      await eventBus.publish(taskDeleted(id, {
+        candidateId: task.candidateId,
+        taskTitle: task.title
+      }, { actorId }));
+    }
   }
 
   /**
