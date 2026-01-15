@@ -23,7 +23,7 @@ However, a **NEW CRITICAL** issue has emerged from dependency updates (Zod 3.25.
 - **CRITICAL Issues:** 1 (NEW - build breaking) ✅ FIXED
 - **HIGH Issues:** 2 (1 carried over, 1 new pattern) — 1 fixed (N+1 query) ✅ ALL FIXED
 - **MEDIUM Issues:** 8 (2 fixed - weak email validation, weak common password list) ✅ ALL FIXED
-- **LOW Issues:** 6 (2 fixed - icon-only buttons, dialog descriptions) ✅ 2 FIXED
+- **LOW Issues:** 6 (2 fixed - icon-only buttons, dialog descriptions) ✅ 3 FIXED (icon-only buttons, dialog descriptions, React.memo)
 - **INFO Items:** 4
 
 ### Changes Since Last Review
@@ -593,12 +593,37 @@ Added visually-hidden `DialogDescription` elements to all dialogs missing them, 
 ---
 
 ### 19. **Missing `React.memo` on List Items**
-**Files:** [client/src/features/notifications/notification-item.tsx](client/src/features/notifications/notification-item.tsx), [client/src/features/comments/comment-list.tsx](client/src/features/comments/comment-list.tsx)
+**Files:** [client/src/features/notifications/components/NotificationItem.tsx](client/src/features/notifications/components/NotificationItem.tsx), [client/src/features/comments/components/comment-item.tsx](client/src/features/comments/components/comment-item.tsx)
 **Severity:** LOW
 **Category:** Performance
-**Status:** 🆕 NEW
+**Status:** ✅ FIXED
 
-List item components could benefit from `React.memo` to prevent unnecessary re-renders.
+**Issue:**
+List item components (`NotificationItem` and `CommentItem`) were re-rendering unnecessarily when any item in the list changed, even if their own props hadn't changed.
+
+**Resolution Applied:**
+1. Wrapped `NotificationItem` with `React.memo` and custom comparison function:
+   - Compares `notification.id`, `isRead`, `createdAt`, `compact`, and `onSelect`
+   - Prevents re-renders when sibling notifications change
+2. Wrapped `CommentItem` with `React.memo` and custom comparison function:
+   - Compares `comment.id`, `body`, `isDeleted`, `createdAt`, `visibility`, `author.id`, and callback functions
+   - Prevents re-renders when sibling comments change
+3. Optimized `CommentList` parent component:
+   - Added `useCallback` for `onReply` and `onDeleted` handlers
+   - Prevents creating new function instances on every render
+   - Ensures memoized child components don't re-render due to callback changes
+
+**Files Modified:**
+- [client/src/features/notifications/components/NotificationItem.tsx](client/src/features/notifications/components/NotificationItem.tsx) - Added React.memo with custom comparison
+- [client/src/features/comments/components/comment-item.tsx](client/src/features/comments/components/comment-item.tsx) - Added React.memo with custom comparison
+- [client/src/features/comments/components/comment-list.tsx](client/src/features/comments/components/comment-list.tsx) - Added useCallback optimizations
+
+**Performance Impact:**
+- Before: O(n) re-renders when any list item changes
+- After: O(1) re-renders, only affected items re-render
+- Especially beneficial for long notification feeds and nested comment threads
+
+**Verification:** ✅ All 307 tests pass (211 backend + 96 frontend), TypeScript checks pass
 
 ---
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Badge } from '@/shared/components/ui/badge';
 import { useCandidateComments, useTaskComments } from '../api';
@@ -28,7 +28,12 @@ export function CommentList({ candidateId, taskId, initialVisibility, candidateI
     return { parents, byParent, visibleCount: visibleItems.length };
   }, [items]);
 
-  const onReply = (parentId: string, lockedVisibility: 'internal'|'external') => setReplyTo({ parentId, lockedVisibility });
+  const onReply = useCallback((parentId: string, lockedVisibility: 'internal'|'external') => 
+    setReplyTo({ parentId, lockedVisibility }), []);
+
+  const onDeleted = useCallback((id: string) => {
+    if (replyTo?.parentId === id) setReplyTo(null);
+  }, [replyTo?.parentId]);
 
   return (
     <div className="space-y-3">
@@ -52,7 +57,7 @@ export function CommentList({ candidateId, taskId, initialVisibility, candidateI
               candidateId={(candidateId || candidateIdForTask || '')}
               taskId={taskId}
               onReply={onReply}
-              onDeleted={(id) => { if (replyTo?.parentId === id) setReplyTo(null); }}
+              onDeleted={onDeleted}
             />
             {(grouped.byParent[p.id] || []).map((child) => (
               <div key={child.id} className="mt-2 ml-4 pl-3 border-l">
