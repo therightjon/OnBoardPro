@@ -1,6 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { testAgent } from '../utils/testAgent';
-import { MockServiceFactory } from '../utils/mockServiceFactory';
 
 describe('Health Check API', () => {
   describe('GET /health', () => {
@@ -56,12 +55,6 @@ describe('Health Check API', () => {
 });
 
 describe('Candidates API', () => {
-  let mockFactory: MockServiceFactory;
-
-  beforeEach(() => {
-    mockFactory = new MockServiceFactory();
-  });
-
   describe('POST /api/candidates', () => {
     it('should create candidate with valid data', async () => {
       // NOTE: This is a placeholder test
