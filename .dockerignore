@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+scripts/azure/vars.env
+scripts/azure/container/vars.env
+database_backup_*.sql
+attached_assets
+uploads
+tmp
