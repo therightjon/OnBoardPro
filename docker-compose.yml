@@ -31,7 +31,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Development service with hot reload (use: docker-compose up db app-dev)
+  # Development service with hot reload (use: docker-compose --profile dev up db app-dev)
   app-dev:
     image: node:20-alpine
     container_name: onboardpro_dev
@@ -40,7 +40,7 @@ services:
       - "5000:5000"
     volumes:
       - .:/app
-      - /app/node_modules
+      - app_node_modules:/app/node_modules
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       NODE_ENV: development
@@ -53,3 +53,4 @@ services:
 
 volumes:
   pgdata:
+  app_node_modules:
