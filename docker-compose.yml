@@ -12,10 +12,44 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U db_user -d onboardpro"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 5
+
+  app:
+    build: .
+    container_name: onboardpro_app
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      NODE_ENV: production
+      # Add other env vars your app needs (SESSION_SECRET, etc.)
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Development service with hot reload (use: docker-compose up db app-dev)
+  app-dev:
+    image: node:20-alpine
+    container_name: onboardpro_dev
+    working_dir: /app
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      NODE_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh -c "npm install && npm run dev"
+    profiles:
+      - dev
 
 volumes:
   pgdata:
