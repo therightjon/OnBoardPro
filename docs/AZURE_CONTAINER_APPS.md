@@ -53,3 +53,36 @@ Note: the database is private. Run migrations from a VM or tool inside the VNet,
   ```bash
   az containerapp logs show -g <rg> -n <app> --follow
   ```
+
+## GitHub Actions (optional)
+This repo includes `.github/workflows/azure-containerapp-deploy.yml` for manual deployments.
+
+Required GitHub Secrets:
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+- `AZ_POSTGRES_ADMIN_PASSWORD`
+- `SESSION_SECRET`
+
+Optional Secrets (if used):
+- `DATABASE_URL` (leave empty to auto-build from Postgres vars)
+- `SMTP_PASSWORD`
+- `GOOGLE_CLIENT_SECRET`
+- `AZURE_CLIENT_SECRET`
+- `LDAP_BIND_PASSWORD`
+
+Required GitHub Variables (recommended defaults are in the workflow):
+- `AZ_LOCATION`
+- `AZ_RESOURCE_GROUP`
+- `AZ_CONTAINERAPP_ENV`
+- `AZ_CONTAINERAPP_NAME`
+- `AZ_ACR_NAME`
+- `AZ_IMAGE_NAME`
+- `AZ_POSTGRES_SERVER`
+- `AZ_POSTGRES_DB`
+- `AZ_POSTGRES_ADMIN_USER`
+
+Optional Variables:
+- Any of the app settings in `scripts/azure/container/vars.env.example`
+
+Permissions: the Azure identity must have rights to build in ACR and update the Container App (Contributor on the resource group is sufficient).

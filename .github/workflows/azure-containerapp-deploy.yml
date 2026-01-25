@@ -1,0 +1,196 @@
+name: Deploy Azure Container App
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AZ_ENV_FILE: /tmp/azure-container.env
+      AZ_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZ_LOCATION: ${{ vars.AZ_LOCATION || 'westus2' }}
+      AZ_RESOURCE_GROUP: ${{ vars.AZ_RESOURCE_GROUP || 'onboardpro-rg' }}
+      AZ_CONTAINERAPP_ENV: ${{ vars.AZ_CONTAINERAPP_ENV || 'onboardpro-ca-env' }}
+      AZ_CONTAINERAPP_NAME: ${{ vars.AZ_CONTAINERAPP_NAME || 'onboardpro' }}
+      AZ_CONTAINERAPP_CPU: ${{ vars.AZ_CONTAINERAPP_CPU || '1.0' }}
+      AZ_CONTAINERAPP_MEMORY: ${{ vars.AZ_CONTAINERAPP_MEMORY || '2Gi' }}
+      AZ_CONTAINERAPP_MIN_REPLICAS: ${{ vars.AZ_CONTAINERAPP_MIN_REPLICAS || '1' }}
+      AZ_CONTAINERAPP_MAX_REPLICAS: ${{ vars.AZ_CONTAINERAPP_MAX_REPLICAS || '3' }}
+      AZ_CONTAINERAPP_PORT: ${{ vars.AZ_CONTAINERAPP_PORT || '5000' }}
+      AZ_ACR_NAME: ${{ vars.AZ_ACR_NAME || 'obpacr' }}
+      AZ_IMAGE_NAME: ${{ vars.AZ_IMAGE_NAME || 'onboardpro' }}
+      AZ_IMAGE_TAG: ${{ github.sha }}
+      AZ_REVISION_SUFFIX: run-${{ github.run_number }}
+      AZ_VNET_NAME: ${{ vars.AZ_VNET_NAME || 'onboardpro-vnet' }}
+      AZ_VNET_PREFIX: ${{ vars.AZ_VNET_PREFIX || '10.0.0.0/16' }}
+      AZ_INFRA_SUBNET_NAME: ${{ vars.AZ_INFRA_SUBNET_NAME || 'aca-infra-subnet' }}
+      AZ_INFRA_SUBNET_PREFIX: ${{ vars.AZ_INFRA_SUBNET_PREFIX || '10.0.0.0/23' }}
+      AZ_DB_SUBNET_NAME: ${{ vars.AZ_DB_SUBNET_NAME || 'postgres-subnet' }}
+      AZ_DB_SUBNET_PREFIX: ${{ vars.AZ_DB_SUBNET_PREFIX || '10.0.2.0/24' }}
+      AZ_PRIVATE_DNS_ZONE: ${{ vars.AZ_PRIVATE_DNS_ZONE || 'privatelink.postgres.database.azure.com' }}
+      AZ_POSTGRES_SERVER: ${{ vars.AZ_POSTGRES_SERVER || 'onboardpro-pg-private' }}
+      AZ_POSTGRES_DB: ${{ vars.AZ_POSTGRES_DB || 'onboardpro' }}
+      AZ_POSTGRES_ADMIN_USER: ${{ vars.AZ_POSTGRES_ADMIN_USER || 'onboardpro_admin' }}
+      AZ_POSTGRES_ADMIN_PASSWORD: ${{ secrets.AZ_POSTGRES_ADMIN_PASSWORD }}
+      AZ_POSTGRES_VERSION: ${{ vars.AZ_POSTGRES_VERSION || '16' }}
+      AZ_POSTGRES_TIER: ${{ vars.AZ_POSTGRES_TIER || 'Burstable' }}
+      AZ_POSTGRES_SKU: ${{ vars.AZ_POSTGRES_SKU || 'Standard_B1ms' }}
+      AZ_POSTGRES_STORAGE_GB: ${{ vars.AZ_POSTGRES_STORAGE_GB || '32' }}
+      NODE_ENV: ${{ vars.NODE_ENV || 'production' }}
+      PORT: ${{ vars.PORT || '5000' }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+      APP_BASE_URL: ${{ vars.APP_BASE_URL }}
+      BASE_URL: ${{ vars.BASE_URL }}
+      COOKIE_DOMAIN: ${{ vars.COOKIE_DOMAIN }}
+      TRUSTED_PROXIES: ${{ vars.TRUSTED_PROXIES }}
+      SESSION_IDLE_TIMEOUT_HOURS: ${{ vars.SESSION_IDLE_TIMEOUT_HOURS }}
+      SESSION_ABSOLUTE_TIMEOUT_HOURS: ${{ vars.SESSION_ABSOLUTE_TIMEOUT_HOURS }}
+      RATE_LIMIT_WINDOW_MS: ${{ vars.RATE_LIMIT_WINDOW_MS }}
+      RATE_LIMIT_MAX: ${{ vars.RATE_LIMIT_MAX }}
+      SENSITIVE_RATE_LIMIT_WINDOW_MS: ${{ vars.SENSITIVE_RATE_LIMIT_WINDOW_MS }}
+      SENSITIVE_RATE_LIMIT_MAX: ${{ vars.SENSITIVE_RATE_LIMIT_MAX }}
+      DISABLE_DEADLINE_SCANNER: ${{ vars.DISABLE_DEADLINE_SCANNER }}
+      DISABLE_EMAIL_JOBS: ${{ vars.DISABLE_EMAIL_JOBS }}
+      DISABLE_NOTIFICATION_CLEANUP: ${{ vars.DISABLE_NOTIFICATION_CLEANUP }}
+      SMTP_HOST: ${{ vars.SMTP_HOST }}
+      SMTP_PORT: ${{ vars.SMTP_PORT }}
+      SMTP_USER: ${{ vars.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      ENABLE_GOOGLE_AUTH: ${{ vars.ENABLE_GOOGLE_AUTH }}
+      GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      ENABLE_AZURE_AUTH: ${{ vars.ENABLE_AZURE_AUTH }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ENABLE_LDAP_AUTH: ${{ vars.ENABLE_LDAP_AUTH }}
+      AUTH_ENABLE_LDAP: ${{ vars.AUTH_ENABLE_LDAP }}
+      LDAP_URL: ${{ vars.LDAP_URL }}
+      LDAP_STARTTLS: ${{ vars.LDAP_STARTTLS }}
+      LDAP_BIND_DN: ${{ vars.LDAP_BIND_DN }}
+      LDAP_BIND_PASSWORD: ${{ secrets.LDAP_BIND_PASSWORD }}
+      LDAP_SEARCH_BASE: ${{ vars.LDAP_SEARCH_BASE }}
+      LDAP_BASE_DN: ${{ vars.LDAP_BASE_DN }}
+      LDAP_SEARCH_FILTER: ${{ vars.LDAP_SEARCH_FILTER }}
+      LDAP_USER_FILTER: ${{ vars.LDAP_USER_FILTER }}
+      LDAP_ATTR_USERNAME: ${{ vars.LDAP_ATTR_USERNAME }}
+      LDAP_ATTR_EMAIL: ${{ vars.LDAP_ATTR_EMAIL }}
+      LDAP_ATTR_FIRST_NAME: ${{ vars.LDAP_ATTR_FIRST_NAME }}
+      LDAP_ATTR_LAST_NAME: ${{ vars.LDAP_ATTR_LAST_NAME }}
+      LDAP_DISABLED_FILTER: ${{ vars.LDAP_DISABLED_FILTER }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Container Apps extension
+        run: az extension add --name containerapp
+
+      - name: Write env file
+        run: |
+          python3 - <<'PY'
+          import os
+          import shlex
+
+          keys = [
+              "AZ_SUBSCRIPTION_ID",
+              "AZ_LOCATION",
+              "AZ_RESOURCE_GROUP",
+              "AZ_CONTAINERAPP_ENV",
+              "AZ_CONTAINERAPP_NAME",
+              "AZ_CONTAINERAPP_CPU",
+              "AZ_CONTAINERAPP_MEMORY",
+              "AZ_CONTAINERAPP_MIN_REPLICAS",
+              "AZ_CONTAINERAPP_MAX_REPLICAS",
+              "AZ_CONTAINERAPP_PORT",
+              "AZ_ACR_NAME",
+              "AZ_IMAGE_NAME",
+              "AZ_IMAGE_TAG",
+              "AZ_REVISION_SUFFIX",
+              "AZ_VNET_NAME",
+              "AZ_VNET_PREFIX",
+              "AZ_INFRA_SUBNET_NAME",
+              "AZ_INFRA_SUBNET_PREFIX",
+              "AZ_DB_SUBNET_NAME",
+              "AZ_DB_SUBNET_PREFIX",
+              "AZ_PRIVATE_DNS_ZONE",
+              "AZ_POSTGRES_SERVER",
+              "AZ_POSTGRES_DB",
+              "AZ_POSTGRES_ADMIN_USER",
+              "AZ_POSTGRES_ADMIN_PASSWORD",
+              "AZ_POSTGRES_VERSION",
+              "AZ_POSTGRES_TIER",
+              "AZ_POSTGRES_SKU",
+              "AZ_POSTGRES_STORAGE_GB",
+              "NODE_ENV",
+              "PORT",
+              "DATABASE_URL",
+              "SESSION_SECRET",
+              "APP_BASE_URL",
+              "BASE_URL",
+              "COOKIE_DOMAIN",
+              "TRUSTED_PROXIES",
+              "SESSION_IDLE_TIMEOUT_HOURS",
+              "SESSION_ABSOLUTE_TIMEOUT_HOURS",
+              "RATE_LIMIT_WINDOW_MS",
+              "RATE_LIMIT_MAX",
+              "SENSITIVE_RATE_LIMIT_WINDOW_MS",
+              "SENSITIVE_RATE_LIMIT_MAX",
+              "DISABLE_DEADLINE_SCANNER",
+              "DISABLE_EMAIL_JOBS",
+              "DISABLE_NOTIFICATION_CLEANUP",
+              "SMTP_HOST",
+              "SMTP_PORT",
+              "SMTP_USER",
+              "SMTP_PASSWORD",
+              "ENABLE_GOOGLE_AUTH",
+              "GOOGLE_CLIENT_ID",
+              "GOOGLE_CLIENT_SECRET",
+              "ENABLE_AZURE_AUTH",
+              "AZURE_CLIENT_ID",
+              "AZURE_CLIENT_SECRET",
+              "AZURE_TENANT_ID",
+              "ENABLE_LDAP_AUTH",
+              "AUTH_ENABLE_LDAP",
+              "LDAP_URL",
+              "LDAP_STARTTLS",
+              "LDAP_BIND_DN",
+              "LDAP_BIND_PASSWORD",
+              "LDAP_SEARCH_BASE",
+              "LDAP_BASE_DN",
+              "LDAP_SEARCH_FILTER",
+              "LDAP_USER_FILTER",
+              "LDAP_ATTR_USERNAME",
+              "LDAP_ATTR_EMAIL",
+              "LDAP_ATTR_FIRST_NAME",
+              "LDAP_ATTR_LAST_NAME",
+              "LDAP_DISABLED_FILTER",
+          ]
+
+          env_file = os.environ["AZ_ENV_FILE"]
+          with open(env_file, "w", encoding="utf-8") as f:
+              for key in keys:
+                  value = os.environ.get(key, "")
+                  if value == "":
+                      f.write(f"{key}=\n")
+                  else:
+                      f.write(f"{key}={shlex.quote(value)}\n")
+
+          print(f"Wrote env file: {env_file}")
+          PY
+
+      - name: Deploy image to Container Apps
+        run: bash scripts/azure/container/deploy.sh
+
+      - name: Configure app settings
+        run: bash scripts/azure/container/configure-app.sh
