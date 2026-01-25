@@ -17,8 +17,8 @@ export function log(message: string, source = "express") {
 
 export async function setupVite(app: Express, server: Server) {
   const { createServer: createViteServer, createLogger } = await import("vite");
-  const { default: viteConfig } = await import("../vite.config");
   const viteLogger = createLogger();
+  const configFile = path.resolve(import.meta.dirname, "..", "vite.config.ts");
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
@@ -26,8 +26,7 @@ export async function setupVite(app: Express, server: Server) {
   };
 
   const vite = await createViteServer({
-    ...viteConfig,
-    configFile: false,
+    configFile,
     customLogger: {
       ...viteLogger,
       error: (msg, options) => {
