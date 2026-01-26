@@ -31,6 +31,36 @@ bash scripts/azure/container/deploy.sh
 ```
 The deploy script adds a timestamp-based revision suffix so each deploy creates a new revision even if you reuse the same image tag. You can override with `AZ_REVISION_SUFFIX` in the env file.
 
+## Rebuild + restart
+Rebuild and deploy a new revision:
+```bash
+set -a
+source scripts/azure/container/vars.env
+set +a
+
+bash scripts/azure/container/deploy.sh
+```
+
+Push updated app settings (env vars) to the Container App:
+```bash
+set -a
+source scripts/azure/container/vars.env
+set +a
+
+bash scripts/azure/container/configure-app.sh
+```
+
+Restart the latest active revision (no rebuild):
+```bash
+set -a
+source scripts/azure/container/vars.env
+set +a
+
+REV=$(az containerapp show -g "$AZ_RESOURCE_GROUP" -n "$AZ_CONTAINERAPP_NAME" \
+  --query "properties.latestRevisionName" -o tsv)
+az containerapp revision restart -g "$AZ_RESOURCE_GROUP" -n "$AZ_CONTAINERAPP_NAME" --revision "$REV"
+```
+
 ## Configure app settings
 ```bash
 bash scripts/azure/container/configure-app.sh
