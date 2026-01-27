@@ -104,9 +104,9 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="px-4 py-4 md:px-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
+    <div className="py-4 overflow-x-hidden">
+      <div className="px-4 md:px-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold text-foreground">Notifications</h1>
           <p className="text-sm text-muted-foreground">Stay up to date with comments, mentions, assignments, and stage changes.</p>
         </div>
@@ -114,16 +114,17 @@ export default function NotificationsPage() {
           variant="outline"
           onClick={handleMarkAllRead}
           disabled={markAllMutation.isPending}
+          className="shrink-0"
         >
           {markAllMutation.isPending ? "Marking…" : "Mark all read"}
         </Button>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 overflow-x-auto scrollbar-hide px-4 md:px-8">
         <Tabs value={filter} onValueChange={(value) => setFilter(value as NotificationFilterKey)}>
-          <TabsList className="flex flex-wrap gap-2">
+          <TabsList className="inline-flex w-max">
             {NOTIFICATION_FILTERS.map(({ key, label }) => (
-              <TabsTrigger key={key} value={key} className="capitalize">
+              <TabsTrigger key={key} value={key} className="capitalize whitespace-nowrap">
                 {label}
               </TabsTrigger>
             ))}
@@ -131,7 +132,7 @@ export default function NotificationsPage() {
         </Tabs>
       </div>
 
-      <div className="mt-6 space-y-3">
+      <div className="mt-6 space-y-3 px-4 md:px-8">
         {isPageLoading ? (
           <p className="text-sm text-muted-foreground">Loading notifications…</p>
         ) : notifications.length === 0 ? (
@@ -147,7 +148,7 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 px-4 md:px-8">
         <PaginationControls
           page={currentPage}
           pageSize={PAGE_SIZE}
