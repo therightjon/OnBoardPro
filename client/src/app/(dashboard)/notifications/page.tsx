@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 import { useLocation } from "wouter";
 import { Button } from "@/shared/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
+import { Card, CardContent } from "@/shared/components/ui/card";
 import { NotificationItem } from "@/features/notifications/components/NotificationItem";
 import type { NotificationRecord } from "@/features/notifications/types";
 import { fetchNotifications, markNotificationRead, markAllNotificationsRead } from "@/features/notifications/api";
@@ -104,10 +105,11 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="py-4 overflow-x-hidden">
-      <div className="px-4 md:px-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-foreground">Notifications</h1>
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">Notifications</h1>
           <p className="text-sm text-muted-foreground">Stay up to date with comments, mentions, assignments, and stage changes.</p>
         </div>
         <Button
@@ -120,49 +122,64 @@ export default function NotificationsPage() {
         </Button>
       </div>
 
-      <div className="mt-6 overflow-x-auto scrollbar-hide px-4 md:px-8">
-        <Tabs value={filter} onValueChange={(value) => setFilter(value as NotificationFilterKey)}>
-          <TabsList className="inline-flex w-max">
-            {NOTIFICATION_FILTERS.map(({ key, label }) => (
-              <TabsTrigger key={key} value={key} className="capitalize whitespace-nowrap">
-                {label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </div>
+      {/* Filter Tabs */}
+      <Card>
+        <CardContent className="p-3 sm:p-4">
+          <Tabs value={filter} onValueChange={(value) => setFilter(value as NotificationFilterKey)}>
+            <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent p-0 sm:inline-flex sm:flex-nowrap sm:bg-muted sm:p-1 sm:gap-0">
+              {NOTIFICATION_FILTERS.map(({ key, label }) => (
+                <TabsTrigger
+                  key={key}
+                  value={key}
+                  className="capitalize text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-background data-[state=active]:shadow-sm border border-border sm:border-0"
+                >
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </CardContent>
+      </Card>
 
-      <div className="mt-6 space-y-3 px-4 md:px-8">
-        {isPageLoading ? (
-          <p className="text-sm text-muted-foreground">Loading notifications…</p>
-        ) : notifications.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No notifications found for this filter.</p>
-        ) : (
-          notifications.map((notification: NotificationRecord) => (
-            <NotificationItem
-              key={notification.id}
-              notification={notification}
-              onSelect={handleSelect}
-            />
-          ))
-        )}
-      </div>
+      {/* Notifications List */}
+      <Card className="overflow-hidden">
+        <CardContent className="p-3 sm:p-4 min-w-0">
+          <div className="space-y-2 min-w-0">
+            {isPageLoading ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">Loading notifications…</p>
+            ) : notifications.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No notifications found for this filter.</p>
+            ) : (
+              notifications.map((notification: NotificationRecord) => (
+                <NotificationItem
+                  key={notification.id}
+                  notification={notification}
+                  onSelect={handleSelect}
+                />
+              ))
+            )}
+          </div>
 
-      <div className="mt-6 px-4 md:px-8">
-        <PaginationControls
-          page={currentPage}
-          pageSize={PAGE_SIZE}
-          totalCount={totalCount}
-          totalPages={totalPages}
-          onPageChange={(page) => {
-            setCurrentPage(page);
-          }}
-          className="justify-center md:justify-end"
-        />
-        {isFetching && !isLoading && (
-          <p className="mt-2 text-center text-xs text-muted-foreground md:text-right">Updating…</p>
-        )}
-      </div>
+          {totalCount > PAGE_SIZE && (
+            <div className="mt-4 pt-4 border-t border-border/60">
+              <PaginationControls
+                page={currentPage}
+                pageSize={PAGE_SIZE}
+                totalCount={totalCount}
+                totalPages={totalPages}
+                onPageChange={(page) => {
+                  setCurrentPage(page);
+                }}
+                className="justify-center"
+              />
+            </div>
+          )}
+
+          {isFetching && !isLoading && (
+            <p className="mt-2 text-center text-xs text-muted-foreground">Updating…</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
