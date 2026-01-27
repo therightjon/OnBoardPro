@@ -69,3 +69,5 @@ tmp/
 .DS_Store
 Thumbs.db
 .codacy/codacy.yaml
+dist/
+dist/
