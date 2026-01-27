@@ -105,18 +105,18 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
       {/* Page Header */}
-      <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
-        <div className="min-w-0">
-          <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-foreground">Notifications</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Stay up to date with comments, mentions, assignments, and stage changes.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">Notifications</h1>
+          <p className="text-sm text-muted-foreground">Stay up to date with comments, mentions, assignments, and stage changes.</p>
         </div>
         <Button
           variant="outline"
           onClick={handleMarkAllRead}
           disabled={markAllMutation.isPending}
-          className="shrink-0 w-full xs:w-auto"
+          className="shrink-0"
         >
           {markAllMutation.isPending ? "Marking…" : "Mark all read"}
         </Button>
@@ -124,25 +124,27 @@ export default function NotificationsPage() {
 
       {/* Filter Tabs */}
       <Card>
-        <CardContent className="p-3 xs:p-4">
+        <CardContent className="p-3 sm:p-4">
           <Tabs value={filter} onValueChange={(value) => setFilter(value as NotificationFilterKey)}>
-            <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
-              <TabsList className="inline-flex w-max">
-                {NOTIFICATION_FILTERS.map(({ key, label }) => (
-                  <TabsTrigger key={key} value={key} className="capitalize whitespace-nowrap text-xs sm:text-sm">
-                    {label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </div>
+            <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent p-0 sm:inline-flex sm:flex-nowrap sm:bg-muted sm:p-1 sm:gap-0">
+              {NOTIFICATION_FILTERS.map(({ key, label }) => (
+                <TabsTrigger
+                  key={key}
+                  value={key}
+                  className="capitalize text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-background data-[state=active]:shadow-sm border border-border sm:border-0"
+                >
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
           </Tabs>
         </CardContent>
       </Card>
 
       {/* Notifications List */}
-      <Card>
-        <CardContent className="p-3 xs:p-4">
-          <div className="space-y-2">
+      <Card className="overflow-hidden">
+        <CardContent className="p-3 sm:p-4 min-w-0">
+          <div className="space-y-2 min-w-0">
             {isPageLoading ? (
               <p className="text-sm text-muted-foreground py-4 text-center">Loading notifications…</p>
             ) : notifications.length === 0 ? (
