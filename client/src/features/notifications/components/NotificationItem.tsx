@@ -23,7 +23,7 @@ function NotificationItemComponent({ notification, onSelect, compact = false }: 
       type="button"
       onClick={() => onSelect?.(notification)}
       className={cn(
-        "w-full text-left flex items-start gap-3 rounded-md border border-transparent px-3 py-2 transition-colors",
+        "w-full text-left flex items-start gap-3 rounded-md border border-transparent px-3 py-2 transition-colors overflow-hidden",
         notification.isRead ? "bg-background hover:bg-muted/60" : "bg-muted hover:bg-muted",
         compact ? "" : "md:px-4 md:py-3"
       )}
@@ -36,7 +36,7 @@ function NotificationItemComponent({ notification, onSelect, compact = false }: 
       >
         <Icon className="h-4 w-4" />
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 w-0">
         <p className="text-sm font-medium text-foreground truncate">{display.title}</p>
         {display.body ? (
           <p className="text-xs text-muted-foreground truncate">{display.body}</p>
