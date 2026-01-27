@@ -192,10 +192,14 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
   const previousCountRef = useRef<number | undefined>(undefined);
   const queryClient = useQueryClient();
 
+  // On mobile (when onNavigate is provided), skip the popover and navigate directly
+  // This prevents the popover positioning issues inside the mobile Sheet
+  const isMobileContext = Boolean(onNavigate);
+
   const popoverQuery = useQuery({
     queryKey: NOTIFICATIONS_DROPDOWN_QUERY_KEY,
     queryFn: () => fetchNotifications({ limit: 5 }),
-    enabled: open,
+    enabled: open && !isMobileContext,
     staleTime: 0,
   });
 
@@ -300,6 +304,44 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
     setOpen(nextOpen);
   };
 
+  // Mobile: render a simple Link instead of Popover
+  if (isMobileContext) {
+    const Icon = item.icon;
+    return (
+      <Link
+        href="/notifications"
+        data-testid={testId}
+        className={cn(
+          "relative flex w-full items-center space-x-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors",
+          isActive
+            ? "bg-primary text-primary-foreground"
+            : "hover:bg-secondary hover:text-secondary-foreground",
+          !isActive && showBadge ? "bg-destructive/10 text-sidebar-foreground" : "",
+          shouldPulse ? "sidebar-unread-pulse" : ""
+        )}
+        onClick={onNavigate}
+      >
+        <Icon className="w-5 h-5" />
+        <span className="flex-1 truncate">{item.name}</span>
+        <span
+          aria-hidden
+          className={cn(
+            "ml-auto inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded-full bg-destructive px-1 text-xs font-semibold text-destructive-foreground transition-opacity",
+            showBadge ? "opacity-100" : "opacity-0"
+          )}
+        >
+          {badgeText}
+        </span>
+        {ariaLabel ? (
+          <span className="sr-only" aria-live="polite" role="status">
+            {ariaLabel}
+          </span>
+        ) : null}
+      </Link>
+    );
+  }
+
+  // Desktop: render Popover with notification dropdown
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
