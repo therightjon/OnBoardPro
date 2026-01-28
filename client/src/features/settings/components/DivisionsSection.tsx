@@ -441,7 +441,7 @@ export function DivisionsSection() {
             </div>
 
             {/* Mobile Cards */}
-            <div className="space-y-3 p-4 md:hidden">
+            <div className="space-y-3 md:hidden">
               {displayDivisions.map((div) => (
                 <div key={div.id} className="p-4 border rounded-lg" data-testid={`card-division-${div.id}`}>
                   <div className="flex items-start justify-between gap-2">

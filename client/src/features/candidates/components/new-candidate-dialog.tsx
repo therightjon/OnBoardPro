@@ -414,7 +414,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                   )}
                 />
 
-                <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <FormField
                     control={form.control}
                     name="firstName"

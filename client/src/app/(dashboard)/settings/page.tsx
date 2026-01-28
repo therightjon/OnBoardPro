@@ -196,25 +196,25 @@ export default function SettingsPage() {
         </Card>
 
         {/* Tab Contents */}
-        <TabsContent value="personal" className="mt-6">
+        <TabsContent value="personal" className="mt-6 min-h-[70vh]">
           <PersonalSettingsTab />
         </TabsContent>
 
         {canAccessSystemSettings && (
           <>
-            <TabsContent value="organization" className="mt-6">
+            <TabsContent value="organization" className="mt-6 min-h-[70vh]">
               <OrganizationTab />
             </TabsContent>
-            <TabsContent value="users" className="mt-6">
+            <TabsContent value="users" className="mt-6 min-h-[70vh]">
               <UsersTab />
             </TabsContent>
-            <TabsContent value="hiring-stages" className="mt-6">
+            <TabsContent value="hiring-stages" className="mt-6 min-h-[70vh]">
               <HiringStagesTab />
             </TabsContent>
-            <TabsContent value="authentication" className="mt-6">
+            <TabsContent value="authentication" className="mt-6 min-h-[70vh]">
               <AuthenticationTab />
             </TabsContent>
-            <TabsContent value="system" className="mt-6">
+            <TabsContent value="system" className="mt-6 min-h-[70vh]">
               <SystemTab />
             </TabsContent>
           </>

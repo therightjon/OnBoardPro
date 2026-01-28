@@ -63,98 +63,104 @@ export function SortableStageCard({
   const phaseLabel = stage.phase === "onboarding" ? "Onboarding" : "Pre Hire";
 
   return (
-    <div ref={setSortableRef} style={style} className="contain-content">
+    <div ref={setSortableRef} style={style} className="min-w-0 contain-content">
       <Collapsible open={isExpanded} onOpenChange={onToggle}>
-        <div className="flex items-center gap-3 rounded-lg border p-3 bg-card hover:bg-accent/50 transition-colors">
-          {/* Drag Handle */}
-          <div
-            {...attributes}
-            {...listeners}
-            className="cursor-grab active:cursor-grabbing flex-shrink-0"
-          >
-            <GripVertical className="h-5 w-5 text-muted-foreground" />
+        <div className="flex flex-col gap-2 rounded-lg border p-3 bg-card hover:bg-accent/50 transition-colors sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Drag Handle */}
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing flex-shrink-0"
+            >
+              <GripVertical className="h-5 w-5 text-muted-foreground" />
+            </div>
+
+            {/* Order Index Badge */}
+            <Badge variant="outline" className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+              {stage.orderIndex}
+            </Badge>
+
+            {/* Stage Info */}
+            <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0 text-left">
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              )}
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="font-medium truncate">{stage.stageName}</span>
+                <span className="text-xs text-muted-foreground capitalize">{phaseLabel}</span>
+              </div>
+            </CollapsibleTrigger>
           </div>
 
-          {/* Order Index Badge */}
-          <Badge variant="outline" className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
-            {stage.orderIndex}
-          </Badge>
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
+            {/* Task Count Badge */}
+            <Badge variant="secondary" className="flex-shrink-0">
+              {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
+            </Badge>
 
-          {/* Stage Info */}
-          <CollapsibleTrigger className="flex items-center gap-2 flex-1 text-left">
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            )}
-            <div className="flex flex-col flex-1 min-w-0">
-              <span className="font-medium truncate">{stage.stageName}</span>
-              <span className="text-xs text-muted-foreground capitalize">{phaseLabel}</span>
+            {/* Actions */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddTask();
+                }}
+                title="Add task to this stage"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove();
+                }}
+                title="Remove stage"
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
             </div>
-          </CollapsibleTrigger>
-
-          {/* Task Count Badge */}
-          <Badge variant="secondary" className="flex-shrink-0">
-            {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
-          </Badge>
-
-          {/* Actions */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddTask();
-              }}
-              title="Add task to this stage"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-              title="Remove stage"
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
           </div>
         </div>
 
         <CollapsibleContent>
-          <div ref={setDroppableRef} className="mt-2 ml-4 sm:ml-8 mr-2 space-y-1 rounded-lg border bg-muted/20 p-2 sm:p-3 min-w-0">
-            {tasks.length === 0 ? (
-              <div className="text-center py-6 text-sm text-muted-foreground">
-                <p className="mb-3">No tasks in this stage</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onAddTask}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Task
-                </Button>
-              </div>
-            ) : (
-              <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-1">
-                  {tasks.map((task) => (
-                    <SortableTaskRow
-                      key={task.id}
-                      task={task}
-                      getTaskDefinitionName={getTaskDefinitionName}
-                      getPriorityName={getPriorityName}
-                      onEdit={() => onEditTask(task)}
-                      onDelete={() => onDeleteTask(task.id)}
-                    />
-                  ))}
+          <div className="mt-2 pl-4 pr-2 sm:pl-8 min-w-0">
+            <div ref={setDroppableRef} className="space-y-1 rounded-lg border bg-muted/20 p-2 sm:p-3 min-w-0">
+              {tasks.length === 0 ? (
+                <div className="text-center py-6 text-sm text-muted-foreground">
+                  <p className="mb-3">No tasks in this stage</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onAddTask}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Task
+                  </Button>
                 </div>
-              </SortableContext>
-            )}
+              ) : (
+                <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-1">
+                    {tasks.map((task) => (
+                      <SortableTaskRow
+                        key={task.id}
+                        task={task}
+                        getTaskDefinitionName={getTaskDefinitionName}
+                        getPriorityName={getPriorityName}
+                        onEdit={() => onEditTask(task)}
+                        onDelete={() => onDeleteTask(task.id)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              )}
+            </div>
           </div>
         </CollapsibleContent>
       </Collapsible>

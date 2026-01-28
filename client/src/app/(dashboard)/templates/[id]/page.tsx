@@ -479,14 +479,14 @@ export default function TemplateDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-1">Candidate Type</h3>
-                <p className="text-base font-medium">
+                <p className="text-base font-medium break-words">
                   {candidateTypes.find(ct => ct.id === template.candidateTypeId)?.name || "Not specified"}
                 </p>
               </div>
               {template.description && (
                 <div className="md:col-span-2">
                   <h3 className="text-sm font-medium text-muted-foreground mb-1">Description</h3>
-                  <p className="text-base">{template.description}</p>
+                  <p className="text-base break-words">{template.description}</p>
                 </div>
               )}
             </div>

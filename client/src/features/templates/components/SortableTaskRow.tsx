@@ -80,59 +80,65 @@ export const SortableTaskRow = memo(function SortableTaskRow({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-1 sm:gap-2 rounded-md border bg-card p-2 hover:bg-accent/50 transition-colors min-w-0"
+      className="flex flex-col gap-2 rounded-md border bg-card p-2 hover:bg-accent/50 transition-colors min-w-0 sm:flex-row sm:items-center sm:gap-2"
     >
-      {/* Drag Handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing flex-shrink-0"
-      >
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
-      </div>
-
-      {/* Task Name */}
-      <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium truncate block">{taskName}</span>
-        {task.isPrerequisite && (
-          <Badge variant="outline" className="mt-1 text-xs">
-            Prerequisite
-          </Badge>
-        )}
-      </div>
-
-      {/* Due Rule - hidden on very small screens */}
-      <div className="hidden xs:block text-xs text-muted-foreground flex-shrink-0">
-        {dueRuleText}
-      </div>
-
-      {/* Priority - hidden on very small screens */}
-      {priorityName && (
-        <Badge variant="secondary" className="hidden sm:flex flex-shrink-0 text-xs">
-          {priorityName}
-        </Badge>
-      )}
-
-      {/* Actions */}
-      <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onEdit}
-          title="Edit task"
-          className="h-8 w-8 p-0 sm:h-auto sm:w-auto sm:p-2"
+      <div className="flex items-start gap-2 min-w-0 sm:flex-1 sm:items-center">
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing flex-shrink-0"
         >
-          <Edit className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onDelete}
-          title="Delete task"
-          className="h-8 w-8 p-0 sm:h-auto sm:w-auto sm:p-2"
-        >
-          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-        </Button>
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+
+        {/* Task Name */}
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-medium break-words sm:truncate block">{taskName}</span>
+          {task.isPrerequisite && (
+            <Badge variant="outline" className="mt-1 text-xs">
+              Prerequisite
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 justify-between sm:justify-end sm:flex-nowrap sm:gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <span
+            className="text-xs text-muted-foreground break-words sm:max-w-[180px] sm:truncate"
+            title={dueRuleText}
+          >
+            {dueRuleText}
+          </span>
+          {priorityName && (
+            <Badge variant="secondary" className="text-xs">
+              {priorityName}
+            </Badge>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onEdit}
+            title="Edit task"
+            className="h-8 w-8 p-0 sm:h-auto sm:w-auto sm:p-2"
+          >
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDelete}
+            title="Delete task"
+            className="h-8 w-8 p-0 sm:h-auto sm:w-auto sm:p-2"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+          </Button>
+        </div>
       </div>
     </div>
   );

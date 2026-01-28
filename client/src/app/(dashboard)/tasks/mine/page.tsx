@@ -253,7 +253,7 @@ export default function MyTasksPage() {
   return (
     <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
           <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-foreground" data-testid="text-my-tasks-title">My Tasks</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Tasks assigned to you</p>
@@ -369,7 +369,7 @@ export default function MyTasksPage() {
             </div>
             
             {/* Toggle Switches */}
-            <div className="flex flex-col xs:flex-row flex-wrap gap-3 xs:gap-4">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
               <div className="flex items-center space-x-2">
                 <Switch
                   id="show-archived"

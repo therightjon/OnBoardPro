@@ -581,25 +581,25 @@ export default function Dashboard() {
   return (
     <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
           <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-foreground" data-testid="text-dashboard-title">Dashboard</h1>
           <p className="text-sm sm:text-base text-muted-foreground">{greetingMessage}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 xs:gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Button 
             variant="secondary" 
             size="sm" 
-            className="min-h-[44px] px-3 xs:px-4" 
+            className="min-h-[44px] px-3 sm:px-4" 
             data-testid="button-export-report"
             onClick={handleExportReport}
           >
-            <Download className="w-4 h-4 xs:mr-2" />
-            <span className="hidden xs:inline">Export Report</span>
+            <Download className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Export Report</span>
           </Button>
           <Button
             size="sm"
-            className="min-h-[44px] px-3 xs:px-4"
+            className="min-h-[44px] px-3 sm:px-4"
             data-testid="button-new-candidate"
             onClick={() => {
               const canCreate = user && [
@@ -616,8 +616,8 @@ export default function Dashboard() {
               }
             }}
           >
-            <Plus className="w-4 h-4 xs:mr-2" />
-            <span className="hidden xs:inline">New Candidate</span>
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">New Candidate</span>
           </Button>
         </div>
       </div>
