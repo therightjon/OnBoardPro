@@ -34,20 +34,20 @@ export function SettingsSection({
   "data-testid": testId,
 }: SettingsSectionProps) {
   return (
-    <Card className={cn("", className)} data-testid={testId}>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div className="space-y-1">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            {Icon && <Icon className="h-5 w-5" />}
+    <Card className={cn("overflow-hidden", className)} data-testid={testId}>
+      <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+        <div className="space-y-1 min-w-0">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            {Icon && <Icon className="h-5 w-5 shrink-0" />}
             {title}
           </CardTitle>
           {description && (
-            <CardDescription>{description}</CardDescription>
+            <CardDescription className="text-sm">{description}</CardDescription>
           )}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent className="min-w-0">{children}</CardContent>
     </Card>
   );
 }

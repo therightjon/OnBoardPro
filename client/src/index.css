@@ -132,9 +132,14 @@
     height: 100%;
   }
 
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
     overflow-x: hidden; /* Prevent horizontal scroll on mobile */
+    overflow-y: scroll; /* Stabilize layout width when content height changes */
   }
 
   main {

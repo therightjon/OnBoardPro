@@ -9,15 +9,14 @@
  */
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
-import { 
-  Settings as SettingsIcon, 
+import { Card, CardContent } from "@/shared/components/ui/card";
+import {
+  Settings as SettingsIcon,
   User,
-  Shield,
   Building,
   Users,
   Target,
-  Key,
-  Mail
+  Key
 } from "lucide-react";
 
 // Personal Settings Components
@@ -116,26 +115,17 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const canAccessSystemSettings = useSystemAdminAccess();
 
-  // Calculate grid columns based on available tabs
-  const systemTabCount = canAccessSystemSettings ? 5 : 0; // org, users, hiring, auth, system
-  const totalTabs = 1 + systemTabCount; // personal + system tabs (if admin)
-  
-  const getGridCols = () => {
-    if (!canAccessSystemSettings) return "grid-cols-1";
-    return "grid-cols-2 md:grid-cols-6";
-  };
-
   return (
-    <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
       {/* Page Header */}
-      <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
-        <div className="min-w-0">
-          <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-foreground" data-testid="text-settings-title">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground" data-testid="text-settings-title">
             Settings
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            {canAccessSystemSettings 
-              ? "Manage your preferences and organization settings" 
+          <p className="text-sm text-muted-foreground">
+            {canAccessSystemSettings
+              ? "Manage your preferences and organization settings"
               : "Manage your personal preferences"
             }
           </p>
@@ -143,60 +133,88 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="personal" className="w-full">
-        <TabsList className={`grid w-full gap-2 h-auto items-start ${getGridCols()}`}>
-          {/* Personal Settings - Always visible */}
-          <TabsTrigger value="personal" data-testid="tab-personal" className="w-full">
-            <User className="w-4 h-4 mr-2" />
-            Personal
-          </TabsTrigger>
+        <Card>
+          <CardContent className="p-3 sm:p-4">
+            <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent p-0 sm:inline-flex sm:flex-nowrap sm:bg-muted sm:p-1 sm:gap-0">
+              {/* Personal Settings - Always visible */}
+              <TabsTrigger
+                value="personal"
+                data-testid="tab-personal"
+                className="capitalize text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-background data-[state=active]:shadow-sm border border-border sm:border-0"
+              >
+                <User className="w-4 h-4 mr-1.5 shrink-0" />
+                Personal
+              </TabsTrigger>
 
-          {/* System Settings - Only for admins */}
-          {canAccessSystemSettings && (
-            <>
-              <TabsTrigger value="organization" data-testid="tab-organization" className="w-full">
-                <Building className="w-4 h-4 mr-2" />
-                Organization
-              </TabsTrigger>
-              <TabsTrigger value="users" data-testid="tab-users" className="w-full">
-                <Users className="w-4 h-4 mr-2" />
-                Users
-              </TabsTrigger>
-              <TabsTrigger value="hiring-stages" data-testid="tab-hiring-stages" className="w-full">
-                <Target className="w-4 h-4 mr-2" />
-                Hiring
-              </TabsTrigger>
-              <TabsTrigger value="authentication" data-testid="tab-authentication" className="w-full">
-                <Key className="w-4 h-4 mr-2" />
-                Authentication
-              </TabsTrigger>
-              <TabsTrigger value="system" data-testid="tab-system" className="w-full">
-                <SettingsIcon className="w-4 h-4 mr-2" />
-                System
-              </TabsTrigger>
-            </>
-          )}
-        </TabsList>
+              {/* System Settings - Only for admins */}
+              {canAccessSystemSettings && (
+                <>
+                  <TabsTrigger
+                    value="organization"
+                    data-testid="tab-organization"
+                    className="capitalize text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-background data-[state=active]:shadow-sm border border-border sm:border-0"
+                  >
+                    <Building className="w-4 h-4 mr-1.5 shrink-0" />
+                    Organization
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="users"
+                    data-testid="tab-users"
+                    className="capitalize text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-background data-[state=active]:shadow-sm border border-border sm:border-0"
+                  >
+                    <Users className="w-4 h-4 mr-1.5 shrink-0" />
+                    Users
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="hiring-stages"
+                    data-testid="tab-hiring-stages"
+                    className="capitalize text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-background data-[state=active]:shadow-sm border border-border sm:border-0"
+                  >
+                    <Target className="w-4 h-4 mr-1.5 shrink-0" />
+                    Hiring
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="authentication"
+                    data-testid="tab-authentication"
+                    className="capitalize text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-background data-[state=active]:shadow-sm border border-border sm:border-0"
+                  >
+                    <Key className="w-4 h-4 mr-1.5 shrink-0" />
+                    Authentication
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="system"
+                    data-testid="tab-system"
+                    className="capitalize text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-background data-[state=active]:shadow-sm border border-border sm:border-0"
+                  >
+                    <SettingsIcon className="w-4 h-4 mr-1.5 shrink-0" />
+                    System
+                  </TabsTrigger>
+                </>
+              )}
+            </TabsList>
+          </CardContent>
+        </Card>
 
         {/* Tab Contents */}
-        <TabsContent value="personal" className="mt-6">
+        <TabsContent value="personal" className="mt-6 min-h-[70vh]">
           <PersonalSettingsTab />
         </TabsContent>
 
         {canAccessSystemSettings && (
           <>
-            <TabsContent value="organization" className="mt-6">
+            <TabsContent value="organization" className="mt-6 min-h-[70vh]">
               <OrganizationTab />
             </TabsContent>
-            <TabsContent value="users" className="mt-6">
+            <TabsContent value="users" className="mt-6 min-h-[70vh]">
               <UsersTab />
             </TabsContent>
-            <TabsContent value="hiring-stages" className="mt-6">
+            <TabsContent value="hiring-stages" className="mt-6 min-h-[70vh]">
               <HiringStagesTab />
             </TabsContent>
-            <TabsContent value="authentication" className="mt-6">
+            <TabsContent value="authentication" className="mt-6 min-h-[70vh]">
               <AuthenticationTab />
             </TabsContent>
-            <TabsContent value="system" className="mt-6">
+            <TabsContent value="system" className="mt-6 min-h-[70vh]">
               <SystemTab />
             </TabsContent>
           </>

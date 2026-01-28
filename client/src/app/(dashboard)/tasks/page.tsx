@@ -242,14 +242,14 @@ export default function TasksPage() {
     <RouteGuard allowedRoles={["system_admin", "hr_staff"]}>
       <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
           <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-foreground" data-testid="text-tasks-title">Task Library</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Manage library of reusable task definitions</p>
         </div>
         <Dialog open={isNewTaskDefDialogOpen} onOpenChange={setIsNewTaskDefDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full xs:w-auto" data-testid="button-new-task-definition">
+            <Button className="w-full sm:w-auto" data-testid="button-new-task-definition">
               <Plus className="w-4 h-4 mr-2" />
               New Task
             </Button>

@@ -307,9 +307,9 @@ export function DivisionsSection() {
               />
             </div>
           </div>
-          <div className="flex gap-4 flex-wrap">
+          <div className="flex flex-col sm:flex-row gap-4">
             <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-              <SelectTrigger className="w-[180px]" data-testid="select-division-department-filter">
+              <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-division-department-filter">
                 <SelectValue placeholder="Filter by department" />
               </SelectTrigger>
               <SelectContent>
@@ -322,7 +322,7 @@ export function DivisionsSection() {
               </SelectContent>
             </Select>
             <Select value={archiveFilter} onValueChange={setArchiveFilter}>
-              <SelectTrigger className="w-[160px]" data-testid="select-division-archive-filter">
+              <SelectTrigger className="w-full sm:w-[160px]" data-testid="select-division-archive-filter">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -441,7 +441,7 @@ export function DivisionsSection() {
             </div>
 
             {/* Mobile Cards */}
-            <div className="space-y-3 p-4 md:hidden">
+            <div className="space-y-3 md:hidden">
               {displayDivisions.map((div) => (
                 <div key={div.id} className="p-4 border rounded-lg" data-testid={`card-division-${div.id}`}>
                   <div className="flex items-start justify-between gap-2">

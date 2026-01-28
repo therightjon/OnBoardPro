@@ -68,12 +68,12 @@ export function TemplateStatusControl({ templateId, value, canEdit }: TemplateSt
 
   return (
     <>
-      <Select 
-        value={value} 
-        onValueChange={onChange} 
+      <Select
+        value={value}
+        onValueChange={onChange}
         disabled={!canEdit || mutate.isPending}
       >
-        <SelectTrigger className="w-36" data-testid="template-status-select">
+        <SelectTrigger className="w-full sm:w-36" data-testid="template-status-select">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>

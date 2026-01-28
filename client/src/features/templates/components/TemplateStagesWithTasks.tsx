@@ -232,11 +232,11 @@ export function TemplateStagesWithTasks({
     
     return (
       <div key={phaseKey} className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
             {phaseLabel}
           </h3>
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-xs w-fit">
             {phaseStages.length} {phaseStages.length === 1 ? "stage" : "stages"}
           </Badge>
         </div>
@@ -270,34 +270,40 @@ export function TemplateStagesWithTasks({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Template Stages & Tasks</h2>
-        <div className="flex items-center gap-2">
+    <div className="space-y-6 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 min-w-0">
+        <h2 className="text-base sm:text-lg font-semibold min-w-0">
+          Template Stages & Tasks
+        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto min-w-0">
           <Button
             variant="default"
             size="sm"
+            className="w-full sm:w-auto"
             onClick={onAddStage}
             data-testid="button-add-template-stage"
           >
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-4 w-4 shrink-0" />
             Add Stage
           </Button>
           {stages.length > 0 && (
             <Button
               variant="outline"
               size="sm"
+              className="w-full sm:w-auto"
               onClick={allExpandedToggle}
             >
               {expandedStageIds.size === stages.length ? (
                 <>
-                  <ChevronUp className="mr-2 h-4 w-4" />
-                  Collapse All
+                  <ChevronUp className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">Collapse All</span>
+                  <span className="sm:hidden">Collapse</span>
                 </>
               ) : (
                 <>
-                  <ChevronDown className="mr-2 h-4 w-4" />
-                  Expand All
+                  <ChevronDown className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">Expand All</span>
+                  <span className="sm:hidden">Expand</span>
                 </>
               )}
             </Button>
