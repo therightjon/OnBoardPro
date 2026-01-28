@@ -1392,7 +1392,7 @@ export const openApiSpec: OpenAPIV3.Document = {
       patch: {
         tags: ['Task Management'],
         summary: 'Update task',
-        description: 'Updates task properties. Can be done by privileged roles or task assignee.',
+        description: 'Updates task properties. Can be done by privileged roles or the task assignee (assignees cannot change assigneeUserId).',
         operationId: 'updateTask',
         parameters: [
           {
