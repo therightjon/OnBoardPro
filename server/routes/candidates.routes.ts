@@ -44,6 +44,10 @@ import { CandidateValidationError } from "../services/candidates/candidate.servi
 import { shouldAutoApplyTemplate } from "../utils/hiring-phase.utils";
 import { publishTemplateTaskCreatedEvents } from "../utils/template-event.utils";
 import { logger } from "../utils/logger";
+import {
+  advanceStageIfComplete,
+  recomputeCandidateStageState
+} from "../features/tasks/services/advance-stage.service";
 
 const router = Router();
 
@@ -464,6 +468,9 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
 
     // NEW: Auto-apply template if LOO is accepted at creation time
     let templateExpansionResult = null;
+    let autoAdvanceResult: any = null;
+    let autoRecomputeResult: any = null;
+    let autoAdvanceCandidate: any = null;
     if (candidate.offerLetterAcceptedAt && candidate.templateAppliedFromId) {
       try {
         logger.debug('Auto-applying template on candidate creation with LOO accepted', {
@@ -715,6 +722,92 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
       }
     }
 
+    // Integration concerns: Auto-complete "Send Offer Letter" after LOO acceptance and/or template expansion
+    const didAcceptLoo = !previousCandidate.offerLetterAcceptedAt && !!fullCandidate.offerLetterAcceptedAt;
+    const shouldAutoCompleteOfferTask = !!fullCandidate.offerLetterAcceptedAt && (templateExpansionResult || didAcceptLoo);
+    if (shouldAutoCompleteOfferTask) {
+      try {
+        const taskService = getTaskService();
+        const targetTitle = "send offer letter";
+        const normalizeTitle = (value?: string | null) => (value ?? "").trim().toLowerCase();
+
+        const createdTasks = templateExpansionResult?.createdTasks ?? [];
+        const createdMatches = createdTasks.filter(
+          (task) =>
+            normalizeTitle(task.title) === targetTitle &&
+            task.status !== 'done' &&
+            task.status !== 'canceled'
+        );
+
+        const tasksToComplete = createdMatches.length > 0
+          ? createdMatches
+          : (await taskService.getTasks({ candidateId: fullCandidate.id })).filter((task: any) =>
+              normalizeTitle(task.title) === targetTitle &&
+              task.status !== 'done' &&
+              task.status !== 'canceled'
+            );
+
+        if (tasksToComplete.length > 0) {
+          await Promise.all(
+            tasksToComplete.map(async (task: any) => {
+              if (req.user?.id && !task.assigneeUserId) {
+                await taskService.assignTask({
+                  taskId: task.id,
+                  assigneeUserId: req.user.id,
+                  actorId: req.user.id
+                });
+              }
+              await taskService.completeTask(task.id, req.user?.id);
+            })
+          );
+          logger.debug('Auto-completed Send Offer Letter task(s)', {
+            candidateId: fullCandidate.id,
+            count: tasksToComplete.length
+          });
+
+          try {
+            autoRecomputeResult = await recomputeCandidateStageState({
+              candidateId: fullCandidate.id,
+              invokerUserId: req.user!.id
+            });
+
+            autoAdvanceResult = await advanceStageIfComplete({
+              candidateId: fullCandidate.id,
+              invokerUserId: req.user!.id
+            });
+
+            if (autoAdvanceResult.advanced) {
+              const updatedCandidate = await candidateService.getCandidate(fullCandidate.id, authContext);
+              try {
+                await eventBus.publish(candidateStageChanged(fullCandidate.id, {
+                  previousStageId: autoAdvanceResult.fromStageId ?? null,
+                  newStageId: autoAdvanceResult.toStageId ?? null,
+                  stageName: autoAdvanceResult.toStageName || 'Unknown',
+                  automated: true
+                }, {
+                  actorId: req.user?.id
+                }));
+              } catch (notifyError) {
+                logger.error('Failed to notify stage change', notifyError);
+              }
+
+              if (updatedCandidate) {
+                autoAdvanceCandidate = updatedCandidate;
+                logger.debug('Candidate advanced after auto-completing Send Offer Letter', {
+                  candidateId: fullCandidate.id,
+                  toStageName: autoAdvanceResult.toStageName
+                });
+              }
+            }
+          } catch (advanceError) {
+            logger.error('Failed to recompute/advance stage after auto-completing Send Offer Letter', advanceError);
+          }
+        }
+      } catch (autoCompleteError) {
+        logger.error('Failed to auto-complete Send Offer Letter task(s)', autoCompleteError);
+      }
+    }
+
     // Integration concerns: Emit owner changed notification
     if (previousCandidate.primaryOwnerId !== fullCandidate.primaryOwnerId) {
       await emitOwnerChanged({
@@ -755,6 +848,14 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
         responseCandidate = refreshed;
       }
     }
+    if (autoAdvanceCandidate) {
+      responseCandidate = autoAdvanceCandidate;
+    } else if (autoRecomputeResult?.updated) {
+      const refreshed = await candidateService.getCandidate(req.params.id, authContext);
+      if (refreshed) {
+        responseCandidate = refreshed;
+      }
+    }
 
     // Include template expansion info in response if it occurred
     const response = templateExpansionResult 
@@ -764,6 +865,13 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
           tasksCreated: templateExpansionResult.createdCount 
         }
       : responseCandidate;
+
+    if (autoAdvanceResult) {
+      (response as any).advancement = autoAdvanceResult;
+    }
+    if (autoRecomputeResult) {
+      (response as any).recompute = autoRecomputeResult;
+    }
 
     res.json(response);
   } catch (error) {

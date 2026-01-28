@@ -7,7 +7,7 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { invalidateMyTasks } from "@/lib/query-invalidate";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -274,6 +274,30 @@ export default function CandidateDetailPage() {
     [candidateTasks, orderMap]
   );
 
+  const taskOrderRef = useRef<Map<string, number>>(new Map());
+  const taskOrderCounterRef = useRef(0);
+  const taskOrderMap = useMemo(() => {
+    const map = new Map(taskOrderRef.current);
+    let counter = taskOrderCounterRef.current;
+    const currentIds = new Set<string>();
+
+    (tasksWithOrder as any[]).forEach((task: any) => {
+      if (!task?.id) return;
+      currentIds.add(task.id);
+      if (!map.has(task.id)) {
+        map.set(task.id, counter++);
+      }
+    });
+
+    for (const id of map.keys()) {
+      if (!currentIds.has(id)) map.delete(id);
+    }
+
+    taskOrderRef.current = map;
+    taskOrderCounterRef.current = counter;
+    return map;
+  }, [tasksWithOrder]);
+
   // Calculate incomplete prerequisite tasks count
   const incompletePrerequisiteTaskCount = useMemo(() => {
     return tasksWithOrder.filter((t: any) =>
@@ -417,16 +441,20 @@ export default function CandidateDetailPage() {
       .sort((a, b) => a.order - b.order)
       .reduce((acc: any, group) => {
         // Sort tasks within group by due date
+        const getStableOrder = (task: any) => taskOrderMap.get(task?.id) ?? Number.MAX_SAFE_INTEGER;
         const sortedTasks = group.items.sort((a: any, b: any) => {
-          if (!a.dueAt && !b.dueAt) return 0;
-          if (!a.dueAt) return 1;
-          if (!b.dueAt) return -1;
-          return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
+          const aDue = a.dueAt ? new Date(a.dueAt).getTime() : null;
+          const bDue = b.dueAt ? new Date(b.dueAt).getTime() : null;
+          if (aDue === null && bDue === null) return getStableOrder(a) - getStableOrder(b);
+          if (aDue === null) return 1;
+          if (bDue === null) return -1;
+          if (aDue !== bDue) return aDue - bDue;
+          return getStableOrder(a) - getStableOrder(b);
         });
         acc[group.name] = sortedTasks;
         return acc;
       }, {});
-  }, [tasksWithOrder, candidateStages]);
+  }, [tasksWithOrder, candidateStages, taskOrderMap]);
 
   // Compute onboarding completion: all tasks are either done or canceled
   // Exclude prerequisite tasks from completion calculation as they are pre-LOO requirements
@@ -703,16 +731,16 @@ export default function CandidateDetailPage() {
     <div className="space-y-3 xs:space-y-4 sm:space-y-6 max-w-none xs:max-w-[350px] sm:max-w-4xl lg:max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-        <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-4 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
           <Link href="/candidates">
-            <Button variant="ghost" size="sm" className="min-h-[44px] w-full xs:w-auto" data-testid="button-back">
-              <ArrowLeft className="w-4 h-4 xs:mr-2" />
-              <span className="hidden xs:inline">Back to Candidates</span>
-              <span className="inline xs:hidden">Candidates</span>
+            <Button variant="ghost" size="sm" className="min-h-[44px] w-full sm:w-auto" data-testid="button-back">
+              <ArrowLeft className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Back to Candidates</span>
+              <span className="inline sm:hidden">Candidates</span>
             </Button>
           </Link>
         </div>
-        <div className="flex flex-wrap items-center gap-2 xs:gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <EditableStatusBadge 
             candidate={candidate} 
             user={user} 
@@ -736,13 +764,13 @@ export default function CandidateDetailPage() {
             <>
               <Button 
                 onClick={() => setIsEditDialogOpen(true)}
-                className="min-h-[44px] w-full xs:w-auto"
+                className="min-h-[44px] w-full sm:w-auto"
                 data-testid="button-edit-candidate"
                 disabled={(candidate as any).status === 'completed'}
                 title={(candidate as any).status === 'completed' ? 'Profile is locked after completion' : undefined}
               >
-                <Edit className="w-4 h-4 xs:mr-2" />
-                <span className="hidden xs:inline">Edit</span>
+                <Edit className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Edit</span>
               </Button>
               
               <DropdownMenu>
@@ -1131,6 +1159,7 @@ export default function CandidateDetailPage() {
                                       candidateId={(candidate as any).id}
                                       value={task.status}
                                       disabled={taskStatusDisabled}
+                                      isUnassigned={!task.assigneeUserId && !task.assignee?.id}
                                     />
                                   </div>
                                 </div>
@@ -1138,8 +1167,8 @@ export default function CandidateDetailPage() {
                                   <p className="text-xs xs:text-sm text-muted-foreground mb-2 break-words">{task.description}</p>
                                 )}
                                 <div className="flex flex-col gap-2 text-xs xs:text-sm text-muted-foreground">
-                                  <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
-                                    <div className="flex flex-col xs:flex-row xs:flex-wrap gap-2 xs:gap-x-4 xs:gap-y-1 xs:items-center">
+                                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
+                                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-x-4 sm:gap-y-1 sm:items-center">
                                       <span>Priority: {task.priority?.toUpperCase()}</span>
                                       <div className="flex items-center gap-2 min-w-[180px]">
                                         <span className="text-muted-foreground">Assignee:</span>
@@ -1148,7 +1177,7 @@ export default function CandidateDetailPage() {
                                             {getAssigneeDisplayName(task)}
                                           </span>
                                         ) : (
-                                          <div className="w-[170px] xs:w-[200px]">
+                                          <div className="w-[170px] sm:w-[200px]">
                                             <AutoSelectCombobox
                                               label="Assignee"
                                               labelClassName="sr-only"
@@ -1181,7 +1210,7 @@ export default function CandidateDetailPage() {
                                         )}
                                       </div>
                                     </div>
-                                    <span className="xs:ml-auto">
+                                    <span className="sm:ml-auto">
                                       {task.pendingAnchor
                                         ? 'Awaiting anchor date'
                                         : task.dueAt

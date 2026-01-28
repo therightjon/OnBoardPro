@@ -207,7 +207,7 @@ function DepartmentTable({
       </div>
 
       {/* Mobile Cards */}
-      <div className="space-y-3 p-4 md:hidden">
+      <div className="space-y-3 md:hidden">
         {displayDepts.map((dept) => (
           <div key={dept.id} className="p-4 border rounded-lg" data-testid={`card-department-${dept.id}`}>
             <div className="flex items-start justify-between gap-2">
@@ -453,7 +453,7 @@ export function DepartmentsSection() {
             </div>
           </div>
           <Select value={archiveFilter} onValueChange={setArchiveFilter}>
-            <SelectTrigger className="w-[180px]" data-testid="select-department-archive-filter">
+            <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-department-archive-filter">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>

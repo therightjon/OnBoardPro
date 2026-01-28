@@ -127,11 +127,11 @@ export function UserPreferencesCard() {
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <ListTodo className="h-5 w-5" />
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <ListTodo className="h-5 w-5 shrink-0" />
             My Tasks Preferences
           </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -144,11 +144,12 @@ export function UserPreferencesCard() {
           size="sm"
           onClick={handleRestoreDefaults}
           disabled={disableAllControls}
+          className="shrink-0"
         >
           Restore defaults
         </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 min-w-0">
         {isError && (
           <div className="rounded-md border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
             Failed to load preferences: {error instanceof Error ? error.message : "Unknown error"}

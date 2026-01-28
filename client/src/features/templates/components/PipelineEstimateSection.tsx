@@ -100,14 +100,14 @@ export function PipelineEstimateSection({
   };
 
   return (
-    <Card className="mb-6">
+    <Card className="mb-6 overflow-hidden">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="w-5 h-5" />
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+          <Calendar className="w-5 h-5 shrink-0" />
           Pipeline Duration Estimate
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 min-w-0">
         {/* Configuration */}
         <div className="flex flex-col sm:flex-row gap-4 pb-4 border-b">
           <div className="flex-1">
@@ -173,7 +173,7 @@ export function PipelineEstimateSection({
             {estimate.leadTimes && (estimate.leadTimes.loi > 0 || estimate.leadTimes.loo > 0 || estimate.leadTimes.looIssued > 0 || estimate.leadTimes.looAccepted > 0 || estimate.leadTimes.start > 0) && (
               <div>
                 <h4 className="font-medium mb-3 text-foreground">Required Lead Times</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                   {estimate.leadTimes.loi > 0 && (
                     <div className="p-3 rounded border bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
                       <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
@@ -397,7 +397,7 @@ export function PipelineEstimateSection({
             )}
 
             {missingAnchorTasks.length > 0 && (
-              <div className="border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-900/30 rounded-lg p-3">
+              <div className="border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-900/30 rounded-lg p-3 overflow-hidden">
                 <h4 className="font-medium text-amber-700 dark:text-amber-400 mb-2">
                   Tasks waiting on anchors
                 </h4>
@@ -408,14 +408,16 @@ export function PipelineEstimateSection({
                     const taskName = templateTask ? getTaskDefinitionName(templateTask.taskDefId) : fallbackName;
                     const anchorLabel = item.missingAnchor === 'loo' ? 'LOO anchor' : item.missingAnchor === 'start' ? 'Start anchor' : 'Anchor';
                     return (
-                      <div key={item.taskId ?? index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                        <span>
+                      <div key={item.taskId ?? index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 min-w-0">
+                        <span className="min-w-0 break-words">
                           {taskName}
                           {item.stageName ? (
-                            <span className="ml-2 text-xs text-muted-foreground">({item.stageName})</span>
+                            <span className="ml-1 text-xs text-muted-foreground">({item.stageName})</span>
                           ) : null}
                         </span>
-                        <span className="text-xs font-medium uppercase tracking-wide text-amber-600 dark:text-amber-300">{anchorLabel}</span>
+                        <span className="text-xs font-medium uppercase tracking-wide text-amber-600 dark:text-amber-300">
+                          {anchorLabel}
+                        </span>
                       </div>
                     );
                   })}
@@ -425,7 +427,7 @@ export function PipelineEstimateSection({
 
             {/* Non-Estimable Tasks */}
             {otherNonEstimableTasks.length > 0 && (
-              <div>
+              <div className="overflow-hidden">
                 <h4 className="font-medium mb-2 text-amber-700 dark:text-amber-400">
                   Tasks Not Included in Estimate
                 </h4>
@@ -436,17 +438,19 @@ export function PipelineEstimateSection({
                     const taskName = templateTask ? getTaskDefinitionName(templateTask.taskDefId) : fallbackName;
                     const reasonText = formatNonEstimableReason(item);
                     return (
-                      <div key={item.taskId ?? index} className="flex justify-between">
-                        <span>
-                          {taskName}
-                          {item.stageName ? (
-                            <span className="ml-2 text-xs text-muted-foreground">({item.stageName})</span>
-                          ) : null}
-                        </span>
-                        <span className="italic text-right">{reasonText}</span>
-                      </div>
-                    );
-                  })}
+                    <div key={item.taskId ?? index} className="flex flex-col sm:flex-row sm:justify-between gap-1 min-w-0">
+                      <span className="min-w-0 break-words">
+                        {taskName}
+                        {item.stageName ? (
+                          <span className="ml-1 text-xs text-muted-foreground">({item.stageName})</span>
+                        ) : null}
+                      </span>
+                      <span className="min-w-0 max-w-full break-words italic sm:text-right">
+                        {reasonText}
+                      </span>
+                    </div>
+                  );
+                })}
                 </div>
               </div>
             )}

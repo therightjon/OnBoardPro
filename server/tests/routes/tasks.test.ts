@@ -291,6 +291,28 @@ describe("Task API - Update Operations", () => {
     );
   });
 
+  test("status change auto assigns unassigned task to actor", async (t) => {
+    const { agent, fixtures, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
+
+    const existing = await storage.getTask(fixtures.tasks.alphaTask);
+    assert.ok(existing, "Expected task fixture to exist");
+
+    storage.data.candidateTasks.set(fixtures.tasks.alphaTask, {
+      ...existing,
+      assigneeUserId: null,
+      assigneeKind: 'user',
+      assigneeResolvedAt: null
+    });
+
+    const response = await agent
+      .patch(`/api/tasks/${fixtures.tasks.alphaTask}`)
+      .send({ status: "in_progress" })
+      .expect(200);
+
+    assert.equal(response.body.status, "in_progress");
+    assert.equal(response.body.assigneeUserId, AUTH_FIXTURE_IDS.users.hrStaff);
+  });
+
   test("manager can update status of assigned tasks", async (t) => {
     const { agent, fixtures, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.manager);
 

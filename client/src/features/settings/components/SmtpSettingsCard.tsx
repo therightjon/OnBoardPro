@@ -235,23 +235,24 @@ export function SmtpSettingsCard() {
   const loadingState = isLoading || !initialSettings;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Mail className="h-5 w-5" />
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Mail className="h-5 w-5 shrink-0" />
             SMTP Email Delivery
           </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
             Configure outgoing SMTP notifications. Settings apply to both immediate alerts and scheduled digests.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <ShieldCheck className="h-4 w-4" />
-          Passwords are envelope-encrypted with AES-256-GCM.
+        <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+          <ShieldCheck className="h-4 w-4 shrink-0" />
+          <span className="hidden sm:inline">Passwords are envelope-encrypted with AES-256-GCM.</span>
+          <span className="sm:hidden">AES-256-GCM encrypted</span>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 min-w-0">
         {isError ? (
           <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
             {error instanceof Error ? error.message : "Failed to load SMTP settings"}

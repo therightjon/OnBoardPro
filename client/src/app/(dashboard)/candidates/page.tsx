@@ -272,7 +272,7 @@ const formatLooAge = (isoDate?: string | null) => {
   return (
     <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
           <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-foreground" data-testid="text-candidates-title">Candidates</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Manage and track all hiring candidates</p>
@@ -280,11 +280,11 @@ const formatLooAge = (isoDate?: string | null) => {
         {user && ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"].includes(user.role) && (
           <Button 
             onClick={() => setIsNewCandidateDialogOpen(true)} 
-            className="min-h-[44px] w-full xs:w-auto"
+            className="min-h-[44px] w-full sm:w-auto"
             data-testid="button-new-candidate"
           >
-            <Plus className="w-4 h-4 xs:mr-2" />
-            <span className="hidden xs:inline">New </span>Candidate
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">New </span>Candidate
           </Button>
         )}
       </div>
@@ -312,9 +312,9 @@ const formatLooAge = (isoDate?: string | null) => {
             </div>
             
             {/* Filters row */}
-            <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
+            <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 sm:gap-3">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full xs:w-auto sm:w-[160px] min-h-[44px]" data-testid="select-status-filter">
+                <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]" data-testid="select-status-filter">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -328,7 +328,7 @@ const formatLooAge = (isoDate?: string | null) => {
               </Select>
               
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-full xs:w-auto sm:w-[160px] min-h-[44px]" data-testid="select-type-filter">
+                <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]" data-testid="select-type-filter">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -342,7 +342,7 @@ const formatLooAge = (isoDate?: string | null) => {
               </Select>
               
               <Select value={stageFilter} onValueChange={setStageFilter}>
-                <SelectTrigger className="w-full xs:w-auto sm:w-[160px] min-h-[44px]" data-testid="select-stage-filter">
+                <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]" data-testid="select-stage-filter">
                   <SelectValue placeholder="Stage" />
                 </SelectTrigger>
                 <SelectContent>
@@ -357,7 +357,7 @@ const formatLooAge = (isoDate?: string | null) => {
               </Select>
 
               <Select value={phaseFilter} onValueChange={setPhaseFilter}>
-                <SelectTrigger className="w-full xs:w-auto sm:w-[160px] min-h-[44px]" data-testid="select-phase-filter">
+                <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]" data-testid="select-phase-filter">
                   <SelectValue placeholder="Phase (open tasks)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -369,7 +369,7 @@ const formatLooAge = (isoDate?: string | null) => {
             </div>
             
             {/* Toggle Switches */}
-            <div className="flex flex-col xs:flex-row flex-wrap gap-3 xs:gap-4">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
               <div className="flex items-center space-x-2">
                 <Switch 
                   id="show-archived"

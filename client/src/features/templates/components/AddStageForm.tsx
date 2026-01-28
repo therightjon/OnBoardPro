@@ -261,7 +261,7 @@ export function AddStageForm({
       {selectedTaskIds.length > 0 && (
         <div className="border-t pt-4">
           <h4 className="text-sm font-medium mb-3">Default Due Date Settings (applied to all tasks)</h4>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium mb-1">Due Rule Type</label>
               <Select

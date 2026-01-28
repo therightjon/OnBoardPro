@@ -166,18 +166,18 @@ export function NotificationsCard() {
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Bell className="h-5 w-5" />
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Bell className="h-5 w-5 shrink-0" />
             Notifications
           </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
             Configure notification channels, digests, quiet hours, and per-event subscriptions.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 shrink-0">
           <Button
             type="button"
             variant="outline"
@@ -198,7 +198,7 @@ export function NotificationsCard() {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-8">
+      <CardContent className="space-y-8 min-w-0">
         {isError && (
           <div className="rounded-md border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
             Failed to load preferences: {error instanceof Error ? error.message : "Unknown error"}

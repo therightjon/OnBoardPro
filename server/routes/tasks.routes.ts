@@ -367,7 +367,9 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
     const existingTask = access.task;
     const candidate = access.candidate;
 
-    const canEdit = hasAnyRole(req.user, ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"]) || existingTask.assigneeUserId === req.user!.id;
+    const hasTaskAdminRole = hasAnyRole(req.user, ["system_admin", "hr_staff", "department_admin", "division_leader", "manager"]);
+    const isAssignee = existingTask.assigneeUserId === req.user!.id;
+    const canEdit = hasTaskAdminRole || isAssignee;
     if (!canEdit) {
       await logAuthorizationFailure({ req, resource: "task", resourceId: existingTask.id, action: "task:update", reason: "role_mismatch" });
       return res.status(403).json({ message: "Insufficient permissions to update this task" });
@@ -397,7 +399,20 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
       updateData.updatedBy = req.user!.id;
     }
 
+    const statusWasChanged = typeof updateData.status === 'string' && updateData.status !== existingTask.status;
+    const shouldAutoAssign = statusWasChanged &&
+      !existingTask.assigneeUserId &&
+      !Object.prototype.hasOwnProperty.call(updateData, 'assigneeUserId');
+
+    if (shouldAutoAssign) {
+      updateData.assigneeUserId = req.user!.id;
+    }
+
     if (Object.prototype.hasOwnProperty.call(updateData, 'assigneeUserId')) {
+      if (!hasTaskAdminRole && !shouldAutoAssign) {
+        await logAuthorizationFailure({ req, resource: "task", resourceId: existingTask.id, action: "task:assign", reason: "role_mismatch" });
+        return res.status(403).json({ message: "Insufficient permissions to change task assignee" });
+      }
       updateData.assigneeKind = updateData.assigneeUserId ? 'user' : 'user';
       updateData.assigneeRole = null;
       updateData.assigneeResolvedAt = updateData.assigneeUserId ? new Date() : null;
