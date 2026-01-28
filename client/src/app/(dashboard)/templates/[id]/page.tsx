@@ -431,17 +431,17 @@ export default function TemplateDetailPage() {
 
   return (
     <RouteGuard allowedRoles={["system_admin", "hr_staff"]}>
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-6 min-w-0">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
             <Link href="/templates">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
+              <Button variant="ghost" size="sm" className="w-fit">
+                <ArrowLeft className="w-4 h-4 mr-2 shrink-0" />
                 Back to Templates
               </Button>
             </Link>
-            <div>
+            <div className="min-w-0">
               {isEditingName ? (
                 <input
                   type="text"
@@ -449,13 +449,13 @@ export default function TemplateDetailPage() {
                   onChange={(e) => setEditableName(e.target.value)}
                   onBlur={handleNameSave}
                   onKeyDown={handleNameKeyDown}
-                  className="text-2xl font-bold text-foreground bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded px-1 -mx-1 w-full"
+                  className="text-xl sm:text-2xl font-bold text-foreground bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded px-1 -mx-1 w-full"
                   data-testid="input-template-name-edit"
                   autoFocus
                 />
               ) : (
-                <h1 
-                  className="text-2xl font-bold text-foreground cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1 transition-colors" 
+                <h1
+                  className="text-xl sm:text-2xl font-bold text-foreground cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1 transition-colors truncate"
                   onClick={handleNameClick}
                   data-testid="text-template-title"
                   title="Click to edit template name"
@@ -463,7 +463,7 @@ export default function TemplateDetailPage() {
                   {template.name}
                 </h1>
               )}
-              <p className="text-muted-foreground">Configure template tasks</p>
+              <p className="text-sm text-muted-foreground">Configure template tasks</p>
             </div>
           </div>
           <TemplateStatusControl
@@ -474,8 +474,8 @@ export default function TemplateDetailPage() {
         </div>
 
         {/* Template Info */}
-        <Card>
-          <CardContent className="pt-6">
+        <Card className="overflow-hidden">
+          <CardContent className="pt-6 min-w-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-1">Candidate Type</h3>
@@ -501,8 +501,8 @@ export default function TemplateDetailPage() {
         />
 
         {/* Template Stages & Tasks - Unified View */}
-        <Card>
-          <CardContent className="pt-6">
+        <Card className="overflow-hidden">
+          <CardContent className="pt-6 min-w-0">
             <TemplateStagesWithTasks
               templateId={templateId!}
               stages={templateStages.map(ts => {

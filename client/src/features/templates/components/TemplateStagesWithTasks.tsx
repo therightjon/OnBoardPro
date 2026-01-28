@@ -270,9 +270,9 @@ export function TemplateStagesWithTasks({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Template Stages & Tasks</h2>
+    <div className="space-y-6 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h2 className="text-base sm:text-lg font-semibold">Template Stages & Tasks</h2>
         <div className="flex items-center gap-2">
           <Button
             variant="default"
@@ -280,7 +280,7 @@ export function TemplateStagesWithTasks({
             onClick={onAddStage}
             data-testid="button-add-template-stage"
           >
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-4 w-4 shrink-0" />
             Add Stage
           </Button>
           {stages.length > 0 && (
@@ -291,13 +291,15 @@ export function TemplateStagesWithTasks({
             >
               {expandedStageIds.size === stages.length ? (
                 <>
-                  <ChevronUp className="mr-2 h-4 w-4" />
-                  Collapse All
+                  <ChevronUp className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="hidden xs:inline">Collapse All</span>
+                  <span className="xs:hidden">Collapse</span>
                 </>
               ) : (
                 <>
-                  <ChevronDown className="mr-2 h-4 w-4" />
-                  Expand All
+                  <ChevronDown className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="hidden xs:inline">Expand All</span>
+                  <span className="xs:hidden">Expand</span>
                 </>
               )}
             </Button>

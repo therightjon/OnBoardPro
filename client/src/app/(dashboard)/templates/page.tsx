@@ -360,14 +360,14 @@ export default function TemplatesPage() {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-3 xs:p-4 sm:p-4">
+      <Card className="overflow-hidden">
+        <CardContent className="p-3 xs:p-4 sm:p-4 min-w-0">
           <div className="flex items-center gap-2 mb-3 text-sm font-medium text-muted-foreground">
-            <Filter className="w-4 h-4" />
+            <Filter className="w-4 h-4 shrink-0" />
             <span>Filters</span>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
@@ -380,7 +380,7 @@ export default function TemplatesPage() {
               </div>
             </div>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[200px]" data-testid="select-type-filter">
+              <SelectTrigger className="w-full sm:w-[200px]" data-testid="select-type-filter">
                 <SelectValue placeholder="Filter by candidate type" />
               </SelectTrigger>
               <SelectContent>
@@ -397,8 +397,8 @@ export default function TemplatesPage() {
       </Card>
 
       {/* Templates Table (Desktop) */}
-      <Card className="hidden md:block">
-        <CardContent className="p-0">
+      <Card className="hidden md:block overflow-hidden">
+        <CardContent className="p-0 min-w-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -527,15 +527,15 @@ export default function TemplatesPage() {
       {/* Templates (Mobile Cards) */}
       <div className="space-y-3 md:hidden">
         {sortedTemplates.length === 0 ? (
-          <Card>
-            <CardContent className="p-4 text-center text-muted-foreground text-sm">
+          <Card className="overflow-hidden">
+            <CardContent className="p-4 text-center text-muted-foreground text-sm min-w-0">
               {templates.length === 0 ? "No templates found. Create your first template to get started." : "No templates found matching your criteria"}
             </CardContent>
           </Card>
         ) : (
           <>
           {paginatedTemplates.map((template: any) => (
-            <Card key={template.id} className="p-4" data-testid={`card-template-${template.id}`}>
+            <Card key={template.id} className="p-4 overflow-hidden" data-testid={`card-template-${template.id}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <h3 className="text-sm font-medium break-words">{template.name}</h3>

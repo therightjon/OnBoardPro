@@ -126,7 +126,7 @@ export function SortableStageCard({
         </div>
 
         <CollapsibleContent>
-          <div ref={setDroppableRef} className="mt-2 ml-8 mr-2 space-y-1 rounded-lg border bg-muted/20 p-3">
+          <div ref={setDroppableRef} className="mt-2 ml-4 sm:ml-8 mr-2 space-y-1 rounded-lg border bg-muted/20 p-2 sm:p-3 min-w-0">
             {tasks.length === 0 ? (
               <div className="text-center py-6 text-sm text-muted-foreground">
                 <p className="mb-3">No tasks in this stage</p>

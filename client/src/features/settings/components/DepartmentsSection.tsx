@@ -453,7 +453,7 @@ export function DepartmentsSection() {
             </div>
           </div>
           <Select value={archiveFilter} onValueChange={setArchiveFilter}>
-            <SelectTrigger className="w-[180px]" data-testid="select-department-archive-filter">
+            <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-department-archive-filter">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>

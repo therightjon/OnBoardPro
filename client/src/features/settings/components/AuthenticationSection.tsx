@@ -74,17 +74,17 @@ export function AuthenticationProvidersSection() {
 
   if (error) {
     return (
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Shield className="w-5 h-5 shrink-0" />
             Authentication Providers
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           <div className="flex items-center gap-2 text-destructive">
-            <AlertCircle className="h-4 w-4" />
-            <p>Failed to load authentication providers. Please try again later.</p>
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <p className="text-sm">Failed to load authentication providers. Please try again later.</p>
           </div>
         </CardContent>
       </Card>
@@ -92,17 +92,17 @@ export function AuthenticationProvidersSection() {
   }
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="w-5 h-5" />
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+          <Shield className="w-5 h-5 shrink-0" />
           Authentication Providers
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm">
           Manage authentication methods available to users. At least one provider must be enabled and configured.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-w-0">
         {isLoading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -307,18 +307,18 @@ export function LdapSettingsSection() {
   });
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Key className="w-5 h-5" />
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+          <Key className="w-5 h-5 shrink-0" />
           LDAP / Active Directory Settings
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm">
           Configure LDAP/Active Directory connection for enterprise authentication. Users can sign in with their username
           or email address. When using email, only the portion before @ is used for AD authentication.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 min-w-0">
         {isLoading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

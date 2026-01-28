@@ -80,7 +80,7 @@ export const SortableTaskRow = memo(function SortableTaskRow({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 rounded-md border bg-card p-2 hover:bg-accent/50 transition-colors"
+      className="flex items-center gap-1 sm:gap-2 rounded-md border bg-card p-2 hover:bg-accent/50 transition-colors min-w-0"
     >
       {/* Drag Handle */}
       <div
@@ -101,25 +101,26 @@ export const SortableTaskRow = memo(function SortableTaskRow({
         )}
       </div>
 
-      {/* Due Rule */}
-      <div className="text-xs text-muted-foreground flex-shrink-0">
+      {/* Due Rule - hidden on very small screens */}
+      <div className="hidden xs:block text-xs text-muted-foreground flex-shrink-0">
         {dueRuleText}
       </div>
 
-      {/* Priority */}
+      {/* Priority - hidden on very small screens */}
       {priorityName && (
-        <Badge variant="secondary" className="flex-shrink-0 text-xs">
+        <Badge variant="secondary" className="hidden sm:flex flex-shrink-0 text-xs">
           {priorityName}
         </Badge>
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
         <Button
           variant="ghost"
           size="sm"
           onClick={onEdit}
           title="Edit task"
+          className="h-8 w-8 p-0 sm:h-auto sm:w-auto sm:p-2"
         >
           <Edit className="h-3.5 w-3.5" />
         </Button>
@@ -128,6 +129,7 @@ export const SortableTaskRow = memo(function SortableTaskRow({
           size="sm"
           onClick={onDelete}
           title="Delete task"
+          className="h-8 w-8 p-0 sm:h-auto sm:w-auto sm:p-2"
         >
           <Trash2 className="h-3.5 w-3.5 text-destructive" />
         </Button>

@@ -100,14 +100,14 @@ export function PipelineEstimateSection({
   };
 
   return (
-    <Card className="mb-6">
+    <Card className="mb-6 overflow-hidden">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="w-5 h-5" />
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+          <Calendar className="w-5 h-5 shrink-0" />
           Pipeline Duration Estimate
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 min-w-0">
         {/* Configuration */}
         <div className="flex flex-col sm:flex-row gap-4 pb-4 border-b">
           <div className="flex-1">

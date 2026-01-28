@@ -539,9 +539,9 @@ export function UsersSection() {
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle className="flex items-center">
-              <Users className="w-4 h-4 mr-2" />
+              <Users className="w-4 h-4 mr-2 shrink-0" />
               User Management
             </CardTitle>
             <div className="flex items-center gap-2">
@@ -880,7 +880,7 @@ export function UsersSection() {
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <Select value={userStatusFilter} onValueChange={setUserStatusFilter}>
-                <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
+                <SelectTrigger className="w-full sm:w-[140px]" data-testid="select-status-filter">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -891,7 +891,7 @@ export function UsersSection() {
                 </SelectContent>
               </Select>
               <Select value={userRoleFilter} onValueChange={setUserRoleFilter}>
-                <SelectTrigger className="w-[140px]" data-testid="select-role-filter">
+                <SelectTrigger className="w-full sm:w-[140px]" data-testid="select-role-filter">
                   <SelectValue placeholder="All Roles" />
                 </SelectTrigger>
                 <SelectContent>
