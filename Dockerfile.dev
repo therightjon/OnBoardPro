@@ -1,0 +1,19 @@
+FROM node:20
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Install all dependencies (including devDependencies)
+RUN npm ci
+
+# Copy config files needed for dev server
+COPY tsconfig.json vite.config.ts drizzle.config.ts tailwind.config.ts postcss.config.js components.json ./
+
+# Source code will be mounted as volumes
+# server/, client/, shared/ are mounted from host for hot reload
+
+EXPOSE 5000
+
+CMD ["npm", "run", "dev"]
