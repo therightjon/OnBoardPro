@@ -547,6 +547,7 @@ export default function MyTasksPage() {
                         candidateId={task.candidateId}
                         value={task.status}
                         disabled={!isTaskStatusEditable(task)}
+                        isUnassigned={!task.assigneeUserId}
                         colorStyle="filled"
                       />
                     </TableCell>
@@ -649,6 +650,7 @@ export default function MyTasksPage() {
                           candidateId={task.candidateId}
                           value={task.status}
                           disabled={!isTaskStatusEditable(task)}
+                          isUnassigned={!task.assigneeUserId}
                           colorStyle="filled"
                         />
                       </div>

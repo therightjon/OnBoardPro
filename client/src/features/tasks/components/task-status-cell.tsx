@@ -15,18 +15,22 @@ export function TaskStatusCell({
   candidateId,
   value,
   disabled,
+  isUnassigned = false,
   colorStyle = 'text',
 }: {
   taskId: string;
   candidateId: string;
   value: string;   // current status
   disabled?: boolean;
+  isUnassigned?: boolean;
   colorStyle?: 'text' | 'filled';
 }) {
   const qc = useQueryClient();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [ack, setAck] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
   type MutVars = { status: string; reason?: string };
   const mutation = useMutation({
@@ -148,6 +152,9 @@ export function TaskStatusCell({
       onValueChange={(v) => {
         if (v === 'canceled') {
           setCancelOpen(true);
+        } else if (isUnassigned) {
+          setPendingStatus(v);
+          setConfirmOpen(true);
         } else {
           mutation.mutate({ status: v });
         }
@@ -182,6 +189,11 @@ export function TaskStatusCell({
           <p className="text-sm text-muted-foreground">
             This task will be excluded from blockers and may move the candidate forward.
           </p>
+          {isUnassigned && (
+            <p className="text-sm text-muted-foreground">
+              If you confirm, this task will be auto assigned to you.
+            </p>
+          )}
           <div>
             <label className="text-sm font-medium">Reason</label>
             <Input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Short reason" />
@@ -199,6 +211,34 @@ export function TaskStatusCell({
               setAck(false);
             }}>Confirm Cancel</Button>
           </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={confirmOpen} onOpenChange={(open) => {
+      setConfirmOpen(open);
+      if (!open) setPendingStatus(null);
+    }}>
+      <DialogContent className='max-h-min'>
+        <DialogHeader>
+          <DialogTitle>Update Status</DialogTitle>
+          <DialogDescription>
+            If you make this status change the task will be auto assigned to you.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={() => { setConfirmOpen(false); setPendingStatus(null); }}>Cancel</Button>
+          <Button
+            disabled={!pendingStatus || mutation.isPending}
+            onClick={() => {
+              if (!pendingStatus) return;
+              setConfirmOpen(false);
+              mutation.mutate({ status: pendingStatus });
+              setPendingStatus(null);
+            }}
+          >
+            Confirm
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

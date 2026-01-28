@@ -399,8 +399,17 @@ router.patch("/tasks/:id", requireAuth, async (req, res, next) => {
       updateData.updatedBy = req.user!.id;
     }
 
+    const statusWasChanged = typeof updateData.status === 'string' && updateData.status !== existingTask.status;
+    const shouldAutoAssign = statusWasChanged &&
+      !existingTask.assigneeUserId &&
+      !Object.prototype.hasOwnProperty.call(updateData, 'assigneeUserId');
+
+    if (shouldAutoAssign) {
+      updateData.assigneeUserId = req.user!.id;
+    }
+
     if (Object.prototype.hasOwnProperty.call(updateData, 'assigneeUserId')) {
-      if (!hasTaskAdminRole) {
+      if (!hasTaskAdminRole && !shouldAutoAssign) {
         await logAuthorizationFailure({ req, resource: "task", resourceId: existingTask.id, action: "task:assign", reason: "role_mismatch" });
         return res.status(403).json({ message: "Insufficient permissions to change task assignee" });
       }

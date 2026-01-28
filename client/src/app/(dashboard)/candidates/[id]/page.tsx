@@ -1159,6 +1159,7 @@ export default function CandidateDetailPage() {
                                       candidateId={(candidate as any).id}
                                       value={task.status}
                                       disabled={taskStatusDisabled}
+                                      isUnassigned={!task.assigneeUserId && !task.assignee?.id}
                                     />
                                   </div>
                                 </div>
