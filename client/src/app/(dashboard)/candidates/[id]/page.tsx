@@ -7,7 +7,7 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { invalidateMyTasks } from "@/lib/query-invalidate";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -274,6 +274,30 @@ export default function CandidateDetailPage() {
     [candidateTasks, orderMap]
   );
 
+  const taskOrderRef = useRef<Map<string, number>>(new Map());
+  const taskOrderCounterRef = useRef(0);
+  const taskOrderMap = useMemo(() => {
+    const map = new Map(taskOrderRef.current);
+    let counter = taskOrderCounterRef.current;
+    const currentIds = new Set<string>();
+
+    (tasksWithOrder as any[]).forEach((task: any) => {
+      if (!task?.id) return;
+      currentIds.add(task.id);
+      if (!map.has(task.id)) {
+        map.set(task.id, counter++);
+      }
+    });
+
+    for (const id of map.keys()) {
+      if (!currentIds.has(id)) map.delete(id);
+    }
+
+    taskOrderRef.current = map;
+    taskOrderCounterRef.current = counter;
+    return map;
+  }, [tasksWithOrder]);
+
   // Calculate incomplete prerequisite tasks count
   const incompletePrerequisiteTaskCount = useMemo(() => {
     return tasksWithOrder.filter((t: any) =>
@@ -417,16 +441,20 @@ export default function CandidateDetailPage() {
       .sort((a, b) => a.order - b.order)
       .reduce((acc: any, group) => {
         // Sort tasks within group by due date
+        const getStableOrder = (task: any) => taskOrderMap.get(task?.id) ?? Number.MAX_SAFE_INTEGER;
         const sortedTasks = group.items.sort((a: any, b: any) => {
-          if (!a.dueAt && !b.dueAt) return 0;
-          if (!a.dueAt) return 1;
-          if (!b.dueAt) return -1;
-          return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
+          const aDue = a.dueAt ? new Date(a.dueAt).getTime() : null;
+          const bDue = b.dueAt ? new Date(b.dueAt).getTime() : null;
+          if (aDue === null && bDue === null) return getStableOrder(a) - getStableOrder(b);
+          if (aDue === null) return 1;
+          if (bDue === null) return -1;
+          if (aDue !== bDue) return aDue - bDue;
+          return getStableOrder(a) - getStableOrder(b);
         });
         acc[group.name] = sortedTasks;
         return acc;
       }, {});
-  }, [tasksWithOrder, candidateStages]);
+  }, [tasksWithOrder, candidateStages, taskOrderMap]);
 
   // Compute onboarding completion: all tasks are either done or canceled
   // Exclude prerequisite tasks from completion calculation as they are pre-LOO requirements
