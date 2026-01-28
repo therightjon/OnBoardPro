@@ -397,7 +397,7 @@ export function PipelineEstimateSection({
             )}
 
             {missingAnchorTasks.length > 0 && (
-              <div className="border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-900/30 rounded-lg p-3">
+              <div className="border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-900/30 rounded-lg p-3 overflow-hidden">
                 <h4 className="font-medium text-amber-700 dark:text-amber-400 mb-2">
                   Tasks waiting on anchors
                 </h4>
@@ -408,14 +408,14 @@ export function PipelineEstimateSection({
                     const taskName = templateTask ? getTaskDefinitionName(templateTask.taskDefId) : fallbackName;
                     const anchorLabel = item.missingAnchor === 'loo' ? 'LOO anchor' : item.missingAnchor === 'start' ? 'Start anchor' : 'Anchor';
                     return (
-                      <div key={item.taskId ?? index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                        <span>
+                      <div key={item.taskId ?? index} className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 min-w-0">
+                        <span className="min-w-0 break-words">
                           {taskName}
                           {item.stageName ? (
-                            <span className="ml-2 text-xs text-muted-foreground">({item.stageName})</span>
+                            <span className="ml-1 text-xs text-muted-foreground">({item.stageName})</span>
                           ) : null}
                         </span>
-                        <span className="text-xs font-medium uppercase tracking-wide text-amber-600 dark:text-amber-300">{anchorLabel}</span>
+                        <span className="text-xs font-medium uppercase tracking-wide text-amber-600 dark:text-amber-300 shrink-0">{anchorLabel}</span>
                       </div>
                     );
                   })}
@@ -425,7 +425,7 @@ export function PipelineEstimateSection({
 
             {/* Non-Estimable Tasks */}
             {otherNonEstimableTasks.length > 0 && (
-              <div>
+              <div className="overflow-hidden">
                 <h4 className="font-medium mb-2 text-amber-700 dark:text-amber-400">
                   Tasks Not Included in Estimate
                 </h4>
@@ -436,14 +436,14 @@ export function PipelineEstimateSection({
                     const taskName = templateTask ? getTaskDefinitionName(templateTask.taskDefId) : fallbackName;
                     const reasonText = formatNonEstimableReason(item);
                     return (
-                      <div key={item.taskId ?? index} className="flex justify-between">
-                        <span>
+                      <div key={item.taskId ?? index} className="flex flex-col xs:flex-row xs:justify-between gap-1 min-w-0">
+                        <span className="min-w-0 break-words">
                           {taskName}
                           {item.stageName ? (
-                            <span className="ml-2 text-xs text-muted-foreground">({item.stageName})</span>
+                            <span className="ml-1 text-xs text-muted-foreground">({item.stageName})</span>
                           ) : null}
                         </span>
-                        <span className="italic text-right">{reasonText}</span>
+                        <span className="italic text-right shrink-0">{reasonText}</span>
                       </div>
                     );
                   })}
