@@ -2,6 +2,11 @@
 
 These scripts deploy OnBoardPro to Azure App Service with an optional Azure Database for PostgreSQL Flexible Server.
 
+If you are deploying to Azure Container Apps, start with `docs/AZURE_CONTAINER_APPS.md` and run:
+```bash
+bash scripts/azure/container/provision.sh
+```
+
 ## Prereqs
 - Azure CLI (`az`) installed and logged in.
 - A Node 22 compatible runtime on App Service (default in scripts).

@@ -106,6 +106,37 @@ az postgres flexible-server db create \
   --database-name "$AZ_POSTGRES_DB" \
   >/dev/null
 
+log "Enabling public access on PostgreSQL"
+az postgres flexible-server update \
+  --resource-group "$AZ_RESOURCE_GROUP" \
+  --name "$AZ_POSTGRES_SERVER" \
+  --public-access Enabled \
+  >/dev/null
+
+read -r -p "Enter comma-separated public IPs or ranges to allow (leave blank to skip): " DB_PUBLIC_IPS
+if [[ -n "${DB_PUBLIC_IPS:-}" ]]; then
+  IFS=',' read -r -a IP_LIST <<< "$DB_PUBLIC_IPS"
+  for ip in "${IP_LIST[@]}"; do
+    ip="$(echo "$ip" | xargs)"
+    if [[ -z "$ip" ]]; then
+      continue
+    fi
+    RULE_NAME="manual-${ip//./-}"
+    RULE_NAME="${RULE_NAME//\//-}"
+    RULE_NAME="${RULE_NAME//:/-}"
+    az postgres flexible-server firewall-rule create \
+      --resource-group "$AZ_RESOURCE_GROUP" \
+      --name "$AZ_POSTGRES_SERVER" \
+      --rule-name "$RULE_NAME" \
+      --start-ip-address "${ip%-*}" \
+      --end-ip-address "${ip#*-}" \
+      >/dev/null
+  done
+  log "Firewall rules updated"
+else
+  log "Skipping firewall rules (no IPs provided)"
+fi
+
 log "Creating Azure Container Registry"
 if ! az acr show --resource-group "$AZ_RESOURCE_GROUP" --name "$AZ_ACR_NAME" >/dev/null 2>&1; then
   az acr create \

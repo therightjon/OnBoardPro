@@ -24,6 +24,12 @@ Notes:
 bash scripts/azure/container/provision.sh
 ```
 This creates the resource group, VNet, delegated subnets, private DNS zone, Postgres server + DB, ACR, and Container Apps environment.
+It will also enable public access on the Postgres server and prompt you for public IPs or ranges to allow.
+
+Example input:
+```
+203.0.113.25,198.51.100.10-198.51.100.20
+```
 
 ## Build + deploy container
 ```bash
@@ -72,7 +78,20 @@ If `APP_BASE_URL`/`BASE_URL` are empty in the env file, the script will pull the
 ```bash
 DATABASE_URL="<private-connection-string>" npm run db:push
 ```
-Note: the database is private. Run migrations from a VM or tool inside the VNet, or temporarily enable public access to run `db:push` and then disable it again.
+Note: if you keep public access enabled, you can run migrations from your Mac. Otherwise use a VM inside the VNet.
+
+## Disable public access (lock down)
+```bash
+az postgres flexible-server firewall-rule delete \
+  --resource-group <rg> \
+  --name <server> \
+  --rule-name <rule-name>
+
+az postgres flexible-server update \
+  --resource-group <rg> \
+  --name <server> \
+  --public-access Disabled
+```
 
 ## Troubleshooting
 - Show Container App status:
