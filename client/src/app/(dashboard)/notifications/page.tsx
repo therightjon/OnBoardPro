@@ -126,7 +126,7 @@ export default function NotificationsPage() {
       <Card>
         <CardContent className="p-3 sm:p-4">
           <Tabs value={filter} onValueChange={(value) => setFilter(value as NotificationFilterKey)}>
-            <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent p-0 sm:inline-flex sm:flex-nowrap sm:bg-muted sm:p-1 sm:gap-0">
+            <TabsList className="flex w-full flex-wrap h-auto gap-1 bg-transparent p-0 sm:inline-flex sm:flex-nowrap sm:bg-muted sm:p-1 sm:gap-0">
               {NOTIFICATION_FILTERS.map(({ key, label }) => (
                 <TabsTrigger
                   key={key}
