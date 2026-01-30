@@ -18,13 +18,17 @@ Notes:
 - `AZ_ACR_NAME` must be lowercase letters/numbers only.
 - `SESSION_SECRET` must be at least 32 characters.
 - `AZ_INFRA_SUBNET_PREFIX` must be /23 or larger.
+- `AZ_DB_PRIVATE=0` (default) creates a public Postgres server restricted to your IPs.
+- Set `AZ_DB_PRIVATE=1` to create a private Postgres server in the VNet.
 
 ## Provision infrastructure
 ```bash
 bash scripts/azure/container/provision.sh
 ```
-This creates the resource group, VNet, delegated subnets, private DNS zone, Postgres server + DB, ACR, and Container Apps environment.
-It will also enable public access on the Postgres server and prompt you for public IPs or ranges to allow.
+This creates the resource group, Postgres server + DB, ACR, and Container Apps environment.
+If `AZ_DB_PRIVATE=1`, it also creates the VNet, delegated subnets, and private DNS zone.
+It will enable public access on the Postgres server and prompt you for public IPs or ranges to allow (when public access is enabled).
+If public access cannot be enabled (for example, due to private-only restrictions), the script will skip firewall rules and continue.
 
 Example input:
 ```
