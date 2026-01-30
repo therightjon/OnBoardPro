@@ -135,7 +135,7 @@ export default function SettingsPage() {
       <Tabs defaultValue="personal" className="w-full">
         <Card>
           <CardContent className="p-3 sm:p-4">
-            <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent p-0 sm:inline-flex sm:flex-nowrap sm:bg-muted sm:p-1 sm:gap-0">
+            <TabsList className="flex w-full flex-wrap h-auto gap-1 bg-transparent p-0 sm:inline-flex sm:flex-nowrap sm:bg-muted sm:p-1 sm:gap-0">
               {/* Personal Settings - Always visible */}
               <TabsTrigger
                 value="personal"
