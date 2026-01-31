@@ -84,6 +84,21 @@ DATABASE_URL="<private-connection-string>" npm run db:push
 ```
 Note: if you keep public access enabled, you can run migrations from your Mac. Otherwise use a VM inside the VNet.
 
+## Restore database from a dump (delete + recreate + restore)
+This repo includes a helper script that deletes and recreates the database, then restores a `pg_dump` plain SQL file via `psql`:
+
+```bash
+bash scripts/azure/container/restore-db.sh /absolute/or/relative/path/to/database_dump.sql
+```
+
+Notes:
+- The script reads `scripts/azure/container/vars.env` by default. Override with `AZ_ENV_FILE=/path/to/vars.env`.
+- Requires `psql` to be installed locally (it restores using `psql`, not Beekeeper Studio).
+- It will **DROP** and recreate `AZ_POSTGRES_DB` on `AZ_POSTGRES_SERVER`.
+- It allowlists any `CREATE EXTENSION ...` entries via the server setting `azure.extensions` (required on Azure Flexible Server).
+- If the dump was created from a newer Postgres major version than your server, restore may fail; best practice is to dump/restore on the same major version.
+- If your database is private/VNet-only, run the restore from inside the VNet (or temporarily enable public access + firewall rules).
+
 ## Disable public access (lock down)
 ```bash
 az postgres flexible-server firewall-rule delete \

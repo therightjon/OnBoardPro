@@ -46,6 +46,18 @@ Apply Drizzle migrations against the Azure database:
 DATABASE_URL="<your-connection-string>" npm run db:push
 ```
 
+## Restore database from a dump (delete + recreate + restore)
+If you have a `pg_dump` plain SQL file and want to wipe and restore the Azure database, you can use the Container Apps restore helper by pointing it at your App Service env file:
+
+```bash
+AZ_ENV_FILE=scripts/azure/vars.env bash scripts/azure/container/restore-db.sh /absolute/or/relative/path/to/database_dump.sql
+```
+
+Notes:
+- This will **DROP** and recreate `AZ_POSTGRES_DB` on `AZ_POSTGRES_SERVER`.
+- Requires `psql` to be installed locally.
+- The script uses `psql` and may update the server setting `azure.extensions` to allowlist required extensions.
+
 ## Update database firewall rules
 If the App Service outbound IPs change (scale, region move), re-run:
 ```bash
