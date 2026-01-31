@@ -693,6 +693,9 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
     }
 
     let templateExpansionResult = null;
+    let autoAdvanceResult: any = null;
+    let autoRecomputeResult: any = null;
+    let autoAdvanceCandidate: any = null;
     if ((shouldApplyTemplate || needsTemplateApplied) && fullCandidate.templateAppliedFromId) {
       try {
         logger.debug('Auto-applying deferred template on LOO acceptance', { 
