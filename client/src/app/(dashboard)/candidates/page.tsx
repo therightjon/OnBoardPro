@@ -536,13 +536,13 @@ const formatLooAge = (isoDate?: string | null) => {
                         {candidateTypes.find((type) => type.id === candidate.candidateTypeId)?.name || "Unknown"}
                       </TableCell>
                       <TableCell>
-                        <Badge className={statusClass}>
+                        <Badge className={`${statusClass} justify-center text-center`}>
                           {resolvedStatus.label.toUpperCase()}
                         </Badge>
                       </TableCell>
                       <TableCell data-testid={`cell-stage-${candidate.id}`}>
                         <div className="flex flex-col">
-                          <Badge variant="outline" className="whitespace-nowrap bg-secondary">
+                          <Badge variant="outline" className="whitespace-nowrap bg-secondary justify-center text-center">
                             {candidate.currentStage?.name || "Not Started"}
                           </Badge>
                           <span className="text-xs text-muted-foreground capitalize mt-1">{phaseText}</span>
@@ -659,7 +659,7 @@ const formatLooAge = (isoDate?: string | null) => {
                         <div>
                           <dt className="text-muted-foreground">Status</dt>
                           <dd>
-                            <Badge className={`${statusClass} text-xs`}>
+                            <Badge className={`${statusClass} text-xs justify-center text-center`}>
                               {resolvedStatus.label.toUpperCase()}
                             </Badge>
                           </dd>
@@ -667,7 +667,7 @@ const formatLooAge = (isoDate?: string | null) => {
                         <div className="col-span-2">
                           <dt className="text-muted-foreground">Stage</dt>
                           <dd>
-                            <Badge variant="outline" className="text-xs whitespace-nowrap bg-secondary">
+                            <Badge variant="outline" className="text-xs whitespace-nowrap bg-secondary justify-center text-center">
                               {candidate.currentStage?.name || "Not Started"}
                             </Badge>
                             <span className="block text-[10px] text-muted-foreground mt-1 capitalize">
