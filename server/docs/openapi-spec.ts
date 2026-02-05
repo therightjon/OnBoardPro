@@ -1318,7 +1318,7 @@ export const openApiSpec: OpenAPIV3.Document = {
           {
             name: 'showCanceled',
             in: 'query',
-            description: 'Show canceled tasks',
+            description: 'Show canceled and offer-declined candidate tasks',
             schema: {
               type: 'boolean'
             }
