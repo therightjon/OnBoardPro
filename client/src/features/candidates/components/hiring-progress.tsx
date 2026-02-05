@@ -265,7 +265,14 @@ export function HiringProgress({
 
                   {/* Step Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between min-h-9">
+                    <div
+                      className={cn(
+                        "flex min-h-9",
+                        isOnboardingStep && primaryAction
+                          ? "flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between"
+                          : "items-center justify-between"
+                      )}
+                    >
                       <div
                         className={cn(
                           "flex items-center gap-2",
@@ -295,9 +302,9 @@ export function HiringProgress({
                       
                       {/* Action buttons on the Onboarding row */}
                       {isOnboardingStep && primaryAction && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
                           {status === "current" && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="self-end text-xs sm:self-auto">
                               Current
                             </Badge>
                           )}
@@ -307,7 +314,7 @@ export function HiringProgress({
                               variant="outline"
                               size="sm"
                               onClick={() => setIsDeclineDialogOpen(true)}
-                              className="gap-1.5 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              className="w-full gap-1.5 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
                               data-testid="button-hiring-progress-loo-declined"
                             >
                               <ThumbsDown className="h-3.5 w-3.5" />
@@ -318,7 +325,7 @@ export function HiringProgress({
                             size="sm"
                             onClick={primaryAction.onClick}
                             disabled={!candidate.offerLetterIssuedAt && incompletePrerequisiteTaskCount > 0}
-                            className="gap-1.5"
+                            className="w-full gap-1.5 sm:w-auto"
                             data-testid={`button-hiring-progress-${candidate.offerLetterIssuedAt ? 'loo-accepted' : 'send-loo'}`}
                           >
                             <primaryAction.icon className="h-3.5 w-3.5" />
