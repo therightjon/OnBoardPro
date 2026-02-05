@@ -139,12 +139,15 @@ const formatLooAge = (isoDate?: string | null) => {
         (phaseFilter === "pre_hire" && openPrehireTasks > 0) ||
         (phaseFilter === "onboarding" && openOnboardingTasks > 0);
       
-      // Filter out canceled and completed unless explicitly shown via toggles
-      // BUT if status filter explicitly selects them, show them regardless
+      const isCanceledLike = candidate.status === "canceled" || candidate.status === "offer_declined";
+
+      // Filter out canceled-like and completed unless explicitly shown via toggles
+      // BUT if status filter explicitly selects canceled, show them regardless
       const matchesCanceled = 
         statusFilter === "canceled" || // Explicitly selected in dropdown
+        statusFilter === "offer_declined" || // Programmatic/status-link compatibility
         showCanceled || // Toggle is on
-        candidate.status !== "canceled"; // Not canceled
+        !isCanceledLike; // Not canceled/offer declined
       const matchesCompleted = 
         statusFilter === "completed" || // Explicitly selected in dropdown
         showCompleted || // Toggle is on
@@ -389,7 +392,7 @@ const formatLooAge = (isoDate?: string | null) => {
                   data-testid="switch-show-canceled"
                 />
                 <Label htmlFor="show-canceled" className="text-sm font-medium">
-                  Show Canceled
+                  Show Canceled/Declined
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
