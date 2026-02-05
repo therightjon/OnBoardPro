@@ -389,7 +389,7 @@ export default function MyTasksPage() {
                   data-testid="switch-show-canceled"
                 />
                 <Label htmlFor="show-canceled" className="text-sm font-medium">
-                  Show Canceled
+                  Show Canceled/Declined
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
@@ -508,6 +508,7 @@ export default function MyTasksPage() {
                           <Badge variant="outline" className="text-xs bg-muted text-muted-foreground w-fit">
                             {(task as any).candidate.status === 'archived' && '(Archived)'}
                             {(task as any).candidate.status === 'canceled' && '(Canceled)'}
+                            {(task as any).candidate.status === 'offer_declined' && '(Declined)'}
                             {(task as any).candidate.status === 'completed' && '(Completed)'}
                           </Badge>
                         )}
@@ -624,6 +625,7 @@ export default function MyTasksPage() {
                           <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground mt-1 block w-fit">
                             {(task as any).candidate.status === 'archived' && '(Archived)'}
                             {(task as any).candidate.status === 'canceled' && '(Canceled)'}
+                            {(task as any).candidate.status === 'offer_declined' && '(Declined)'}
                             {(task as any).candidate.status === 'completed' && '(Completed)'}
                           </Badge>
                         )}

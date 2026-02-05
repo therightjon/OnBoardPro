@@ -132,6 +132,7 @@ export interface CandidateEstimationResult {
   taskCount: number;
   completedTasks: number;
   remainingTasks: number;
+  completedAt: string | null;
   lastDueDate: string | null;
   totalCalendarDays: number;
   totalBusinessDays: number | null;
@@ -469,6 +470,7 @@ export class TemplateEstimationService {
         totalBusinessDays: null,
         remainingTasks: 0,
         completedTasks: 0,
+        completedAt: null,
         lastDueDate: null,
         nonEstimable: [],
         perStage: []
@@ -487,6 +489,7 @@ export class TemplateEstimationService {
         totalBusinessDays: null,
         remainingTasks: 0,
         completedTasks: 0,
+        completedAt: null,
         lastDueDate: null,
         nonEstimable: [],
         perStage: []
@@ -501,6 +504,7 @@ export class TemplateEstimationService {
         stageName: hiringStages.name,
         status: candidateTasks.status,
         dueAt: candidateTasks.dueAt,
+        completedAt: candidateTasks.completedAt,
         title: taskDefinitions.name
       })
       .from(candidateTasks)
@@ -519,12 +523,19 @@ export class TemplateEstimationService {
     let completedTasks = 0;
     let remainingTasks = 0;
     let maxOffsetDays = 0;
+    let lastCompletedAt: Date | null = null;
 
     // Calculate offsets for remaining (incomplete) tasks based on their due dates
     for (const task of tasksQuery) {
       // Treat 'canceled' as non-blocking (equivalent to 'done')
       if (task.status === 'done' || task.status === 'canceled') {
         completedTasks++;
+        if (task.completedAt) {
+          const taskCompletedAt = new Date(task.completedAt);
+          if (!Number.isNaN(taskCompletedAt.getTime()) && (!lastCompletedAt || taskCompletedAt > lastCompletedAt)) {
+            lastCompletedAt = taskCompletedAt;
+          }
+        }
         continue;
       }
 
@@ -587,6 +598,7 @@ export class TemplateEstimationService {
       taskCount: tasksQuery.length,
       completedTasks,
       remainingTasks,
+      completedAt: remainingTasks === 0 && lastCompletedAt ? lastCompletedAt.toISOString() : null,
       lastDueDate,
       totalCalendarDays: maxOffsetDays,
       totalBusinessDays,

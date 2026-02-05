@@ -36,6 +36,13 @@ export interface CloneTemplateInput {
   requestId?: string;
 }
 
+export class TemplateReadinessError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TemplateReadinessError";
+  }
+}
+
 /**
  * Service for template-related business operations
  */
@@ -217,44 +224,25 @@ export class TemplateService {
     }
 
     // Validate required task fields for readiness
-    const relativeDueRuleTypes = new Set([
-      'days_before_loo',
-      'days_after_loo',
-      'days_before_start',
-      'days_after_start',
-      'days_before_stage',
-      'days_after_stage'
-    ]);
+    const relevantTasks = tasks.filter(task => stageIdSet.has(task.templateStageId));
 
-    const missingRequiredFields = tasks.some(task => {
-      if (!stageIdSet.has(task.templateStageId)) {
-        return false;
-      }
-
-      const needsDueValue = relativeDueRuleTypes.has(task.dueRuleType);
-      if (needsDueValue && task.dueRuleValue == null) {
-        return true;
-      }
-
-      if (task.dueRuleType === 'fixed_date' && !task.fixedDate) {
-        return true;
-      }
-
-      if (task.defaultAssigneeKind === 'user' && !task.defaultAssigneeUserId) {
-        return true;
-      }
-
-      if (task.defaultAssigneeKind === 'role' && !task.defaultAssigneeRole) {
-        return true;
-      }
-
-      return false;
-    });
-
-    if (missingRequiredFields) {
+    const missingFixedDate = relevantTasks.find(task =>
+      task.dueRuleType === 'fixed_date' && !task.fixedDate
+    );
+    if (missingFixedDate) {
       return {
         ready: false,
-        reason: 'All required fields should be filled'
+        reason: 'Fixed-date tasks must include a date'
+      };
+    }
+
+    const missingRoleAssignee = relevantTasks.find(task =>
+      task.defaultAssigneeKind === 'role' && !task.defaultAssigneeRole
+    );
+    if (missingRoleAssignee) {
+      return {
+        ready: false,
+        reason: 'Role-assigned tasks must specify a role'
       };
     }
 
@@ -269,7 +257,7 @@ export class TemplateService {
     const { ready, reason } = await this.checkTemplateReadiness(id);
 
     if (!ready) {
-      throw new Error(reason || 'Template is not ready to be activated');
+      throw new TemplateReadinessError(reason || 'Template is not ready to be activated');
     }
 
     return this.updateTemplate({
@@ -441,4 +429,3 @@ export class TemplateService {
   }
 
 }
-

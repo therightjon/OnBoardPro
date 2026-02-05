@@ -20,6 +20,13 @@ const readableDateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   timeZone: "UTC",
 });
+const readableDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
 
 const formatUtcDate = (iso?: string | null) => {
   if (!iso) return "Not set";
@@ -27,6 +34,14 @@ const formatUtcDate = (iso?: string | null) => {
   const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return "Not set";
   return readableDateFormatter.format(date);
+};
+
+const formatDateTime = (iso?: string | null) => {
+  if (!iso) return null;
+  const normalized = normalizeIso(iso);
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return null;
+  return readableDateTimeFormatter.format(date);
 };
 
 export function CandidatePipelineEstimate({ 
@@ -90,10 +105,11 @@ export function CandidatePipelineEstimate({
       );
     }
 
+    const completedOn = formatDateTime(estimate?.completedAt);
     return (
-      <div className="mt-4 p-3 bg-green-50 dark:bg-emerald-950 rounded-lg border border-green-200 dark:border-emerald-700">
+      <div className="mt-4 p-3 bg-green-50 dark:bg-emerald-950 rounded-lg border border-green-200 dark:border-emerald-700 w-fit">
         <div className="text-sm font-medium text-green-800 dark:text-emerald-300">
-          🎉 All tasks completed!
+          {completedOn ? `🎉 All tasks completed on ${completedOn}!` : "🎉 All tasks completed!"}
         </div>
       </div>
     );
