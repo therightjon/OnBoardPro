@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/shared/components/ui/toaster";
@@ -8,7 +8,7 @@ import { AuthProvider } from "@/features/auth/hooks/use-auth";
 import { ThemeProvider } from "@/shared/components/layout/theme-provider";
 import { ProtectedRoute } from "./lib/protected-route";
 import { Sidebar } from "@/shared/components/layout/sidebar";
-import { useState, lazy, Suspense, useCallback } from "react";
+import { useState, lazy, Suspense, useCallback, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Sheet, SheetContent } from "@/shared/components/ui/sheet";
 import { Menu, Loader2 } from "lucide-react";
@@ -173,6 +173,47 @@ function Router() {
   );
 }
 
+/**
+ * SessionExpirationHandler monitors for 401 errors from API calls
+ * and redirects to the auth page when the session expires.
+ */
+function SessionExpirationHandler() {
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    const handleError = (error: Error) => {
+      // Check if the error is a 401 Unauthorized error
+      if ((error as any).status === 401) {
+        // Clear all cached data
+        queryClient.clear();
+        // Redirect to auth page
+        setLocation("/auth");
+      }
+    };
+
+    // Subscribe to the query cache to catch all query errors
+    const unsubscribeQuery = queryClient.getQueryCache().subscribe((event) => {
+      if (event.type === "updated" && event.query.state.error) {
+        handleError(event.query.state.error as Error);
+      }
+    });
+
+    // Subscribe to the mutation cache to catch all mutation errors
+    const unsubscribeMutation = queryClient.getMutationCache().subscribe((event) => {
+      if (event.type === "updated" && event.mutation.state.error) {
+        handleError(event.mutation.state.error as Error);
+      }
+    });
+
+    return () => {
+      unsubscribeQuery();
+      unsubscribeMutation();
+    };
+  }, [setLocation]);
+
+  return null;
+}
+
 function App() {
   // Reset query cache when error boundary resets to clear any stale error states
   const handleReset = useCallback(() => {
@@ -184,6 +225,7 @@ function App() {
       <ThemeProvider defaultTheme="light" storageKey="onboardpro-ui-theme">
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
+            <SessionExpirationHandler />
             <TooltipProvider>
               <Toaster />
               <SonnerToaster richColors />
