@@ -221,25 +221,6 @@ export function HiringProgress({
       <CardContent>
         {/* Progress Steps */}
         <div className="relative">
-          {/* Connecting Line (background) */}
-          <div className={cn(
-            "absolute left-[18px] top-[24px] w-0.5 bg-muted",
-            isFullyOnboarded ? "h-[calc(100%-24px)]" : "h-[calc(100%-48px)]"
-          )} />
-          
-          {/* Progress Line (filled portion) */}
-          <div
-            className={cn(
-              "absolute left-[18px] top-[24px] w-0.5 transition-all duration-500",
-              isFullyOnboarded ? "bg-green-600" : "bg-primary"
-            )}
-            style={{
-              height: isFullyOnboarded 
-                ? "calc(100% - 40px)" // Full line to completion note when fully onboarded
-                : `calc(${(effectivePhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${effectivePhaseIndex === 0 ? 0 : 30}px)`,
-            }}
-          />
-
           {/* Steps */}
           <div className="relative space-y-6">
             {HIRING_STEPS.map((step, index) => {
@@ -247,9 +228,25 @@ export function HiringProgress({
               // Cast to HiringPhase since HIRING_STEPS only contains valid phases (not "completed")
               const stepDate = getStepDate(step.id as HiringPhase);
               const isOnboardingStep = step.id === "onboarding";
+              const shouldRenderConnector =
+                index < HIRING_STEPS.length - 1 || (isFullyOnboarded && index === HIRING_STEPS.length - 1);
+              const isConnectorFilled = isFullyOnboarded || index < effectivePhaseIndex;
 
               return (
-                <div key={step.id} className="flex gap-4">
+                <div key={step.id} className="relative flex gap-4">
+                  {shouldRenderConnector && (
+                    <div
+                      className={cn(
+                        "absolute left-[18px] top-9 -bottom-6 w-0.5 transition-colors duration-500",
+                        isConnectorFilled
+                          ? isFullyOnboarded
+                            ? "bg-green-600"
+                            : "bg-primary"
+                          : "bg-muted"
+                      )}
+                    />
+                  )}
+
                   {/* Step Circle */}
                   <div
                     className={cn(
@@ -268,8 +265,21 @@ export function HiringProgress({
 
                   {/* Step Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between min-h-9">
-                      <div className="flex items-center gap-2">
+                    <div
+                      className={cn(
+                        "flex min-h-9",
+                        isOnboardingStep && primaryAction
+                          ? "flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between"
+                          : "items-center justify-between"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "flex items-center gap-2",
+                          !(isOnboardingStep && primaryAction) &&
+                            "w-full justify-between sm:w-auto sm:justify-start"
+                        )}
+                      >
                         <span
                           className={cn(
                             "font-medium",
@@ -283,7 +293,7 @@ export function HiringProgress({
                             ? "Offer Accepted"
                             : step.label}
                         </span>
-                        {status === "current" && (
+                        {status === "current" && !(isOnboardingStep && primaryAction) && (
                           <Badge variant="outline" className="text-xs">
                             Current
                           </Badge>
@@ -292,14 +302,19 @@ export function HiringProgress({
                       
                       {/* Action buttons on the Onboarding row */}
                       {isOnboardingStep && primaryAction && (
-                        <div className="flex gap-2">
+                        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
+                          {status === "current" && (
+                            <Badge variant="outline" className="self-end text-xs sm:self-auto">
+                              Current
+                            </Badge>
+                          )}
                           {/* Show LOO Declined button when LOO is issued but not accepted */}
                           {candidate.offerLetterIssuedAt && !candidate.offerLetterAcceptedAt && (
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => setIsDeclineDialogOpen(true)}
-                              className="gap-1.5 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              className="w-full gap-1.5 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
                               data-testid="button-hiring-progress-loo-declined"
                             >
                               <ThumbsDown className="h-3.5 w-3.5" />
@@ -310,7 +325,7 @@ export function HiringProgress({
                             size="sm"
                             onClick={primaryAction.onClick}
                             disabled={!candidate.offerLetterIssuedAt && incompletePrerequisiteTaskCount > 0}
-                            className="gap-1.5"
+                            className="w-full gap-1.5 sm:w-auto"
                             data-testid={`button-hiring-progress-${candidate.offerLetterIssuedAt ? 'loo-accepted' : 'send-loo'}`}
                           >
                             <primaryAction.icon className="h-3.5 w-3.5" />
@@ -351,7 +366,7 @@ export function HiringProgress({
                   <Check className="h-5 w-5 text-white" />
                 </div>
                 {/* Content */}
-                <div className="flex-1 min-w-0 max-w-[200px]">
+                <div className="flex-1 min-w-0 max-w-fit">
                   <div className={cn(
                     "rounded-md p-3",
                     "bg-green-50 dark:bg-emerald-950 border border-green-200 dark:border-emerald-700"
@@ -360,7 +375,6 @@ export function HiringProgress({
                       <span className="font-medium text-green-700 dark:text-emerald-300">
                         Onboarding Complete!
                       </span>
-                      {" · "}
                     </p>
                   </div>
                 </div>

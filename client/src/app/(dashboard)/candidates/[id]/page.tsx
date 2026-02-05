@@ -1135,8 +1135,8 @@ export default function CandidateDetailPage() {
                           <div className="space-y-2">
                             {(tasks as any[]).map((task: any) => (
                               <div key={task.id} className="border rounded-lg p-3 xs:p-4 hover:bg-muted/50 transition-colors" data-testid={`card-task-${task.id}`}>
-                                <div className="flex items-start justify-between gap-2 mb-2">
-                                  <h4 className="text-sm xs:text-base font-medium break-words min-w-0 flex items-center gap-2">
+                                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                  <h4 className="flex w-full min-w-0 items-center gap-2 break-words text-sm font-medium xs:text-base">
                                     {task.title}
                                     {task.status === 'canceled' && (
                                       <Badge variant="secondary" title={task.cancel_reason || ''}>CANCELED</Badge>
@@ -1147,7 +1147,7 @@ export default function CandidateDetailPage() {
                                       </Badge>
                                     )}
                                   </h4>
-                                  <div className="flex items-center gap-4">
+                                  <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-4">
                                     {/* comments button injected here */}
                                     <TaskCommentsButton 
                                       count={(commentStats as any)?.byTask?.[task.id]?.totalVisible || 0}
@@ -1278,7 +1278,7 @@ export default function CandidateDetailPage() {
                       <span className="font-bold text-green-700 dark:text-emerald-300" data-testid="text-fully-onboarded-timeline">Fully Onboarded!</span>
                     )}
                     {(candidate as any).isBlockedByPriorStage && (candidate as any).blockerSummary?.earliestPriorStage && (
-                      <span className="ml-auto inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/30" data-testid="pill-stage-blocked">
+                      <span className="ml-auto inline-flex items-center justify-center text-center text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/30" data-testid="pill-stage-blocked">
                         Blocked by {(candidate as any).blockerSummary.earliestPriorStage.name}
                       </span>
                     )}
@@ -1384,11 +1384,11 @@ export default function CandidateDetailPage() {
                         {isLooEvent && looConfig ? (
                           // LOO event
                           <>
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                             <h4 className={`font-medium ${looConfig.color}`}>
                               {looConfig.label}
                             </h4>
-                            <Badge variant="outline">
+                            <Badge variant="outline" className="self-start sm:self-auto">
                             {formatUtcDate(entry.changedAt)}
                             </Badge>
                           </div>
@@ -1405,11 +1405,11 @@ export default function CandidateDetailPage() {
                         ) : isTaskEvent ? (
                           // Prerequisite task update event
                           <>
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                             <h4 className="font-medium text-amber-700 dark:text-amber-400">
                               {entry.taskTitle}
                             </h4>
-                            <Badge variant="outline">
+                            <Badge variant="outline" className="self-start sm:self-auto">
                             {formatUtcDate(entry.changedAt)}
                             </Badge>
                           </div>
@@ -1426,9 +1426,9 @@ export default function CandidateDetailPage() {
                         ) : (
                           // Stage transition event
                           <>
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                             <h4 className="font-medium">{entry.stage?.name || 'Unknown Stage'}</h4>
-                            <Badge variant="outline">
+                            <Badge variant="outline" className="self-start sm:self-auto">
                             {formatUtcDate(entry.changedAt)}
                             </Badge>
                           </div>

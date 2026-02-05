@@ -76,7 +76,7 @@ export class CandidateTaskRepository extends BaseRepository {
         const allowedStatuses = ['active', 'on_hold'] as const;
         const statusArray: any[] = [...allowedStatuses];
         if (filters.showArchived) statusArray.push('archived');
-        if (filters.showCanceled) statusArray.push('canceled');
+        if (filters.showCanceled) statusArray.push('canceled', 'offer_declined');
         if (filters.showCompleted) statusArray.push('completed');
         whereConditions.push(inArray(candidates.status, statusArray));
       }

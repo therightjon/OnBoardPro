@@ -15,6 +15,7 @@ import {
 import { logAuthorizationFailure } from "../utils/authorization.utils";
 import { eventBus, templateCreated, templateUpdated, templateCloned } from "../events";
 import { getTemplateService, getTemplateEstimationService, getReferenceDataService } from "../services/service-factory";
+import { TemplateReadinessError } from "../services/templates/template.service";
 
 const router = Router();
 
@@ -182,10 +183,10 @@ router.patch("/templates/:id/status", requireAuth, requireRole(["system_admin", 
     res.json(template);
   } catch (error: any) {
     // Handle template readiness constraint violation
-    if (error.message?.includes('Template cannot be set to Active') || error.message?.includes('Template is not ready')) {
+    if (error instanceof TemplateReadinessError) {
       return res.status(400).json({
         code: 'TEMPLATE_NOT_READY',
-        message: error.message || 'At least one stage is required.'
+        message: error.message || 'Template is not ready.'
       });
     }
     next(error);
@@ -550,7 +551,7 @@ router.post("/templates/:id/stages/create-with-task", requireAuth, requireRole([
 
     for (const taskDefId of taskDefIds) {
       // Clean and validate due rule data like the existing endpoint
-      let cleanDueRuleValue = dueRuleValue || null;
+      let cleanDueRuleValue = dueRuleValue === "" ? null : (dueRuleValue ?? null);
       let fixedDate = null;
 
       if (zeroValueRules.includes(dueRuleType)) {

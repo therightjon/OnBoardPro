@@ -59,6 +59,61 @@ const internalStatusToAlias = (status?: string | null) => {
   return status;
 };
 
+const synchronizeCandidateStage = async ({
+  candidateId,
+  invokerUserId,
+  authContext,
+  refreshCandidate = true,
+  logSource = "candidate-routes",
+}: {
+  candidateId: string;
+  invokerUserId: string;
+  authContext?: any;
+  refreshCandidate?: boolean;
+  logSource?: string;
+}) => {
+  let recompute: any = null;
+  let advancement: any = null;
+  let updatedCandidate: any = null;
+
+  try {
+    recompute = await recomputeCandidateStageState({
+      candidateId,
+      invokerUserId,
+    });
+  } catch (error) {
+    logger.error(`${logSource}: failed to recompute candidate stage state`, {
+      candidateId,
+      error,
+    });
+  }
+
+  try {
+    advancement = await advanceStageIfComplete({
+      candidateId,
+      invokerUserId,
+    });
+  } catch (error) {
+    logger.error(`${logSource}: failed to advance candidate stage`, {
+      candidateId,
+      error,
+    });
+  }
+
+  if (refreshCandidate && authContext && (recompute?.updated || advancement?.advanced)) {
+    try {
+      updatedCandidate = await getCandidateService().getCandidate(candidateId, authContext);
+    } catch (error) {
+      logger.error(`${logSource}: failed to refetch candidate after stage sync`, {
+        candidateId,
+        error,
+      });
+    }
+  }
+
+  return { recompute, advancement, updatedCandidate };
+};
+
 /**
  * @swagger
  * /api/candidates:
@@ -122,6 +177,29 @@ router.get("/candidates", sensitiveRateLimiter, requireAuth, async (req, res, ne
 
     const candidateService = getCandidateService();
     let candidates = await candidateService.getCandidates(filters, authContext);
+
+    // Self-heal stale stage assignments where onboarding work exists but stage phase is not onboarding.
+    const candidatesNeedingStageSync = candidates.filter((candidate: any) => {
+      if (!candidate?.id) return false;
+      if (!candidate.templateAppliedAt || !candidate.offerLetterAcceptedAt) return false;
+      if (["archived", "completed", "canceled", "offer_declined"].includes(candidate.status)) return false;
+      const openOnboarding = Number(candidate.openOnboardingTasks ?? 0);
+      return openOnboarding > 0 && candidate.currentStage?.phase !== "onboarding";
+    });
+
+    if (candidatesNeedingStageSync.length > 0) {
+      await Promise.all(
+        candidatesNeedingStageSync.map((candidate: any) =>
+          synchronizeCandidateStage({
+            candidateId: candidate.id,
+            invokerUserId: req.user!.id,
+            refreshCandidate: false,
+            logSource: "candidates:list",
+          })
+        )
+      );
+      candidates = await candidateService.getCandidates(filters, authContext);
+    }
 
     // Apply search filtering (case-insensitive) when requested
     const search = (req.query.search as string | undefined)?.toLowerCase();
@@ -253,15 +331,42 @@ router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res
           taskCount: expansionResult.createdCount
         });
 
-        // Refetch candidate to get updated data
-        const refreshed = await candidateService.getCandidate(req.params.id, authContext);
-        if (refreshed) {
-          candidate = refreshed;
+        const stageSync = await synchronizeCandidateStage({
+          candidateId: candidate.id,
+          invokerUserId: req.user!.id,
+          authContext,
+          logSource: "candidates:get:auto-expand",
+        });
+
+        if (stageSync.updatedCandidate) {
+          candidate = stageSync.updatedCandidate;
+        } else {
+          const refreshed = await candidateService.getCandidate(req.params.id, authContext);
+          if (refreshed) {
+            candidate = refreshed;
+          }
         }
       } catch (expansionError: any) {
         console.error('Failed to auto-expand template on GET:', expansionError);
         // Don't fail the request - just log the error
       }
+    } else if (
+      candidate.templateAppliedAt &&
+      !["archived", "completed", "canceled", "offer_declined"].includes(candidate.status)
+    ) {
+      const stageSync = await synchronizeCandidateStage({
+        candidateId: candidate.id,
+        invokerUserId: req.user!.id,
+        authContext,
+        logSource: "candidates:get:self-heal",
+      });
+      if (stageSync.updatedCandidate) {
+        candidate = stageSync.updatedCandidate;
+      }
+    }
+
+    if (!candidate) {
+      return res.status(404).json({ message: "Candidate not found" });
     }
 
     // Sanitize response if candidate viewing their own record
@@ -494,6 +599,16 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
         logger.debug('Template auto-applied successfully on creation', {
           taskCount: templateExpansionResult.createdCount
         });
+
+        const stageSync = await synchronizeCandidateStage({
+          candidateId: candidate.id,
+          invokerUserId: req.user!.id,
+          authContext,
+          logSource: "candidates:create:auto-apply",
+        });
+        autoAdvanceResult = stageSync.advancement;
+        autoRecomputeResult = stageSync.recompute;
+        autoAdvanceCandidate = stageSync.updatedCandidate;
       } catch (templateError: any) {
         console.error('Failed to auto-apply template on creation:', templateError);
         // Don't fail candidate creation - user can manually apply template later
@@ -502,7 +617,9 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
 
     // If template was applied, refetch candidate to get updated data
     let responseCandidate = candidate;
-    if (templateExpansionResult) {
+    if (autoAdvanceCandidate) {
+      responseCandidate = autoAdvanceCandidate;
+    } else if (templateExpansionResult || autoRecomputeResult?.updated) {
       const refreshed = await candidateService.getCandidate(candidate.id, authContext);
       if (refreshed) {
         responseCandidate = refreshed;
@@ -515,6 +632,12 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
     if (templateExpansionResult) {
       response.templateAutoApplied = true;
       response.tasksCreated = templateExpansionResult.createdCount;
+    }
+    if (autoAdvanceResult) {
+      response.advancement = autoAdvanceResult;
+    }
+    if (autoRecomputeResult) {
+      response.recompute = autoRecomputeResult;
     }
 
     if (prerequisiteExpansionResult) {
@@ -718,6 +841,16 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
         logger.debug('Template auto-applied successfully', { 
           taskCount: templateExpansionResult.createdCount 
         });
+
+        const stageSync = await synchronizeCandidateStage({
+          candidateId: fullCandidate.id,
+          invokerUserId: req.user!.id,
+          authContext,
+          logSource: "candidates:update:auto-apply",
+        });
+        autoAdvanceResult = stageSync.advancement;
+        autoRecomputeResult = stageSync.recompute;
+        autoAdvanceCandidate = stageSync.updatedCandidate;
       } catch (templateError: any) {
         console.error('Failed to auto-apply template on LOO acceptance:', templateError);
         // Don't fail the whole request - the LOO acceptance was recorded
@@ -1210,6 +1343,7 @@ router.get("/candidates/:id/comment-stats", sensitiveRateLimiter, requireAuth, a
 router.post("/candidates/:id/apply-template", requireAuth, requireRole(["system_admin", "hr_staff", "department_admin", "division_leader", "manager"]), async (req, res, next) => {
   try {
     const { template_id } = req.body;
+    const authContext = authorizationService.buildContext(req.user);
 
     logger.debug('Applying template', { candidateId: req.params.id, template_id, userId: req.user!.id });
 
@@ -1244,8 +1378,20 @@ router.post("/candidates/:id/apply-template", requireAuth, requireRole(["system_
       console.error('Failed to dispatch template task assignment notifications:', notifyError);
     }
 
+    const stageSync = await synchronizeCandidateStage({
+      candidateId: req.params.id,
+      invokerUserId: req.user!.id,
+      authContext,
+      logSource: "candidates:apply-template",
+    });
+
     logger.debug('Template applied successfully', { taskCount: expansion.createdCount });
-    res.json({ message: "Template applied successfully", tasksCreated: expansion.createdCount });
+    res.json({
+      message: "Template applied successfully",
+      tasksCreated: expansion.createdCount,
+      advancement: stageSync.advancement,
+      recompute: stageSync.recompute,
+    });
   } catch (error: any) {
     console.error('Template application failed:', error);
     if (error.message) {

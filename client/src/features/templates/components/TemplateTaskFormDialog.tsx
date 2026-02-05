@@ -231,6 +231,7 @@ export function TemplateTaskFormDialog({
     } else if (value === "fixed_date") {
       form.setValue("dueRuleValue", undefined);
     } else if (relativeValueRules.includes(value)) {
+      form.setValue("dueRuleValue", form.getValues("dueRuleValue") ?? 0, { shouldValidate: false });
       form.setValue("fixedDate", undefined);
     }
   };

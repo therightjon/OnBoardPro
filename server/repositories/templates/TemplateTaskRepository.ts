@@ -27,7 +27,10 @@ export class TemplateTaskRepository extends BaseRepository {
     return await this.db
       .select()
       .from(templateTasks)
-      .where(eq(templateTasks.templateId, templateId))
+      .where(and(
+        eq(templateTasks.templateId, templateId),
+        eq(templateTasks.archived, false)
+      ))
       .orderBy(asc(templateTasks.createdAt));
   }
 
@@ -59,7 +62,8 @@ export class TemplateTaskRepository extends BaseRepository {
       .from(templateTasks)
       .where(and(
         eq(templateTasks.templateId, insertTask.templateId),
-        eq(templateTasks.taskDefId, insertTask.taskDefId)
+        eq(templateTasks.taskDefId, insertTask.taskDefId),
+        eq(templateTasks.archived, false)
       ))
       .limit(1);
     
