@@ -221,25 +221,6 @@ export function HiringProgress({
       <CardContent>
         {/* Progress Steps */}
         <div className="relative">
-          {/* Connecting Line (background) */}
-          <div className={cn(
-            "absolute left-[18px] top-[24px] w-0.5 bg-muted",
-            isFullyOnboarded ? "h-[calc(100%-24px)]" : "h-[calc(100%-48px)]"
-          )} />
-          
-          {/* Progress Line (filled portion) */}
-          <div
-            className={cn(
-              "absolute left-[18px] top-[24px] w-0.5 transition-all duration-500",
-              isFullyOnboarded ? "bg-green-600" : "bg-primary"
-            )}
-            style={{
-              height: isFullyOnboarded 
-                ? "calc(100% - 40px)" // Full line to completion note when fully onboarded
-                : `calc(${(effectivePhaseIndex / (HIRING_STEPS.length - 1)) * 100}% - ${effectivePhaseIndex === 0 ? 0 : 30}px)`,
-            }}
-          />
-
           {/* Steps */}
           <div className="relative space-y-6">
             {HIRING_STEPS.map((step, index) => {
@@ -247,9 +228,25 @@ export function HiringProgress({
               // Cast to HiringPhase since HIRING_STEPS only contains valid phases (not "completed")
               const stepDate = getStepDate(step.id as HiringPhase);
               const isOnboardingStep = step.id === "onboarding";
+              const shouldRenderConnector =
+                index < HIRING_STEPS.length - 1 || (isFullyOnboarded && index === HIRING_STEPS.length - 1);
+              const isConnectorFilled = isFullyOnboarded || index < effectivePhaseIndex;
 
               return (
-                <div key={step.id} className="flex gap-4">
+                <div key={step.id} className="relative flex gap-4">
+                  {shouldRenderConnector && (
+                    <div
+                      className={cn(
+                        "absolute left-[18px] top-9 -bottom-6 w-0.5 transition-colors duration-500",
+                        isConnectorFilled
+                          ? isFullyOnboarded
+                            ? "bg-green-600"
+                            : "bg-primary"
+                          : "bg-muted"
+                      )}
+                    />
+                  )}
+
                   {/* Step Circle */}
                   <div
                     className={cn(
