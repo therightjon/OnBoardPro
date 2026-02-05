@@ -167,8 +167,10 @@ export class TemplateRepository extends BaseRepository {
     const year = now.getFullYear();
     const dateString = `${month}-${day}-${year}`;
 
-    // Append date to template name
-    const archivedName = `${template.name} - ${dateString}`;
+    // Append date and a short ID suffix to avoid unique-name collisions
+    // when similarly named templates are archived on the same day.
+    const idSuffix = id.slice(0, 8);
+    const archivedName = `${template.name} - ${dateString} - ${idSuffix}`;
 
     const result = await this.db
       .update(templates)

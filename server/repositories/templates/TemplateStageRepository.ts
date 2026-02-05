@@ -119,16 +119,48 @@ export class TemplateStageRepository extends BaseRepository {
   }
 
   /**
-   * Delete a template stage (soft delete)
-   *
-   * Marks the stage as inactive rather than physically deleting it.
+   * Delete a template stage and normalize remaining order indexes.
    *
    * @param id - Template stage ID
    */
   async deleteTemplateStage(id: string): Promise<void> {
-    await this.db
-      .delete(templateStages)
-      .where(eq(templateStages.id, id));
+    await this.db.transaction(async (trx) => {
+      const [stageToDelete] = await trx
+        .select({
+          templateId: templateStages.templateId,
+        })
+        .from(templateStages)
+        .where(eq(templateStages.id, id))
+        .limit(1);
+
+      if (!stageToDelete) {
+        return;
+      }
+
+      await trx
+        .delete(templateStages)
+        .where(eq(templateStages.id, id));
+
+      // Keep stage numbering contiguous after a delete.
+      const remainingStages = await trx
+        .select({ id: templateStages.id })
+        .from(templateStages)
+        .where(and(
+          eq(templateStages.templateId, stageToDelete.templateId),
+          eq(templateStages.isActive, true)
+        ))
+        .orderBy(asc(templateStages.orderIndex), asc(templateStages.createdAt));
+
+      for (let i = 0; i < remainingStages.length; i++) {
+        await trx
+          .update(templateStages)
+          .set({
+            orderIndex: i + 1,
+            updatedAt: new Date()
+          })
+          .where(eq(templateStages.id, remainingStages[i].id));
+      }
+    });
   }
 
   /**
