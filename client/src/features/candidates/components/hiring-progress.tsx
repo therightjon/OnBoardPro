@@ -348,7 +348,7 @@ export function HiringProgress({
                   <Check className="h-5 w-5 text-white" />
                 </div>
                 {/* Content */}
-                <div className="flex-1 min-w-0 max-w-[200px]">
+                <div className="flex-1 min-w-0 max-w-fit">
                   <div className={cn(
                     "rounded-md p-3",
                     "bg-green-50 dark:bg-emerald-950 border border-green-200 dark:border-emerald-700"
@@ -357,7 +357,6 @@ export function HiringProgress({
                       <span className="font-medium text-green-700 dark:text-emerald-300">
                         Onboarding Complete!
                       </span>
-                      {" · "}
                     </p>
                   </div>
                 </div>
