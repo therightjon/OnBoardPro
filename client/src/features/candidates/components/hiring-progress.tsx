@@ -266,7 +266,13 @@ export function HiringProgress({
                   {/* Step Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between min-h-9">
-                      <div className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          "flex items-center gap-2",
+                          !(isOnboardingStep && primaryAction) &&
+                            "w-full justify-between sm:w-auto sm:justify-start"
+                        )}
+                      >
                         <span
                           className={cn(
                             "font-medium",
@@ -280,7 +286,7 @@ export function HiringProgress({
                             ? "Offer Accepted"
                             : step.label}
                         </span>
-                        {status === "current" && (
+                        {status === "current" && !(isOnboardingStep && primaryAction) && (
                           <Badge variant="outline" className="text-xs">
                             Current
                           </Badge>
@@ -289,7 +295,12 @@ export function HiringProgress({
                       
                       {/* Action buttons on the Onboarding row */}
                       {isOnboardingStep && primaryAction && (
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
+                          {status === "current" && (
+                            <Badge variant="outline" className="text-xs">
+                              Current
+                            </Badge>
+                          )}
                           {/* Show LOO Declined button when LOO is issued but not accepted */}
                           {candidate.offerLetterIssuedAt && !candidate.offerLetterAcceptedAt && (
                             <Button
