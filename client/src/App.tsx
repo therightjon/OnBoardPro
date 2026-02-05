@@ -174,6 +174,16 @@ function Router() {
 }
 
 /**
+ * Type guard to check if an error has an HTTP status code
+ */
+function isHttpError(error: unknown): error is Error & { status: number } {
+  return (
+    error instanceof Error &&
+    typeof (error as any).status === "number"
+  );
+}
+
+/**
  * SessionExpirationHandler monitors for 401 errors from API calls
  * and redirects to the auth page when the session expires.
  */
@@ -183,7 +193,7 @@ function SessionExpirationHandler() {
   useEffect(() => {
     const handleError = (error: Error) => {
       // Check if the error is a 401 Unauthorized error
-      if ((error as any).status === 401) {
+      if (isHttpError(error) && error.status === 401) {
         // Clear all cached data
         queryClient.clear();
         // Redirect to auth page
