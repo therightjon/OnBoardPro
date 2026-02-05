@@ -4,7 +4,7 @@
  * Unified hierarchical view of template stages with nested tasks.
  * Supports drag-and-drop for both stages and tasks, with collapsible stages.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -73,6 +73,7 @@ export function TemplateStagesWithTasks({
     () => new Set(stages.map(s => s.templateStageId))
   );
   const [activeItem, setActiveItem] = useState<DragItem | null>(null);
+  const lastOverIdRef = useRef<UniqueIdentifier | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -135,6 +136,7 @@ export function TemplateStagesWithTasks({
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const id = String(active.id);
+    lastOverIdRef.current = null;
     
     // Determine if dragging stage or task
     const stage = stages.find(s => s.templateStageId === id);
@@ -151,34 +153,69 @@ export function TemplateStagesWithTasks({
   const handleDragOver = (event: DragOverEvent) => {
     // This allows tasks to be dropped in different stages
     // The actual logic is handled in handleDragEnd
+    if (event.over?.id) {
+      lastOverIdRef.current = event.over.id;
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveItem(null);
 
-    if (!over || active.id === over.id) return;
-
     const activeId = String(active.id);
-    const overId = String(over.id);
-
     // Determine if we're moving a stage or task
     const isStage = stages.some(s => s.templateStageId === activeId);
-    
+
     if (isStage) {
       // Stage reordering
-      const oldIndex = stages.findIndex(s => s.templateStageId === activeId);
-      const newIndex = stages.findIndex(s => s.templateStageId === overId);
-      
-      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+      const resolveStageId = (id: string) => {
+        const stageMatch = stages.find(s => s.templateStageId === id);
+        if (stageMatch) return stageMatch.templateStageId;
+        const taskMatch = tasks.find(t => t.id === id);
+        return taskMatch?.templateStageId ?? null;
+      };
 
-      // Create new order array
-      const newOrder = [...stages];
-      const [movedStage] = newOrder.splice(oldIndex, 1);
-      newOrder.splice(newIndex, 0, movedStage);
+      const activeStage = stages.find((stage) => stage.templateStageId === activeId);
+      if (!activeStage) return;
+      const activePhase = activeStage.phase ?? "pre_hire";
+      const phaseStages = stages
+        .filter((stage) => (stage.phase ?? "pre_hire") === activePhase)
+        .sort((a, b) => a.orderIndex - b.orderIndex);
+      const oldIndex = phaseStages.findIndex((stage) => stage.templateStageId === activeId);
+      if (oldIndex === -1) return;
 
-      // Extract just the templateStageIds in new order
-      const stageIdsInOrder = newOrder.map(s => s.templateStageId);
+      const overStageId = over?.id ? resolveStageId(String(over.id)) : null;
+      const overStage = overStageId
+        ? stages.find((stage) => stage.templateStageId === overStageId)
+        : null;
+
+      let newIndex = overStage
+        && (overStage.phase ?? "pre_hire") === activePhase
+        ? phaseStages.findIndex((stage) => stage.templateStageId === overStageId)
+        : -1;
+
+      // Collapsed view can produce an unstable `over` target; use drag direction as fallback.
+      if (newIndex < 0 || newIndex === oldIndex) {
+        if (Math.abs(event.delta.y) < 24) return;
+        const direction = event.delta.y > 0 ? 1 : -1;
+        newIndex = Math.max(0, Math.min(phaseStages.length - 1, oldIndex + direction));
+      }
+      if (newIndex === oldIndex) return;
+
+      const reorderedPhaseStages = [...phaseStages];
+      const [movedStage] = reorderedPhaseStages.splice(oldIndex, 1);
+      reorderedPhaseStages.splice(newIndex, 0, movedStage);
+
+      const allStagesOrdered = [...stages].sort((a, b) => a.orderIndex - b.orderIndex);
+      let phasePointer = 0;
+      const mergedOrder = allStagesOrdered.map((stage) =>
+        (stage.phase ?? "pre_hire") === activePhase
+          ? reorderedPhaseStages[phasePointer++]
+          : stage
+      );
+
+      // API expects hiring stage IDs
+      const stageIdsInOrder = mergedOrder.map((stage) => stage.stageId);
 
       try {
         await onStageReorder(stageIdsInOrder);
@@ -186,6 +223,10 @@ export function TemplateStagesWithTasks({
         console.error("Failed to reorder stages:", error);
       }
     } else {
+      const resolvedOver = over?.id ?? lastOverIdRef.current;
+      if (!resolvedOver || active.id === resolvedOver) return;
+      const overId = String(resolvedOver);
+
       // Task reordering/moving
       const task = tasks.find(t => t.id === activeId);
       if (!task) return;

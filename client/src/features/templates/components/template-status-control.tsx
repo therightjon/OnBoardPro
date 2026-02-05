@@ -32,10 +32,6 @@ export function TemplateStatusControl({ templateId, value, canEdit }: TemplateSt
       const response = await apiRequest("PATCH", `/api/templates/${templateId}/status`, {
         status: nextStatus,
       });
-      if (!response.ok) {
-        const error = await response.json();
-        throw error;
-      }
       return response.json();
     },
     onSuccess: () => {
@@ -45,9 +41,23 @@ export function TemplateStatusControl({ templateId, value, canEdit }: TemplateSt
       toast.success("Template status updated");
     },
     onError: (error: any) => {
-      const message = error?.code === "TEMPLATE_NOT_READY"
-        ? "Cannot set to Active. Add at least one stage to this template."
-        : (error?.message || "Failed to update status");
+      const code =
+        error?.parsedBody?.code ??
+        error?.parsedBody?.error?.code ??
+        error?.body?.code ??
+        error?.body?.error?.code ??
+        error?.code;
+
+      const apiMessage =
+        error?.parsedBody?.message ??
+        error?.parsedBody?.error?.message ??
+        error?.body?.message ??
+        error?.body?.error?.message;
+
+      const message =
+        code === "TEMPLATE_NOT_READY" && (readiness?.active_stage_count ?? 0) < 1
+          ? "Cannot set to Active. Add at least one stage to this template."
+          : (apiMessage || error?.message || "Failed to update status");
       setDialogMsg(message);
       setDialogOpen(true);
     },
@@ -57,10 +67,17 @@ export function TemplateStatusControl({ templateId, value, canEdit }: TemplateSt
     if (!canEdit) return;
     
     // Pre-check for Active to avoid a round trip when possible
-    if (nextStatus === "active" && (readiness?.active_stage_count ?? 0) < 1) {
-      setDialogMsg("Cannot set to Active. Add at least one stage to this template.");
-      setDialogOpen(true);
-      return;
+    if (nextStatus === "active") {
+      if (readiness?.ready === false) {
+        setDialogMsg(readiness.reason || "Template is not ready to be activated.");
+        setDialogOpen(true);
+        return;
+      }
+      if ((readiness?.active_stage_count ?? 0) < 1) {
+        setDialogMsg("Cannot set to Active. Add at least one stage to this template.");
+        setDialogOpen(true);
+        return;
+      }
     }
     
     mutate.mutate(nextStatus);
