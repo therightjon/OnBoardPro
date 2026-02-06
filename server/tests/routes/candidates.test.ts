@@ -129,6 +129,160 @@ describe("Candidate API - Create Operations", () => {
       .send(newCandidate)
       .expect(403);
   });
+
+  test("candidate creation rejects templates without P&T prerequisite when faculty rank requires P&T", async (t) => {
+    const { agent, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
+    const now = new Date("2024-01-01T00:00:00Z");
+
+    const originalGetReferenceDataService = storage.getReferenceDataService.bind(storage);
+    const originalGetTemplateService = storage.getTemplateService.bind(storage);
+
+    storage.getReferenceDataService = () => ({
+      ...originalGetReferenceDataService(),
+      getCandidateTypes: () => Promise.resolve([
+        {
+          id: AUTH_FIXTURE_IDS.candidateTypes.faculty,
+          name: "Faculty",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]),
+      getFacultyRanks: () => Promise.resolve([
+        {
+          id: AUTH_FIXTURE_IDS.facultyRanks.instructor,
+          name: "Associate Professor",
+          requiresPT: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]),
+    });
+
+    storage.getTemplateService = () => ({
+      ...originalGetTemplateService(),
+      getTemplateTasks: () => Promise.resolve([
+        {
+          id: AUTH_FIXTURE_IDS.templateTasks.provisioning,
+          templateId: AUTH_FIXTURE_IDS.templates.onboarding,
+          taskDefId: AUTH_FIXTURE_IDS.taskDefinitions.provisioning,
+          stageId: AUTH_FIXTURE_IDS.hiringStages.offer,
+          templateStageId: AUTH_FIXTURE_IDS.templateStages.offer,
+          dueRuleType: "on_start_date",
+          dueRuleValue: null,
+          fixedDate: null,
+          defaultAssigneeKind: "user",
+          defaultAssigneeUserId: AUTH_FIXTURE_IDS.users.hrStaff,
+          defaultAssigneeRole: null,
+          defaultPriorityId: AUTH_FIXTURE_IDS.taskPriorities.medium,
+          defaultCategoryId: AUTH_FIXTURE_IDS.taskCategories.onboarding,
+          isRequired: true,
+          isPrerequisite: false,
+          prerequisiteCondition: null,
+          archived: false,
+          createdBy: AUTH_FIXTURE_IDS.users.systemAdmin,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]),
+    });
+
+    const newCandidate = {
+      firstName: "Pat",
+      lastName: "Taylor",
+      email: "pat.taylor@example.com",
+      departmentId: AUTH_FIXTURE_IDS.departments.alpha,
+      candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
+      facultyRankId: AUTH_FIXTURE_IDS.facultyRanks.instructor,
+      letterOfIntentDate: formatDateForApi(now),
+      templateId: AUTH_FIXTURE_IDS.templates.onboarding,
+    };
+
+    const response = await agent
+      .post("/api/candidates")
+      .send(newCandidate)
+      .expect(400);
+
+    assert.match(
+      response.body.message,
+      /template with at least one P&T Approval prerequisite task/i
+    );
+  });
+
+  test("candidate creation allows templates with P&T prerequisite when faculty rank requires P&T", async (t) => {
+    const { agent, storage } = await setupTest(t, AUTH_FIXTURE_IDS.users.hrStaff);
+    const now = new Date("2024-01-01T00:00:00Z");
+
+    const originalGetReferenceDataService = storage.getReferenceDataService.bind(storage);
+    const originalGetTemplateService = storage.getTemplateService.bind(storage);
+
+    storage.getReferenceDataService = () => ({
+      ...originalGetReferenceDataService(),
+      getCandidateTypes: () => Promise.resolve([
+        {
+          id: AUTH_FIXTURE_IDS.candidateTypes.faculty,
+          name: "Faculty",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]),
+      getFacultyRanks: () => Promise.resolve([
+        {
+          id: AUTH_FIXTURE_IDS.facultyRanks.instructor,
+          name: "Associate Professor",
+          requiresPT: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]),
+    });
+
+    storage.getTemplateService = () => ({
+      ...originalGetTemplateService(),
+      getTemplateTasks: () => Promise.resolve([
+        {
+          id: AUTH_FIXTURE_IDS.templateTasks.provisioning,
+          templateId: AUTH_FIXTURE_IDS.templates.onboarding,
+          taskDefId: AUTH_FIXTURE_IDS.taskDefinitions.provisioning,
+          stageId: AUTH_FIXTURE_IDS.hiringStages.offer,
+          templateStageId: AUTH_FIXTURE_IDS.templateStages.offer,
+          dueRuleType: "on_loi_date",
+          dueRuleValue: null,
+          fixedDate: null,
+          defaultAssigneeKind: "user",
+          defaultAssigneeUserId: AUTH_FIXTURE_IDS.users.hrStaff,
+          defaultAssigneeRole: null,
+          defaultPriorityId: AUTH_FIXTURE_IDS.taskPriorities.medium,
+          defaultCategoryId: AUTH_FIXTURE_IDS.taskCategories.onboarding,
+          isRequired: true,
+          isPrerequisite: true,
+          prerequisiteCondition: "requires_pt",
+          archived: false,
+          createdBy: AUTH_FIXTURE_IDS.users.systemAdmin,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]),
+    });
+
+    const newCandidate = {
+      firstName: "Alex",
+      lastName: "Associate",
+      email: "alex.associate@example.com",
+      departmentId: AUTH_FIXTURE_IDS.departments.alpha,
+      candidateTypeId: AUTH_FIXTURE_IDS.candidateTypes.faculty,
+      facultyRankId: AUTH_FIXTURE_IDS.facultyRanks.instructor,
+      letterOfIntentDate: formatDateForApi(now),
+      templateId: AUTH_FIXTURE_IDS.templates.onboarding,
+    };
+
+    const response = await agent
+      .post("/api/candidates")
+      .send(newCandidate)
+      .expect(201);
+
+    assert.equal(response.body.firstName, "Alex");
+    assert.equal(response.body.lastName, "Associate");
+  });
 });
 
 describe("Candidate API - Read Operations", () => {
