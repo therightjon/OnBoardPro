@@ -225,7 +225,7 @@ export function TemplateStagesList({ templateId, stages }: TemplateStagesListPro
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold capitalize text-muted-foreground">{readable}</h4>
                   <Badge variant="outline" className="text-xs">
-                    {phaseStages.length} stage{phaseStages.length === 1 ? '' : 's'}
+                    {phaseStages.length} Stage{phaseStages.length === 1 ? '' : 's'}
                   </Badge>
                 </div>
                 <div className="flex flex-col gap-2">

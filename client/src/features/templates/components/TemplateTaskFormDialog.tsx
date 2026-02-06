@@ -131,6 +131,11 @@ export function TemplateTaskFormDialog({
 }: TemplateTaskFormDialogProps) {
   const isEdit = mode === "edit";
   const testIdPrefix = isEdit ? "edit-" : "";
+  const formatPriorityLabel = (name: string) => name.charAt(0).toUpperCase() + name.slice(1);
+  const formatPhaseLabel = (phase: string | null | undefined) =>
+    (phase ?? "pre_hire")
+      .replace("_", " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
 
   const form = useForm<TemplateTaskFormValues>({
     resolver: zodResolver(templateTaskSchema),
@@ -327,7 +332,7 @@ export function TemplateTaskFormDialog({
                           .map(ts => {
                             const stage = hiringStages.find(s => s.id === ts.stageId);
                             const stageName = stage?.name ?? 'Unknown Stage';
-                            const phaseLabel = (ts.phase ?? 'pre_hire').replace('_', ' ');
+                            const phaseLabel = formatPhaseLabel(ts.phase);
                             return { id: ts.stageId, name: `${stageName} (${phaseLabel})` };
                           })
                           .filter(option => option.name.toLowerCase().includes(ql));
@@ -563,7 +568,7 @@ export function TemplateTaskFormDialog({
                         fetchItems={async (q: string) => {
                           const ql = q.trim().toLowerCase();
                           const list = taskPriorities
-                            .map(p => ({ id: p.id, name: p.name }))
+                            .map(p => ({ id: p.id, name: formatPriorityLabel(p.name) }))
                             .filter(p => p.name.toLowerCase().includes(ql));
                           return [{ id: "none", name: "None" }, ...list];
                         }}

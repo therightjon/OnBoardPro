@@ -24,7 +24,9 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { AutoSelectCombobox } from "@/shared/components/inputs/AutoSelectCombobox";
 import { searchDepartments, searchDivisions, searchManagers } from "@/lib/search";
 import { formatDateForApi } from "@/shared/components/inputs/DatePicker";
-import type { Template, CandidateType, Department, Division, User as UserType, TemplateTask, TaskDefinition, HiringStage } from "@shared/schemas";
+import type { Template, CandidateType, Department, Division, User as UserType, TemplateTask, TaskDefinition, HiringStage, FacultyRank } from "@shared/schemas";
+
+const PT_TEMPLATE_VALIDATION_MESSAGE = "Associate-or-higher faculty ranks require a template with at least one P&T Approval prerequisite task.";
 
 const newCandidateSchema = z.object({
   salutation: z.enum(["Mr.", "Ms.", "Mrs.", "Mx.", "Dr.", "Prof.", "Other"]),
@@ -130,6 +132,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
   const selectedDepartmentId = form.watch("departmentId");
   const selectedCandidateTypeId = form.watch("candidateTypeId");
   const selectedTemplateId = form.watch("templateId");
+  const selectedFacultyRankId = form.watch("facultyRankId");
   const selectedAnticipatedStart = form.watch("anticipatedStartDate");
   const selectedLetterOfIntentDate = form.watch("letterOfIntentDate");
   const selectedOfferLetterIssued = form.watch("offerLetterIssuedAt");
@@ -146,7 +149,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
     enabled: open,
   });
 
-  const { data: templateTasks = [] } = useQuery<TemplateTask[]>({
+  const { data: templateTasks = [], isLoading: isTemplateTasksLoading, isFetching: isTemplateTasksFetching } = useQuery<TemplateTask[]>({
     queryKey: ["/api/templates", selectedTemplateId, "template-tasks"],
     enabled: open && !!selectedTemplateId,
   });
@@ -161,7 +164,7 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
     enabled: open,
   });
 
-  const { data: facultyRanks = [] } = useQuery<Array<{ id: string; name: string }>>({
+  const { data: facultyRanks = [] } = useQuery<FacultyRank[]>({
     queryKey: ["/api/faculty-ranks"],
     enabled: open,
     staleTime: 60_000,
@@ -177,6 +180,48 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
   const selectedCandidateType = candidateTypes.find(ct => ct.id === selectedCandidateTypeId);
   const isFacultyType = selectedCandidateType && (selectedCandidateType.name === 'Faculty' || selectedCandidateType.name === 'Faculty Clinical');
   const facultyRankRequired = !!isFacultyType;
+  const selectedFacultyRank = useMemo(
+    () => facultyRanks.find((rank) => rank.id === selectedFacultyRankId),
+    [facultyRanks, selectedFacultyRankId]
+  );
+  const selectedRankRequiresPTApproval = selectedFacultyRank?.requiresPT === true;
+  const selectedTemplateHasPTPrerequisite = useMemo(
+    () => templateTasks.some((task) => task.isPrerequisite && task.prerequisiteCondition === "requires_pt"),
+    [templateTasks]
+  );
+  const isTemplateValidationPending = isTemplateTasksLoading || isTemplateTasksFetching;
+
+  useEffect(() => {
+    if (!open || !selectedRankRequiresPTApproval) {
+      if (form.getFieldState("templateId").error?.message === PT_TEMPLATE_VALIDATION_MESSAGE) {
+        form.clearErrors("templateId");
+      }
+      return;
+    }
+
+    if (!selectedTemplateId || isTemplateValidationPending) {
+      return;
+    }
+
+    if (!selectedTemplateHasPTPrerequisite) {
+      form.setError("templateId", {
+        type: "manual",
+        message: PT_TEMPLATE_VALIDATION_MESSAGE,
+      });
+      return;
+    }
+
+    if (form.getFieldState("templateId").error?.message === PT_TEMPLATE_VALIDATION_MESSAGE) {
+      form.clearErrors("templateId");
+    }
+  }, [
+    open,
+    selectedRankRequiresPTApproval,
+    selectedTemplateId,
+    isTemplateValidationPending,
+    selectedTemplateHasPTPrerequisite,
+    form,
+  ]);
 
 
   // Calculate preview due dates (memoized to prevent infinite re-renders)
@@ -347,6 +392,25 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
   });
 
   const onSubmit = (data: NewCandidateForm) => {
+    if (selectedRankRequiresPTApproval && data.templateId) {
+      if (isTemplateValidationPending) {
+        toast({
+          title: "Template validation in progress",
+          description: "Please wait for template prerequisite validation to complete.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!selectedTemplateHasPTPrerequisite) {
+        form.setError("templateId", {
+          type: "manual",
+          message: PT_TEMPLATE_VALIDATION_MESSAGE,
+        });
+        return;
+      }
+    }
+
     createCandidateMutation.mutate(data);
   };
 
@@ -593,6 +657,11 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                           )}
                         </SelectContent>
                       </Select>
+                      {selectedRankRequiresPTApproval && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Associate-or-higher faculty ranks require a template with a P&T Approval prerequisite task.
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}

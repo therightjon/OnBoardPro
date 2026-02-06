@@ -278,7 +278,7 @@ export function TemplateStagesWithTasks({
             {phaseLabel}
           </h3>
           <Badge variant="secondary" className="text-xs w-fit">
-            {phaseStages.length} {phaseStages.length === 1 ? "stage" : "stages"}
+            {phaseStages.length} {phaseStages.length === 1 ? "Stage" : "Stages"}
           </Badge>
         </div>
         

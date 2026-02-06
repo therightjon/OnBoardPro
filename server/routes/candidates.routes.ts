@@ -39,7 +39,7 @@ import { emitDeadlinesIfNeeded } from "../features/notifications/deadline-helper
 import { emitOwnerChanged } from "../features/notifications/owner-change";
 import { authorizationService } from "../services/authorization";
 import { eventBus, candidateCreated, candidateStatusChanged, candidateStageChanged, taskCreated, taskAssigned, commentCreated } from "../events";
-import { getCandidateService, getTaskService, getCommentService, getReferenceDataService, getTemplateExpansionService, getTemplateEstimationService, getTaskDueDateService, getOrganizationService } from "../services/service-factory";
+import { getCandidateService, getTaskService, getCommentService, getReferenceDataService, getTemplateExpansionService, getTemplateEstimationService, getTaskDueDateService, getOrganizationService, getTemplateService } from "../services/service-factory";
 import { CandidateValidationError } from "../services/candidates/candidate.service";
 import { shouldAutoApplyTemplate } from "../utils/hiring-phase.utils";
 import { publishTemplateTaskCreatedEvents } from "../utils/template-event.utils";
@@ -494,8 +494,9 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
     const refDataService = getReferenceDataService();
     const candidateTypes = await refDataService.getCandidateTypes();
     const candidateType = candidateTypes.find(type => type.id === req.body.candidateTypeId);
+    const isFacultyType = candidateType && (candidateType.name === 'Faculty' || candidateType.name === 'Faculty Clinical');
 
-    if (candidateType && (candidateType.name === 'Faculty' || candidateType.name === 'Faculty Clinical')) {
+    if (isFacultyType) {
       if (!req.body.facultyRankId) {
         return res.status(400).json({ message: "Faculty Rank is required for Faculty and Faculty Clinical candidate types" });
       }
@@ -507,6 +508,27 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
     }
     if (!req.body.templateId) {
       return res.status(400).json({ message: "Template is required" });
+    }
+
+    // If the selected faculty rank requires P&T approval, enforce that the template
+    // includes at least one matching prerequisite task.
+    if (req.body.facultyRankId && req.body.templateId) {
+      const facultyRanks = await refDataService.getFacultyRanks();
+      const selectedRank = facultyRanks.find(rank => rank.id === req.body.facultyRankId);
+
+      if (selectedRank?.requiresPT === true) {
+        const templateService = getTemplateService();
+        const templateTasks = await templateService.getTemplateTasks(req.body.templateId);
+        const hasPTApprovalPrerequisite = templateTasks.some(task =>
+          task.isPrerequisite && task.prerequisiteCondition === "requires_pt"
+        );
+
+        if (!hasPTApprovalPrerequisite) {
+          return res.status(400).json({
+            message: "Selected faculty rank requires a template with at least one P&T Approval prerequisite task."
+          });
+        }
+      }
     }
 
     // Validate input
