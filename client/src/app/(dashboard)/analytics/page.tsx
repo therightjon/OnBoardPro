@@ -27,7 +27,7 @@ export default function AnalyticsPage() {
             <div className="space-y-2">
               <h2 className="text-xl font-semibold text-foreground">Analytics Coming Soon</h2>
               <p className="text-muted-foreground max-w-md mx-auto">
-                We're building comprehensive analytics and reporting features to help you gain insights into your hiring pipeline performance.
+                Building comprehensive analytics and reporting features to help you gain insights into your hiring pipeline performance.
               </p>
             </div>
 

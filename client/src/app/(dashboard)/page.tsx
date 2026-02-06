@@ -399,8 +399,8 @@ export default function Dashboard() {
   };
 
   const greetingMessage = user?.firstName?.trim()
-    ? `Welcome back, ${user.firstName.trim()}, manage your hiring pipeline`
-    : "Welcome back";
+    ? `Welcome back, ${user.firstName.trim()}. Overview of hiring activity.`
+    : "Welcome back. Overview of hiring activity.";
 
   const getInitials = (firstName?: string, lastName?: string) => {
     const first = firstName?.charAt(0) ?? "";

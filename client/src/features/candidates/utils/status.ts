@@ -55,7 +55,7 @@ const STATUS_LABELS: Record<ResolvedCandidateStatusKey, string> = {
 const STATUS_BADGE_CLASSES: Record<ResolvedCandidateStatusKey, string> = {
   active: "bg-primary text-primary-foreground",
   draft: "bg-secondary text-secondary-foreground",
-  completed: "bg-primary text-primary-foreground",
+  completed: "bg-blue-600 dark:bg-blue-500 text-white",
   on_hold: "bg-amber-500 dark:bg-amber-600 text-white",
   canceled: "bg-destructive text-destructive-foreground",
   offer_declined: "bg-destructive text-destructive-foreground",
