@@ -98,7 +98,7 @@ export function SortableStageCard({
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             {/* Task Count Badge */}
             <Badge variant="secondary" className="flex-shrink-0">
-              {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
+              {tasks.length} {tasks.length === 1 ? "Task" : "Tasks"}
             </Badge>
 
             {/* Actions */}

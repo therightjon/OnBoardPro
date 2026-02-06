@@ -112,7 +112,7 @@ export const SortableTaskRow = memo(function SortableTaskRow({
             {dueRuleText}
           </span>
           {priorityName && (
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-xs capitalize">
               {priorityName}
             </Badge>
           )}
