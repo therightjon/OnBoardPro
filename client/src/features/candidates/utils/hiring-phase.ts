@@ -6,18 +6,16 @@
  *
  * Hiring Flow:
  * 1. LOI Issued - Candidate created with Letter of Intent date
- * 2. Offer Pending - Letter of Offer has been issued, awaiting acceptance
- * 3. Pre-hire - LOO accepted, template applied, pre-hire tasks in progress
- * 4. Onboarding - All pre-hire tasks complete, onboarding tasks in progress
+ * 2. Pre-hire - Letter of Offer has been issued (accepted or pending)
+ * 3. Onboarding - All pre-hire tasks complete, onboarding tasks in progress
  */
 
 /**
- * The four hiring phases a candidate progresses through
+ * Hiring phases a candidate progresses through
  */
 export type HiringPhase = 
   | "loi_issued"     // LOI date set, no LOO issued yet
-  | "offer_pending"  // LOO issued, awaiting acceptance
-  | "pre_hire"       // LOO accepted, template applied, pre-hire tasks
+  | "pre_hire"       // LOO issued (accepted or pending), pre-hire work
   | "onboarding";    // Pre-hire complete, onboarding phase
 
 /**
@@ -25,7 +23,6 @@ export type HiringPhase =
  */
 export const HIRING_PHASE_LABELS: Record<HiringPhase, string> = {
   loi_issued: "LOI Issued",
-  offer_pending: "Offer Pending",
   pre_hire: "Pre-hire",
   onboarding: "Onboarding",
 };
@@ -35,7 +32,6 @@ export const HIRING_PHASE_LABELS: Record<HiringPhase, string> = {
  */
 export const HIRING_PHASE_VARIANTS: Record<HiringPhase, "default" | "secondary" | "outline" | "destructive"> = {
   loi_issued: "outline",
-  offer_pending: "secondary",
   pre_hire: "default",
   onboarding: "default",
 };
@@ -45,9 +41,8 @@ export const HIRING_PHASE_VARIANTS: Record<HiringPhase, "default" | "secondary" 
  */
 export const HIRING_PHASE_STEPS: Record<HiringPhase, number> = {
   loi_issued: 1,
-  offer_pending: 2,
-  pre_hire: 3,
-  onboarding: 4,
+  pre_hire: 2,
+  onboarding: 3,
 };
 
 /**
@@ -58,7 +53,7 @@ export interface HiringPhaseInfo {
   phase: HiringPhase;
   /** Human-readable phase label */
   label: string;
-  /** Step number (1-4) */
+  /** Step number (1-3) */
   step: number;
   /** Whether a template can be applied (only after LOO acceptance) */
   canApplyTemplate: boolean;
@@ -122,12 +117,12 @@ export function getHiringPhase(candidate: CandidateForPhase): HiringPhaseInfo {
     };
   }
 
-  // Phase 2: Offer issued, waiting for acceptance
+  // Phase 2: Pre-hire starts once offer is issued (acceptance may still be pending)
   if (!hasLOOAccepted) {
     return {
-      phase: "offer_pending",
-      label: HIRING_PHASE_LABELS.offer_pending,
-      step: HIRING_PHASE_STEPS.offer_pending,
+      phase: "pre_hire",
+      label: HIRING_PHASE_LABELS.pre_hire,
+      step: HIRING_PHASE_STEPS.pre_hire,
       canApplyTemplate: false,
       templatePending,
       blockedReason: "Waiting for Letter of Offer to be accepted",

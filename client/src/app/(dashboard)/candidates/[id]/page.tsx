@@ -45,6 +45,7 @@ import { Textarea } from "@/shared/components/ui/textarea";
 import { AutoSelectCombobox } from "@/shared/components/inputs/AutoSelectCombobox";
 import { PaginationControls } from "@/shared/components/pagination-controls";
 import { useToast } from "@/shared/hooks/use-toast";
+import { getHiringPhase } from "@/features/candidates/utils/hiring-phase";
 
 const dateOnlyIsoRegex = /^\d{4}-\d{2}-\d{2}$/;
 const normalizeIso = (iso: string) => (dateOnlyIsoRegex.test(iso) ? `${iso}T00:00:00.000Z` : iso);
@@ -488,8 +489,12 @@ export default function CandidateDetailPage() {
     })();
   }, [candidate, taskSummary.allClosed, queryClient]);
 
-  const candidatePhase = (candidate as any)?.currentStage?.phase ?? "pre_hire";
-  const candidatePhaseLabel = candidatePhase === "onboarding" ? "Onboarding" : "Pre-hire";
+  const candidatePhase = candidate ? getHiringPhase(candidate as any).phase : "loi_issued";
+  const candidatePhaseLabel = candidatePhase === "onboarding"
+    ? "Onboarding"
+    : candidatePhase === "loi_issued"
+      ? "LOI Issued"
+      : "Pre-hire";
   const pendingAnchorCount = pendingAnchorTasks.length;
   const hasPendingAnchor = pendingAnchorCount > 0;
   const looAnchor = (candidate as any)?.offerLetterAcceptedAt ?? (candidate as any)?.offerLetterIssuedAt ?? null;
