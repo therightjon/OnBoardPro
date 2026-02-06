@@ -383,7 +383,7 @@ export function PipelineEstimateSection({
                         {formatPhaseLabel(phase.phase)}
                       </div>
                       <div className="text-xl font-semibold text-foreground">
-                        {phase.taskCount} task{phase.taskCount === 1 ? '' : 's'}
+                        {phase.taskCount} Task{phase.taskCount === 1 ? '' : 's'}
                       </div>
                       {phase.lastDueDate && (
                         <div className="text-xs text-muted-foreground mt-1">
