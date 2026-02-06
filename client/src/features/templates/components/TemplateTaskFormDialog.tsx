@@ -132,6 +132,10 @@ export function TemplateTaskFormDialog({
   const isEdit = mode === "edit";
   const testIdPrefix = isEdit ? "edit-" : "";
   const formatPriorityLabel = (name: string) => name.charAt(0).toUpperCase() + name.slice(1);
+  const formatPhaseLabel = (phase: string | null | undefined) =>
+    (phase ?? "pre_hire")
+      .replace("_", " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
 
   const form = useForm<TemplateTaskFormValues>({
     resolver: zodResolver(templateTaskSchema),
@@ -328,7 +332,7 @@ export function TemplateTaskFormDialog({
                           .map(ts => {
                             const stage = hiringStages.find(s => s.id === ts.stageId);
                             const stageName = stage?.name ?? 'Unknown Stage';
-                            const phaseLabel = (ts.phase ?? 'pre_hire').replace('_', ' ');
+                            const phaseLabel = formatPhaseLabel(ts.phase);
                             return { id: ts.stageId, name: `${stageName} (${phaseLabel})` };
                           })
                           .filter(option => option.name.toLowerCase().includes(ql));
