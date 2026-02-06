@@ -85,6 +85,12 @@ export interface CandidateForPhase {
   } | null;
 }
 
+type CandidateForStageLabel = CandidateForPhase & {
+  currentStage?: {
+    name?: string | null;
+  } | null;
+};
+
 /**
  * Calculate the current hiring phase for a candidate based on milestone dates
  *
@@ -161,6 +167,24 @@ export function getHiringPhase(candidate: CandidateForPhase): HiringPhaseInfo {
     templatePending,
     blockedReason: templatePending ? "Template ready to be applied" : undefined,
   };
+}
+
+/**
+ * Resolve the stage badge label for candidate list/detail views.
+ * When no workflow stage is set yet, align the label to hiring milestones.
+ */
+export function resolveCandidateStageLabel(
+  candidate: CandidateForStageLabel | null | undefined,
+  fallbackLabel: string = "Not Started"
+): string {
+  const stageName = candidate?.currentStage?.name?.trim();
+  if (stageName) return stageName;
+  if (!candidate) return fallbackLabel;
+
+  if (candidate.offerLetterAcceptedAt) return "Offer Accepted";
+  if (candidate.offerLetterIssuedAt) return "Offer Sent";
+  if (candidate.letterOfIntentDate) return "LOI Issued";
+  return fallbackLabel;
 }
 
 /**

@@ -45,7 +45,7 @@ import { Textarea } from "@/shared/components/ui/textarea";
 import { AutoSelectCombobox } from "@/shared/components/inputs/AutoSelectCombobox";
 import { PaginationControls } from "@/shared/components/pagination-controls";
 import { useToast } from "@/shared/hooks/use-toast";
-import { getHiringPhase } from "@/features/candidates/utils/hiring-phase";
+import { getHiringPhase, resolveCandidateStageLabel } from "@/features/candidates/utils/hiring-phase";
 
 const dateOnlyIsoRegex = /^\d{4}-\d{2}-\d{2}$/;
 const normalizeIso = (iso: string) => (dateOnlyIsoRegex.test(iso) ? `${iso}T00:00:00.000Z` : iso);
@@ -516,7 +516,7 @@ export default function CandidateDetailPage() {
     !['draft', 'active', 'on_hold'].includes(candidateStatusKey);
   const assigneeSelectLocked = taskStatusDisabled || !!assigneeError;
 
-  const currentStageName = (candidate as any)?.currentStage?.name || "Not set";
+  const currentStageName = resolveCandidateStageLabel(candidate as any, "Not set");
   const stageDisplay = resolvedStatus.isArchived
     ? (currentStageName === "Not set" ? "Archived" : `${currentStageName} (Archived)`)
     : resolvedStatus.isCanceled

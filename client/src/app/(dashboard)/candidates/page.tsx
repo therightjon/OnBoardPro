@@ -25,7 +25,7 @@ const ArchiveCandidateDialog = lazy(() => import("@/features/candidates/componen
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { candidateStatusBadgeClass, resolveCandidateStatus, canArchiveCandidate } from "@/features/candidates/utils/status";
-import { getHiringPhase } from "@/features/candidates/utils/hiring-phase";
+import { getHiringPhase, resolveCandidateStageLabel } from "@/features/candidates/utils/hiring-phase";
 import { useLocalStorage } from "@/shared/hooks/use-local-storage";
 import type { Candidate, CandidateType, HiringStage } from "@shared/schemas";
 import { PaginationControls } from "@/shared/components/pagination-controls";
@@ -172,8 +172,8 @@ const formatLooAge = (isoDate?: string | null) => {
           bValue = b.status;
           break;
         case "stage":
-          aValue = a.currentStage?.name || "Not Started";
-          bValue = b.currentStage?.name || "Not Started";
+          aValue = resolveCandidateStageLabel(a);
+          bValue = resolveCandidateStageLabel(b);
           break;
         case "looAge":
           const aLoo = a.offerLetterAcceptedAt || a.offerLetterIssuedAt;
@@ -503,6 +503,7 @@ const formatLooAge = (isoDate?: string | null) => {
               ) : (
                 paginatedCandidates.map((candidate: any) => {
                   const phase = getHiringPhase(candidate).phase;
+                  const stageLabel = resolveCandidateStageLabel(candidate);
                   const phaseText = phaseLabel(phase);
                   const resolvedStatus = resolveCandidateStatus(candidate);
                   const statusClass = candidateStatusBadgeClass(resolvedStatus.status);
@@ -546,7 +547,7 @@ const formatLooAge = (isoDate?: string | null) => {
                       <TableCell data-testid={`cell-stage-${candidate.id}`}>
                         <div className="flex flex-col">
                           <Badge variant="outline" className="whitespace-nowrap bg-secondary justify-center text-center">
-                            {candidate.currentStage?.name || "Not Started"}
+                            {stageLabel}
                           </Badge>
                           <span className="text-xs text-muted-foreground capitalize mt-1">{phaseText}</span>
                           <span className="text-xs text-muted-foreground mt-1">
@@ -624,6 +625,7 @@ const formatLooAge = (isoDate?: string | null) => {
               const openPrehire = Number(candidate.openPrehireTasks ?? 0);
               const openOnboarding = Number(candidate.openOnboardingTasks ?? 0);
               const phase = getHiringPhase(candidate).phase;
+              const stageLabel = resolveCandidateStageLabel(candidate);
               const resolvedStatus = resolveCandidateStatus(candidate);
               const statusClass = candidateStatusBadgeClass(resolvedStatus.status);
               return (
@@ -672,7 +674,7 @@ const formatLooAge = (isoDate?: string | null) => {
                           <dt className="text-muted-foreground">Stage</dt>
                           <dd>
                             <Badge variant="outline" className="text-xs whitespace-nowrap bg-secondary justify-center text-center">
-                              {candidate.currentStage?.name || "Not Started"}
+                              {stageLabel}
                             </Badge>
                             <span className="block text-[10px] text-muted-foreground mt-1 capitalize">
                               {phaseLabel(phase)}

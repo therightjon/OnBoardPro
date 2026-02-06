@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getHiringPhase } from "./hiring-phase";
+import { getHiringPhase, resolveCandidateStageLabel } from "./hiring-phase";
 
 describe("getHiringPhase", () => {
   it("returns loi_issued when LOO has not been issued", () => {
@@ -40,5 +40,36 @@ describe("getHiringPhase", () => {
 
     expect(phase.phase).toBe("onboarding");
     expect(phase.label).toBe("Onboarding");
+  });
+});
+
+describe("resolveCandidateStageLabel", () => {
+  it("uses real stage name when available", () => {
+    const label = resolveCandidateStageLabel({
+      currentStage: { name: "Credentialing" },
+      offerLetterIssuedAt: "2026-02-05",
+    });
+
+    expect(label).toBe("Credentialing");
+  });
+
+  it("shows Offer Sent when stage is missing but LOO was issued", () => {
+    const label = resolveCandidateStageLabel({
+      currentStage: null,
+      offerLetterIssuedAt: "2026-02-05",
+      offerLetterAcceptedAt: null,
+    });
+
+    expect(label).toBe("Offer Sent");
+  });
+
+  it("shows Offer Accepted when stage is missing and LOO was accepted", () => {
+    const label = resolveCandidateStageLabel({
+      currentStage: null,
+      offerLetterIssuedAt: "2026-02-05",
+      offerLetterAcceptedAt: "2026-02-06",
+    });
+
+    expect(label).toBe("Offer Accepted");
   });
 });
