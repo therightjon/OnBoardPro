@@ -4,6 +4,28 @@ A non-technical overview of OnBoardPro's key features and screens for demonstrat
 
 ---
 
+## Table of Contents
+
+- [What is OnBoardPro?](#what-is-onboardpro)
+- [Role-Based Access Control (RBAC)](#role-based-access-control-rbac)
+  - [User Roles](#user-roles)
+  - [Key Security Features](#key-security-features)
+- [Main Screens Overview](#main-screens-overview)
+  - [1. Dashboard](#1-dashboard)
+  - [2. Candidates](#2-candidates)
+  - [3. My Tasks](#3-my-tasks)
+  - [4. Task Library](#4-task-library)
+  - [5. Templates](#5-templates)
+- [Demo Flow Suggestions](#demo-flow-suggestions)
+  - [Quick Overview (5 minutes)](#quick-overview-5-minutes)
+  - [Feature Deep Dive (15 minutes)](#feature-deep-dive-15-minutes)
+  - [Administrative Demo (10 minutes)](#administrative-demo-10-minutes)
+- [Key Terminology](#key-terminology)
+- [Access Summary by Screen](#access-summary-by-screen)
+- [Questions This System Answers](#questions-this-system-answers)
+
+---
+
 ## What is OnBoardPro?
 
 OnBoardPro is a **hiring pipeline management system** designed to streamline the candidate onboarding process. It helps organizations:
@@ -12,6 +34,8 @@ OnBoardPro is a **hiring pipeline management system** designed to streamline the
 - Assign and monitor onboarding tasks across teams
 - Ensure nothing falls through the cracks during the hiring process
 - Provide visibility into pipeline progress across departments
+
+[↑ Return to top](#table-of-contents)
 
 ---
 
@@ -35,6 +59,8 @@ OnBoardPro uses a **role-based security model** to ensure users only see informa
 - **Automatic Data Filtering**: Users automatically see only the data they're authorized to access
 - **Action Gates**: Create, edit, and delete operations are restricted by role
 - **Navigation Controls**: Menu options are shown/hidden based on user permissions
+
+[↑ Return to top](#table-of-contents)
 
 ---
 
@@ -226,6 +252,8 @@ Examples:
 4. Each task gets its due date calculated based on the rules
 5. Candidate progresses through stages as tasks are completed
 
+[↑ Return to top](#table-of-contents)
+
 ---
 
 ## Demo Flow Suggestions
@@ -251,6 +279,8 @@ Examples:
 3. **Templates** — Demonstrate due date rules configuration_
 4. **Candidates** — Create a new candidate with template
 
+[↑ Return to top](#table-of-contents)
+
 ---
 
 ## Key Terminology
@@ -266,6 +296,8 @@ Examples:
 | **Anchor Date** | Key date used to calculate task due dates |
 | **Phase** | High-level category: Pre-hire or Onboarding |
 
+[↑ Return to top](#table-of-contents)
+
 ---
 
 ## Access Summary by Screen
@@ -277,6 +309,8 @@ Examples:
 | My Tasks | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Task Library | ✓ | ✓ | — | — | — | — |
 | Templates | ✓ | ✓ | — | — | — | — |
+
+[↑ Return to top](#table-of-contents)
 
 ---
 
@@ -300,3 +334,5 @@ Examples:
 **For Candidates**:
 - What tasks do I need to complete?
 - What's my current onboarding progress?
+
+[↑ Return to top](#table-of-contents)
