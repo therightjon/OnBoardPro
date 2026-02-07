@@ -25,6 +25,7 @@ const ArchiveCandidateDialog = lazy(() => import("@/features/candidates/componen
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { candidateStatusBadgeClass, resolveCandidateStatus, canArchiveCandidate } from "@/features/candidates/utils/status";
+import { getHiringPhase, resolveCandidateStageLabel } from "@/features/candidates/utils/hiring-phase";
 import { useLocalStorage } from "@/shared/hooks/use-local-storage";
 import type { Candidate, CandidateType, HiringStage } from "@shared/schemas";
 import { PaginationControls } from "@/shared/components/pagination-controls";
@@ -94,7 +95,7 @@ const { data: hiringStages = [] } = useQuery<HiringStage[]>({
 });
 
 const phaseLabel = (phase?: string | null) => {
-  if (!phase) return "Pre-hire";
+  if (phase === "loi_issued") return "LOI Issued";
   return phase === "onboarding" ? "Onboarding" : "Pre-hire";
 };
 
@@ -132,12 +133,11 @@ const formatLooAge = (isoDate?: string | null) => {
       const matchesStage = stageFilter === "all" || 
                           (stageFilter === "not_started" && !candidate.currentStage?.id) ||
                           candidate.currentStage?.id === stageFilter;
-      const openPrehireTasks = candidate.openPrehireTasks ?? 0;
-      const openOnboardingTasks = candidate.openOnboardingTasks ?? 0;
+      const resolvedPhase = getHiringPhase(candidate).phase;
       const matchesPhase =
         phaseFilter === "all" ||
-        (phaseFilter === "pre_hire" && openPrehireTasks > 0) ||
-        (phaseFilter === "onboarding" && openOnboardingTasks > 0);
+        (phaseFilter === "pre_hire" && resolvedPhase === "pre_hire") ||
+        (phaseFilter === "onboarding" && resolvedPhase === "onboarding");
       
       const isCanceledLike = candidate.status === "canceled" || candidate.status === "offer_declined";
 
@@ -172,8 +172,8 @@ const formatLooAge = (isoDate?: string | null) => {
           bValue = b.status;
           break;
         case "stage":
-          aValue = a.currentStage?.name || "Not Started";
-          bValue = b.currentStage?.name || "Not Started";
+          aValue = resolveCandidateStageLabel(a);
+          bValue = resolveCandidateStageLabel(b);
           break;
         case "looAge":
           const aLoo = a.offerLetterAcceptedAt || a.offerLetterIssuedAt;
@@ -361,12 +361,12 @@ const formatLooAge = (isoDate?: string | null) => {
 
               <Select value={phaseFilter} onValueChange={setPhaseFilter}>
                 <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]" data-testid="select-phase-filter">
-                  <SelectValue placeholder="Phase (open tasks)" />
+                  <SelectValue placeholder="Phase" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Phases</SelectItem>
-                  <SelectItem value="pre_hire">Pre-hire Tasks</SelectItem>
-                  <SelectItem value="onboarding">Onboarding Tasks</SelectItem>
+                  <SelectItem value="pre_hire">Pre-hire</SelectItem>
+                  <SelectItem value="onboarding">Onboarding</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -502,7 +502,8 @@ const formatLooAge = (isoDate?: string | null) => {
                 </TableRow>
               ) : (
                 paginatedCandidates.map((candidate: any) => {
-                  const phase = candidate.currentStage?.phase ?? "pre_hire";
+                  const phase = getHiringPhase(candidate).phase;
+                  const stageLabel = resolveCandidateStageLabel(candidate);
                   const phaseText = phaseLabel(phase);
                   const resolvedStatus = resolveCandidateStatus(candidate);
                   const statusClass = candidateStatusBadgeClass(resolvedStatus.status);
@@ -546,7 +547,7 @@ const formatLooAge = (isoDate?: string | null) => {
                       <TableCell data-testid={`cell-stage-${candidate.id}`}>
                         <div className="flex flex-col">
                           <Badge variant="outline" className="whitespace-nowrap bg-secondary justify-center text-center">
-                            {candidate.currentStage?.name || "Not Started"}
+                            {stageLabel}
                           </Badge>
                           <span className="text-xs text-muted-foreground capitalize mt-1">{phaseText}</span>
                           <span className="text-xs text-muted-foreground mt-1">
@@ -623,6 +624,8 @@ const formatLooAge = (isoDate?: string | null) => {
               const pendingCount = Number(candidate.pendingAnchorCount ?? 0);
               const openPrehire = Number(candidate.openPrehireTasks ?? 0);
               const openOnboarding = Number(candidate.openOnboardingTasks ?? 0);
+              const phase = getHiringPhase(candidate).phase;
+              const stageLabel = resolveCandidateStageLabel(candidate);
               const resolvedStatus = resolveCandidateStatus(candidate);
               const statusClass = candidateStatusBadgeClass(resolvedStatus.status);
               return (
@@ -671,10 +674,10 @@ const formatLooAge = (isoDate?: string | null) => {
                           <dt className="text-muted-foreground">Stage</dt>
                           <dd>
                             <Badge variant="outline" className="text-xs whitespace-nowrap bg-secondary justify-center text-center">
-                              {candidate.currentStage?.name || "Not Started"}
+                              {stageLabel}
                             </Badge>
                             <span className="block text-[10px] text-muted-foreground mt-1 capitalize">
-                              {phaseLabel(candidate.currentStage?.phase ?? "pre_hire")}
+                              {phaseLabel(phase)}
                             </span>
                             <span className="block text-[10px] text-muted-foreground mt-1">
                               {openPrehire} pre-hire • {openOnboarding} onboarding

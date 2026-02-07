@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Clock, FileText, Mail, UserCheck, Briefcase, Send, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Check, Clock, FileText, UserCheck, Briefcase, Send, ThumbsUp, ThumbsDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
@@ -40,7 +40,6 @@ type HiringStepId = HiringPhase | "completed";
 
 const HIRING_STEPS: { id: HiringStepId; label: string }[] = [
   { id: "loi_issued", label: HIRING_PHASE_LABELS.loi_issued },
-  { id: "offer_pending", label: HIRING_PHASE_LABELS.offer_pending },
   { id: "pre_hire", label: HIRING_PHASE_LABELS.pre_hire },
   { id: "onboarding", label: HIRING_PHASE_LABELS.onboarding },
 ];
@@ -83,8 +82,6 @@ function StepIcon({ phase, isComplete, isCurrent }: StepIconProps) {
   switch (phase) {
     case "loi_issued":
       return <FileText className={iconClass} />;
-    case "offer_pending":
-      return <Mail className={iconClass} />;
     case "pre_hire":
       return <UserCheck className={iconClass} />;
     case "onboarding":
@@ -167,8 +164,7 @@ export function HiringProgress({
   const getStepDate = (stepId: HiringPhase): string | null => {
     const stepDateMap: Record<HiringPhase, string | Date | null> = {
       loi_issued: candidate.letterOfIntentDate,
-      offer_pending: candidate.offerLetterIssuedAt,
-      pre_hire: candidate.offerLetterAcceptedAt,
+      pre_hire: candidate.offerLetterIssuedAt ?? candidate.offerLetterAcceptedAt,
       onboarding: candidate.templateAppliedAt,
     };
 
@@ -288,10 +284,7 @@ export function HiringProgress({
                             status === "upcoming" && "text-muted-foreground"
                           )}
                         >
-                          {/* Show "Offer Accepted" instead of "Offer Pending" once LOO is accepted */}
-                          {step.id === "offer_pending" && candidate.offerLetterAcceptedAt
-                            ? "Offer Accepted"
-                            : step.label}
+                          {step.label}
                         </span>
                         {status === "current" && !(isOnboardingStep && primaryAction) && (
                           <Badge variant="outline" className="text-xs">
@@ -443,7 +436,6 @@ export function HiringProgressBadge({
   return (
     <Badge variant={HIRING_PHASE_VARIANTS[phaseInfo.phase]} className="gap-1">
       {phaseInfo.phase === "loi_issued" && <FileText className="h-3 w-3" />}
-      {phaseInfo.phase === "offer_pending" && <Mail className="h-3 w-3" />}
       {phaseInfo.phase === "pre_hire" && <UserCheck className="h-3 w-3" />}
       {phaseInfo.phase === "onboarding" && <Briefcase className="h-3 w-3" />}
       {phaseInfo.label}
