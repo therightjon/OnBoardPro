@@ -1265,7 +1265,7 @@ router.get("/candidates/:id/stages", requireAuth, async (req, res, next) => {
 
     res.json(stages);
   } catch (error) {
-    console.error(`Error fetching candidate stages for ${req.params.id}:`, error);
+    console.error("Error fetching candidate stages for %s:", req.params.id, error);
     // Return empty array instead of crashing
     res.json([]);
   }
