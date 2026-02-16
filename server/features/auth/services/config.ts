@@ -1,5 +1,7 @@
 // Authentication provider configuration
 
+import { FIXED_LDAP_USER_FILTER_TEMPLATE } from "../identifier";
+
 export interface AuthConfig {
   enabledProviders: string[];
   local: {
@@ -38,6 +40,16 @@ export interface AuthConfig {
   };
 }
 
+function readAuthEnv(...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value !== undefined && value !== "") {
+      return value;
+    }
+  }
+  return undefined;
+}
+
 // Load configuration from environment variables
 export function loadAuthConfig(): AuthConfig {
   const config: AuthConfig = {
@@ -51,12 +63,12 @@ export function loadAuthConfig(): AuthConfig {
       startTls: process.env.LDAP_STARTTLS === "true",
       bindDn: process.env.LDAP_BIND_DN,
       bindPassword: process.env.LDAP_BIND_PASSWORD,
-      baseDn: process.env.LDAP_BASE_DN,
-      userFilter: process.env.LDAP_USER_FILTER || "(uid={{username}})",
-      usernameAttr: process.env.LDAP_ATTR_USERNAME || "uid",
-      firstNameAttr: process.env.LDAP_ATTR_FIRST_NAME || "givenName",
-      lastNameAttr: process.env.LDAP_ATTR_LAST_NAME || "sn",
-      emailAttr: process.env.LDAP_ATTR_EMAIL || "mail",
+      baseDn: readAuthEnv("LDAP_BASE_DN", "LDAP_SEARCH_BASE"),
+      userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
+      usernameAttr: readAuthEnv("LDAP_ATTR_USERNAME", "LDAP_USERNAME_ATTR") || "uid",
+      firstNameAttr: readAuthEnv("LDAP_ATTR_FIRST_NAME", "LDAP_FIRSTNAME_ATTR") || "givenName",
+      lastNameAttr: readAuthEnv("LDAP_ATTR_LAST_NAME", "LDAP_LASTNAME_ATTR") || "sn",
+      emailAttr: readAuthEnv("LDAP_ATTR_EMAIL", "LDAP_EMAIL_ATTR") || "mail",
       disabledFilter: process.env.LDAP_DISABLED_FILTER,
     },
     oidc: {

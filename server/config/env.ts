@@ -52,8 +52,19 @@ const envSchema = z.object({
   LDAP_URL: z.string().optional(),
   LDAP_BIND_DN: z.string().optional(),
   LDAP_BIND_PASSWORD: z.string().optional(),
+  LDAP_BASE_DN: z.string().optional(),
+  LDAP_USER_FILTER: z.string().optional(),
+  LDAP_ATTR_USERNAME: z.string().optional(),
+  LDAP_ATTR_FIRST_NAME: z.string().optional(),
+  LDAP_ATTR_LAST_NAME: z.string().optional(),
+  LDAP_ATTR_EMAIL: z.string().optional(),
+  // Legacy aliases (kept for compatibility)
   LDAP_SEARCH_BASE: z.string().optional(),
   LDAP_SEARCH_FILTER: z.string().optional(),
+  LDAP_USERNAME_ATTR: z.string().optional(),
+  LDAP_FIRSTNAME_ATTR: z.string().optional(),
+  LDAP_LASTNAME_ATTR: z.string().optional(),
+  LDAP_EMAIL_ATTR: z.string().optional(),
 
   // Feature Flags
   ENABLE_GOOGLE_AUTH: z.string().optional(),
