@@ -14,18 +14,24 @@ import healthRouter from "./routes/health";
 import { eventBus, registerNotificationHandlers, createLoggingMiddleware } from "./events";
 
 const app = express();
+const isDevelopment = app.get("env") === "development";
 
 // Security headers (must be early in middleware chain)
 app.use(helmet({
-  contentSecurityPolicy: app.get("env") === "development" ? false : {
+  contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: isDevelopment
+        ? ["'self'", "'unsafe-inline'", "'unsafe-eval'"]
+        : ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"]
+      connectSrc: isDevelopment
+        ? ["'self'", "ws:", "wss:", "https://fonts.googleapis.com", "https://fonts.gstatic.com"]
+        : ["'self'", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      ...(isDevelopment ? { upgradeInsecureRequests: null } : {})
     }
   }
 }));

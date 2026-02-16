@@ -202,7 +202,7 @@ export class CandidateStageRepository extends BaseRepository {
         .where(eq(candidateTemplateStages.candidateId, candidateId))
         .orderBy(asc(candidateTemplateStages.orderIndex));
     } catch (error) {
-      console.warn(`Error fetching candidate template stages for ${candidateId}:`, error);
+      console.warn("Error fetching candidate template stages for %s:", candidateId, error);
       // Return empty array instead of throwing to maintain API resilience
       return [];
     }
