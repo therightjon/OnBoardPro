@@ -9,6 +9,7 @@ import type { db as DbType } from "../../db/connection";
 import { authProviders, systemSettings, type AuthProvider } from "@shared/schemas";
 import { encryptSecret, decryptSecret } from "../../utils/secret";
 import { writeAuditLog } from "../shared/audit-logger";
+import { FIXED_LDAP_USER_FILTER_TEMPLATE } from "../../features/auth/identifier";
 
 export interface LdapSettings {
   url?: string;
@@ -22,6 +23,16 @@ export interface LdapSettings {
   lastNameAttr?: string;
   emailAttr?: string;
   disabledFilter?: string;
+}
+
+function readEnv(...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value !== undefined && value !== "") {
+      return value;
+    }
+  }
+  return undefined;
 }
 
 export class AuthProviderService {
@@ -89,21 +100,25 @@ export class AuthProviderService {
 
     // Fallback seed from env if nothing in DB
     const seeded: LdapSettings = Object.keys(stored).length === 0 ? {
-      url: process.env.LDAP_URL,
+      url: readEnv('LDAP_URL'),
       startTls: process.env.LDAP_STARTTLS === 'true',
-      bindDn: process.env.LDAP_BIND_DN,
+      bindDn: readEnv('LDAP_BIND_DN'),
       bindPassword: process.env.LDAP_BIND_PASSWORD ? encryptSecret(process.env.LDAP_BIND_PASSWORD) : undefined,
-      baseDn: process.env.LDAP_BASE_DN,
-      userFilter: process.env.LDAP_USER_FILTER || '(uid={{username}})',
-      usernameAttr: process.env.LDAP_ATTR_USERNAME || 'uid',
-      firstNameAttr: process.env.LDAP_ATTR_FIRST_NAME || 'givenName',
-      lastNameAttr: process.env.LDAP_ATTR_LAST_NAME || 'sn',
-      emailAttr: process.env.LDAP_ATTR_EMAIL || 'mail',
-      disabledFilter: process.env.LDAP_DISABLED_FILTER,
+      baseDn: readEnv('LDAP_BASE_DN', 'LDAP_SEARCH_BASE'),
+      userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
+      usernameAttr: readEnv('LDAP_ATTR_USERNAME', 'LDAP_USERNAME_ATTR') || 'uid',
+      firstNameAttr: readEnv('LDAP_ATTR_FIRST_NAME', 'LDAP_FIRSTNAME_ATTR') || 'givenName',
+      lastNameAttr: readEnv('LDAP_ATTR_LAST_NAME', 'LDAP_LASTNAME_ATTR') || 'sn',
+      emailAttr: readEnv('LDAP_ATTR_EMAIL', 'LDAP_EMAIL_ATTR') || 'mail',
+      disabledFilter: readEnv('LDAP_DISABLED_FILTER'),
     } : stored;
+    const normalized: LdapSettings = {
+      ...seeded,
+      userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
+    };
 
     // Decrypt for server-side use
-    const decrypted = { ...seeded } as LdapSettings & { bindPassword?: string };
+    const decrypted = { ...normalized } as LdapSettings & { bindPassword?: string };
     if (decrypted.bindPassword) {
       const plain = decryptSecret(decrypted.bindPassword);
       if (plain) decrypted.bindPassword = plain;
@@ -123,7 +138,7 @@ export class AuthProviderService {
       bindDn: partial.bindDn ?? existing.bindDn,
       bindPassword: existing.bindPassword, // temporary plain for now
       baseDn: partial.baseDn ?? existing.baseDn,
-      userFilter: partial.userFilter ?? existing.userFilter,
+      userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
       usernameAttr: partial.usernameAttr ?? existing.usernameAttr,
       firstNameAttr: partial.firstNameAttr ?? existing.firstNameAttr,
       lastNameAttr: partial.lastNameAttr ?? existing.lastNameAttr,
@@ -137,7 +152,10 @@ export class AuthProviderService {
     }
 
     // Prepare to store encrypted
-    const toStore: LdapSettings = { ...next };
+    const toStore: LdapSettings = {
+      ...next,
+      userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
+    };
     if (toStore.bindPassword) {
       toStore.bindPassword = encryptSecret(toStore.bindPassword);
     }

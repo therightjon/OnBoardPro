@@ -1,6 +1,11 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { escapeLdapFilter, toLdapUsername } from "../../features/auth/identifier";
+import {
+  buildLdapUserSearchFilter,
+  escapeLdapFilter,
+  FIXED_LDAP_USER_FILTER_TEMPLATE,
+  toLdapUsername
+} from "../../features/auth/identifier";
 
 describe("LDAP Identifier Utilities", () => {
   describe("escapeLdapFilter", () => {
@@ -87,6 +92,23 @@ describe("LDAP Identifier Utilities", () => {
 
     test("handles string with only whitespace", () => {
       assert.equal(toLdapUsername("   "), "");
+    });
+  });
+
+  describe("buildLdapUserSearchFilter", () => {
+    test("uses the fixed LDAP filter template", () => {
+      assert.equal(FIXED_LDAP_USER_FILTER_TEMPLATE, "(sAMAccountName={{username}})");
+    });
+
+    test("interpolates normalized username", () => {
+      assert.equal(buildLdapUserSearchFilter("Alice@EXAMPLE.EDU"), "(sAMAccountName=alice)");
+    });
+
+    test("escapes LDAP injection syntax in interpolated username", () => {
+      assert.equal(
+        buildLdapUserSearchFilter("admin)(objectClass=*)"),
+        "(sAMAccountName=admin\\29\\28objectclass=\\2a\\29)"
+      );
     });
   });
 });

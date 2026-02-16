@@ -1,7 +1,7 @@
 // Authentication provider interfaces and implementations
 
 import type { User, InsertUser, UserIdentity, InsertUserIdentity } from "@shared/schemas";
-import { toLdapUsername } from "../identifier";
+import { buildLdapUserSearchFilter, toLdapUsername } from "../identifier";
 
 // Common user profile from any provider
 export interface UserProfile {
@@ -95,9 +95,7 @@ export class LdapAuthProvider implements AuthProvider {
           }
 
           // Step 2: Search for user
-          const searchFilter = this.config.userFilter
-            .replace(/\{\{username\}\}/g, ldapUser)
-            .replace(/\{username\}/g, ldapUser);
+          const searchFilter = buildLdapUserSearchFilter(username ?? "");
           const searchOptions = {
             filter: searchFilter,
             scope: 'sub' as const,

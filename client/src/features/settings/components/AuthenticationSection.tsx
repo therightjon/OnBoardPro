@@ -199,6 +199,7 @@ export function AuthenticationProvidersSection() {
 export function LdapSettingsSection() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const fixedUserFilter = "(sAMAccountName={{username}})";
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["/api/auth/ldap", user?.id],
@@ -215,7 +216,6 @@ export function LdapSettingsSection() {
     baseDn: "",
     bindDn: "",
     bindPassword: "",
-    userFilter: "(uid={{username}})",
     usernameAttr: "uid",
     firstNameAttr: "givenName",
     lastNameAttr: "sn",
@@ -234,7 +234,6 @@ export function LdapSettingsSection() {
         baseDn: s.baseDn || "",
         bindDn: s.bindDnMasked ? "" : prev.bindDn,
         bindPassword: "",
-        userFilter: s.userFilter || "(uid={{username}})",
         usernameAttr: s.usernameAttr || "uid",
         firstNameAttr: s.firstNameAttr || "givenName",
         lastNameAttr: s.lastNameAttr || "sn",
@@ -254,7 +253,6 @@ export function LdapSettingsSection() {
         startTls: !!form.startTls,
         baseDn: form.baseDn || undefined,
         bindDn: form.bindDn || undefined,
-        userFilter: form.userFilter || undefined,
         usernameAttr: form.usernameAttr || undefined,
         firstNameAttr: form.firstNameAttr || undefined,
         lastNameAttr: form.lastNameAttr || undefined,
@@ -283,7 +281,6 @@ export function LdapSettingsSection() {
         startTls: !!form.startTls,
         baseDn: form.baseDn || undefined,
         bindDn: form.bindDn || undefined,
-        userFilter: form.userFilter || undefined,
         usernameAttr: form.usernameAttr || undefined,
         firstNameAttr: form.firstNameAttr || undefined,
         lastNameAttr: form.lastNameAttr || undefined,
@@ -408,13 +405,12 @@ export function LdapSettingsSection() {
                   <Label htmlFor="ldap-userfilter">User Filter</Label>
                   <Input
                     id="ldap-userfilter"
-                    placeholder="(uid={{username}})"
-                    value={form.userFilter}
-                    onChange={(e) => onChange("userFilter", e.target.value)}
+                    value={fixedUserFilter}
+                    readOnly
                     data-testid="ldap-userfilter"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Use <code className="bg-muted px-1 rounded">{"{{username}}"}</code> as placeholder
+                    Fixed for security. Username interpolation is handled server-side.
                   </p>
                 </div>
                 <div className="space-y-2">

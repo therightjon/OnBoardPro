@@ -46,6 +46,7 @@ import {
   resetServiceFactory as _resetServiceFactory,
   getActiveServiceFactory
 } from "../../services/service-factory";
+import { FIXED_LDAP_USER_FILTER_TEMPLATE } from "../../features/auth/identifier";
 
 // Re-export the testing utilities from service-factory
 export const setServiceFactoryForTesting = _setServiceFactoryForTesting;
@@ -848,12 +849,63 @@ export class MockServiceFactory {
   }
 
   getAuthProviderService(): any {
+    const getLdapSettingsSnapshot = () => {
+      const stored = this.data.systemSettings.get("auth.ldap");
+      const fallback = {
+        url: process.env.LDAP_URL,
+        startTls: process.env.LDAP_STARTTLS === "true",
+        bindDn: process.env.LDAP_BIND_DN,
+        bindPassword: process.env.LDAP_BIND_PASSWORD,
+        baseDn: process.env.LDAP_BASE_DN ?? process.env.LDAP_SEARCH_BASE,
+        userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
+        usernameAttr: process.env.LDAP_ATTR_USERNAME ?? process.env.LDAP_USERNAME_ATTR ?? "uid",
+        firstNameAttr: process.env.LDAP_ATTR_FIRST_NAME ?? process.env.LDAP_FIRSTNAME_ATTR ?? "givenName",
+        lastNameAttr: process.env.LDAP_ATTR_LAST_NAME ?? process.env.LDAP_LASTNAME_ATTR ?? "sn",
+        emailAttr: process.env.LDAP_ATTR_EMAIL ?? process.env.LDAP_EMAIL_ATTR ?? "mail",
+        disabledFilter: process.env.LDAP_DISABLED_FILTER,
+      };
+      return {
+        ...(stored ?? fallback),
+        userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
+      };
+    };
+
     return {
       getProvider: (id: string) => this.getAuthProvider(id),
       getAllProviders: () => this.getAllAuthProviders(),
+      getAuthProvider: (id: string) => this.getAuthProvider(id),
+      getAllAuthProviders: () => this.getAllAuthProviders(),
       getEnabledProviders: () => Promise.resolve(
         Array.from(this.data.authProviders.values()).filter(p => p.enabled)
-      )
+      ),
+      updateAuthProvider: async (id: string, data: Partial<AuthProvider>) => {
+        const existing = this.data.authProviders.get(id);
+        if (!existing) return undefined;
+        const updated = {
+          ...existing,
+          ...data,
+          updatedAt: new Date()
+        };
+        this.data.authProviders.set(id, updated);
+        return { ...updated };
+      },
+      getLdapSettings: async () => ({ ...getLdapSettingsSnapshot() }),
+      setLdapSettings: async (partial: Record<string, any>) => {
+        const existing = getLdapSettingsSnapshot();
+        const next = {
+          ...existing,
+          ...partial,
+          bindPassword: partial.bindPassword === undefined ? existing.bindPassword : partial.bindPassword,
+          userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
+        };
+        this.data.systemSettings.set("auth.ldap", next);
+        return { ...next };
+      },
+      getLdapConfigured: async () => {
+        const cfg = getLdapSettingsSnapshot();
+        if (!cfg.url || !cfg.bindDn || !cfg.bindPassword || !cfg.baseDn) return false;
+        return cfg.url.startsWith("ldaps://") || !!cfg.startTls;
+      }
     };
   }
 

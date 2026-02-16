@@ -4,6 +4,8 @@
 //  toLdapUsername("Alice@example.edu") => "alice"
 //  toLdapUsername("bob.smith@EXAMPLE.ORG") => "bob.smith"
 
+export const FIXED_LDAP_USER_FILTER_TEMPLATE = "(sAMAccountName={{username}})";
+
 /**
  * Escapes LDAP special characters in a filter value to prevent LDAP injection attacks.
  * Per RFC 4515, these characters must be escaped in LDAP search filters:
@@ -40,4 +42,14 @@ export function toLdapUsername(input: string): string {
   const atIndex = normalized.indexOf("@");
   const username = atIndex >= 0 ? normalized.slice(0, atIndex) : normalized;
   return escapeLdapFilter(username);
+}
+
+/**
+ * Builds the LDAP user search filter from the fixed template.
+ *
+ * @param input - Raw username or email identifier
+ * @returns LDAP filter with escaped username interpolation
+ */
+export function buildLdapUserSearchFilter(input: string): string {
+  return FIXED_LDAP_USER_FILTER_TEMPLATE.replace(/\{\{username\}\}/g, toLdapUsername(input));
 }

@@ -10,6 +10,7 @@ import { getInvitationService, getAuthProviderService, getUserService } from "..
 import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../services/login-rate-limit";
 import { comparePasswords } from "../utils/passwords";
 import { hydrateAuthUser } from "../features/auth/services";
+import { FIXED_LDAP_USER_FILTER_TEMPLATE } from "../features/auth/identifier";
 import { logger } from "../utils/logger";
 
 const router = Router();
@@ -263,6 +264,27 @@ const inviteRequestSchema = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
 });
+
+const ldapSettingsPatchSchema = z.object({
+  url: z.string().optional(),
+  startTls: z.coerce.boolean().optional(),
+  baseDn: z.string().optional(),
+  bindDn: z.string().optional(),
+  bindPassword: z.string().optional(),
+  usernameAttr: z.string().optional(),
+  firstNameAttr: z.string().optional(),
+  lastNameAttr: z.string().optional(),
+  emailAttr: z.string().optional(),
+  disabledFilter: z.string().optional(),
+});
+
+const LDAP_TEST_BASE_DN_FILTER = "(objectClass=*)";
+
+function normalizeOptionalString(value?: string): string | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
 
 // Helper function to check if a provider is configured
 async function checkProviderConfiguration(providerId: string): Promise<boolean> {
@@ -564,7 +586,7 @@ router.get("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]),
         url: cfg.url,
         startTls: !!cfg.startTls,
         baseDn: cfg.baseDn,
-        userFilter: cfg.userFilter,
+        userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
         usernameAttr: cfg.usernameAttr,
         firstNameAttr: cfg.firstNameAttr,
         lastNameAttr: cfg.lastNameAttr,
@@ -585,11 +607,21 @@ router.get("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]),
 // PUT /api/auth/ldap - Update LDAP settings
 router.put("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   try {
-    const patch = req.body || {};
-    // Normalize boolean
-    if (patch.startTls !== undefined) patch.startTls = !!patch.startTls;
+    const parsedPatch = ldapSettingsPatchSchema.parse(req.body ?? {});
+    const patch = {
+      url: normalizeOptionalString(parsedPatch.url),
+      startTls: parsedPatch.startTls,
+      baseDn: normalizeOptionalString(parsedPatch.baseDn),
+      bindDn: normalizeOptionalString(parsedPatch.bindDn),
+      bindPassword: parsedPatch.bindPassword,
+      usernameAttr: normalizeOptionalString(parsedPatch.usernameAttr),
+      firstNameAttr: normalizeOptionalString(parsedPatch.firstNameAttr),
+      lastNameAttr: normalizeOptionalString(parsedPatch.lastNameAttr),
+      emailAttr: normalizeOptionalString(parsedPatch.emailAttr),
+      disabledFilter: normalizeOptionalString(parsedPatch.disabledFilter),
+    };
     const authProviderService = getAuthProviderService();
-    const updated = await authProviderService.setLdapSettings(patch, req.user?.id, req.id);
+    await authProviderService.setLdapSettings(patch, req.user?.id, req.id);
     // Reinitialize providers to apply changes immediately
     try {
       const { initializeAuthProviders } = await import('../features/auth/services');
@@ -599,6 +631,12 @@ router.put("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]),
     }
     res.json({ ok: true });
   } catch (error) {
+    if (isZodError(error)) {
+      return res.status(400).json({
+        message: "Invalid LDAP settings",
+        errors: error.flatten()
+      });
+    }
     await logAuthorizationFailure({ req, resource: "settings", action: "auth:ldap:update", reason: (error as Error)?.message ?? "update_failed" });
     next(error);
   }
@@ -608,10 +646,22 @@ router.put("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]),
 router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_staff"]), async (req, res, next) => {
   const start = Date.now();
   try {
-    const override = req.body || {};
+    const parsedOverride = ldapSettingsPatchSchema.parse(req.body ?? {});
+    const override = {
+      url: normalizeOptionalString(parsedOverride.url),
+      startTls: parsedOverride.startTls,
+      baseDn: normalizeOptionalString(parsedOverride.baseDn),
+      bindDn: normalizeOptionalString(parsedOverride.bindDn),
+      bindPassword: parsedOverride.bindPassword,
+      usernameAttr: normalizeOptionalString(parsedOverride.usernameAttr),
+      firstNameAttr: normalizeOptionalString(parsedOverride.firstNameAttr),
+      lastNameAttr: normalizeOptionalString(parsedOverride.lastNameAttr),
+      emailAttr: normalizeOptionalString(parsedOverride.emailAttr),
+      disabledFilter: normalizeOptionalString(parsedOverride.disabledFilter),
+    };
     const authProviderService = getAuthProviderService();
     const current = await authProviderService.getLdapSettings();
-    const cfg = { ...current, ...override };
+    const cfg = { ...current, ...override, userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE };
 
     if (!cfg.url || !cfg.bindDn || !cfg.bindPassword || !cfg.baseDn) {
       return res.status(400).json({ ok: false, message: 'Missing required settings (url, bindDn, bindPassword, baseDn)' });
@@ -639,7 +689,7 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
           return;
         }
         // Optional: quick search to verify baseDn reachable
-        const opts = { filter: cfg.userFilter || '(objectClass=person)', scope: 'base' as const };
+        const opts = { filter: LDAP_TEST_BASE_DN_FILTER, scope: 'base' as const };
         client.search(cfg.baseDn!, opts, (searchErr: any, searchRes: any) => {
           if (searchErr) {
             logger.error('LDAP test search error', searchErr);
@@ -663,6 +713,12 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
     const result = await doTest();
     res.json({ ...result, durationMs: Date.now() - start });
   } catch (error) {
+    if (isZodError(error)) {
+      return res.status(400).json({
+        message: "Invalid LDAP test settings",
+        errors: error.flatten()
+      });
+    }
     await logAuthorizationFailure({ req, resource: "settings", action: "auth:ldap:test", reason: (error as Error)?.message ?? "test_failed" });
     next(error);
   }
