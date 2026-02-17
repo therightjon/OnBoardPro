@@ -551,9 +551,9 @@ smtp_settings            # SMTP configuration (encrypted secrets)
 ```
 
 **Security Features:**
-- ✅ **CSRF protection** (sameSite cookies)
+- ✅ **CSRF protection** (global `/api` middleware + token endpoint with explicit login/bootstrap exclusions)
 - ✅ **XSS protection** (Helmet security headers)
-- ✅ **Rate limiting** (IP-based with trusted proxy support)
+- ✅ **Rate limiting** (DB-backed IP-based counters with trusted proxy support)
 - ✅ **Password hashing** (bcrypt + scrypt via `server/utils/passwords.ts`)
 - ✅ **Constant-time password comparison** (prevents timing attacks)
 - ✅ **Session encryption** (PostgreSQL store)
@@ -776,11 +776,12 @@ Request Flow:
 4. Body Parser    → Parse JSON/URL-encoded bodies
 5. Logging        → Log request with ID
 6. Session        → Load user session
-7. Rate Limiter   → Check request rate
-8. Authorization  → Verify permissions
-9. Route Handler  → Execute business logic
-10. Error Handler → Catch and format errors
-11. Response      → Send to client
+7. Rate Limiter   → Check request rate (default `/api`, sensitive for selected auth routes)
+8. CSRF Guard     → Validate CSRF token for state-changing requests
+9. Authorization  → Verify permissions
+10. Route Handler → Execute business logic
+11. Error Handler → Catch and format errors
+12. Response      → Send to client
 ```
 
 **Headers Added:**
@@ -904,12 +905,12 @@ ETag: "hash"
 
 ### Current Limitations
 ⚠️ **Single-process background jobs** - Can't horizontally scale
-⚠️ **In-memory rate limiting** - Lost on restart
+⚠️ **DB-backed rate limiting overhead** - Counter writes add DB load at very high request volume
 ⚠️ **No caching layer** - Every request hits database
 
 ### Recommended Improvements
 1. **Extract background jobs** to separate worker processes
-2. **Add Redis** for distributed rate limiting and caching
+2. **Add Redis** as optional backend for high-throughput rate-limit counters and caching
 3. **Implement message queue** (Bull/BullMQ) for job processing
 4. **Add database read replicas** for query scaling
 5. **Implement CDN** for static assets
@@ -1325,7 +1326,7 @@ Layer 5: Data
 - **Caching:** TanStack Query client-side, ETag support
 - **Optimization:** Response compression, code splitting, lazy loading
 - **Background Jobs:** Deadline scanning, email delivery, notification cleanup
-- **Rate Limiting:** IP-based with configurable limits per endpoint
+- **Rate Limiting:** DB-backed IP-based counters, configurable default + sensitive policies
 
 ### Production Readiness
 
@@ -1341,7 +1342,7 @@ Layer 5: Data
 ### Areas for Future Enhancement
 
 1. **Horizontal Scaling:** Extract background jobs to separate workers
-2. **Distributed Caching:** Add Redis for rate limiting and caching
+2. **Distributed Caching:** Add Redis for high-throughput rate-limit counters and caching
 3. **Message Queue:** Implement Bull/BullMQ for job processing
 4. **Observability:** Add Prometheus metrics and distributed tracing
 5. **Database Scaling:** Read replicas for query scaling
@@ -1349,8 +1350,8 @@ Layer 5: Data
 
 ---
 
-**Last Updated:** 2025-12-09
-**Version:** 1.1.0
+**Last Updated:** 2026-02-17
+**Version:** 1.2.0
 **Architecture Health Score:** 8.0/10
 
 **Maintained By:** Jonathan Steen - jesteen@uabmc.edu

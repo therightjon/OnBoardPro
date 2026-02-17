@@ -89,8 +89,15 @@ Env validation lives in `server/config/env.ts`. Required or common keys:
 - Path aliases: `@` → `client/src`, `@shared` → `shared`, `@assets` → `attached_assets`.
 - API docs: Swagger UI served at `/api/docs`; canonical JSON at `/api/docs.json` (single OpenAPI source in `server/docs/openapi-spec.ts`).
 - Background jobs: deadline scanner, email notification sender, notification cleanup (toggle via env flags).
-- Rate limiting: default and "sensitive" limiters applied in routers (see `server/middleware/rate-limiter.ts`).
+- Rate limiting: DB-backed limiters in `server/middleware/rate-limiter.ts`. `defaultRateLimiter` is applied across `/api` in `server/routes.ts`, and `sensitiveRateLimiter` is explicitly applied to auth setup POST routes in `server/features/auth/services/auth.service.ts`.
+- CSRF protection: token endpoint at `/api/csrf-token` and global `/api` middleware in `server/routes.ts` with explicit route exclusions for login/provider bootstrap paths.
 - Password security: Consolidated utilities in `server/utils/passwords.ts` for hashing (bcrypt/scrypt), constant-time comparison to prevent timing attacks, and a 10,000+ entry common password blocklist sourced from [SecLists](https://github.com/danielmiessler/SecLists).
+
+## Code Scanning (CodeQL)
+- Workflow: `.github/workflows/codeql.yml` runs on push/PR for `main` and `dev`, weekly schedule, and manual dispatch (`workflow_dispatch`).
+- Configuration: `.github/codeql/codeql-config.yml` ignores test paths and excludes `js/missing-rate-limiting` because this codebase uses custom DB-backed rate limiting middleware.
+- Manual run: `gh workflow run "CodeQL Advanced" --ref main` (or `--ref dev`).
+
 ## Testing
 - Backend tests use `tsx --test` (see `server/tests/**`). Requires `NODE_ENV=test` and typically `SKIP_AUTH_SETUP=1` for isolated routes.
 - Frontend tests run with Vitest + happy-dom (`client/tests/setup.ts`).
