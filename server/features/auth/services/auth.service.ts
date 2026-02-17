@@ -13,6 +13,7 @@ import { User as SelectUser } from "@shared/schemas";
 import { z } from "zod";
 import connectPg from "connect-pg-simple";
 import { pool } from "../../../config/database.config";
+import { csrfProtection } from "../../../middleware/csrf";
 import {
   initializeAuthProviders, 
   providerRegistry, 
@@ -144,7 +145,7 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/register", (_req, res) => {
+  app.post("/api/register", csrfProtection, (_req, res) => {
     res.status(403).json({
       message: "Self-service registration is disabled. Please request an invitation."
     });

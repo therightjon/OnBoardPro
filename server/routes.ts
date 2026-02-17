@@ -1,4 +1,4 @@
-import type { Express, RequestHandler } from "express";
+import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./features/auth/services/auth.service";
 import docsRouter from "./routes/docs";
@@ -31,7 +31,6 @@ export {
 export interface RegisterRoutesOptions {
   skipAuthSetup?: boolean;
   skipCsrf?: boolean;
-  rateLimiters?: Partial<Record<"default" | "sensitive", RequestHandler>>;
 }
 
 /**
@@ -65,11 +64,10 @@ export async function registerRoutes(app: Express, options: RegisterRoutesOption
 
   // Skip CSRF protection in test mode (when auth is skipped, sessions aren't available)
   const shouldSkipCsrf = options.skipCsrf || options.skipAuthSetup;
-  const apiDefaultRateLimiter = options.rateLimiters?.default ?? defaultRateLimiter;
 
   // Always mount global API rate limiting.
   // The limiter already no-ops in test mode inside middleware/rate-limiter.ts.
-  app.use("/api", apiDefaultRateLimiter);
+  app.use("/api", defaultRateLimiter);
 
   if (!shouldSkipCsrf) {
     // CSRF token endpoint and protection for state-changing API routes
