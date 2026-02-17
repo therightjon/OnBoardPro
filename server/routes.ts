@@ -65,13 +65,9 @@ export async function registerRoutes(app: Express, options: RegisterRoutesOption
   // Skip CSRF protection in test mode (when auth is skipped, sessions aren't available)
   const shouldSkipCsrf = options.skipCsrf || options.skipAuthSetup;
 
-  // Always mount global API rate limiting.
-  // The limiter already no-ops in test mode inside middleware/rate-limiter.ts.
-  app.use("/api", defaultRateLimiter);
-
   if (!shouldSkipCsrf) {
-    // CSRF token endpoint and protection for state-changing API routes
-    app.get("/api/csrf-token", csrfProtection, (req, res) => {
+    // CSRF token endpoint with rate limiting
+    app.get("/api/csrf-token", defaultRateLimiter, csrfProtection, (req, res) => {
       res.json({ csrfToken: req.csrfToken() });
     });
 
@@ -82,13 +78,17 @@ export async function registerRoutes(app: Express, options: RegisterRoutesOption
       "/csrf-token"
     ]);
 
-    app.use("/api", (req: Request, res: Response, next: NextFunction) => {
+    // Apply default API rate limiting and CSRF protection together for non-excluded API paths
+    app.use("/api", defaultRateLimiter, (req: Request, res: Response, next: NextFunction) => {
       const path = req.path; // Express strips the mount path (/api) when using app.use("/api", ...)
       if (csrfExcluded.has(path)) {
         return next();
       }
       return csrfProtection(req, res, next);
     });
+  } else {
+    // In test mode, skip CSRF while preserving default API rate limiter wiring.
+    app.use("/api", defaultRateLimiter);
   }
 
   // Mount all route modules under /api prefix

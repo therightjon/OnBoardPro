@@ -14,6 +14,7 @@ import { z } from "zod";
 import connectPg from "connect-pg-simple";
 import { pool } from "../../../config/database.config";
 import { csrfProtection } from "../../../middleware/csrf";
+import { sensitiveRateLimiter } from "../../../middleware/rate-limiter";
 import {
   initializeAuthProviders, 
   providerRegistry, 
@@ -145,13 +146,13 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/register", csrfProtection, (_req, res) => {
+  app.post("/api/register", sensitiveRateLimiter, csrfProtection, (_req, res) => {
     res.status(403).json({
       message: "Self-service registration is disabled. Please request an invitation."
     });
   });
 
-  app.post("/api/login", async (req, res, next) => {
+  app.post("/api/login", sensitiveRateLimiter, csrfProtection, async (req, res, next) => {
     try {
       const identifier = typeof req.body?.email === "string"
         ? req.body.email
@@ -241,7 +242,7 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/logout", (req, res, next) => {
+  app.post("/api/logout", sensitiveRateLimiter, csrfProtection, (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
       res.sendStatus(200);
@@ -258,7 +259,7 @@ export async function setupAuth(app: Express) {
   // Note: GET /api/auth/providers endpoint moved to routes.ts for admin management
 
   // Provider-specific authentication
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", sensitiveRateLimiter, csrfProtection, async (req, res) => {
     try {
       const { provider, credentials } = req.body;
 
@@ -367,7 +368,7 @@ export async function setupAuth(app: Express) {
   });
 
   // Account linking endpoint
-  app.post("/api/auth/link", async (req, res) => {
+  app.post("/api/auth/link", sensitiveRateLimiter, csrfProtection, async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Authentication required" });
