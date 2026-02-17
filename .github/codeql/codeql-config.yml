@@ -1,0 +1,8 @@
+name: "OnBoardPro CodeQL Configuration"
+
+# Focus scanning on runtime application code and exclude test-only fixtures/helpers.
+paths-ignore:
+  - "server/tests/**"
+  - "client/tests/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"

@@ -63,14 +63,13 @@ export async function registerRoutes(app: Express, options: RegisterRoutesOption
   // Enforce idle timeout on all requests once the session is available
   app.use(sessionIdleTimeout);
 
-  // Skip rate limiting and CSRF protection in test mode (when auth is skipped, sessions aren't available)
+  // Skip CSRF protection in test mode (when auth is skipped, sessions aren't available)
   const shouldSkipCsrf = options.skipCsrf || options.skipAuthSetup;
-  const shouldSkipRateLimiting = options.skipAuthSetup;
+  const apiDefaultRateLimiter = options.rateLimiters?.default ?? defaultRateLimiter;
 
-  // Global API rate limiting (per-IP) using DB-backed counters
-  if (!shouldSkipRateLimiting) {
-    app.use("/api", defaultRateLimiter);
-  }
+  // Always mount global API rate limiting.
+  // The limiter already no-ops in test mode inside middleware/rate-limiter.ts.
+  app.use("/api", apiDefaultRateLimiter);
 
   if (!shouldSkipCsrf) {
     // CSRF token endpoint and protection for state-changing API routes
