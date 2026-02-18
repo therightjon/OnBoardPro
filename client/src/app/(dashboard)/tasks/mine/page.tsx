@@ -412,7 +412,7 @@ export default function MyTasksPage() {
       <Card className="hidden md:block overflow-hidden">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
                   <SortableTableHeader

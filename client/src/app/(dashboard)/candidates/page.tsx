@@ -414,8 +414,7 @@ const formatLooAge = (isoDate?: string | null) => {
       {/* Desktop Table */}
       <Card className="hidden md:block overflow-hidden min-w-0">
         <CardContent className="p-0 min-w-0">
-          <div className="w-full overflow-x-auto">
-            <Table>
+            <Table className="min-w-[1100px]">
               <caption className="sr-only">Candidates table with sorting and filtering capabilities</caption>
             <TableHeader>
               <TableRow>
@@ -594,7 +593,6 @@ const formatLooAge = (isoDate?: string | null) => {
               )}
             </TableBody>
           </Table>
-          </div>
           {totalCandidates > pageSize && (
             <div className="border-t border-border/60 px-4 py-3">
               <PaginationControls

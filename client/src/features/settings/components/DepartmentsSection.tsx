@@ -132,7 +132,7 @@ function DepartmentTable({
     <>
       {/* Desktop Table */}
       <div className="hidden md:block overflow-x-auto">
-        <Table>
+        <Table className="min-w-[700px]">
           <TableHeader>
             <TableRow>
               <SortableTableHeader
