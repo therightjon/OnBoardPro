@@ -90,7 +90,7 @@ export async function apiRequest(
     cache: "no-store",
   });
 
-  if (res.status === 403) {
+  if (res.status === 401 || res.status === 403) {
     clearCsrfTokenCache();
   }
 
@@ -132,6 +132,10 @@ export function getQueryFn<T>({ on401: unauthorizedBehavior }: { on401: Unauthor
       credentials: "include",
       cache: "no-store",
     });
+
+    if (res.status === 401) {
+      clearCsrfTokenCache();
+    }
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null as unknown as T;
