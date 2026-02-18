@@ -2,6 +2,8 @@
 
 A non-technical overview of OnBoardPro's key features and screens for demonstration purposes.
 
+Last Updated: 2026-02-18
+
 ---
 
 ## Table of Contents

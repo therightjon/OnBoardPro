@@ -4,6 +4,8 @@
 
 This guide will help you learn OnBoardPro step by step. No technical experience needed—just follow along, and you'll be managing your first candidate in no time.
 
+Last Updated: 2026-02-18
+
 ---
 
 ## Table of Contents
@@ -78,7 +80,7 @@ A form will appear. Some fields have a red asterisk (*) next to them—those are
 | Candidate Type | What kind of person this is (Faculty, Staff, etc.) |
 | Department | Which department they belong to |
 | Letter of Intent Date | The date they signed their letter of intent |
-| Template | The checklist of tasks to use (you can skip this for now) |
+| Template | The checklist of tasks to use (required at candidate creation) |
 
 3. Fill in each required field.
 
@@ -232,7 +234,7 @@ This task will now be available to add to any template.
 
 ---
 
-### How to Edit, Duplicate, or Deactivate a Task
+### How to Edit or Deactivate a Task
 
 Sometimes you need to change a task after you create it:
 
@@ -252,7 +254,7 @@ Sometimes you need to change a task after you create it:
 1. Look for a "Show Archived" toggle.
 2. Turn it on to see hidden tasks.
 
-> **Note:** There's no duplicate button in the Task Library—just create a new task with a similar name if needed.
+> **Note:** If you need a similar task, create a new task definition with an updated name and description.
 
 ---
 

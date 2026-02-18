@@ -4,6 +4,8 @@
 
 Welcome to OnBoardPro! This tutorial walks you through everything you need to know to start managing your hiring pipeline and onboarding workflows. By the end, you'll confidently create candidates, build reusable task templates, and track progress from offer to onboarding.
 
+Last Updated: 2026-02-18
+
 ---
 
 ## Table of Contents
@@ -19,7 +21,7 @@ Welcome to OnBoardPro! This tutorial walks you through everything you need to kn
    - [Navigate to the Task Library](#21-navigate-to-the-task-library)
    - [Understand Task Fields](#22-understand-task-fields)
    - [Create Your First Task Definition](#23-create-your-first-task-definition)
-   - [Edit, Duplicate, and Deactivate Tasks](#24-edit-duplicate-and-deactivate-tasks)
+   - [Edit and Deactivate Tasks](#24-edit-and-deactivate-tasks)
 4. [Part 3: Create a Template](#part-3-create-a-template)
    - [What Is a Template?](#31-what-is-a-template)
    - [Create a New Template](#32-create-a-new-template)
@@ -121,7 +123,7 @@ Complete the form with the following information:
 
 **What you should see:** A preview table showing task names, stages, and calculated due dates based on your entered dates.
 
-> **💡 Tip:** You can leave the template selection for later, but it's best to assign one at creation for a smoother workflow. Tasks are generated when the Offer Letter is accepted.
+> **💡 Tip:** Template selection is required at candidate creation. Full task expansion happens when the Offer Letter is accepted (or via manual apply when applicable).
 
 ---
 
@@ -206,7 +208,7 @@ Here are more realistic tasks you might add:
 
 ---
 
-### 2.4 Edit, Duplicate, and Deactivate Tasks
+### 2.4 Edit and Deactivate Tasks
 
 #### To Edit a Task:
 

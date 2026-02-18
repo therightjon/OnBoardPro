@@ -2,6 +2,8 @@
 
 **A Hands-On Guide to Building Automated Onboarding Workflows**
 
+Last Updated: 2026-02-18
+
 ---
 
 ## What You'll Learn
