@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/shared/components/ui/toaster";
@@ -7,12 +7,13 @@ import { AuthProvider } from "@/features/auth/hooks/use-auth";
 import { ThemeProvider } from "@/shared/components/layout/theme-provider";
 import { ProtectedRoute } from "./lib/protected-route";
 import { Sidebar } from "@/shared/components/layout/sidebar";
-import { useState, lazy, Suspense, useCallback, useEffect } from "react";
+import { useState, lazy, Suspense, useCallback } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Sheet, SheetContent } from "@/shared/components/ui/sheet";
 import { Menu, Loader2 } from "lucide-react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/shared/components/layout/error-fallback";
+import { SessionExpirationHandler } from "@/features/auth/components/session-expiration-handler";
 
 // Lazy load pages for code splitting - reduces initial bundle size
 const NotFound = lazy(() => import("./app/not-found"));
@@ -170,57 +171,6 @@ function Router() {
       </Switch>
     </Suspense>
   );
-}
-
-/**
- * Type guard to check if an error has an HTTP status code
- */
-function isHttpError(error: unknown): error is Error & { status: number } {
-  return (
-    error instanceof Error &&
-    typeof (error as any).status === "number"
-  );
-}
-
-/**
- * SessionExpirationHandler monitors for 401 errors from API calls
- * and redirects to the auth page when the session expires.
- */
-function SessionExpirationHandler() {
-  const [, setLocation] = useLocation();
-
-  useEffect(() => {
-    const handleError = (error: Error) => {
-      // Check if the error is a 401 Unauthorized error
-      if (isHttpError(error) && error.status === 401) {
-        // Clear all cached data
-        queryClient.clear();
-        // Redirect to auth page
-        setLocation("/auth");
-      }
-    };
-
-    // Subscribe to the query cache to catch all query errors
-    const unsubscribeQuery = queryClient.getQueryCache().subscribe((event) => {
-      if (event.type === "updated" && event.query.state.error) {
-        handleError(event.query.state.error as Error);
-      }
-    });
-
-    // Subscribe to the mutation cache to catch all mutation errors
-    const unsubscribeMutation = queryClient.getMutationCache().subscribe((event) => {
-      if (event.type === "updated" && event.mutation.state.error) {
-        handleError(event.mutation.state.error as Error);
-      }
-    });
-
-    return () => {
-      unsubscribeQuery();
-      unsubscribeMutation();
-    };
-  }, [setLocation]);
-
-  return null;
 }
 
 function App() {
