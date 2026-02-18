@@ -74,6 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);
+      // Logout may invalidate session-bound CSRF secret, so force refresh before next POST
+      clearCsrfTokenCache();
     },
     onError: (error: Error) => {
       toast({
