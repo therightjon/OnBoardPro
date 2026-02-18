@@ -172,150 +172,76 @@ client/src/
 
 ```
 server/
-├── index.ts                          # Application entry point with middleware stack
-├── routes.ts                         # Central route registration (~3000 LOC)
-│
-├── config/                          # Configuration & setup
-│   ├── env.ts                       # Environment validation (Zod schemas)
-│   ├── database.config.ts           # PostgreSQL connection setup
-│   ├── session.config.ts            # Session middleware configuration
-│   └── swagger.config.ts            # API documentation setup
-│
-├── middleware/                      # Express middleware
-│   ├── authorization.ts             # Authorization checks with policies
-│   ├── rate-limiter.ts              # IP-based rate limiting
-│   └── request-id.ts                # UUID request tracking
-│
-├── routes/                          # Route handlers by feature
-│   ├── auth.routes.ts               # Authentication endpoints
-│   ├── candidates.routes.ts         # Candidate CRUD & operations
-│   ├── templates.routes.ts          # Template management
-│   ├── tasks.routes.ts              # Task definitions & my tasks
-│   ├── users.routes.ts              # User management
-│   ├── notifications.routes.ts      # Notification endpoints
-│   ├── search.routes.ts             # Dashboard search
-│   ├── organizations.routes.ts      # Departments & divisions
-│   ├── reference-data.routes.ts     # Lookup tables
-│   ├── settings.routes.ts           # System settings
-│   ├── audit.routes.ts              # Audit log query endpoints
-│   └── health.ts                    # Health check endpoints
-│
-├── services/                        # Business logic layer
-│   ├── service-factory.ts           # Dependency injection container
-│   ├── candidates/                  # Candidate services
-│   │   ├── candidate.service.ts
-│   │   └── candidate-task.service.ts
-│   ├── templates/                   # Template services
-│   │   ├── template.service.ts
-│   │   └── template-expansion.service.ts
-│   ├── tasks/                       # Task services
-│   │   ├── task-definition.service.ts
-│   │   └── due-date.service.ts
-│   ├── users/                       # User services
-│   │   ├── user.service.ts
-│   │   └── invitation.service.ts
-│   ├── authorization/               # Authorization engine
-│   │   ├── AuthorizationService.ts
-│   │   ├── CandidatePolicy.ts
-│   │   └── TaskPolicy.ts
-│   ├── audit/                       # Audit logging
-│   │   └── audit.service.ts
-│   ├── shared/                      # Shared services
-│   │   ├── notification.service.ts
-│   │   ├── comment.service.ts
-│   │   ├── audit-logger.ts
-│   │   └── search.service.ts
-│   └── dashboard/                   # Dashboard queries
-│       └── dashboard.service.ts
-│
-├── repositories/                    # Data access layer
-│   ├── base/                        # Base repository patterns
-│   │   └── BaseRepository.ts
-│   ├── candidates/                  # Candidate repositories
-│   │   ├── CandidateRepository.ts
-│   │   ├── CandidateTaskRepository.ts
-│   │   └── CandidateStageHistoryRepository.ts
-│   ├── templates/                   # Template repositories
-│   │   ├── TemplateRepository.ts
-│   │   ├── TemplateStageRepository.ts
-│   │   └── TemplateTaskRepository.ts
-│   ├── users/                       # User repositories
-│   │   ├── UserRepository.ts
-│   │   └── UserPreferencesRepository.ts
-│   ├── reference/                   # Reference data repositories
-│   │   ├── HiringStageRepository.ts
-│   │   ├── CandidateTypeRepository.ts
-│   │   └── TaskCategoryRepository.ts
-│   ├── organizational/              # Org repositories
-│   │   ├── DepartmentRepository.ts
-│   │   └── DivisionRepository.ts
+├── index.ts                        # App bootstrap + middleware + job startup
+├── routes.ts                       # Central route and CSRF/rate-limit wiring
+├── config/
+│   ├── env.ts                      # Environment validation (Zod)
+│   └── database.config.ts          # DB initialization
+├── middleware/
+│   ├── authorization.ts
+│   ├── csrf.ts
+│   ├── rate-limiter.ts
+│   ├── request-id.ts
+│   ├── session-timeout.ts
+│   └── validation.ts
+├── routes/
+│   ├── auth.routes.ts
+│   ├── candidates.routes.ts
+│   ├── templates.routes.ts
+│   ├── tasks.routes.ts
+│   ├── users.routes.ts
+│   ├── notifications.routes.ts
+│   ├── search.routes.ts
+│   ├── organizations.routes.ts
+│   ├── reference-data.routes.ts
+│   ├── settings.routes.ts
+│   ├── audit.routes.ts
+│   ├── docs.ts
+│   └── health.ts
+├── services/
+│   ├── service-factory.ts          # Service/repository dependency wiring
+│   ├── auth/auth-provider.service.ts
+│   ├── authorization/              # Policies + authorization service
+│   ├── candidates/                 # Candidate + stage advancement services
+│   ├── templates/                  # Template CRUD/expansion/estimation/prereqs
+│   ├── tasks/                      # Task and due-date services
+│   ├── users/                      # User + invitation services
+│   ├── organization/organization.service.ts
+│   ├── reference/reference-data.service.ts
+│   ├── dashboard/dashboard.service.ts
+│   ├── settings/system-settings.service.ts
+│   ├── shared/                     # Notification, comment, audit logger, search
+│   └── audit/audit.service.ts
+├── repositories/
+│   ├── base/
+│   ├── candidates/
+│   ├── templates/
+│   ├── users/
+│   ├── reference/
+│   ├── organizational/
 │   ├── CommentRepository.ts
 │   ├── NotificationRepository.ts
 │   └── SearchRepository.ts
-│
-├── features/                        # Feature-specific implementations
-│   ├── auth/                        # Authentication
-│   │   └── services/
-│   │       ├── auth.service.ts      # Multi-provider auth setup
-│   │       ├── providers.ts         # Provider registry
-│   │       └── config.ts            # Auth configuration
-│   ├── email/                       # Email system
-│   │   ├── outbox.service.ts        # Email outbox processing
-│   │   ├── smtp-settings.service.ts # SMTP configuration
-│   │   └── templates.ts             # Email templates
-│   ├── notifications/               # Notification system
-│   │   └── services/
-│   │       ├── notification-creation.service.ts
-│   │       └── notification-delivery.service.ts
-│   ├── tasks/                       # Task-specific features
-│   │   └── services/
-│   │       └── advance-stage.service.ts
-│   └── candidates/                  # Candidate-specific features
-│       └── dto/
-│           └── candidate.dto.ts     # Validation DTOs
-│
-├── events/                          # Domain event system
-│   ├── EventBus.ts                  # Event bus implementation
-│   ├── event-types.ts               # Event type definitions
-│   ├── event-factory.ts             # Event creation helpers
-│   ├── handlers/                    # Event handlers
-│   │   └── notification.handler.ts
-│   └── middleware/                  # Event middleware
-│       └── logging.middleware.ts
-│
-├── jobs/                            # Background workers
-│   ├── scan-deadlines.ts            # Deadline monitoring job
-│   ├── notification-email.ts        # Email delivery job
-│   └── notification-cleanup.ts      # Cleanup old notifications
-│
-├── tests/                           # Test suites
-│   ├── utils/                       # Test infrastructure
-│   │   ├── testAgent.ts             # Authenticated test client
-│   │   ├── mockServiceFactory.ts    # Mock service factory
-│   │   ├── testEnvironment.ts       # Test database setup
-│   │   └── seedAuthorizationFixtures.ts
-│   ├── auth/                        # Authentication tests
-│   ├── routes/                      # API route tests
-│   ├── repositories/                # Repository tests
-│   ├── services/                    # Service tests
-│   └── events/                      # EventBus tests
-│
-├── observability/                   # Monitoring & metrics
-│   └── authMetrics.ts               # Authorization metrics
-│
-├── utils/                           # Utility functions
-│   ├── passwords.ts                 # Password hashing & verification
-│   ├── error-handler.ts             # Error handling & custom errors
-│   ├── authorization.utils.ts       # Authorization helpers
-│   ├── notification.utils.ts        # Notification helpers
-│   ├── date.utils.ts                # Date/time utilities
-│   ├── business-day.utils.ts        # Business day calculations
-│   ├── hiring-phase.utils.ts        # Hiring phase logic
-│   ├── secret.ts                    # Secret encryption
-│   └── app-url.ts                   # URL generation
-│
-└── types/                           # TypeScript type definitions
-    └── express/                     # Express type extensions
+├── features/
+│   ├── auth/services/
+│   ├── candidates/dto/
+│   ├── tasks/{dto,services}/
+│   ├── notifications/{routes.ts,services/}
+│   └── email/                      # outbox, smtp settings, email templates
+├── events/
+│   ├── EventBus.ts
+│   ├── event-types.ts
+│   ├── event-factory.ts
+│   ├── handlers/notification-handler.ts
+│   └── middleware/logging-middleware.ts
+├── jobs/
+│   ├── scan-deadlines.ts
+│   ├── notification-email.ts
+│   └── notification-cleanup.ts
+├── tests/                          # auth/routes/repositories/services/middleware/events/utils
+├── observability/authMetrics.ts
+├── utils/                          # date, auth, ip, logger, passwords, app-url, etc.
+└── types/express.d.ts
 ```
 
 **Key Architecture Patterns:**
@@ -1191,7 +1117,7 @@ Layer 5: Data
 - **Event-Driven:** Automatic notifications from domain events
 - **User Preferences:**
   - Choose notification channels (in-app, email)
-  - Digest frequency (immediate, daily, weekly)
+  - Digest frequency (immediate, hourly, daily, weekly, none)
   - Quiet hours configuration
   - Event subscription management
   - Self-notification opt-in/out
@@ -1202,7 +1128,7 @@ Layer 5: Data
 ### 6. Multi-Provider Authentication
 - **Local Authentication:**
   - Username/password with bcrypt and scrypt hashing
-  - Password reset via email
+  - Invitation-based account setup and admin password management
   - Account status management
 - **LDAP Integration:**
   - Enterprise directory integration
@@ -1275,12 +1201,11 @@ Layer 5: Data
   - Test connection functionality
 - **Email Templates:**
   - User invitations
-  - Password reset
   - Notification emails
   - Digest emails
 - **Outbox Pattern:**
   - Reliable delivery with retries
-  - Scheduled digests (daily/weekly)
+  - Scheduled digests (hourly/daily/weekly)
   - Delivery status tracking
   - Background processing
 
@@ -1288,9 +1213,11 @@ Layer 5: Data
 
 ## Related Documentation
 
-- **[ARCHITECTURE_REVIEW.md](./ARCHITECTURE_REVIEW.md)** - Comprehensive architecture analysis and recommendations
-- **[BOUNDED_CONTEXTS.md](./BOUNDED_CONTEXTS.md)** - Domain-driven design context mapping
-- **Environment Setup:** `/.env.example` - Environment variable template
+- **[BOUNDED_CONTEXTS.md](./BOUNDED_CONTEXTS.md)** - Current bounded context map
+- **[DOMAIN_GLOSSARY.md](./DOMAIN_GLOSSARY.md)** - Shared domain vocabulary
+- **[TEMPLATE_SYSTEM.md](./TEMPLATE_SYSTEM.md)** - Template workflow behavior
+- **[MIGRATIONS.md](./MIGRATIONS.md)** - Migration operations
+- **Environment Setup:** `.env.example` - Environment variable template
 
 ---
 
@@ -1316,7 +1243,7 @@ Layer 5: Data
 
 - **Frontend:** React 18 + TanStack Query + Wouter + Radix UI + TailwindCSS
 - **Backend:** Express.js + Drizzle ORM + Passport.js + Zod validation
-- **Database:** PostgreSQL 16 with 30+ normalized tables
+- **Database:** PostgreSQL (Docker local image currently `postgres:17.6`) with normalized relational schemas
 - **Testing:** Vitest + Node test runner + Supertest + custom test infrastructure
 - **Security:** Helmet, bcrypt/scrypt, CSRF protection, rate limiting, encrypted secrets
 
@@ -1350,11 +1277,11 @@ Layer 5: Data
 
 ---
 
-**Last Updated:** 2026-02-17
-**Version:** 1.2.0
+**Last Updated:** 2026-02-18
+**Version:** 1.0.0
 **Architecture Health Score:** 8.0/10
 
 **Maintained By:** Jonathan Steen - jesteen@uabmc.edu
-**License:** Proprietary
+**License:** MIT
 **Node.js Version:** 22.21.0
-**Database:** PostgreSQL 16+
+**Database:** PostgreSQL 17+ (local Docker), managed Postgres supported

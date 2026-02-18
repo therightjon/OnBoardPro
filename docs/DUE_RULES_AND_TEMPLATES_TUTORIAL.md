@@ -106,7 +106,7 @@ loo = offerLetterAcceptedAt ?? offerLetterIssuedAt ?? null
 
 ### 2.2 The 18 Due Date Rule Types
 
-Due date rules are defined in [shared/schemas/task.enums.ts](shared/schemas/task.enums.ts):
+Due date rules are defined in [shared/schemas/task.enums.ts](../shared/schemas/task.enums.ts):
 
 #### LOI-Based Rules (Prerequisite Tasks Only)
 
@@ -247,7 +247,7 @@ Task 6: First Week Check-in
 
 ### 3.3 Understanding the Code Behind Due Rules
 
-The due date calculation happens in [server/utils/date.utils.ts](server/utils/date.utils.ts). Here's the core function:
+The due date calculation happens in [server/utils/date.utils.ts](../server/utils/date.utils.ts). Here's the core function:
 
 ```typescript
 export function computeDueFromRule(
@@ -666,13 +666,13 @@ Is this a prerequisite task?
 
 | Purpose | File Path |
 |---------|-----------|
-| Due rule enum definition | [shared/schemas/task.enums.ts](shared/schemas/task.enums.ts) |
-| Due date calculation | [server/utils/date.utils.ts](server/utils/date.utils.ts) |
-| Template expansion logic | [server/services/templates/template-expansion.service.ts](server/services/templates/template-expansion.service.ts) |
-| Due date recalculation | [server/services/tasks/task-due-date.service.ts](server/services/tasks/task-due-date.service.ts) |
-| Timeline estimation | [server/services/templates/template-estimation.service.ts](server/services/templates/template-estimation.service.ts) |
-| Template task form UI | [client/src/features/templates/components/TemplateTaskFormDialog.tsx](client/src/features/templates/components/TemplateTaskFormDialog.tsx) |
-| Database schema | [shared/schema.ts](shared/schema.ts) |
+| Due rule enum definition | [shared/schemas/task.enums.ts](../shared/schemas/task.enums.ts) |
+| Due date calculation | [server/utils/date.utils.ts](../server/utils/date.utils.ts) |
+| Template expansion logic | [server/services/templates/template-expansion.service.ts](../server/services/templates/template-expansion.service.ts) |
+| Due date recalculation | [server/services/tasks/task-due-date.service.ts](../server/services/tasks/task-due-date.service.ts) |
+| Timeline estimation | [server/services/templates/template-estimation.service.ts](../server/services/templates/template-estimation.service.ts) |
+| Template task form UI | [client/src/features/templates/components/TemplateTaskFormDialog.tsx](../client/src/features/templates/components/TemplateTaskFormDialog.tsx) |
+| Database schema | [shared/schema.ts](../shared/schema.ts) |
 
 ### API Endpoints
 

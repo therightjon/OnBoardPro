@@ -1,6 +1,6 @@
 # TODO Comments Tracking
 
-**Last Updated:** 2025-01-15
+**Last Updated:** 2026-02-18
 **Status:** Active tracking document for technical debt
 
 ---
@@ -49,7 +49,7 @@ These TODOs have been addressed and the comments have been removed from the code
 **Impact:** Data integrity - prevents issues with templates using archived definitions
 
 #### 3. Publish templateArchived Event
-**File:** [server/services/templates/template.service.ts](../server/services/templates/template.service.ts)
+**File:** [server/services/templates/template.service.ts](../server/services/templates/template.service.ts) (Line 191)
 **Note:** Comment updated to reference tracking doc. Event type needs to be created.
 **Context:** Requires creating `TemplateArchivedEvent` type and factory function first.
 **Effort:** Low
@@ -57,7 +57,7 @@ These TODOs have been addressed and the comments have been removed from the code
 **Impact:** Enables future notification/audit integrations for template archival
 
 #### 4. Publish taskArchived Event
-**File:** [server/services/tasks/task.service.ts](../server/services/tasks/task.service.ts)
+**File:** [server/services/tasks/task.service.ts](../server/services/tasks/task.service.ts) (Line 242)
 **Note:** Comment updated to reference tracking doc. Event type needs to be created.
 **Context:** Requires creating `TaskArchivedEvent` type and factory function first.
 **Effort:** Low
@@ -67,7 +67,7 @@ These TODOs have been addressed and the comments have been removed from the code
 ### P3 - Low Priority (Backlog)
 
 #### 5. Determine Actual Phase from Current Stage
-**File:** [server/utils/hiring-phase.utils.ts](../server/utils/hiring-phase.utils.ts) (Line 131)
+**File:** [server/utils/hiring-phase.utils.ts](../server/utils/hiring-phase.utils.ts) (Line 127)
 **TODO:** `// TODO: Could determine actual phase (pre_hire vs onboarding) from current stage`
 **Context:** Enhancement to determine phase from template stage's `phase` field rather than defaulting to `pre_hire`.
 **Effort:** Low
@@ -145,3 +145,4 @@ export function taskArchived(
 | Date | Action |
 |------|--------|
 | 2025-01-15 | Initial TODO audit; removed/fixed 10 completed TODOs; documented 5 remaining |
+| 2026-02-18 | Revalidated TODO inventory against current code paths and line references |
