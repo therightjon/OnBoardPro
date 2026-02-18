@@ -473,6 +473,8 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                   name="offerLetterAcceptedAt"
                   render={({ field }: { field: any }) => {
                     const issuedDate = parseAsLocalDate(selectedOfferLetterIssued);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
                     return (
                       <FormItem>
                         <FormLabel>LOO Accepted Date</FormLabel>
@@ -481,7 +483,10 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
                             value={field.value}
                             onChange={field.onChange}
                             placeholder="Pick a date"
-                            disabled={(date) => !!(issuedDate && date < issuedDate)}
+                            disabled={(date) => {
+                              if (date > today) return true;
+                              return !!(issuedDate && date < issuedDate);
+                            }}
                             showClear
                             onClear={() => field.onChange(null)}
                             testId="button-edit-loo-accepted-date"

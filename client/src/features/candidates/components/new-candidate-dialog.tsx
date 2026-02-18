@@ -829,8 +829,10 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                     // Cascade: LOO Accepted >= LOO Issued >= LOI Date
                     const loiDate = selectedLetterOfIntentDate ? new Date(selectedLetterOfIntentDate) : null;
                     const issuedDate = selectedOfferLetterIssued ? new Date(selectedOfferLetterIssued) : null;
+                    const today = new Date();
                     if (loiDate) loiDate.setHours(0, 0, 0, 0);
                     if (issuedDate) issuedDate.setHours(0, 0, 0, 0);
+                    today.setHours(0, 0, 0, 0);
                     // Use LOO Issued if set, otherwise fall back to LOI Date
                     const minDate = issuedDate || loiDate;
 
@@ -866,6 +868,9 @@ export function NewCandidateDialog({ open, onOpenChange }: NewCandidateDialogPro
                                 setIsCalendarOpen(false);
                               }}
                               disabled={(date) => {
+                                if (date > today) {
+                                  return true;
+                                }
                                 // Must be on or after the previous date in the cascade
                                 if (minDate && date < minDate) {
                                   return true;
