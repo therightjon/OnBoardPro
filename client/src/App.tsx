@@ -62,16 +62,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         Skip to content
       </a>
       
-      <div className="min-h-screen grid md:grid-cols-[260px_1fr]">
+      <div className="min-h-screen grid md:grid-cols-[260px_minmax(0,1fr)]">
         {/* Sidebar for desktop */}
         <aside className="hidden md:flex border-r md:sticky md:top-0 md:h-screen">
           <Sidebar />
         </aside>
 
-        <div className="flex min-h-screen flex-col">
+        <div className="flex min-h-screen min-w-0 flex-col">
           <Header onMenuClick={() => setIsMobileMenuOpen(true)} />
           
-          <main id="main" className="flex-1 container mx-auto px-3 xs:px-4 sm:px-6 md:px-8 py-3 xs:py-4 sm:py-6">
+          <main id="main" className="flex-1 min-w-0 container mx-auto px-3 xs:px-4 sm:px-6 md:px-8 py-3 xs:py-4 sm:py-6">
             {children}
           </main>
         </div>

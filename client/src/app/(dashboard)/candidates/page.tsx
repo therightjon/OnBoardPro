@@ -273,7 +273,7 @@ const formatLooAge = (isoDate?: string | null) => {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6 min-w-0">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
@@ -293,15 +293,15 @@ const formatLooAge = (isoDate?: string | null) => {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-3 xs:p-4 sm:p-4">
+      <Card className="overflow-hidden">
+        <CardContent className="p-3 xs:p-4 sm:p-4 min-w-0">
           <div className="flex items-center gap-2 mb-3 text-sm font-medium text-muted-foreground">
             <Filter className="w-4 h-4" />
             <span>Filters</span>
           </div>
-          <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-3">
+          <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-3 min-w-0">
             {/* Search - Full width on mobile */}
-            <div className="w-full sm:flex-1 sm:min-w-[200px]">
+            <div className="w-full sm:flex-1 sm:min-w-[200px] min-w-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
@@ -315,7 +315,7 @@ const formatLooAge = (isoDate?: string | null) => {
             </div>
             
             {/* Filters row */}
-            <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 sm:gap-3">
+            <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 sm:gap-3 min-w-0">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]" data-testid="select-status-filter">
                   <SelectValue placeholder="Status" />
@@ -412,9 +412,9 @@ const formatLooAge = (isoDate?: string | null) => {
       </Card>
 
       {/* Desktop Table */}
-      <Card className="hidden md:block overflow-hidden">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
+      <Card className="hidden md:block overflow-hidden min-w-0">
+        <CardContent className="p-0 min-w-0">
+          <div className="w-full overflow-x-auto">
             <Table>
               <caption className="sr-only">Candidates table with sorting and filtering capabilities</caption>
             <TableHeader>
