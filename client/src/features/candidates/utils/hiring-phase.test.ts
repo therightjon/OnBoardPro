@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getHiringPhase, resolveCandidateStageLabel } from "./hiring-phase";
+import { getHiringPhase, resolveCandidateStageLabel, stageLabelsMatch } from "./hiring-phase";
 
 describe("getHiringPhase", () => {
   it("returns loi_issued when LOO has not been issued", () => {
@@ -71,5 +71,25 @@ describe("resolveCandidateStageLabel", () => {
     });
 
     expect(label).toBe("Offer Accepted");
+  });
+});
+
+describe("stageLabelsMatch", () => {
+  it("matches exact stage labels", () => {
+    expect(stageLabelsMatch("Credentialing", "Credentialing")).toBe(true);
+  });
+
+  it("matches LOI milestone aliases", () => {
+    expect(stageLabelsMatch("LOI Issued", "Letter of Intent")).toBe(true);
+    expect(stageLabelsMatch("LOI Issued", "LOI")).toBe(true);
+  });
+
+  it("matches offer milestone aliases", () => {
+    expect(stageLabelsMatch("Offer Sent", "Offer")).toBe(true);
+    expect(stageLabelsMatch("Offer Accepted", "Letter of Offer")).toBe(true);
+  });
+
+  it("does not match unrelated labels", () => {
+    expect(stageLabelsMatch("Credentialing", "Onboarding")).toBe(false);
   });
 });

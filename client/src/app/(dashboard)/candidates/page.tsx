@@ -25,7 +25,7 @@ const ArchiveCandidateDialog = lazy(() => import("@/features/candidates/componen
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { candidateStatusBadgeClass, resolveCandidateStatus, canArchiveCandidate } from "@/features/candidates/utils/status";
-import { getHiringPhase, resolveCandidateStageLabel } from "@/features/candidates/utils/hiring-phase";
+import { getHiringPhase, resolveCandidateStageLabel, stageLabelsMatch } from "@/features/candidates/utils/hiring-phase";
 import { useLocalStorage } from "@/shared/hooks/use-local-storage";
 import type { Candidate, CandidateType, HiringStage } from "@shared/schemas";
 import { PaginationControls } from "@/shared/components/pagination-controls";
@@ -118,6 +118,10 @@ const formatLooAge = (isoDate?: string | null) => {
   return `${diff}d`;
 };
 
+const stageNameById = useMemo(() => {
+  return new Map(hiringStages.map((stage) => [stage.id, stage.name]));
+}, [hiringStages]);
+
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, typeFilter, stageFilter, phaseFilter, showArchived, showCanceled, showCompleted]);
@@ -130,9 +134,15 @@ const formatLooAge = (isoDate?: string | null) => {
                            candidate.email.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === "all" || candidate.status === statusFilter;
       const matchesType = typeFilter === "all" || candidate.candidateTypeId === typeFilter;
+      const selectedStageName = stageNameById.get(stageFilter);
+      const candidateStageLabel = resolveCandidateStageLabel(candidate);
+      const matchesStageFromMilestone =
+        !candidate.currentStage?.id &&
+        stageLabelsMatch(candidateStageLabel, selectedStageName);
       const matchesStage = stageFilter === "all" || 
                           (stageFilter === "not_started" && !candidate.currentStage?.id) ||
-                          candidate.currentStage?.id === stageFilter;
+                          candidate.currentStage?.id === stageFilter ||
+                          matchesStageFromMilestone;
       const resolvedPhase = getHiringPhase(candidate).phase;
       const matchesPhase =
         phaseFilter === "all" ||
@@ -196,7 +206,7 @@ const formatLooAge = (isoDate?: string | null) => {
       if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
-  }, [candidates, searchTerm, statusFilter, typeFilter, stageFilter, phaseFilter, sortBy, sortOrder, showCanceled, showCompleted]);
+  }, [candidates, searchTerm, statusFilter, typeFilter, stageFilter, phaseFilter, sortBy, sortOrder, showCanceled, showCompleted, stageNameById]);
 
   const pageSize = PAGE_SIZE;
   const totalCandidates = filteredAndSortedCandidates.length;

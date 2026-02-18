@@ -187,6 +187,34 @@ export function resolveCandidateStageLabel(
   return fallbackLabel;
 }
 
+const STAGE_LABEL_ALIAS_GROUPS: ReadonlyArray<ReadonlySet<string>> = [
+  new Set(["loi", "loi issued", "letter of intent"]),
+  new Set(["offer", "offer sent", "offer accepted", "letter of offer", "letter of offer sent", "letter of offer accepted"]),
+];
+
+function normalizeStageLabel(value?: string | null): string {
+  return value?.trim().toLowerCase().replace(/\s+/g, " ") ?? "";
+}
+
+/**
+ * Compare candidate stage labels against selected stage names from filter dropdown.
+ * Supports exact matches and milestone aliases (e.g., "Letter of Intent" vs "LOI Issued").
+ */
+export function stageLabelsMatch(
+  candidateStageLabel?: string | null,
+  selectedStageName?: string | null
+): boolean {
+  const normalizedCandidate = normalizeStageLabel(candidateStageLabel);
+  const normalizedSelected = normalizeStageLabel(selectedStageName);
+
+  if (!normalizedCandidate || !normalizedSelected) return false;
+  if (normalizedCandidate === normalizedSelected) return true;
+
+  return STAGE_LABEL_ALIAS_GROUPS.some(
+    (group) => group.has(normalizedCandidate) && group.has(normalizedSelected)
+  );
+}
+
 /**
  * Check if a candidate can have their template applied
  * Template can only be applied after LOO is accepted
