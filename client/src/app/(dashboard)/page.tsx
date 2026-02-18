@@ -626,13 +626,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
         <Card className="hover:shadow-md transition-shadow" data-testid="card-active-candidates">
           <CardContent className="p-3 xs:p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs xs:text-sm font-medium text-muted-foreground">Active Candidates</p>
-                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground" data-testid="text-active-candidates">{activeCandidates}</p>
-              </div>
-              <div className="w-10 h-10 xs:w-12 xs:h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Users className="text-primary text-lg xs:text-xl" />
+            <div className="space-y-1">
+              <p className="text-xs xs:text-sm font-medium text-muted-foreground">Active Candidates</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground leading-none min-w-0" data-testid="text-active-candidates">{activeCandidates}</p>
+                <div className="w-10 h-10 xs:w-12 xs:h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Users className="text-primary text-lg xs:text-xl" />
+                </div>
               </div>
             </div>
             <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
@@ -644,13 +644,13 @@ export default function Dashboard() {
 
         <Card className="hover:shadow-md transition-shadow" data-testid="card-tasks-due">
           <CardContent className="p-3 xs:p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs xs:text-sm font-medium text-muted-foreground">Tasks Due (7 days)</p>
-                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground" data-testid="text-tasks-due">{tasksDue}</p>
-              </div>
-              <div className="w-10 h-10 xs:w-12 xs:h-12 bg-chart-3/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Clock className="text-chart-3 text-lg xs:text-xl" />
+            <div className="space-y-1">
+              <p className="text-xs xs:text-sm font-medium text-muted-foreground">Tasks Due (7 days)</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground leading-none min-w-0" data-testid="text-tasks-due">{tasksDue}</p>
+                <div className="w-10 h-10 xs:w-12 xs:h-12 bg-chart-3/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Clock className="text-chart-3 text-lg xs:text-xl" />
+                </div>
               </div>
             </div>
             <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
@@ -662,13 +662,13 @@ export default function Dashboard() {
 
         <Card className="hover:shadow-md transition-shadow" data-testid="card-overdue-tasks">
           <CardContent className="p-3 xs:p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs xs:text-sm font-medium text-muted-foreground">Overdue Tasks</p>
-                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground" data-testid="text-overdue-tasks">{overdueTasks}</p>
-              </div>
-              <div className="w-10 h-10 xs:w-12 xs:h-12 bg-destructive/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="text-destructive text-lg xs:text-xl" />
+            <div className="space-y-1">
+              <p className="text-xs xs:text-sm font-medium text-muted-foreground">Overdue Tasks</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground leading-none min-w-0" data-testid="text-overdue-tasks">{overdueTasks}</p>
+                <div className="w-10 h-10 xs:w-12 xs:h-12 bg-destructive/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="text-destructive text-lg xs:text-xl" />
+                </div>
               </div>
             </div>
             <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
@@ -680,13 +680,13 @@ export default function Dashboard() {
 
         <Card className="hover:shadow-md transition-shadow" data-testid="card-completion-rate">
           <CardContent className="p-3 xs:p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs xs:text-sm font-medium text-muted-foreground">Completion Rate</p>
-                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground" data-testid="text-completion-rate">{completionRate}%</p>
-              </div>
-              <div className="w-10 h-10 xs:w-12 xs:h-12 bg-accent/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                <CheckCircle className="text-accent text-lg xs:text-xl" />
+            <div className="space-y-1">
+              <p className="text-xs xs:text-sm font-medium text-muted-foreground">Completion Rate</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground leading-none min-w-0" data-testid="text-completion-rate">{completionRate}%</p>
+                <div className="w-10 h-10 xs:w-12 xs:h-12 bg-accent/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="text-accent text-lg xs:text-xl" />
+                </div>
               </div>
             </div>
             <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
