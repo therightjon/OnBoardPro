@@ -10,7 +10,7 @@
 
 ## 1. Discuss your hosting option. (UAB, AWS, Azure, On-premises, Other)
 
-Our OnBoardPro instance will be hosted on an internal university server. The server environment includes Node.js 22 as the application runtime, Express.js as the web framework, and PostgreSQL 16 as the database. Nginx serves as the reverse proxy, handling SSL termination and forwarding requests to the Node.js process. PM2 is used for Node.js process management, ensuring automatic restarts and zero-downtime deployments. This setup ensures full control over the hosting infrastructure, allowing us to tailor security and performance settings to meet our specific requirements.
+Our OnBoardPro instance will be hosted on an internal university server. The server environment includes Node.js 22 as the application runtime, Express.js as the web framework, and PostgreSQL 17.6 as the database. Nginx serves as the reverse proxy, handling SSL termination and forwarding requests to the Node.js process. PM2 is used for Node.js process management, ensuring automatic restarts and zero-downtime deployments. This setup ensures full control over the hosting infrastructure, allowing us to tailor security and performance settings to meet our specific requirements.
 
 ---
 
@@ -41,7 +41,7 @@ Yes. A detailed architecture document is maintained alongside the codebase (see 
   - **Purpose:** Executes the OnBoardPro server application, processes REST API requests, handles authentication, authorization, business logic, background job processing (deadline scanning, email delivery, notification cleanup), and serves the production-built React SPA.
 
 - **Database Server:**
-  - **Software:** PostgreSQL 16
+  - **Software:** PostgreSQL 17.6
   - **Purpose:** Stores all application data including user accounts, candidate records, task definitions, templates, notifications, audit logs, session data, and system configuration. Provides data retrieval and storage via the Drizzle ORM with type-safe queries.
 
 - **Client Application:**
@@ -94,7 +94,7 @@ Yes. A detailed architecture document is maintained alongside the codebase (see 
                         │ Drizzle ORM (SQL)
                         ▼
 ┌────────────────────────────────────────────────────────┐
-│                   PostgreSQL 16                        │
+│                   PostgreSQL 17.6                        │
 │   30+ tables · Session store · Audit log · Outbox      │
 └────────────────────────────────────────────────────────┘
 ```
@@ -143,7 +143,7 @@ OnBoardPro uses the following key third-party components:
 
 **Backend:**
 - Node.js 22, Express.js 4.21, TypeScript 5.6
-- PostgreSQL 16 (via pg / Drizzle ORM)
+- PostgreSQL 17.6 (via pg / Drizzle ORM)
 - Passport.js (authentication), bcrypt + scrypt (password hashing)
 - ldapjs (LDAP authentication), Nodemailer (SMTP email delivery)
 - Helmet (security headers), Zod (input validation)
@@ -365,7 +365,7 @@ OnBoardPro is an in-house hiring pipeline management system that enables departm
 |-----------|----------|---------|
 | **Reverse Proxy** | Nginx | SSL/TLS termination, static asset serving, request forwarding, load balancing |
 | **Application Server** | Node.js 22 + Express.js 4.21 (TypeScript) | REST API processing, authentication, authorization, business logic, background jobs |
-| **Database Server** | PostgreSQL 16 | Persistent storage for all application data (30+ tables), session storage, audit logs |
+| **Database Server** | PostgreSQL 17.6 | Persistent storage for all application data (30+ tables), session storage, audit logs |
 | **Client Application** | React 18 SPA (TypeScript, Vite-built) | Browser-based user interface served as static assets |
 | **Process Manager** | PM2 | Node.js process management, auto-restart, log management |
 

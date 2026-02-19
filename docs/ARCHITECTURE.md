@@ -55,7 +55,7 @@
                            │ SQL Queries
                            ↓
 ┌──────────────────────────────────────────────────────────────┐
-│                    PostgreSQL 16                             │
+│                    PostgreSQL 17.6                            │
 │  • Session storage                                           │
 │  • Application data (20+ tables)                             │
 │  • Notification outbox                                       │
@@ -280,7 +280,7 @@ server/
 
 ## Data Architecture
 
-### Database Schema (PostgreSQL 16)
+### Database Schema (PostgreSQL 17.6)
 
 **Complete Table Listing (30+ tables):**
 
@@ -730,7 +730,7 @@ ETag: "hash"
 ```
 ┌─────────────────────────────────────┐
 │  Docker Compose                     │
-│  • PostgreSQL 16                    │
+│  • PostgreSQL 17.6                  │
 │  • Port 5432                        │
 └─────────────────────────────────────┘
               │
@@ -804,7 +804,7 @@ ETag: "hash"
 - **express-session** - Session management with PostgreSQL store
 
 ### Database
-- **PostgreSQL 16+** - Primary database (Docker local, Neon serverless production)
+- **PostgreSQL 17.6** - Primary database (Docker local, Neon serverless production)
 - **Drizzle ORM 0.44.7** - Query builder with migrations via Drizzle Kit
 - **pg (node-postgres)** - PostgreSQL client with connection pooling
 - **connect-pg-simple** - Session store implementation
