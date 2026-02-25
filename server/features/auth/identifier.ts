@@ -53,3 +53,27 @@ export function toLdapUsername(input: string): string {
 export function buildLdapUserSearchFilter(input: string): string {
   return FIXED_LDAP_USER_FILTER_TEMPLATE.replace(/\{\{username\}\}/g, toLdapUsername(input));
 }
+
+/**
+ * Normalize a bare username into UPN format for LDAP bind.
+ * If the bindDn already contains '@' (UPN), ',' (full DN), or '\\' (down-level),
+ * it is returned as-is. Otherwise the hostname is extracted from the LDAP URL
+ * and appended as @domain (e.g. jesteen → jesteen@ad.hs.uab.edu).
+ */
+export function normalizeLdapBindDn(bindDn: string, ldapUrl?: string): string {
+  const trimmed = bindDn.trim();
+  if (trimmed.includes('@') || trimmed.includes(',') || trimmed.includes('\\')) {
+    return trimmed;
+  }
+  if (ldapUrl) {
+    try {
+      const url = new URL(ldapUrl);
+      if (url.hostname) {
+        return `${trimmed}@${url.hostname}`;
+      }
+    } catch {
+      // URL parsing failed — fall through
+    }
+  }
+  return trimmed;
+}

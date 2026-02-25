@@ -10,7 +10,7 @@ import { getInvitationService, getAuthProviderService, getUserService } from "..
 import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../services/login-rate-limit";
 import { comparePasswords } from "../utils/passwords";
 import { hydrateAuthUser } from "../features/auth/services";
-import { FIXED_LDAP_USER_FILTER_TEMPLATE } from "../features/auth/identifier";
+import { FIXED_LDAP_USER_FILTER_TEMPLATE, normalizeLdapBindDn } from '../features/auth/identifier';
 import { logger } from "../utils/logger";
 
 const router = Router();
@@ -284,32 +284,6 @@ function normalizeOptionalString(value?: string): string | undefined {
   if (value === undefined) return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
-}
-
-/**
- * Normalize a bare username into UPN format for LDAP bind.
- * If the bindDn is already a full DN (contains ','), UPN (contains '@'),
- * or down-level format (contains '\'), return it as-is.
- * Otherwise, extract the domain from the LDAP URL and append it as @domain.
- */
-function normalizeLdapBindDn(bindDn: string, ldapUrl?: string): string {
-  const trimmed = bindDn.trim();
-  // Already qualified — return as-is
-  if (trimmed.includes('@') || trimmed.includes(',') || trimmed.includes('\\')) {
-    return trimmed;
-  }
-  // Extract domain from LDAP URL (e.g. ldap://ad.hs.uab.edu:389 → ad.hs.uab.edu)
-  if (ldapUrl) {
-    try {
-      const url = new URL(ldapUrl);
-      if (url.hostname) {
-        return `${trimmed}@${url.hostname}`;
-      }
-    } catch {
-      // URL parsing failed — fall through
-    }
-  }
-  return trimmed;
 }
 
 // Helper function to check if a provider is configured
@@ -718,15 +692,15 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
 
     const doTest = () => new Promise<{ ok: boolean; message: string }>((resolve) => {
       client.on('error', (err: any) => {
-        logger.error('LDAP test connection error', err, { code: err.code, message: err.message });
+        logger.error('LDAP test connection error', err);
         resolve({ ok: false, message: `Connection failed: ${err.message || err.code || 'unknown'}` });
       });
 
       const performBind = () => {
-        logger.info('LDAP test: attempting bind', { bindDn: cfg.bindDn, url: cfg.url, startTls: cfg.startTls });
+        logger.debug('LDAP test: attempting bind', { bindDn: cfg.bindDn, url: cfg.url, startTls: cfg.startTls });
         client.bind(cfg.bindDn!, cfg.bindPassword!, (bindErr: any) => {
           if (bindErr) {
-            logger.error('LDAP test bind error', bindErr, { code: bindErr.code, name: bindErr.name, lde_message: bindErr.lde_message, dn: bindErr.dn });
+            logger.error('LDAP test bind error', bindErr);
             client.destroy();
             resolve({ ok: false, message: `Bind failed: ${bindErr.lde_message || bindErr.message || bindErr.code || 'unknown'}` });
             return;
@@ -754,15 +728,15 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
       };
 
       if (cfg.startTls) {
-        logger.info('LDAP test: initiating StartTLS', { url: cfg.url });
+        logger.debug('LDAP test: initiating StartTLS', { url: cfg.url });
         client.starttls({ rejectUnauthorized: false }, null, (tlsErr: any) => {
           if (tlsErr) {
-            logger.error('LDAP test StartTLS error', tlsErr, { code: tlsErr.code, message: tlsErr.message });
+            logger.error('LDAP test StartTLS error', tlsErr);
             client.destroy();
             resolve({ ok: false, message: `StartTLS negotiation failed: ${tlsErr.message || tlsErr.code || 'unknown'}` });
             return;
           }
-          logger.info('LDAP test: StartTLS successful');
+          logger.debug('LDAP test: StartTLS successful');
           performBind();
         });
       } else {
