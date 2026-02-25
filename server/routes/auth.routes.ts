@@ -724,7 +724,7 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
       };
 
       if (cfg.startTls) {
-        client.starttls({}, null, (tlsErr: any) => {
+        client.starttls({ rejectUnauthorized: false }, null, (tlsErr: any) => {
           if (tlsErr) {
             logger.error('LDAP test StartTLS error', tlsErr);
             client.destroy();

@@ -188,7 +188,7 @@ export class LdapAuthProvider implements AuthProvider {
         };
 
         if (this.config.startTls) {
-          client.starttls({}, null, (tlsErr: any) => {
+          client.starttls({ rejectUnauthorized: false }, null, (tlsErr: any) => {
             if (tlsErr) {
               console.error('LDAP StartTLS error:', tlsErr);
               client.destroy();
