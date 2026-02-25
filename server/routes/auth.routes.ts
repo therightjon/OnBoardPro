@@ -693,33 +693,49 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
         resolve({ ok: false, message: 'Connection failed' });
       });
 
-      client.bind(cfg.bindDn!, cfg.bindPassword!, (bindErr: any) => {
-        if (bindErr) {
-          logger.error('LDAP test bind error', bindErr);
-          client.destroy();
-          resolve({ ok: false, message: 'Bind failed' });
-          return;
-        }
-        // Optional: quick search to verify baseDn reachable
-        const opts = { filter: LDAP_TEST_BASE_DN_FILTER, scope: 'base' as const };
-        client.search(cfg.baseDn!, opts, (searchErr: any, searchRes: any) => {
-          if (searchErr) {
-            logger.error('LDAP test search error', searchErr);
+      const performBind = () => {
+        client.bind(cfg.bindDn!, cfg.bindPassword!, (bindErr: any) => {
+          if (bindErr) {
+            logger.error('LDAP test bind error', bindErr);
             client.destroy();
-            resolve({ ok: false, message: 'Search failed' });
+            resolve({ ok: false, message: 'Bind failed' });
             return;
           }
-          searchRes.on('end', () => {
-            client.destroy();
-            resolve({ ok: true, message: 'OK' });
-          });
-          searchRes.on('error', (err: any) => {
-            logger.error('LDAP test search result error', err);
-            client.destroy();
-            resolve({ ok: false, message: 'Search error' });
+          // Optional: quick search to verify baseDn reachable
+          const opts = { filter: LDAP_TEST_BASE_DN_FILTER, scope: 'base' as const };
+          client.search(cfg.baseDn!, opts, (searchErr: any, searchRes: any) => {
+            if (searchErr) {
+              logger.error('LDAP test search error', searchErr);
+              client.destroy();
+              resolve({ ok: false, message: 'Search failed' });
+              return;
+            }
+            searchRes.on('end', () => {
+              client.destroy();
+              resolve({ ok: true, message: 'OK' });
+            });
+            searchRes.on('error', (err: any) => {
+              logger.error('LDAP test search result error', err);
+              client.destroy();
+              resolve({ ok: false, message: 'Search error' });
+            });
           });
         });
-      });
+      };
+
+      if (cfg.startTls) {
+        client.starttls({}, null, (tlsErr: any) => {
+          if (tlsErr) {
+            logger.error('LDAP test StartTLS error', tlsErr);
+            client.destroy();
+            resolve({ ok: false, message: 'StartTLS negotiation failed' });
+            return;
+          }
+          performBind();
+        });
+      } else {
+        performBind();
+      }
     });
 
     const result = await doTest();
