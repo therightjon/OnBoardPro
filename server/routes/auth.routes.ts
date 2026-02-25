@@ -689,16 +689,17 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
 
     const doTest = () => new Promise<{ ok: boolean; message: string }>((resolve) => {
       client.on('error', (err: any) => {
-        logger.error('LDAP test connection error', err);
-        resolve({ ok: false, message: 'Connection failed' });
+        logger.error('LDAP test connection error', err, { code: err.code, message: err.message });
+        resolve({ ok: false, message: `Connection failed: ${err.message || err.code || 'unknown'}` });
       });
 
       const performBind = () => {
+        logger.info('LDAP test: attempting bind', { bindDn: cfg.bindDn, url: cfg.url, startTls: cfg.startTls });
         client.bind(cfg.bindDn!, cfg.bindPassword!, (bindErr: any) => {
           if (bindErr) {
-            logger.error('LDAP test bind error', bindErr);
+            logger.error('LDAP test bind error', bindErr, { code: bindErr.code, name: bindErr.name, lde_message: bindErr.lde_message, dn: bindErr.dn });
             client.destroy();
-            resolve({ ok: false, message: 'Bind failed' });
+            resolve({ ok: false, message: `Bind failed: ${bindErr.lde_message || bindErr.message || bindErr.code || 'unknown'}` });
             return;
           }
           // Optional: quick search to verify baseDn reachable
@@ -724,13 +725,15 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
       };
 
       if (cfg.startTls) {
+        logger.info('LDAP test: initiating StartTLS', { url: cfg.url });
         client.starttls({ rejectUnauthorized: false }, null, (tlsErr: any) => {
           if (tlsErr) {
-            logger.error('LDAP test StartTLS error', tlsErr);
+            logger.error('LDAP test StartTLS error', tlsErr, { code: tlsErr.code, message: tlsErr.message });
             client.destroy();
-            resolve({ ok: false, message: 'StartTLS negotiation failed' });
+            resolve({ ok: false, message: `StartTLS negotiation failed: ${tlsErr.message || tlsErr.code || 'unknown'}` });
             return;
           }
+          logger.info('LDAP test: StartTLS successful');
           performBind();
         });
       } else {

@@ -81,17 +81,18 @@ export class LdapAuthProvider implements AuthProvider {
 
         // Handle connection errors
         client.on('error', (err: any) => {
-          console.error('LDAP connection error:', err);
-          resolve({ success: false, error: 'LDAP connection failed' });
+          console.error('LDAP connection error:', { message: err.message, code: err.code, name: err.name });
+          resolve({ success: false, error: `LDAP connection failed: ${err.message || err.code || 'unknown'}` });
         });
 
         // Step 1: Optionally upgrade to TLS, then bind with service account
         const performServiceBind = () => {
+          console.info('LDAP auth: attempting service account bind', { bindDn: this.config.bindDn, url: this.config.url, startTls: this.config.startTls });
           client.bind(this.config.bindDn, this.config.bindPassword, (bindErr: any) => {
             if (bindErr) {
-              console.error('LDAP bind error:', bindErr);
+              console.error('LDAP bind error:', { message: bindErr.message, code: bindErr.code, name: bindErr.name, lde_message: bindErr.lde_message });
               client.destroy();
-              resolve({ success: false, error: 'LDAP authentication failed' });
+              resolve({ success: false, error: `LDAP authentication failed: ${bindErr.lde_message || bindErr.message || 'unknown'}` });
               return;
             }
 
@@ -188,13 +189,15 @@ export class LdapAuthProvider implements AuthProvider {
         };
 
         if (this.config.startTls) {
+          console.info('LDAP auth: initiating StartTLS', { url: this.config.url });
           client.starttls({ rejectUnauthorized: false }, null, (tlsErr: any) => {
             if (tlsErr) {
-              console.error('LDAP StartTLS error:', tlsErr);
+              console.error('LDAP StartTLS error:', { message: tlsErr.message, code: tlsErr.code, name: tlsErr.name });
               client.destroy();
-              resolve({ success: false, error: 'StartTLS negotiation failed' });
+              resolve({ success: false, error: `StartTLS negotiation failed: ${tlsErr.message || tlsErr.code || 'unknown'}` });
               return;
             }
+            console.info('LDAP auth: StartTLS successful');
             performServiceBind();
           });
         } else {
