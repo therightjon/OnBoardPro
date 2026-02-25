@@ -60,11 +60,29 @@ function summarizeNotification(notification: NotificationForEmail): { subject: s
         summary: `${actorName ? `${actorName} mentioned you` : "You were mentioned"} in a comment on ${candidateName}.`,
       };
     }
+    case "task.created":
     case "task.assigned": {
       const taskTitle = formatTaskTitle(payload);
       return {
         subject: `[OnBoardPro] Task assigned: ${taskTitle}`,
         summary: `${actorName ? `${actorName} assigned` : "You were assigned"} the task "${taskTitle}".`,
+      };
+    }
+    case "task.completed": {
+      const taskTitle = formatTaskTitle(payload);
+      const candidateName = getCandidateName(payload);
+      const wasOverdue = payload?.wasOverdue ? " (was overdue)" : "";
+      return {
+        subject: `[OnBoardPro] Task completed: ${taskTitle}`,
+        summary: `Task "${taskTitle}" for ${candidateName} was completed${wasOverdue}.`,
+      };
+    }
+    case "candidate.template_applied": {
+      const candidateName = getCandidateName(payload);
+      const templateName = payload?.templateName ?? "a template";
+      return {
+        subject: `[OnBoardPro] Template applied to ${candidateName}`,
+        summary: `Template "${templateName}" was applied to ${candidateName}.`,
       };
     }
     case "task.due_soon": {

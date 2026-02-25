@@ -6,12 +6,15 @@ import { getUserRepository, getNotificationRepository } from "../../../services/
 type NotificationVisibility = "internal" | "external";
 export type NotificationEventType =
   | "comment.created"
+  | "task.created"
   | "task.assigned"
+  | "task.completed"
   | "stage.changed"
   | "mention"
   | "task.overdue"
   | "task.due_soon"
-  | "candidate.owner_changed";
+  | "candidate.owner_changed"
+  | "candidate.template_applied";
 export type NotificationEntityType = "candidate" | "task" | "comment";
 
 export interface NotificationEntityRef {

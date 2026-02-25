@@ -1,7 +1,11 @@
 /**
  * Notification Event Handler
  *
- * Creates notifications in response to domain events
+ * Creates notifications in response to domain events.
+ * Uses createNotifications (from notify.ts) which handles:
+ *   1) user preference filtering
+ *   2) in-app notification insert with coalescing
+ *   3) outbox enqueue for email delivery
  */
 
 import type { EventBus } from "../EventBus";
@@ -13,7 +17,9 @@ import type {
   CandidateStageChangedEvent,
   TemplateAppliedEvent
 } from "../event-types";
-import { getNotificationRepository, getCandidateRepository } from "../../services/service-factory";
+import { getCandidateRepository } from "../../services/service-factory";
+import { createNotifications } from "../../features/notifications/services";
+import { logger } from "../../utils/logger";
 
 /**
  * Register notification handlers with the event bus
@@ -21,59 +27,61 @@ import { getNotificationRepository, getCandidateRepository } from "../../service
 export function registerNotificationHandlers(eventBus: EventBus): void {
   // Task created -> notify assignee (if assigned)
   eventBus.on<TaskCreatedEvent>("task.created", async (event) => {
-    const { assigneeUserId, title, candidateId, dueAt } = event.payload;
+    const { assigneeUserId, title, candidateId, dueAt, taskId } = event.payload;
 
     if (!assigneeUserId) {
       return; // No assignee to notify
     }
 
-    let message = `You have been assigned a new task: ${title}`;
-    if (dueAt) {
-      const dueDateStr = new Date(dueAt).toLocaleDateString();
-      message += ` (due ${dueDateStr})`;
+    try {
+      await createNotifications({
+        type: "task.created",
+        actorId: event.actorId,
+        recipients: [assigneeUserId],
+        entity: { type: "task", id: taskId },
+        payload: {
+          actor: { id: event.actorId },
+          task: { id: taskId, title, dueAt: dueAt ? new Date(dueAt).toISOString() : null },
+          candidate: { id: candidateId },
+          reason: "assignment",
+        },
+        visibility: "internal",
+      });
+    } catch (error) {
+      logger.error("Failed to create task.created notification", error);
     }
-
-    await createNotification({
-      recipientUserId: assigneeUserId,
-      eventType: "task.created",
-      title: "New Task Assigned",
-      message,
-      actorUserId: event.actorId,
-      relatedEntityType: "candidate_task",
-      relatedEntityId: event.aggregateId,
-      contextCandidateId: candidateId
-    });
   });
 
   // Task assigned -> notify assignee
   eventBus.on<TaskAssignedEvent>("task.assigned", async (event) => {
-    const { assigneeUserId, taskTitle, candidateId, dueAt } = event.payload;
+    const { assigneeUserId, taskTitle, candidateId, dueAt, taskId } = event.payload;
 
     if (!assigneeUserId) {
       return; // No assignee to notify
     }
 
-    let message = `You have been assigned a new task: ${taskTitle}`;
-    if (dueAt) {
-      const dueDateStr = new Date(dueAt).toLocaleDateString();
-      message += ` (due ${dueDateStr})`;
+    try {
+      await createNotifications({
+        type: "task.assigned",
+        actorId: event.actorId,
+        recipients: [assigneeUserId],
+        entity: { type: "task", id: taskId },
+        payload: {
+          actor: { id: event.actorId },
+          task: { id: taskId, title: taskTitle, dueAt: dueAt ? new Date(dueAt).toISOString() : null },
+          candidate: { id: candidateId },
+          reason: "assignment",
+        },
+        visibility: "internal",
+      });
+    } catch (error) {
+      logger.error("Failed to create task.assigned notification", error);
     }
-
-    await createNotification({
-      recipientUserId: assigneeUserId,
-      eventType: "task.assigned",
-      title: "New Task Assigned",
-      message,
-      actorUserId: event.actorId,
-      relatedEntityType: "candidate_task",
-      relatedEntityId: event.aggregateId,
-      contextCandidateId: candidateId
-    });
   });
 
   // Task completed -> notify candidate manager and followers
   eventBus.on<TaskCompletedEvent>("task.completed", async (event) => {
-    const { candidateId, taskTitle, completedBy, wasOverdue } = event.payload;
+    const { candidateId, taskTitle, completedBy, wasOverdue, taskId } = event.payload;
 
     // Get candidate to find manager using repository
     const candidateRepo = getCandidateRepository();
@@ -83,44 +91,39 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
       return;
     }
 
-    let message = `Task "${taskTitle}" was completed`;
-    if (wasOverdue) {
-      message += " (was overdue)";
-    }
-
-    // Notify manager if exists
+    // Collect recipients: manager + followers (excluding the actor)
+    const recipients: string[] = [];
     if (candidate.managerId && candidate.managerId !== completedBy) {
-      await createNotification({
-        recipientUserId: candidate.managerId,
-        eventType: "task.completed",
-        title: "Task Completed",
-        message,
-        actorUserId: completedBy,
-        relatedEntityType: "candidate_task",
-        relatedEntityId: event.aggregateId,
-        contextCandidateId: candidateId
-      });
+      recipients.push(candidate.managerId);
     }
 
-    // Notify followers
     const { getCandidateService } = await import("../../services/service-factory");
     const candidateService = getCandidateService();
     const followers = await candidateService.getFollowers(candidateId);
-    
     for (const follower of followers) {
-      // Don't notify the person who completed the task or the manager (already notified)
       if (follower.userId !== completedBy && follower.userId !== candidate.managerId) {
-        await createNotification({
-          recipientUserId: follower.userId,
-          eventType: "task.completed",
-          title: "Task Completed",
-          message,
-          actorUserId: completedBy,
-          relatedEntityType: "candidate_task",
-          relatedEntityId: event.aggregateId,
-          contextCandidateId: candidateId
-        });
+        recipients.push(follower.userId);
       }
+    }
+
+    if (recipients.length === 0) return;
+
+    try {
+      await createNotifications({
+        type: "task.completed",
+        actorId: completedBy,
+        recipients,
+        entity: { type: "task", id: taskId },
+        payload: {
+          actor: { id: completedBy },
+          task: { id: taskId, title: taskTitle },
+          candidate: { id: candidateId, name: `${candidate.firstName} ${candidate.lastName}` },
+          wasOverdue,
+        },
+        visibility: "internal",
+      });
+    } catch (error) {
+      logger.error("Failed to create task.completed notification", error);
     }
   });
 
@@ -260,44 +263,39 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
       return;
     }
 
-    let message = `Candidate ${candidate.firstName} ${candidate.lastName} moved to ${stageName}`;
-    if (automated) {
-      message += " (automatically)";
+    // Collect recipients: manager + followers (excluding the actor)
+    const recipients: string[] = [];
+    if (candidate.managerId && candidate.managerId !== event.actorId) {
+      recipients.push(candidate.managerId);
     }
 
-    // Notify manager if exists
-    if (candidate.managerId) {
-      await createNotification({
-        recipientUserId: candidate.managerId,
-        eventType: "candidate.statusChange",
-        title: "Candidate Stage Changed",
-        message,
-        actorUserId: event.actorId,
-        relatedEntityType: "candidate",
-        relatedEntityId: candidateId,
-        contextCandidateId: candidateId
-      });
-    }
-
-    // Notify followers
     const { getCandidateService } = await import("../../services/service-factory");
     const candidateService = getCandidateService();
     const followers = await candidateService.getFollowers(candidateId);
-    
     for (const follower of followers) {
-      // Don't notify the actor or the manager (already notified)
       if (follower.userId !== event.actorId && follower.userId !== candidate.managerId) {
-        await createNotification({
-          recipientUserId: follower.userId,
-          eventType: "candidate.statusChange",
-          title: "Candidate Stage Changed",
-          message,
-          actorUserId: event.actorId,
-          relatedEntityType: "candidate",
-          relatedEntityId: candidateId,
-          contextCandidateId: candidateId
-        });
+        recipients.push(follower.userId);
       }
+    }
+
+    if (recipients.length === 0) return;
+
+    try {
+      await createNotifications({
+        type: "stage.changed",
+        actorId: event.actorId,
+        recipients,
+        entity: { type: "candidate", id: candidateId },
+        payload: {
+          actor: { id: event.actorId },
+          stage: { toStageName: stageName },
+          candidate: { id: candidateId, name: `${candidate.firstName} ${candidate.lastName}` },
+          automated,
+        },
+        visibility: "internal",
+      });
+    } catch (error) {
+      logger.error("Failed to create stage.changed notification", error);
     }
   });
 
@@ -313,39 +311,22 @@ export function registerNotificationHandlers(eventBus: EventBus): void {
       return;
     }
 
-    const message = `Template "${templateName}" applied to ${candidate.firstName} ${candidate.lastName} (${tasksCreated} tasks created)`;
-
-    await createNotification({
-      recipientUserId: candidate.managerId,
-      eventType: "candidate.statusChange",
-      title: "Template Applied",
-      message,
-      actorUserId: event.actorId,
-      relatedEntityType: "candidate",
-      relatedEntityId: candidateId,
-      contextCandidateId: candidateId
-    });
+    try {
+      await createNotifications({
+        type: "candidate.template_applied",
+        actorId: event.actorId,
+        recipients: [candidate.managerId],
+        entity: { type: "candidate", id: candidateId },
+        payload: {
+          actor: { id: event.actorId },
+          templateName,
+          tasksCreated,
+          candidate: { id: candidateId, name: `${candidate.firstName} ${candidate.lastName}` },
+        },
+        visibility: "internal",
+      });
+    } catch (error) {
+      logger.error("Failed to create template_applied notification", error);
+    }
   });
-}
-
-/**
- * Create a notification using the repository
- */
-async function createNotification(params: {
-  recipientUserId: string;
-  eventType: string;
-  title: string;
-  message: string;
-  actorUserId: string | null | undefined;
-  relatedEntityType: string;
-  relatedEntityId: string;
-  contextCandidateId: string | null;
-}): Promise<void> {
-  try {
-    const notificationRepo = getNotificationRepository();
-    await notificationRepo.createNotification(params);
-  } catch (error) {
-    console.error("Failed to create notification:", error);
-    // Don't throw - notification creation failure shouldn't break the event flow
-  }
 }
