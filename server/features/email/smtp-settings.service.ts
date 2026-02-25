@@ -269,6 +269,13 @@ let auth: SmtpAuth | undefined;
     secure,
     requireTLS,
     auth,
+    // When security is "none", skip opportunistic TLS entirely (server may
+    // advertise STARTTLS with a self-signed cert, which would fail).
+    // For explicit TLS modes, accept self-signed certificates common on
+    // internal / trusted-network mail relays.
+    ...(settings.security === "none"
+      ? { ignoreTLS: true }
+      : { tls: { rejectUnauthorized: false } }),
   };
 
   if (authMethod) {
