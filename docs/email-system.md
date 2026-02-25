@@ -148,3 +148,35 @@ Fallback: `http://localhost:5173`
 - Retries use exponential-style backoff with jitter (max 5 retries).
 - Outbox `claimImmediateOutbox` uses explicit camelCase column aliases in RETURNING clause (raw SQL returns snake_case by default).
 - SMTP transport is cached with a 5-minute TTL and signature-based invalidation.
+
+## Email Notification Coverage
+
+### Active (event handler wired)
+
+| Event | Email Subject | Recipients |
+|---|---|---|
+| `task.created` | Task assigned: {title} | Assignee |
+| `task.assigned` | Task assigned: {title} | Assignee |
+| `task.completed` | Task completed: {title} | Candidate manager + followers |
+| `comment.created` | New comment on {candidate} | Watchers (+ separate `mention` emails for @-mentioned users) |
+| `candidate.stage_changed` | Stage update for {candidate} | Candidate manager + followers |
+| `candidate.template_applied` | Template applied to {candidate} | Candidate manager |
+
+### Templates only (no event handler wired)
+
+| Type | Email Subject |
+|---|---|
+| `task.due_soon` | Task due soon: {title} |
+| `task.overdue` | Task overdue: {title} |
+| `candidate.owner_changed` | Ownership update for {candidate} |
+
+### Other email types
+
+- **Digest emails**: hourly and daily batched summaries of the above notification types.
+- **Test email**: admin SMTP validation via `POST /api/settings/email/test`.
+
+### Delivery prerequisites
+
+- Recipient must have `notifyEmail: true`.
+- `digestFrequency` determines timing (`immediate`, `hourly`, or `daily`).
+- SMTP must be configured by a `system_admin`.
