@@ -244,6 +244,21 @@ export function NotificationsCard() {
                     />
                   </div>
                 ))}
+                <div className="flex items-center justify-between gap-4 border-t pt-3">
+                  <div>
+                    <Label className="font-medium">Self-notifications</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Receive notifications for your own actions (e.g. assigning a task to yourself).
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!localPreferences.allowSelfNotifications}
+                    onCheckedChange={(checked) =>
+                      handlePreferenceChange({ allowSelfNotifications: !!checked })
+                    }
+                    disabled={disableAllControls || disabledControls.has("allowSelfNotifications")}
+                  />
+                </div>
               </div>
             </section>
 
