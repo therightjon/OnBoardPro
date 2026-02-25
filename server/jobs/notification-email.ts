@@ -21,11 +21,19 @@ import {
 } from "../features/email/outbox.service";
 import type { DigestCapableFrequency } from "../features/email/outbox.service";
 import { getOrCreateTransport } from "../features/email/smtp-settings.service";
+import type { MaterializedSmtpSettings } from "../features/email/smtp-settings.service";
 import { renderImmediateEmail, renderDigestEmail } from "../features/email/templates";
+import { evaluateRateLimit, incrementRateLimit } from "../services/rate-limit.service";
 
 const IMMEDIATE_POLL_INTERVAL_MS = 30_000;
 const DIGEST_CHECK_INTERVAL_MS = 60_000;
 const IMMEDIATE_BATCH_SIZE = 20;
+
+const SMTP_RATE_LIMIT_MINUTE_TYPE = "smtp:minute";
+const SMTP_RATE_LIMIT_HOUR_TYPE = "smtp:hour";
+const SMTP_RATE_LIMIT_KEY = "global";
+const MINUTE_MS = 60_000;
+const HOUR_MS = 3_600_000;
 
 let immediateTimer: NodeJS.Timeout | undefined;
 let digestTimer: NodeJS.Timeout | undefined;
@@ -113,6 +121,48 @@ export function computeBackoff(entry: NotificationOutboxEntry): Date {
   const jitterSeconds = Math.floor(Math.random() * 30);
   const delayMs = baseMinutes * 60 * 1000 + jitterSeconds * 1000;
   return new Date(Date.now() + delayMs);
+}
+
+/**
+ * Checks both per-minute and per-hour SMTP rate limits.
+ * Returns true if sending is allowed, false if a limit has been reached.
+ */
+async function checkSmtpRateLimit(settings: MaterializedSmtpSettings): Promise<boolean> {
+  const minuteEval = await evaluateRateLimit({
+    type: SMTP_RATE_LIMIT_MINUTE_TYPE,
+    key: SMTP_RATE_LIMIT_KEY,
+    windowMs: MINUTE_MS,
+    max: settings.rateLimitPerMinute,
+  });
+  if (!minuteEval.allowed) return false;
+
+  const hourEval = await evaluateRateLimit({
+    type: SMTP_RATE_LIMIT_HOUR_TYPE,
+    key: SMTP_RATE_LIMIT_KEY,
+    windowMs: HOUR_MS,
+    max: settings.rateLimitPerHour,
+  });
+  return hourEval.allowed;
+}
+
+/**
+ * Increments both per-minute and per-hour SMTP rate limit counters after a successful send.
+ */
+async function recordSmtpSend(settings: MaterializedSmtpSettings): Promise<void> {
+  await Promise.all([
+    incrementRateLimit({
+      type: SMTP_RATE_LIMIT_MINUTE_TYPE,
+      key: SMTP_RATE_LIMIT_KEY,
+      windowMs: MINUTE_MS,
+      max: settings.rateLimitPerMinute,
+    }),
+    incrementRateLimit({
+      type: SMTP_RATE_LIMIT_HOUR_TYPE,
+      key: SMTP_RATE_LIMIT_KEY,
+      windowMs: HOUR_MS,
+      max: settings.rateLimitPerHour,
+    }),
+  ]);
 }
 
 async function loadNotifications(ids: string[]): Promise<Map<string, NotificationRow>> {
@@ -237,6 +287,14 @@ async function processImmediateBatch(entries: NotificationOutboxEntry[]) {
     }
 
     try {
+      // Check rate limits before sending — if exceeded, stop processing
+      // this batch. Remaining entries stay in the outbox for the next poll.
+      const allowed = await checkSmtpRateLimit(settings);
+      if (!allowed) {
+        console.info("[smtp] rate limit reached, deferring remaining entries");
+        break;
+      }
+
       const content = renderImmediateEmail({
         id: notification.id,
         type: notification.type,
@@ -258,6 +316,7 @@ async function processImmediateBatch(entries: NotificationOutboxEntry[]) {
         html: content.html,
       });
 
+      await recordSmtpSend(settings);
       successes.push(entry.id);
       successNotificationIds.push(notification.id);
     } catch (error: any) {
@@ -387,6 +446,15 @@ async function processDigest(frequency: DigestCapableFrequency) {
     }
 
     try {
+      // Check rate limits before sending digest — if exceeded,
+      // reschedule remaining users' digests to the next cycle.
+      const allowed = await checkSmtpRateLimit(settings);
+      if (!allowed) {
+        console.info("[smtp] rate limit reached during digest, rescheduling remaining entries");
+        await rescheduleDigest(items.map((item) => item.outboxId), new Date(now.getTime() + 60 * 1000));
+        continue;
+      }
+
       const content = renderDigestEmail(
         frequency,
         items.map((item) => ({
@@ -411,6 +479,7 @@ async function processDigest(frequency: DigestCapableFrequency) {
         html: content.html,
       });
 
+      await recordSmtpSend(settings);
       await markDigestDelivered(
         items.map((item) => item.outboxId),
         items.map((item) => item.notificationId)
