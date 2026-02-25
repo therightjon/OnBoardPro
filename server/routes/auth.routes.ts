@@ -661,7 +661,19 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
     };
     const authProviderService = getAuthProviderService();
     const current = await authProviderService.getLdapSettings();
-    const cfg = { ...current, ...override, userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE };
+    const cfg = {
+      url: override.url ?? current?.url,
+      startTls: override.startTls ?? current?.startTls,
+      baseDn: override.baseDn ?? current?.baseDn,
+      bindDn: override.bindDn ?? current?.bindDn,
+      bindPassword: override.bindPassword ?? current?.bindPassword,
+      usernameAttr: override.usernameAttr ?? current?.usernameAttr,
+      firstNameAttr: override.firstNameAttr ?? current?.firstNameAttr,
+      lastNameAttr: override.lastNameAttr ?? current?.lastNameAttr,
+      emailAttr: override.emailAttr ?? current?.emailAttr,
+      disabledFilter: override.disabledFilter ?? current?.disabledFilter,
+      userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
+    };
 
     if (!cfg.url || !cfg.bindDn || !cfg.bindPassword || !cfg.baseDn) {
       return res.status(400).json({ ok: false, message: 'Missing required settings (url, bindDn, bindPassword, baseDn)' });
