@@ -286,6 +286,32 @@ function normalizeOptionalString(value?: string): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+/**
+ * Normalize a bare username into UPN format for LDAP bind.
+ * If the bindDn is already a full DN (contains ','), UPN (contains '@'),
+ * or down-level format (contains '\'), return it as-is.
+ * Otherwise, extract the domain from the LDAP URL and append it as @domain.
+ */
+function normalizeLdapBindDn(bindDn: string, ldapUrl?: string): string {
+  const trimmed = bindDn.trim();
+  // Already qualified — return as-is
+  if (trimmed.includes('@') || trimmed.includes(',') || trimmed.includes('\\')) {
+    return trimmed;
+  }
+  // Extract domain from LDAP URL (e.g. ldap://ad.hs.uab.edu:389 → ad.hs.uab.edu)
+  if (ldapUrl) {
+    try {
+      const url = new URL(ldapUrl);
+      if (url.hostname) {
+        return `${trimmed}@${url.hostname}`;
+      }
+    } catch {
+      // URL parsing failed — fall through
+    }
+  }
+  return trimmed;
+}
+
 // Helper function to check if a provider is configured
 async function checkProviderConfiguration(providerId: string): Promise<boolean> {
   const authProviderService = getAuthProviderService();
@@ -678,6 +704,9 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
     if (!cfg.url || !cfg.bindDn || !cfg.bindPassword || !cfg.baseDn) {
       return res.status(400).json({ ok: false, message: 'Missing required settings (url, bindDn, bindPassword, baseDn)' });
     }
+
+    // Normalize bare username to UPN format (e.g. jesteen → jesteen@ad.hs.uab.edu)
+    cfg.bindDn = normalizeLdapBindDn(cfg.bindDn, cfg.url);
 
     const ldapMod: any = await import('ldapjs');
     const createClient: any = ldapMod?.createClient ?? ldapMod?.default?.createClient;

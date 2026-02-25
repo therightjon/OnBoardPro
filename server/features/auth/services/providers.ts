@@ -3,6 +3,30 @@
 import type { User, InsertUser, UserIdentity, InsertUserIdentity } from "@shared/schemas";
 import { buildLdapUserSearchFilter, toLdapUsername } from "../identifier";
 
+/**
+ * Normalize a bare username into UPN format for LDAP bind.
+ * If the bindDn is already a full DN (contains ','), UPN (contains '@'),
+ * or down-level format (contains '\\'), return it as-is.
+ * Otherwise, extract the domain from the LDAP URL and append it as @domain.
+ */
+function normalizeLdapBindDn(bindDn: string, ldapUrl?: string): string {
+  const trimmed = bindDn.trim();
+  if (trimmed.includes('@') || trimmed.includes(',') || trimmed.includes('\\')) {
+    return trimmed;
+  }
+  if (ldapUrl) {
+    try {
+      const url = new URL(ldapUrl);
+      if (url.hostname) {
+        return `${trimmed}@${url.hostname}`;
+      }
+    } catch {
+      // URL parsing failed — fall through
+    }
+  }
+  return trimmed;
+}
+
 // Common user profile from any provider
 export interface UserProfile {
   externalId: string;
@@ -86,9 +110,10 @@ export class LdapAuthProvider implements AuthProvider {
         });
 
         // Step 1: Optionally upgrade to TLS, then bind with service account
+        const normalizedBindDn = normalizeLdapBindDn(this.config.bindDn, this.config.url);
         const performServiceBind = () => {
-          console.info('LDAP auth: attempting service account bind', { bindDn: this.config.bindDn, url: this.config.url, startTls: this.config.startTls });
-          client.bind(this.config.bindDn, this.config.bindPassword, (bindErr: any) => {
+          console.info('LDAP auth: attempting service account bind', { bindDn: normalizedBindDn, url: this.config.url, startTls: this.config.startTls });
+          client.bind(normalizedBindDn, this.config.bindPassword, (bindErr: any) => {
             if (bindErr) {
               console.error('LDAP bind error:', { message: bindErr.message, code: bindErr.code, name: bindErr.name, lde_message: bindErr.lde_message });
               client.destroy();
