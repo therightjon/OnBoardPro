@@ -2,6 +2,7 @@ import { type InsertNotification } from "@shared/schemas";
 import { mergeUserPreferences, type DigestFrequency } from "@shared/preferences";
 import { enqueueNotificationEmails } from "../../email/outbox.service";
 import { getUserRepository, getNotificationRepository } from "../../../services/service-factory";
+import { logger } from "../../../utils/logger";
 
 type NotificationVisibility = "internal" | "external";
 export type NotificationEventType =
@@ -218,6 +219,21 @@ export async function createNotifications(args: CreateNotificationsArgs): Promis
     type,
   });
 
+  logger.info("[email-pipeline] createNotifications filter result", {
+    type,
+    actorId,
+    requestedRecipients: uniqueRecipientIds,
+    eligibleCount: eligible.length,
+    eligible: eligible.map(e => ({
+      userId: e.userId,
+      notifyEmail: e.preferences.notifyEmail,
+      digestFrequency: e.preferences.digestFrequency,
+      notifyInApp: e.preferences.notifyInApp,
+      allowSelfNotifications: e.preferences.allowSelfNotifications,
+    })),
+    skipped,
+  });
+
   const foundIds = new Set(rows.map((row) => row.id));
   for (const requestedId of uniqueRecipientIds) {
     if (!foundIds.has(requestedId)) {
@@ -264,6 +280,12 @@ export async function createNotifications(args: CreateNotificationsArgs): Promis
     now
   });
 
+  logger.info("[email-pipeline] bulkUpsert result", {
+    type,
+    insertedCount: insertedRows.length,
+    updatedCount: updates.length,
+  });
+
   if (insertedRows.length > 0) {
     const preferenceMap = new Map(eligible.map((recipient) => [recipient.userId, recipient.preferences]));
     const candidates = insertedRows.map((row) => {
@@ -275,6 +297,15 @@ export async function createNotifications(args: CreateNotificationsArgs): Promis
         notifyEmail: prefs?.notifyEmail ?? false,
         digestFrequency: (prefs?.digestFrequency ?? "immediate") as DigestFrequency,
       };
+    });
+
+    logger.info("[email-pipeline] about to enqueue", {
+      type,
+      candidates: candidates.map(c => ({
+        userId: c.userId,
+        notifyEmail: c.notifyEmail,
+        digestFrequency: c.digestFrequency,
+      })),
     });
 
     await enqueueNotificationEmails(candidates);
