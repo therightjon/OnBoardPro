@@ -336,10 +336,6 @@ async function runImmediateWorker() {
 
   try {
     const entries = await claimImmediateOutbox(IMMEDIATE_BATCH_SIZE);
-    if (entries.length > 0) {
-      console.info(`[email-pipeline] immediate worker claimed ${entries.length} outbox entries`, 
-        entries.map(e => ({ id: e.id, notificationId: e.notificationId, userId: e.userId, status: e.status })));
-    }
     if (entries.length === 0) return;
     await processImmediateBatch(entries);
   } catch (error) {

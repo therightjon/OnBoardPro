@@ -7,7 +7,6 @@ import {
   type NotificationOutboxEntry
 } from "@shared/schemas";
 import type { DigestFrequency } from "@shared/preferences";
-import { logger } from "../../utils/logger";
 
 export type DigestCapableFrequency = Exclude<DigestFrequency, "immediate">;
 
@@ -21,15 +20,6 @@ export interface NotificationEmailCandidate {
 
 export async function enqueueNotificationEmails(candidates: NotificationEmailCandidate[]): Promise<void> {
   if (candidates.length === 0) return;
-
-  logger.info("[email-pipeline] enqueueNotificationEmails called", {
-    candidateCount: candidates.length,
-    candidates: candidates.map(c => ({
-      userId: c.userId,
-      notifyEmail: c.notifyEmail,
-      digestFrequency: c.digestFrequency,
-    })),
-  });
 
   const values = candidates
     .filter((candidate) => candidate.notifyEmail)
@@ -67,7 +57,17 @@ export async function claimImmediateOutbox(limit: number): Promise<NotificationO
     SET status = 'retrying'
     FROM candidates c
     WHERE o.id = c.id
-    RETURNING o.*
+    RETURNING
+      o.id            AS "id",
+      o.notification_id AS "notificationId",
+      o.user_id       AS "userId",
+      o.status        AS "status",
+      o.retry_count   AS "retryCount",
+      o.next_attempt_at AS "nextAttemptAt",
+      o.created_at    AS "createdAt",
+      o.digest_candidate AS "digestCandidate",
+      o.last_error    AS "lastError",
+      o.delivered_at  AS "deliveredAt"
   `);
 
   return result.rows ?? [];
