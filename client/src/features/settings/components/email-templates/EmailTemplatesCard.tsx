@@ -818,7 +818,7 @@ export function EmailTemplatesCard() {
                             title="Email preview"
                             srcDoc={preview.html}
                             className="w-full min-h-[300px] bg-white"
-                            sandbox="allow-same-origin"
+                            sandbox="allow-same-origin allow-scripts"
                           />
                         </div>
                       </div>

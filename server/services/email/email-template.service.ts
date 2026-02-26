@@ -271,12 +271,22 @@ export class EmailTemplateService {
     subjectTemplate?: string,
     bodyTemplate?: string
   ): Promise<{ subject: string; html: string }> {
+    // If templates not provided, fetch from DB
+    let finalSubject = subjectTemplate;
+    let finalBody = bodyTemplate;
+    if (finalSubject == null || finalBody == null) {
+      const stored = await this.repo.getByType(type);
+      if (stored) {
+        finalSubject = finalSubject ?? stored.subjectTemplate;
+        finalBody = finalBody ?? stored.bodyTemplate;
+      }
+    }
     const resolvedSubject = this.resolveVariables(
-      subjectTemplate ?? "",
+      finalSubject ?? "",
       SAMPLE_DATA
     );
     const resolvedBody = this.resolveVariables(
-      bodyTemplate ?? "",
+      finalBody ?? "",
       SAMPLE_DATA
     );
     const layout = await this.getLayoutSettings();

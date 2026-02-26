@@ -212,7 +212,8 @@ router.post("/settings/email-templates/:type/test", requireAuth, requireRole(["s
       return res.status(400).json({ ok: false, message: "Current user email is not set" });
     }
     const service = getEmailTemplateService();
-    const preview = await service.renderPreview(type);
+    const { subjectTemplate, bodyTemplate } = req.body ?? {};
+    const preview = await service.renderPreview(type, subjectTemplate, bodyTemplate);
     const { sendTestEmail } = await import("../features/email/smtp-settings.service");
     const name = `${req.user?.firstName ?? ""} ${req.user?.lastName ?? ""}`.trim() || email;
     // Use a custom test-send that uses the template content
