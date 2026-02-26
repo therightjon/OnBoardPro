@@ -12,6 +12,9 @@ import Link from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
+import { TextStyle } from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
+import Highlight from "@tiptap/extension-highlight";
 import {
   Bold,
   Italic,
@@ -27,6 +30,8 @@ import {
   Redo,
   Code,
   Variable,
+  Palette,
+  Highlighter,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Toggle } from "@/shared/components/ui/toggle";
@@ -35,6 +40,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shar
 import { Input } from "@/shared/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import type { TemplateVariable } from "@shared/schemas/email-template.schema";
+import { ColorPickerPopover } from "./ColorPickerPopover";
 
 // ============================================================================
 // TYPES
@@ -285,6 +291,56 @@ function EditorToolbar({
 
       <Separator orientation="vertical" className="h-6 mx-1" />
 
+      {/* Text color */}
+      <ColorPickerPopover
+        currentColor={editor.getAttributes("textStyle").color ?? null}
+        onSelect={(color) => {
+          if (color) {
+            editor.chain().focus().setColor(color).run();
+          } else {
+            editor.chain().focus().unsetColor().run();
+          }
+        }}
+        title="Text color"
+      >
+        <Toggle
+          size="sm"
+          pressed={!!editor.getAttributes("textStyle").color}
+          className="h-8 w-8 p-0"
+          aria-label="Text color"
+        >
+          <Palette className={iconSize} />
+        </Toggle>
+      </ColorPickerPopover>
+
+      {/* Highlight / background color */}
+      <ColorPickerPopover
+        currentColor={
+          editor.isActive("highlight")
+            ? (editor.getAttributes("highlight").color ?? null)
+            : null
+        }
+        onSelect={(color) => {
+          if (color) {
+            editor.chain().focus().toggleHighlight({ color }).run();
+          } else {
+            editor.chain().focus().unsetHighlight().run();
+          }
+        }}
+        title="Highlight color"
+      >
+        <Toggle
+          size="sm"
+          pressed={editor.isActive("highlight")}
+          className="h-8 w-8 p-0"
+          aria-label="Highlight color"
+        >
+          <Highlighter className={iconSize} />
+        </Toggle>
+      </ColorPickerPopover>
+
+      <Separator orientation="vertical" className="h-6 mx-1" />
+
       {/* Variable insertion */}
       {onInsertVariable && (
         <TooltipProvider delayDuration={300}>
@@ -361,6 +417,9 @@ export function TemplateEditor({
         types: ["paragraph"],
       }),
       Underline,
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
       Placeholder.configure({
         placeholder,
       }),

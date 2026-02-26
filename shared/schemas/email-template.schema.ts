@@ -45,6 +45,39 @@ export const EMAIL_TEMPLATE_LABELS: Record<EmailTemplateType, string> = {
   "digest": "Digest Summary"
 };
 
+// ============================================================================
+// Global email layout settings (single-row config)
+// ============================================================================
+
+export const emailGlobalSettings = pgTable("email_global_settings", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  headerText: text("header_text").notNull().default("OnBoardPro"),
+  headerBgColor: text("header_bg_color").notNull().default("#1e293b"),
+  headerTextColor: text("header_text_color").notNull().default("#ffffff"),
+  footerText: text("footer_text").notNull().default("Sent by OnBoardPro"),
+  footerBgColor: text("footer_bg_color").notNull().default("#f8fafc"),
+  footerTextColor: text("footer_text_color").notNull().default("#64748b"),
+  pageBgColor: text("page_bg_color").notNull().default("#f4f4f5"),
+  cardBgColor: text("card_bg_color").notNull().default("#ffffff"),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+});
+
+export type EmailGlobalSettings = typeof emailGlobalSettings.$inferSelect;
+export type InsertEmailGlobalSettings = typeof emailGlobalSettings.$inferInsert;
+
+/** Default values for global email settings (factory reset) */
+export const EMAIL_GLOBAL_DEFAULTS = {
+  headerText: "OnBoardPro",
+  headerBgColor: "#1e293b",
+  headerTextColor: "#ffffff",
+  footerText: "Sent by OnBoardPro",
+  footerBgColor: "#f8fafc",
+  footerTextColor: "#64748b",
+  pageBgColor: "#f4f4f5",
+  cardBgColor: "#ffffff",
+} as const;
+
 // Email templates table
 export const emailTemplates = pgTable("email_templates", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -143,3 +176,19 @@ export const previewEmailTemplateSchema = z.object({
   subjectTemplate: z.string().optional(),
   bodyTemplate: z.string().optional(),
 });
+
+// Hex color pattern: #RGB or #RRGGBB
+const hexColorSchema = z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Invalid hex color");
+
+export const updateEmailGlobalSettingsSchema = z.object({
+  headerText: z.string().min(1).max(200).optional(),
+  headerBgColor: hexColorSchema.optional(),
+  headerTextColor: hexColorSchema.optional(),
+  footerText: z.string().min(1).max(500).optional(),
+  footerBgColor: hexColorSchema.optional(),
+  footerTextColor: hexColorSchema.optional(),
+  pageBgColor: hexColorSchema.optional(),
+  cardBgColor: hexColorSchema.optional(),
+});
+
+export type UpdateEmailGlobalSettingsInput = z.infer<typeof updateEmailGlobalSettingsSchema>;

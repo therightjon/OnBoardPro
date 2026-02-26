@@ -8,10 +8,14 @@
 import sanitizeHtml from "sanitize-html";
 import { buildAppUrl } from "../../features/email/../../utils/app-url";
 import { EmailTemplateRepository } from "../../repositories/email/EmailTemplateRepository";
+import { EmailGlobalSettingsRepository } from "../../repositories/email/EmailGlobalSettingsRepository";
 import {
   type EmailTemplate,
   type EmailTemplateType,
+  type EmailGlobalSettings,
   type UpdateEmailTemplateInput,
+  type UpdateEmailGlobalSettingsInput,
+  EMAIL_GLOBAL_DEFAULTS,
   TEMPLATE_VARIABLES,
   VARIABLES_BY_TEMPLATE_TYPE,
   EMAIL_TEMPLATE_TYPES,
@@ -28,7 +32,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     "h1", "h2", "h3", "h4", "h5", "h6",
     "ul", "ol", "li",
     "a", "img",
-    "div", "span",
+    "div", "span", "mark",
     "table", "thead", "tbody", "tr", "th", "td",
     "blockquote", "pre", "code"
   ],
@@ -40,6 +44,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     table: ["style", "width", "cellpadding", "cellspacing", "border"],
     div: ["style", "align"],
     span: ["style"],
+    mark: ["style", "data-color"],
     p: ["style"],
     h1: ["style"], h2: ["style"], h3: ["style"],
     h4: ["style"], h5: ["style"], h6: ["style"],
@@ -76,26 +81,42 @@ const SAMPLE_DATA: Record<string, string> = {
 // Email HTML wrapper for professional email rendering
 // ============================================================================
 
-function wrapEmailHtml(bodyHtml: string): string {
+/** Layout settings used by wrapEmailHtml — a plain object so the function stays pure */
+export interface EmailLayoutSettings {
+  headerText: string;
+  headerBgColor: string;
+  headerTextColor: string;
+  footerText: string;
+  footerBgColor: string;
+  footerTextColor: string;
+  pageBgColor: string;
+  cardBgColor: string;
+}
+
+/** Hardcoded fallback matching the migration seed row */
+const DEFAULT_LAYOUT: EmailLayoutSettings = { ...EMAIL_GLOBAL_DEFAULTS };
+
+function wrapEmailHtml(bodyHtml: string, layout: EmailLayoutSettings = DEFAULT_LAYOUT): string {
+  const s = layout;
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OnBoardPro</title>
+<title>${s.headerText}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;">
+<body style="margin:0;padding:0;background-color:${s.pageBgColor};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${s.pageBgColor};">
 <tr><td align="center" style="padding:24px 16px;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-<tr><td style="background-color:#1e293b;padding:20px 24px;text-align:center;">
-<span style="color:#ffffff;font-size:18px;font-weight:600;">OnBoardPro</span>
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:${s.cardBgColor};border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+<tr><td style="background-color:${s.headerBgColor};padding:20px 24px;text-align:center;">
+<span style="color:${s.headerTextColor};font-size:18px;font-weight:600;">${s.headerText}</span>
 </td></tr>
 <tr><td style="padding:24px;color:#1e293b;font-size:14px;line-height:1.6;">
 ${bodyHtml}
 </td></tr>
-<tr><td style="padding:16px 24px;background-color:#f8fafc;text-align:center;font-size:12px;color:#64748b;border-top:1px solid #e2e8f0;">
-Sent by OnBoardPro
+<tr><td style="padding:16px 24px;background-color:${s.footerBgColor};text-align:center;font-size:12px;color:${s.footerTextColor};border-top:1px solid #e2e8f0;">
+${s.footerText}
 </td></tr>
 </table>
 </td></tr>
@@ -109,7 +130,70 @@ Sent by OnBoardPro
 // ============================================================================
 
 export class EmailTemplateService {
-  constructor(private readonly repo: EmailTemplateRepository) {}
+  constructor(
+    private readonly repo: EmailTemplateRepository,
+    private readonly globalRepo: EmailGlobalSettingsRepository,
+  ) {}
+
+  // ==========================================================================
+  // Global email layout settings
+  // ==========================================================================
+
+  /**
+   * Get the global email layout settings (single row).
+   * Returns factory defaults if the row is somehow missing.
+   */
+  async getGlobalSettings(): Promise<EmailGlobalSettings> {
+    const row = await this.globalRepo.get();
+    if (!row) {
+      // Return defaults as a synthetic object
+      return {
+        id: "00000000-0000-0000-0000-000000000000",
+        ...EMAIL_GLOBAL_DEFAULTS,
+        updatedBy: null,
+        updatedAt: new Date(),
+      };
+    }
+    return row;
+  }
+
+  /**
+   * Update global email layout settings.
+   */
+  async updateGlobalSettings(
+    input: UpdateEmailGlobalSettingsInput,
+    updatedBy: string,
+  ): Promise<EmailGlobalSettings> {
+    return this.globalRepo.update({ ...input, updatedBy });
+  }
+
+  /**
+   * Reset global email layout settings to factory defaults.
+   */
+  async resetGlobalSettings(updatedBy: string): Promise<EmailGlobalSettings> {
+    return this.globalRepo.update({
+      ...EMAIL_GLOBAL_DEFAULTS,
+      updatedBy,
+    });
+  }
+
+  /**
+   * Get the layout settings object for wrapEmailHtml.
+   * Converts DB row to the EmailLayoutSettings interface.
+   */
+  async getLayoutSettings(): Promise<EmailLayoutSettings> {
+    const gs = await this.getGlobalSettings();
+    return {
+      headerText: gs.headerText,
+      headerBgColor: gs.headerBgColor,
+      headerTextColor: gs.headerTextColor,
+      footerText: gs.footerText,
+      footerBgColor: gs.footerBgColor,
+      footerTextColor: gs.footerTextColor,
+      pageBgColor: gs.pageBgColor,
+      cardBgColor: gs.cardBgColor,
+    };
+  }
 
   /**
    * Get all templates with their metadata
@@ -179,13 +263,14 @@ export class EmailTemplateService {
   }
 
   /**
-   * Render a preview with sample data
+   * Render a preview with sample data.
+   * Fetches global layout from DB for the wrapper.
    */
-  renderPreview(
+  async renderPreview(
     type: EmailTemplateType,
     subjectTemplate?: string,
     bodyTemplate?: string
-  ): { subject: string; html: string } {
+  ): Promise<{ subject: string; html: string }> {
     const resolvedSubject = this.resolveVariables(
       subjectTemplate ?? "",
       SAMPLE_DATA
@@ -194,9 +279,10 @@ export class EmailTemplateService {
       bodyTemplate ?? "",
       SAMPLE_DATA
     );
+    const layout = await this.getLayoutSettings();
     return {
       subject: resolvedSubject,
-      html: wrapEmailHtml(resolvedBody),
+      html: wrapEmailHtml(resolvedBody, layout),
     };
   }
 
@@ -250,11 +336,11 @@ export class EmailTemplateService {
    * Render a full email from a DB template + notification payload.
    * Returns { subject, text, html } ready for nodemailer.
    */
-  renderFromTemplate(
+  async renderFromTemplate(
     template: EmailTemplate,
     payload: Record<string, any>,
     notificationId: string
-  ): { subject: string; text: string; html: string } {
+  ): Promise<{ subject: string; text: string; html: string }> {
     const vars = this.buildVariableMap(
       template.notificationType as EmailTemplateType,
       payload,
@@ -263,7 +349,8 @@ export class EmailTemplateService {
 
     const subject = this.resolveVariables(template.subjectTemplate, vars);
     const bodyHtml = this.resolveVariables(template.bodyTemplate, vars);
-    const html = wrapEmailHtml(bodyHtml);
+    const layout = await this.getLayoutSettings();
+    const html = wrapEmailHtml(bodyHtml, layout);
 
     // Generate plain text by stripping HTML tags
     const text = bodyHtml.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
@@ -274,11 +361,11 @@ export class EmailTemplateService {
   /**
    * Render a digest email from the digest template + individual item summaries.
    */
-  renderDigestFromTemplate(
+  async renderDigestFromTemplate(
     digestTemplate: EmailTemplate,
     frequency: string,
     itemSummaries: { summary: string; link: string }[]
-  ): { subject: string; text: string; html: string } {
+  ): Promise<{ subject: string; text: string; html: string }> {
     const listItems = itemSummaries
       .map((entry) => `<li>${entry.summary} <a href="${entry.link}">View</a></li>`)
       .join("");
@@ -295,7 +382,8 @@ export class EmailTemplateService {
 
     const subject = this.resolveVariables(digestTemplate.subjectTemplate, vars);
     const bodyHtml = this.resolveVariables(digestTemplate.bodyTemplate, vars);
-    const html = wrapEmailHtml(bodyHtml);
+    const layout = await this.getLayoutSettings();
+    const html = wrapEmailHtml(bodyHtml, layout);
 
     const textLines = itemSummaries.map(
       (entry, idx) => `${idx + 1}. ${entry.summary}\n   ${entry.link}`

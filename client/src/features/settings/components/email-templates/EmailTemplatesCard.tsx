@@ -21,6 +21,8 @@ import {
   Save,
   Loader2,
   AlertTriangle,
+  ChevronDown,
+  Settings2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -50,15 +52,19 @@ import {
 import { useToast } from "@/shared/hooks/use-toast";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest, queryClient, parseJsonSafe } from "@/lib/queryClient";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/components/ui/collapsible";
 import { TemplateEditor, insertVariableIntoEditor, type Editor } from "./TemplateEditor";
 import { VariableInsertDialog } from "./VariableInsertDialog";
+import { ColorPickerPopover } from "./ColorPickerPopover";
 import {
   EMAIL_TEMPLATE_TYPES,
   EMAIL_TEMPLATE_LABELS,
   TEMPLATE_VARIABLES,
   VARIABLES_BY_TEMPLATE_TYPE,
+  EMAIL_GLOBAL_DEFAULTS,
   type EmailTemplateType,
   type EmailTemplate,
+  type EmailGlobalSettings,
   type TemplateVariable,
 } from "@shared/schemas/email-template.schema";
 
@@ -85,8 +91,304 @@ interface PreviewResult {
 // ============================================================================
 
 const TEMPLATES_LIST_KEY = ["/api/settings/email-templates"] as const;
+const GLOBAL_SETTINGS_KEY = ["/api/settings/email-global"] as const;
 const templateDetailKey = (type: string) =>
   ["/api/settings/email-templates", type] as const;
+
+// ============================================================================
+// GLOBAL EMAIL LAYOUT SECTION
+// ============================================================================
+
+/** Labeled color picker field for global layout settings */
+function LayoutColorField({
+  label,
+  color,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  color: string;
+  onChange: (color: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <ColorPickerPopover
+        currentColor={color}
+        onSelect={(c) => c && onChange(c)}
+        title={label}
+        showClear={false}
+      >
+        <button
+          type="button"
+          disabled={disabled}
+          className="flex items-center gap-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background hover:bg-accent/50 disabled:opacity-50"
+        >
+          <span
+            className="h-4 w-4 rounded border border-border flex-shrink-0"
+            style={{ backgroundColor: color }}
+          />
+          <span className="font-mono text-xs text-muted-foreground">{color}</span>
+        </button>
+      </ColorPickerPopover>
+    </div>
+  );
+}
+
+/** Mutable type for editable global layout fields */
+interface GlobalLayoutFields {
+  headerText: string;
+  headerBgColor: string;
+  headerTextColor: string;
+  footerText: string;
+  footerBgColor: string;
+  footerTextColor: string;
+  pageBgColor: string;
+  cardBgColor: string;
+}
+
+function GlobalEmailLayout({ isAdmin }: { isAdmin: boolean }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [local, setLocal] = useState<GlobalLayoutFields>({ ...EMAIL_GLOBAL_DEFAULTS });
+  const [dirty, setDirty] = useState(false);
+
+  const { data: settings, isLoading } = useQuery<EmailGlobalSettings>({
+    queryKey: GLOBAL_SETTINGS_KEY,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/settings/email-global");
+      return parseJsonSafe(res, "email-global-settings");
+    },
+  });
+
+  // Sync fetched settings → local state
+  useEffect(() => {
+    if (settings && !dirty) {
+      setLocal({
+        headerText: settings.headerText,
+        headerBgColor: settings.headerBgColor,
+        headerTextColor: settings.headerTextColor,
+        footerText: settings.footerText,
+        footerBgColor: settings.footerBgColor,
+        footerTextColor: settings.footerTextColor,
+        pageBgColor: settings.pageBgColor,
+        cardBgColor: settings.cardBgColor,
+      });
+    }
+  }, [settings, dirty]);
+
+  const update = <K extends keyof typeof local>(key: K, value: (typeof local)[K]) => {
+    setLocal((prev) => ({ ...prev, [key]: value }));
+    setDirty(true);
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PUT", "/api/settings/email-global", local);
+      return parseJsonSafe<EmailGlobalSettings>(res, "save-global");
+    },
+    onSuccess: () => {
+      setDirty(false);
+      queryClient.invalidateQueries({ queryKey: GLOBAL_SETTINGS_KEY });
+      // Also invalidate template previews so they reflect new layout
+      queryClient.invalidateQueries({ queryKey: TEMPLATES_LIST_KEY });
+      toast({ title: "Layout saved", description: "Global email layout updated." });
+    },
+    onError: (e: Error) => toast({ title: "Save failed", description: e.message, variant: "destructive" }),
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/settings/email-global/reset");
+      return parseJsonSafe<EmailGlobalSettings>(res, "reset-global");
+    },
+    onSuccess: (data) => {
+      setLocal({
+        headerText: data.headerText,
+        headerBgColor: data.headerBgColor,
+        headerTextColor: data.headerTextColor,
+        footerText: data.footerText,
+        footerBgColor: data.footerBgColor,
+        footerTextColor: data.footerTextColor,
+        pageBgColor: data.pageBgColor,
+        cardBgColor: data.cardBgColor,
+      });
+      setDirty(false);
+      queryClient.invalidateQueries({ queryKey: GLOBAL_SETTINGS_KEY });
+      queryClient.invalidateQueries({ queryKey: TEMPLATES_LIST_KEY });
+      toast({ title: "Layout reset", description: "Restored to factory defaults." });
+    },
+    onError: (e: Error) => toast({ title: "Reset failed", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between rounded-lg border p-3 hover:bg-muted/40 transition-colors text-left"
+        >
+          <div className="flex items-center gap-2">
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Global Email Layout</span>
+            {dirty && (
+              <Badge variant="secondary" className="text-xs ml-1">
+                Unsaved
+              </Badge>
+            )}
+          </div>
+          <ChevronDown
+            className={`h-4 w-4 text-muted-foreground transition-transform ${
+              open ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="border border-t-0 rounded-b-lg p-4 space-y-4">
+          <p className="text-xs text-muted-foreground">
+            These settings control the shared header, footer, and background colors
+            for all notification emails.
+          </p>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-6 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Loading layout settings...
+            </div>
+          ) : (
+            <>
+              {/* Header */}
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium">Header</legend>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-1 sm:col-span-1">
+                    <Label className="text-xs" htmlFor="global-header-text">Text</Label>
+                    <Input
+                      id="global-header-text"
+                      value={local.headerText}
+                      onChange={(e) => update("headerText", e.target.value)}
+                      readOnly={!isAdmin}
+                      className="text-sm"
+                      placeholder="Header text"
+                    />
+                  </div>
+                  <LayoutColorField
+                    label="Background"
+                    color={local.headerBgColor}
+                    onChange={(c) => update("headerBgColor", c)}
+                    disabled={!isAdmin}
+                  />
+                  <LayoutColorField
+                    label="Text Color"
+                    color={local.headerTextColor}
+                    onChange={(c) => update("headerTextColor", c)}
+                    disabled={!isAdmin}
+                  />
+                </div>
+              </fieldset>
+
+              {/* Footer */}
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium">Footer</legend>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-1 sm:col-span-1">
+                    <Label className="text-xs" htmlFor="global-footer-text">Text</Label>
+                    <Input
+                      id="global-footer-text"
+                      value={local.footerText}
+                      onChange={(e) => update("footerText", e.target.value)}
+                      readOnly={!isAdmin}
+                      className="text-sm"
+                      placeholder="Footer text"
+                    />
+                  </div>
+                  <LayoutColorField
+                    label="Background"
+                    color={local.footerBgColor}
+                    onChange={(c) => update("footerBgColor", c)}
+                    disabled={!isAdmin}
+                  />
+                  <LayoutColorField
+                    label="Text Color"
+                    color={local.footerTextColor}
+                    onChange={(c) => update("footerTextColor", c)}
+                    disabled={!isAdmin}
+                  />
+                </div>
+              </fieldset>
+
+              {/* Page & card backgrounds */}
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium">Backgrounds</legend>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <LayoutColorField
+                    label="Page Background"
+                    color={local.pageBgColor}
+                    onChange={(c) => update("pageBgColor", c)}
+                    disabled={!isAdmin}
+                  />
+                  <LayoutColorField
+                    label="Card Background"
+                    color={local.cardBgColor}
+                    onChange={(c) => update("cardBgColor", c)}
+                    disabled={!isAdmin}
+                  />
+                </div>
+              </fieldset>
+
+              {/* Actions */}
+              {isAdmin && (
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    onClick={() => saveMutation.mutate()}
+                    disabled={!dirty || saveMutation.isPending}
+                  >
+                    {saveMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-1.5" />
+                    )}
+                    Save Layout
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" disabled={resetMutation.isPending}>
+                        {resetMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                        ) : (
+                          <RotateCcw className="h-4 w-4 mr-1.5" />
+                        )}
+                        Reset to Default
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Reset email layout?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will restore the global header, footer, and background colors
+                          to their factory defaults.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => resetMutation.mutate()}>
+                          Reset
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 
 // ============================================================================
 // COMPONENT
@@ -317,6 +619,11 @@ export function EmailTemplatesCard() {
           </p>
         </CardHeader>
         <CardContent className="space-y-5">
+          {/* Global Email Layout — shared header/footer/backgrounds */}
+          <GlobalEmailLayout isAdmin={isAdmin} />
+
+          <Separator />
+
           {/* Template Type Selector */}
           <div className="space-y-1.5">
             <Label htmlFor="template-type">Notification Type</Label>

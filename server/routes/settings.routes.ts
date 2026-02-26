@@ -10,6 +10,7 @@ import {
   type EmailTemplateType,
   updateEmailTemplateSchema,
   previewEmailTemplateSchema,
+  updateEmailGlobalSettingsSchema,
 } from "@shared/schemas";
 
 const router = Router();
@@ -190,7 +191,7 @@ router.post("/settings/email-templates/:type/preview", requireAuth, requireRole(
       }
     }
 
-    const preview = service.renderPreview(type, subjectTemplate, bodyTemplate);
+    const preview = await service.renderPreview(type, subjectTemplate, bodyTemplate);
     res.json(preview);
   } catch (error) {
     if (isZodError(error)) {
@@ -211,7 +212,7 @@ router.post("/settings/email-templates/:type/test", requireAuth, requireRole(["s
       return res.status(400).json({ ok: false, message: "Current user email is not set" });
     }
     const service = getEmailTemplateService();
-    const preview = service.renderPreview(type);
+    const preview = await service.renderPreview(type);
     const { sendTestEmail } = await import("../features/email/smtp-settings.service");
     const name = `${req.user?.firstName ?? ""} ${req.user?.lastName ?? ""}`.trim() || email;
     // Use a custom test-send that uses the template content
@@ -220,6 +221,44 @@ router.post("/settings/email-templates/:type/test", requireAuth, requireRole(["s
       return res.json({ ok: true });
     }
     return res.status(502).json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// Global Email Layout Settings
+// ============================================================================
+
+router.get("/settings/email-global", requireAuth, requireRole(["system_admin", "hr_staff"]), async (_req, res, next) => {
+  try {
+    const service = getEmailTemplateService();
+    const settings = await service.getGlobalSettings();
+    res.json(settings);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put("/settings/email-global", requireAuth, requireRole(["system_admin"]), async (req: any, res, next) => {
+  try {
+    const validated = updateEmailGlobalSettingsSchema.parse(req.body);
+    const service = getEmailTemplateService();
+    const updated = await service.updateGlobalSettings(validated, req.user!.id);
+    res.json(updated);
+  } catch (error) {
+    if (isZodError(error)) {
+      return handleZodError(res, error);
+    }
+    next(error);
+  }
+});
+
+router.post("/settings/email-global/reset", requireAuth, requireRole(["system_admin"]), async (req: any, res, next) => {
+  try {
+    const service = getEmailTemplateService();
+    const reset = await service.resetGlobalSettings(req.user!.id);
+    res.json(reset);
   } catch (error) {
     next(error);
   }

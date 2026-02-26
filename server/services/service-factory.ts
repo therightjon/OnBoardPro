@@ -60,6 +60,7 @@ import { AuthorizationService } from "./authorization/AuthorizationService";
 import { AuditService } from "./audit/audit.service";
 import { EmailTemplateService } from "./email/email-template.service";
 import { EmailTemplateRepository } from "../repositories/email/EmailTemplateRepository";
+import { EmailGlobalSettingsRepository } from "../repositories/email/EmailGlobalSettingsRepository";
 
 /**
  * Service factory class
@@ -99,6 +100,7 @@ export class ServiceFactory {
   protected commentRepo: CommentRepository;
   protected searchRepo: SearchRepository;
   protected emailTemplateRepo: EmailTemplateRepository;
+  protected emailGlobalSettingsRepo: EmailGlobalSettingsRepository;
 
   // Service instances (singletons)
   protected candidateServiceInstance: CandidateService | null = null;
@@ -156,6 +158,7 @@ export class ServiceFactory {
 
     // Initialize repositories - Email
     this.emailTemplateRepo = new EmailTemplateRepository(db, pool);
+    this.emailGlobalSettingsRepo = new EmailGlobalSettingsRepository(db, pool);
   }
 
   /**
@@ -387,7 +390,8 @@ export class ServiceFactory {
   getEmailTemplateService(): EmailTemplateService {
     if (!this.emailTemplateServiceInstance) {
       this.emailTemplateServiceInstance = new EmailTemplateService(
-        this.emailTemplateRepo
+        this.emailTemplateRepo,
+        this.emailGlobalSettingsRepo
       );
     }
     return this.emailTemplateServiceInstance;
