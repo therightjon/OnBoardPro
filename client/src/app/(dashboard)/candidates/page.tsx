@@ -66,12 +66,9 @@ export default function CandidatesPage() {
     // Include user id to avoid cross-user cache reuse when list visibility differs by role
     queryKey: ["/api/candidates", user?.id, showArchived],
     queryFn: async ({ queryKey }) => {
-      const url = new URL(`${queryKey[0]}`, window.location.origin);
-      // queryKey: [path, userId, showArchived]
-      url.searchParams.set('includeArchived', String(queryKey[2]));
-      const response = await fetch(url.toString(), { credentials: 'include' });
-      if (!response.ok) throw new Error(`${response.status}: ${response.statusText}`);
-      return response.json();
+      const includeArchived = String(queryKey[2]);
+      const res = await apiRequest("GET", `/api/candidates?includeArchived=${includeArchived}`);
+      return res.json();
     },
     enabled: !!user,
   });

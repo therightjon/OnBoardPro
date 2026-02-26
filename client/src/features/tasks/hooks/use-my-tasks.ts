@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import type { CandidateTask } from "@shared/schemas";
 
@@ -27,10 +28,7 @@ export function useMyTasks(options?: UseMyTasksOptions) {
       if (showCanceled) params.append("showCanceled", "1");
       if (showCompleted) params.append("showCompleted", "1");
       const url = `/api/tasks/mine${params.toString() ? `?${params.toString()}` : ""}`;
-      const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) {
-        throw new Error(`${res.status}: ${res.statusText}`);
-      }
+      const res = await apiRequest("GET", url);
       return res.json();
     },
     enabled: enabled && !!user

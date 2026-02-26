@@ -122,9 +122,8 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
       const params = new URLSearchParams({ departmentId: selectedDepartmentId, limit: '50' });
-      const response = await fetch(`/api/divisions?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch divisions');
-      return response.json();
+      const res = await apiRequest("GET", `/api/divisions?${params}`);
+      return res.json();
     },
     enabled: open && !!selectedDepartmentId,
   });
@@ -140,9 +139,8 @@ export function EditCandidateDialog({ candidate, open, onOpenChange }: EditCandi
         params.set('divisionId', selectedDivisionId);
       }
       params.set('limit', '20');
-      const response = await fetch(`/api/users/managers?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch managers');
-      return response.json();
+      const res = await apiRequest("GET", `/api/users/managers?${params}`);
+      return res.json();
     },
     enabled: open && !!selectedDepartmentId,
   });

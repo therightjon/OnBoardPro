@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Redirect } from "wouter";
+import { Redirect, useSearch } from "wouter";
 import { Users, CheckCircle, Shield, Clock, Building2, Mail, Cloud, Landmark } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -32,6 +32,20 @@ export default function AuthPage() {
   const { user, loginMutation } = useAuth();
   const { toast } = useToast();
   const [activeProvider, setActiveProvider] = useState<string>("local");
+
+  // Show a toast when redirected here due to session expiration
+  const searchString = useSearch();
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    if (params.get("expired") === "1") {
+      toast({
+        title: "Session expired",
+        description: "Your session has expired. Please sign in again.",
+      });
+      // Clean the query param from the URL without adding a history entry
+      window.history.replaceState({}, "", "/auth");
+    }
+  }, []); // Run once on mount
 
   // Load enabled providers (public endpoint). Fallback to ["local"] if not available
   const { data: providerResp } = useQuery({

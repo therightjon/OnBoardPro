@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -341,8 +342,7 @@ export default function Dashboard() {
     queryKey: ["/api/candidates", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const res = await fetch('/api/candidates', { credentials: 'include' });
-      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      const res = await apiRequest("GET", "/api/candidates");
       return res.json();
     }
   });
@@ -353,8 +353,7 @@ export default function Dashboard() {
     queryKey: ["/api/candidate-types", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const res = await fetch('/api/candidate-types', { credentials: 'include' });
-      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      const res = await apiRequest("GET", "/api/candidate-types");
       return res.json();
     }
   });
@@ -363,8 +362,7 @@ export default function Dashboard() {
     queryKey: ["/api/dashboard/recent-activity", 4, user?.id],
     enabled: !!user && canViewRecentActivity,
     queryFn: async () => {
-      const res = await fetch('/api/dashboard/recent-activity?limit=4', { credentials: 'include' });
-      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      const res = await apiRequest("GET", "/api/dashboard/recent-activity?limit=4");
       return res.json();
     }
   });
@@ -373,12 +371,7 @@ export default function Dashboard() {
     queryKey: ["/api/dashboard/divisions", user?.id],
     enabled: !!user && canViewDivisionOverview,
     queryFn: async () => {
-      const res = await fetch('/api/dashboard/divisions?limit=4', { credentials: 'include' });
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('Division overview fetch failed:', res.status, errorText);
-        throw new Error(`${res.status}: ${res.statusText}`);
-      }
+      const res = await apiRequest("GET", "/api/dashboard/divisions?limit=4");
       return res.json();
     }
   });
@@ -387,8 +380,7 @@ export default function Dashboard() {
     queryKey: ["/api/dashboard/metrics", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const res = await fetch('/api/dashboard/metrics', { credentials: 'include' });
-      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      const res = await apiRequest("GET", "/api/dashboard/metrics");
       return res.json();
     }
   });
