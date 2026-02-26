@@ -123,7 +123,7 @@ export function HeaderBell() {
             disabled={markVisibleMutation.isPending || !hasUnreadVisible}
             onClick={handleMarkAllRead}
           >
-            {markVisibleMutation.isPending ? "Marking..." : "Mark all read"}
+            {markVisibleMutation.isPending ? "Marking..." : "Mark All Read"}
           </Button>
         </div>
         <div className={notifications.length === 0 && !isLoading ? "py-6" : "py-3"}>
@@ -146,7 +146,7 @@ export function HeaderBell() {
         </div>
         <div className="border-t border-border px-4 py-3 text-center text-sm">
           <Link href="/notifications" onClick={() => setOpen(false)} className="font-medium text-primary hover:underline">
-            View all notifications
+            View All Notifications
           </Link>
         </div>
       </PopoverContent>

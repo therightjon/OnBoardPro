@@ -386,7 +386,7 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
             disabled={markVisibleMutation.isPending || !hasUnreadVisible}
             onClick={handleMarkAllRead}
           >
-            {markVisibleMutation.isPending ? "Marking..." : "Mark all read"}
+            {markVisibleMutation.isPending ? "Marking..." : "Mark All Read"}
           </Button>
         </div>
         <div className={notifications.length === 0 && !isLoading ? "py-6" : "py-3"}>
@@ -413,7 +413,7 @@ function SidebarNotificationsLink({ item, isActive, onNavigate, testId }: Sideba
             onClick={handleViewAll}
             className="w-full text-sm font-medium text-primary hover:underline"
           >
-            View all notifications
+            View All Notifications
           </button>
         </div>
       </PopoverContent>

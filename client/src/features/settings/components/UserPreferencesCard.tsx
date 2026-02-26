@@ -146,7 +146,7 @@ export function UserPreferencesCard() {
           disabled={disableAllControls}
           className="shrink-0"
         >
-          Restore defaults
+          Restore Defaults
         </Button>
       </CardHeader>
       <CardContent className="space-y-4 min-w-0">

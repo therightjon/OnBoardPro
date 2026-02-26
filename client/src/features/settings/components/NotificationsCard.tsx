@@ -185,7 +185,7 @@ export function NotificationsCard() {
             onClick={() => testEmailMutation.mutate()}
             disabled={!user || testEmailMutation.isPending}
           >
-            Send test email
+            Send Test Email
           </Button>
           <Button
             type="button"
@@ -194,7 +194,7 @@ export function NotificationsCard() {
             onClick={handleRestoreDefaults}
             disabled={disableAllControls}
           >
-            Restore defaults
+            Restore Defaults
           </Button>
         </div>
       </CardHeader>
