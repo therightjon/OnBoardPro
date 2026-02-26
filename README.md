@@ -1,107 +1,158 @@
 # OnBoardPro
 
-OnBoardPro is a TypeScript monorepo for managing candidate onboarding. The stack pairs an Express/Drizzle/PostgreSQL API with a Vite + React 18 SPA, sharing types and schema definitions across client and server. Session-based auth (passport) supports local logins plus optional SSO/LDAP, and background jobs drive notification and deadline workflows.
+OnBoardPro is a TypeScript monorepo for candidate onboarding workflows.
 
-## Quick start
-1) Prereqs: Node 22+, npm, Docker (for Postgres).  
-2) Install deps: `npm install` (root).  
-3) Start database: `docker-compose up db` (uses `initdb/phase5_sample_data.sql`).  
-4) Copy `.env` and fill values (see Environment).  
-5) Dev server: `npm run dev` (Express + Vite middleware on PORT, defaults to 5000).  
-6) Open API docs at `http://localhost:5000/api/docs` once the server is running.
+- Backend: Express + Drizzle ORM + PostgreSQL
+- Frontend: React 18 + Vite + TanStack Query + Wouter
+- Shared contracts: `@shared/schemas` for enums/types/schemas used across client and server
+- Auth: session-based auth (passport), with configurable local + LDAP + OAuth providers
+- Async workflows: event bus + background jobs for deadlines, notifications, and email delivery
 
-## Scripts (verified)
-- `npm run dev` — start Express in development with Vite middleware.
-- `npm run build` — Vite build for client to `dist/public` and esbuild bundle for server to `dist/`.
-- `npm start` — run the bundled server (expects `dist` from build).
-- `npm run check` — TypeScript type-check.
-- `npm test` — run backend and frontend test suites.
-  - `npm run test:backend` — `tsx --test server/tests/**` (happy-dom disabled).
-  - `npm run test:frontend` — `vitest run` (happy-dom).
-  - `npm run test:coverage` — Vitest coverage for frontend.
-- Database utilities:
-  - `npm run db:push` — apply Drizzle migrations.
-  - `npm run db:import` — import `database_export.sql`.
-  - `npm run db:run-sql` — run SQL files using `npx tsx scripts/runSqlFiles.ts`.
-  - `npm run db:migrate-file` — run a single SQL file using `npx tsx scripts/runMigration.ts`.
+## Quick Start
 
-Running SQL migrations manually
------------------------------
+1. Install dependencies:
 
-You can apply a single SQL migration file or multiple SQL files using the TypeScript scripts in `scripts/`.
+```bash
+npm install
+```
 
-- Apply a single migration with `runMigration.ts` (executes the SQL within a transaction and detects Neon SSL):
+2. Create `.env` from `.env.example` and fill required values:
 
-  ```bash
-  npx tsx scripts/runMigration.ts migrations/0018_crud_audit.sql
-  # or using the npm helper
-  npm run db:migrate-file -- migrations/0018_crud_audit.sql
-  ```
+```bash
+cp .env.example .env
+```
 
-- If you don't have a `.env` file, set `DATABASE_URL` inline:
+3. Start Postgres (optional for local dev, recommended):
 
-  ```bash
-  DATABASE_URL="postgresql://db_user:password@localhost:5432/onboardpro" \
-  npx tsx scripts/runMigration.ts migrations/0018_crud_audit.sql
-  ```
+```bash
+docker-compose up db -d
+```
 
-- Run multiple SQL files (runs each file in a transaction):
-  ```bash
-  npx tsx scripts/runSqlFiles.ts migrations/0001_initial.sql migrations/0002_prior_stage_blocking.sql
-  # or using the npm helper
-  npm run db:run-sql -- migrations/0001_initial.sql migrations/0002_prior_stage_blocking.sql
-  ```
+The DB container seeds from `initdb/phase5_sample_data.sql` on first initialization.
 
-Notes and safety tips
----------------------
-- Backup your DB before running manual migrations (for Postgres, `pg_dump` is a convenient option).
-- `runMigration.ts` expects `DATABASE_URL` to be set and will exit with an error if it is missing.
-- The scripts use `dotenv/config`, so placing a `.env` at the repo root works automatically.
-- The repository currently documents `npm run db:run-sql` as calling a `mjs` script; you can instead call the TypeScript script directly with `npx tsx` as shown above if you prefer working with TS runtime.
-- For Neon-managed databases, the script automatically enables SSL by detecting `neon.tech` in the host name.
+4. Start the app:
 
-- Auth helper: `npm run user:set-password` — set a local user password.
+```bash
+npm run dev
+```
+
+5. Open the app/API:
+
+- App + API: `http://localhost:5000`
+- Swagger UI: `http://localhost:5000/api/docs`
+- OpenAPI JSON: `http://localhost:5000/api/docs.json`
+
+Note: if the requested port is busy, the server can fall back to the next available port.
+
+## Scripts
+
+### Core
+
+- `npm run dev` - Start Express in development mode with Vite middleware
+- `npm run build` - Build client to `dist/public` and server bundle to `dist/`
+- `npm start` - Run production bundle from `dist/index.js`
+- `npm run check` - TypeScript type-check
+
+### Testing
+
+- `npm test` - Run backend + frontend tests
+- `npm run test:backend` - Backend tests (`tsx --test`) for auth/routes/repositories/services/utils scopes
+- `npm run test:frontend` - Frontend tests (`vitest run`)
+- `npm run test:auth` - Backend auth test subset
+- `npm run test:routes` - Backend routes test subset
+- `npm run test:db` - Backend DB test subset (path is currently included in script, even if no db test directory exists)
+- `npm run test:watch` - Vitest watch mode
+- `npm run test:ui` - Vitest UI
+- `npm run test:coverage` - Vitest coverage report
+
+### Database & Maintenance
+
+- `npm run db:push` - Apply Drizzle schema changes (`drizzle-kit push`)
+- `npm run db:run-sql -- <file1.sql> [file2.sql...]` - Run one or more SQL files via `scripts/runSqlFiles.ts`
+- `npm run db:migrate-file -- <file.sql>` - Run a single SQL file via `scripts/runMigration.ts`
+- `npm run db:clear` - Clear database data
+- `npm run db:clear:dry-run` - Show what `db:clear` would remove
+- `npm run user:set-password` - Set a local user password
+- `npm run script:clear-candidates` - Clear candidate data helper
+- `npm run script:seed-candidates` - Seed test candidates
+
+### Known Script Drift
+
+- `npm run db:import` currently references `scripts/importDatabaseExport.ts`, which is not present in this repository.
 
 ## Environment
-Env validation lives in `server/config/env.ts`. Required or common keys:
+
+Environment validation is centralized in `server/config/env.ts`.
+
+### Required
+
+- `DATABASE_URL`
+- `SESSION_SECRET` (minimum 32 chars)
+
+### Common
+
 - `NODE_ENV` (`development` | `production` | `test`, default `development`)
 - `PORT` (default `5000`)
-- `DATABASE_URL` (Postgres connection string; SSL auto-enabled for Neon hosts)
-- `SESSION_SECRET` (>=32 chars)
-- Session timeouts: `SESSION_IDLE_TIMEOUT_HOURS` (default `2`), `SESSION_ABSOLUTE_TIMEOUT_HOURS` (default `24`)
-- Proxy configuration: `TRUSTED_PROXIES` (comma-separated list of trusted proxy IPs, or `loopback` for localhost; required for proper client IP resolution behind load balancers)
-- Rate limits: `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX`, `SENSITIVE_RATE_LIMIT_WINDOW_MS`, `SENSITIVE_RATE_LIMIT_MAX`
-- Feature flags/jobs: `DISABLE_DEADLINE_SCANNER`, `DISABLE_EMAIL_JOBS`, `DISABLE_NOTIFICATION_CLEANUP`
-- SMTP (optional): `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`
-- OAuth/SSO (optional): `GOOGLE_CLIENT_ID/SECRET`, `AZURE_CLIENT_ID/SECRET`, `AZURE_TENANT_ID`
-- LDAP (optional): `LDAP_URL`, `LDAP_BIND_DN`, `LDAP_BIND_PASSWORD`, `LDAP_SEARCH_BASE`, `LDAP_SEARCH_FILTER`
+- `COOKIE_DOMAIN` (optional)
+- `TRUSTED_PROXIES` (comma-separated trusted proxy list, or `loopback`)
 
-## Project structure
-- `server/` — Express app entry (`index.ts`), config, routes, middleware, services, repositories, events, background jobs, tests.
-- `client/` — Vite React SPA (`src/main.tsx`, `src/App.tsx`) with routes under `src/app/(dashboard)` and feature modules in `src/features`.
-- `shared/` — Drizzle schema, enums, and shared types reused via the `@shared` alias.
-- `docs/` — documentation (architecture, glossary, audits).
-- `scripts/` — database and maintenance utilities.
-- `initdb/` — seed SQL for local Postgres.
-- `dist/` — build output (server bundle + static client).
+### Rate Limiting
 
-## Development notes
-- Path aliases: `@` → `client/src`, `@shared` → `shared`, `@assets` → `attached_assets`.
-- API docs: Swagger UI served at `/api/docs`; canonical JSON at `/api/docs.json` (single OpenAPI source in `server/docs/openapi-spec.ts`).
-- Background jobs: deadline scanner, email notification sender, notification cleanup (toggle via env flags).
-- Rate limiting: DB-backed limiters in `server/middleware/rate-limiter.ts`. `defaultRateLimiter` is applied across `/api` in `server/routes.ts`, and `sensitiveRateLimiter` is explicitly applied to auth setup POST routes in `server/features/auth/services/auth.service.ts`.
-- CSRF protection: token endpoint at `/api/csrf-token` and global `/api` middleware in `server/routes.ts` with explicit route exclusions for login/provider bootstrap paths.
-- Password security: Consolidated utilities in `server/utils/passwords.ts` for hashing (bcrypt/scrypt), constant-time comparison to prevent timing attacks, and a 10,000+ entry common password blocklist sourced from [SecLists](https://github.com/danielmiessler/SecLists).
+- `RATE_LIMIT_WINDOW_MS` (default `60000`)
+- `RATE_LIMIT_MAX` (default `200`)
+- `SENSITIVE_RATE_LIMIT_WINDOW_MS` (optional; falls back to `RATE_LIMIT_WINDOW_MS`)
+- `SENSITIVE_RATE_LIMIT_MAX` (default `60`)
 
-## Code Scanning (CodeQL)
-- Workflow: `.github/workflows/codeql.yml` runs on push/PR for `main` and `dev`, weekly schedule, and manual dispatch (`workflow_dispatch`).
-- Configuration: `.github/codeql/codeql-config.yml` ignores test paths and excludes `js/missing-rate-limiting` because this codebase uses custom DB-backed rate limiting middleware.
-- Manual run: `gh workflow run "CodeQL Advanced" --ref main` (or `--ref dev`).
+### Session Timeout Defaults
 
-## Testing
-- Backend tests use `tsx --test` (see `server/tests/**`). Requires `NODE_ENV=test` and typically `SKIP_AUTH_SETUP=1` for isolated routes.
-- Frontend tests run with Vitest + happy-dom (`client/tests/setup.ts`).
-- Prefer running `npm test` for the full suite before shipping changes.
+- `SESSION_IDLE_TIMEOUT_HOURS` (default `2`)
+- `SESSION_ABSOLUTE_TIMEOUT_HOURS` (default `24`)
 
-## Licensing
-MIT (see `package.json`).
+### Background Job Flags
+
+Set to `1` to disable:
+
+- `DISABLE_DEADLINE_SCANNER`
+- `DISABLE_EMAIL_JOBS`
+- `DISABLE_NOTIFICATION_CLEANUP`
+
+### Authentication Provider Config
+
+- OAuth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`
+- LDAP: `LDAP_URL`, `LDAP_BIND_DN`, `LDAP_BIND_PASSWORD`, `LDAP_BASE_DN`, `LDAP_USER_FILTER`, `LDAP_ATTR_*`
+- Legacy LDAP aliases are still accepted (`LDAP_SEARCH_BASE`, `LDAP_SEARCH_FILTER`, etc.)
+
+### Email Link Base URL
+
+`server/utils/app-url.ts` resolves app links from first non-empty value in:
+
+- `APP_BASE_URL`
+- `PUBLIC_URL`
+- `CLIENT_URL`
+- `VITE_APP_URL`
+
+Fallback is `http://localhost:5173`.
+
+## Project Structure
+
+- `client/` - React app (routes/pages/components)
+- `server/` - Express app (routes/services/repositories/middleware/events/jobs)
+- `shared/schemas/` - Canonical schema + types + enums
+- `shared/schema.ts` - Legacy aggregate schema export used by some tooling/imports
+- `scripts/` - DB and operational scripts
+- `migrations/` - SQL migrations
+- `initdb/` - Local DB bootstrap SQL
+- `docs/` - Architecture, domain, operational, and product docs (`docs/README.md` is the index)
+
+## Development Notes
+
+- Path aliases:
+  - `@/*` -> `client/src/*`
+  - `@shared/*` -> `shared/*`
+- API docs are served from `server/routes/docs.ts` and generated from `server/docs/openapi-spec.ts`
+- CSRF protection is applied on `/api` with specific exclusions in `server/routes.ts`
+- Rate limiting is DB-backed (`rate_limit_counters`) and wired in `server/middleware/rate-limiter.ts`
+
+## License
+
+MIT (`package.json`)

@@ -1,155 +1,182 @@
 # Email System Overview
 
-## Table of Contents
-
-- [Architecture](#architecture)
-- [Key Components](#key-components)
-  - [Schema](#1-schema-sharedschematts)
-  - [Email Feature](#2-email-feature-serverfeaturesemail)
-  - [Notification Preferences](#3-notification-preferences)
-  - [Event-Driven Triggering](#4-event-driven-triggering-serverevents)
-  - [Email Templates Detail](#5-email-templates-detail)
-  - [Utility: App URLs](#6-utility-app-urls-serverutilsapp-urlts)
-- [Data Flow](#data-flow)
-- [Configuration](#configuration)
-- [Key Design Decisions](#key-design-decisions)
-- [Notifications vs. Email](#notifications-vs-email)
-
----
+Last Updated: 2026-02-25
 
 ## Architecture
 
-The email system follows an **outbox pattern** — notifications are persisted to the database, then processed asynchronously and delivered via email based on user preferences (immediate, hourly digest, daily digest, or weekly digest). This ensures reliability and decouples email sending from request handling.
+OnBoardPro email delivery is notification-driven and database-backed.
 
-## Key Components
+Flow summary:
 
-### 1. Schema (`shared/schema.ts`)
+1. Domain event fires (e.g. `task.assigned`, `comment.created`).
+2. `notification-handler.ts` calls `createNotifications()` which:
+   a. Loads recipient user preferences.
+   b. Filters recipients (active, `notifyInApp`, event subscriptions, self-notification suppression, candidate visibility).
+   c. Coalesces duplicate notifications within a 60-second window.
+   d. Inserts in-app notification rows.
+   e. Enqueues outbox entries for recipients with `notifyEmail: true`.
+3. Background workers deliver immediate messages or digest batches.
+4. Delivery state is persisted (`pending`, `retrying`, `sent`, `failed`, `digest_pending`).
 
-The `emailOutbox` table stores pending/sent emails:
+This keeps request/response paths fast while preserving delivery reliability.
 
-- `id`, `to`, `subject`, `htmlBody`, `textBody` — email content
-- `status` — tracks state: `pending` → `sent` / `failed`
-- `attempts`, `lastAttemptAt`, `lastError` — retry tracking
-- `sentAt`, `createdAt` — timestamps
-- `relatedEntityType`, `relatedEntityId` — links email to domain objects (e.g., a candidate or task)
+## Core Data Model
 
-User notification preferences are stored in the `notificationPreferences` table, controlling per-type delivery (`email_frequency`: `immediate`, `hourly`, `daily`, `weekly`, or `none`).
+Defined in `shared/schemas/email.schema.ts` and related schemas.
 
-### 2. Email Feature (`server/features/email/`)
+- `notifications`: in-app notification records.
+- `notification_keys`: dedupe keys for notification creation.
+- `notification_outbox`: email-delivery queue for notifications.
+- `smtp_settings`: encrypted SMTP configuration (includes rate limit columns).
+- `user_preferences`: per-user notification, email, digest, quiet-hours, and event subscription preferences.
 
-- **`templates.ts`** — Renders email content for both immediate and digest delivery. Key exports:
-  - `renderImmediateEmail(notification)` — Generates subject/text/html for a single notification
-  - `renderDigestEmail(frequency, items)` — Generates a grouped digest email for hourly/daily/weekly batches
+## Core Modules
 
-  Internal helpers:
-  - `summarizeNotification()` — Converts notification type + payload into human-readable subject and summary
-  - `getCandidateName()` — Extracts candidate name from payload (supports `name`, `firstName`/`lastName`)
-  - `formatTaskTitle()` — Extracts task title from payload
-  - `buildNotificationLink()` — Constructs a deep link to a specific notification in the app
-  - `toFrequencyLabel()` — Maps frequency string to display label
+### Notification Creation & Filtering
 
-- **Email transport/sending** — Configured via environment variables for SMTP host, port, credentials, and sender address.
+- `server/features/notifications/services/notify.ts`
+- Responsibilities:
+  - `createNotifications()`: central entry point for all notification creation
+  - recipient preference loading and filtering (`filterRecipientsForNotification`)
+  - self-notification suppression (when `actorId === recipientId` and `allowSelfNotifications` is off)
+  - per-event-type subscription filtering (`eventSubscriptions`)
+  - 60-second coalescing window to bump existing notifications instead of duplicating
+  - outbox enqueue delegation to `enqueueNotificationEmails()`
 
-### 3. Notification Preferences
+### Notification Outbox
 
-Users control how they receive email per notification type via `notificationPreferences`:
+- `server/features/email/outbox.service.ts`
+- Responsibilities:
+  - enqueue immediate vs digest candidates (only for recipients with `notifyEmail: true`)
+  - claim work with skip-locked SQL semantics
+  - mark sent/failed/retry/quiet windows
+  - reschedule digest processing
 
-| Frequency   | Behavior                              |
-|-------------|---------------------------------------|
-| `immediate` | Email sent right away                 |
-| `hourly`    | Batched into an hourly digest email   |
-| `daily`     | Batched into a daily digest email     |
-| `weekly`    | Batched into a weekly digest email    |
-| `none`      | No email delivery                     |
+### SMTP Settings + Transport
 
-### 4. Event-Driven Triggering (`server/events/`)
+- `server/features/email/smtp-settings.service.ts`
+- Responsibilities:
+  - load/update persisted SMTP settings
+  - encrypt/decrypt SMTP credentials
+  - validate settings and build nodemailer transport options
+  - test-send functionality
+  - admin-configurable rate limiting (`rateLimitPerMinute`, `rateLimitPerHour`)
+  - TLS handling: `ignoreTLS` for `security=none`, `rejectUnauthorized: false` for TLS modes (supports internal relays with self-signed certs)
 
-The **EventBus** connects domain events to notification creation:
+### Email Rendering
 
-```
-Domain Action → Service publishes event → Event handler creates notification
-  → Notification preferences checked → Email queued (immediate or digest)
-```
+- `server/features/email/templates.ts`
+- Responsibilities:
+  - `renderImmediateEmail(notification)`
+  - `renderDigestEmail(frequency, notifications)`
+  - type-based subject/body generation for: `task.created`, `task.assigned`, `task.completed`, `comment.created`, `mention`, `stage.changed`, `candidate.template_applied`, `candidate.owner_changed`, `task.due_soon`, `task.overdue`
 
-Events include: `candidateCreated`, `taskAssigned`, `commentCreated`, `stageChanged`, `candidateOwnerChanged`, etc.
+### Email Workers
 
-### 5. Email Templates Detail
+- `server/jobs/notification-email.ts`
+- Responsibilities:
+  - immediate queue polling (30s interval, 20/batch)
+  - hourly/daily digest windows
+  - retry/backoff handling (exponential with jitter, max 5 retries)
+  - quiet-hours deferral
+  - SMTP rate limit enforcement before each send
 
-The template system in `server/features/email/templates.ts` handles the following notification types:
+### Rate Limiting
 
-| Notification Type          | Subject                                  | Summary                                      |
-|----------------------------|------------------------------------------|----------------------------------------------|
-| `comment.created`          | New comment on {candidate}               | Actor added a comment with preview           |
-| `mention`                  | You were mentioned                       | Actor mentioned you in a comment             |
-| `task.assigned`            | Task assigned: {title}                   | Actor assigned you a task                    |
-| `task.due_soon`            | Task due soon: {title}                   | Task is coming due soon                      |
-| `task.overdue`             | Task overdue: {title}                    | Task is overdue                              |
-| `stage.changed`            | Stage update for {candidate}             | Candidate moved to new stage                 |
-| `candidate.owner_changed`  | Ownership update for {candidate}         | Ownership has changed                        |
-| *(default)*                | New notification                         | You have a new notification in OnBoardPro    |
+- `server/services/rate-limit.service.ts`
+- Per-minute and per-hour SMTP send rate limits enforced by the email workers.
+- Limits are admin-configurable via SMTP settings (`rateLimitPerMinute` default 30, `rateLimitPerHour` default 500).
+- Backed by `rate_limit_counters` table with atomic UPSERT.
 
-All subjects are prefixed with `[OnBoardPro]`. Each email includes a deep link back to the notification via `buildAppUrl()`.
+## Triggering and Event Integration
 
-**Immediate emails** contain a single notification summary with a "View in OnBoardPro" link.
+Notification generation and fanout are wired via:
 
-**Digest emails** contain a numbered list of notification summaries, each with its own link, plus a footer link to the full notifications page.
+- `server/events/EventBus.ts`
+- `server/events/handlers/notification-handler.ts`
+- `server/features/notifications/services/notify.ts` (`createNotifications`)
 
-### 6. Utility: App URLs (`server/utils/app-url.ts`)
+Handled event types:
 
-`buildAppUrl()` constructs absolute URLs for email links (e.g., `/notifications?focus={notificationId}`), ensuring links resolve correctly regardless of deployment environment.
+- `task.created` — notify assignee
+- `task.assigned` — notify assignee
+- `task.completed` — notify candidate manager + followers
+- `comment.created` — notify watchers
+- `mention` — notify mentioned users
+- `candidate.stage_changed` — notify candidate manager + followers
+- `candidate.template_applied` — notify candidate manager
 
-## Data Flow
+## User Preference Controls
 
-```
-User Action (e.g., assign task)
-  → Route Handler
-    → Service (business logic)
-      → EventBus.publish('taskAssigned', { ... })
-        → Event Handler
-          → Create notification in DB
-          → Check user's notificationPreferences
-          → If immediate: renderImmediateEmail() → INSERT into emailOutbox
-          → If digest: notification waits for batch processing
+Notification behavior is controlled by `user_preferences` (defined in `shared/preferences.ts`):
 
-Background Job (polling interval)
-  → For digest frequencies (hourly/daily/weekly):
-    → SELECT pending notifications for users with that frequency
-    → renderDigestEmail(frequency, notifications)
-    → INSERT into emailOutbox
-  → SELECT FROM emailOutbox WHERE status = 'pending'
-    → Send via SMTP transport
-    → UPDATE emailOutbox SET status = 'sent' (or 'failed' with error)
-```
+- `notifyInApp`: on/off in-app notification delivery (checked during recipient filtering)
+- `notifyEmail`: on/off email delivery
+- `digestFrequency`: `immediate`, `hourly`, `daily`
+- `quietHoursStart` / `quietHoursEnd`: defer email delivery during quiet window
+- `allowSelfNotifications`: global toggle — when off (default), suppresses notifications where the actor is the recipient (e.g. assigning a task to yourself)
+- `eventSubscriptions`: per-event-type opt-in/out (`comment.created`, `task.assigned`, `stage.changed`, `mention`)
 
-## Configuration
+## SMTP Configuration Surface
 
-Email is configured via environment variables:
+Admin API routes in `server/routes/settings.routes.ts`:
 
-| Variable                     | Purpose                                      |
-|------------------------------|----------------------------------------------|
-| `SMTP_HOST`                  | SMTP server hostname                         |
-| `SMTP_PORT`                  | SMTP server port                             |
-| `SMTP_USER`                  | SMTP authentication username                 |
-| `SMTP_PASS`                  | SMTP authentication password                 |
-| `EMAIL_FROM` / `SMTP_FROM`   | Default sender address                       |
-| `APP_URL` / `BASE_URL`       | Used by `buildAppUrl()` for email links      |
+- `GET /api/settings/email`
+- `PATCH /api/settings/email`
+- `POST /api/settings/email/test`
 
-## Key Design Decisions
+Only `system_admin` can update SMTP settings.
 
-| Decision                   | Rationale                                                                 |
-|----------------------------|---------------------------------------------------------------------------|
-| **Outbox pattern**         | Guarantees no email loss; can retry on transient failures                 |
-| **Event-driven**           | Decouples email logic from business logic; easy to add new email triggers |
-| **Database-backed queue**  | No external message broker needed; uses existing PostgreSQL               |
-| **Template functions**     | Type-safe templates that receive notification data; easy to test/extend   |
-| **Retry with tracking**    | `attempts` + `lastError` tracking for operational visibility              |
-| **Digest support**         | Users control email volume with hourly/daily/weekly batching              |
-| **Feature-based folder**   | Email code lives in `server/features/email/`, following project convention |
+Configurable fields include: hostname, port, security mode (`none`, `starttls`, `ssl_tls`), auth type (`none`, `plain`, `login`, `cram_md5`, `xoauth2`), from name/email, rate limits.
 
-## Notifications vs. Email
+## App Link Resolution in Emails
 
-The notification system and email system are complementary:
+Links use `server/utils/app-url.ts` and resolve from the first configured value:
 
-- **In-app notifications** are stored in the `notifications` table and delivered via UI polling
-- **Email notifications** go through the outbox for external delivery
-- Both are triggered by the same domain events, with user preferences determining delivery channel and frequency
+1. `APP_BASE_URL`
+2. `PUBLIC_URL`
+3. `CLIENT_URL`
+4. `VITE_APP_URL`
+
+Fallback: `http://localhost:5173`
+
+## Operational Notes
+
+- Job startup is controlled in `server/index.ts`.
+- Disable email workers with `DISABLE_EMAIL_JOBS=1`.
+- Outbox delivery updates `notifications.delivered_channels` to include `email`.
+- Retries use exponential-style backoff with jitter (max 5 retries).
+- Outbox `claimImmediateOutbox` uses explicit camelCase column aliases in RETURNING clause (raw SQL returns snake_case by default).
+- SMTP transport is cached with a 5-minute TTL and signature-based invalidation.
+
+## Email Notification Coverage
+
+### Active (event handler wired)
+
+| Event | Email Subject | Recipients |
+|---|---|---|
+| `task.created` | Task assigned: {title} | Assignee |
+| `task.assigned` | Task assigned: {title} | Assignee |
+| `task.completed` | Task completed: {title} | Candidate manager + followers |
+| `comment.created` | New comment on {candidate} | Watchers (+ separate `mention` emails for @-mentioned users) |
+| `candidate.stage_changed` | Stage update for {candidate} | Candidate manager + followers |
+| `candidate.template_applied` | Template applied to {candidate} | Candidate manager |
+
+### Templates only (no event handler wired)
+
+| Type | Email Subject |
+|---|---|
+| `task.due_soon` | Task due soon: {title} |
+| `task.overdue` | Task overdue: {title} |
+| `candidate.owner_changed` | Ownership update for {candidate} |
+
+### Other email types
+
+- **Digest emails**: hourly and daily batched summaries of the above notification types.
+- **Test email**: admin SMTP validation via `POST /api/settings/email/test`.
+
+### Delivery prerequisites
+
+- Recipient must have `notifyEmail: true`.
+- `digestFrequency` determines timing (`immediate`, `hourly`, or `daily`).
+- SMTP must be configured by a `system_admin`.

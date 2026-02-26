@@ -33,6 +33,8 @@ const updateSchema = z.object({
   fromName: z.string().trim().min(1, "From name is required").nullable().optional(),
   fromEmail: z.string().trim().email("From email must be valid").nullable().optional(),
   allowHeaderSpoofing: z.boolean().optional(),
+  rateLimitPerMinute: z.number().int().min(1).max(1000).optional(),
+  rateLimitPerHour: z.number().int().min(1).max(10000).optional(),
   replacePassword: z.boolean().optional(),
   newPassword: z.string().min(1, "Password cannot be empty").optional()
 }).refine((data) => !(data.replacePassword && data.authType === "none"), {
@@ -52,6 +54,8 @@ export interface PublicSmtpSettings {
   fromName: string | null;
   fromEmail: string | null;
   allowHeaderSpoofing: boolean;
+  rateLimitPerMinute: number;
+  rateLimitPerHour: number;
   passwordConfigured: boolean;
   passwordSetAt: string | null;
   encryptionVersion: string | null;
@@ -69,6 +73,8 @@ export interface MaterializedSmtpSettings {
   fromName: string | null;
   fromEmail: string | null;
   allowHeaderSpoofing: boolean;
+  rateLimitPerMinute: number;
+  rateLimitPerHour: number;
   passwordConfigured: boolean;
   passwordSetAt: Date | null;
   encryptionVersion: string | null;
@@ -123,6 +129,8 @@ export async function getSmtpSettings(): Promise<PublicSmtpSettings> {
     fromName: row.fromName ?? null,
     fromEmail: row.fromEmail ?? null,
     allowHeaderSpoofing: row.allowHeaderSpoofing ?? false,
+    rateLimitPerMinute: row.rateLimitPerMinute ?? 30,
+    rateLimitPerHour: row.rateLimitPerHour ?? 500,
     passwordConfigured: Boolean(row.encryptedPassword),
     passwordSetAt: row.passwordSetAt ? row.passwordSetAt.toISOString() : null,
     encryptionVersion: row.encryptionVersion ?? null,
@@ -194,6 +202,8 @@ async function materializeSettings(row: SmtpSettings): Promise<MaterializedSmtpS
     fromName: row.fromName ?? null,
     fromEmail: row.fromEmail ?? null,
     allowHeaderSpoofing: row.allowHeaderSpoofing ?? false,
+    rateLimitPerMinute: row.rateLimitPerMinute ?? 30,
+    rateLimitPerHour: row.rateLimitPerHour ?? 500,
     passwordConfigured: Boolean(row.encryptedPassword),
     passwordSetAt: row.passwordSetAt ?? null,
     encryptionVersion: row.encryptionVersion ?? null,
@@ -269,6 +279,13 @@ let auth: SmtpAuth | undefined;
     secure,
     requireTLS,
     auth,
+    // When security is "none", skip opportunistic TLS entirely (server may
+    // advertise STARTTLS with a self-signed cert, which would fail).
+    // For explicit TLS modes, accept self-signed certificates common on
+    // internal / trusted-network mail relays.
+    ...(settings.security === "none"
+      ? { ignoreTLS: true }
+      : { tls: { rejectUnauthorized: false } }),
   };
 
   if (authMethod) {
@@ -384,6 +401,8 @@ export async function updateSmtpSettings(payload: UpdateInput, actorId: string, 
       fromName,
       fromEmail,
       allowHeaderSpoofing: updates.allowHeaderSpoofing ?? row.allowHeaderSpoofing ?? false,
+      rateLimitPerMinute: updates.rateLimitPerMinute ?? row.rateLimitPerMinute ?? 30,
+      rateLimitPerHour: updates.rateLimitPerHour ?? row.rateLimitPerHour ?? 500,
       updatedAt: new Date(),
     })
     .where(eq(smtpSettingsTable.id, SETTINGS_ID))
@@ -442,6 +461,8 @@ export async function updateSmtpSettings(payload: UpdateInput, actorId: string, 
       fromName: updated.fromName ?? null,
       fromEmail: updated.fromEmail ?? null,
       allowHeaderSpoofing: updated.allowHeaderSpoofing ?? false,
+      rateLimitPerMinute: updated.rateLimitPerMinute ?? 30,
+      rateLimitPerHour: updated.rateLimitPerHour ?? 500,
       passwordConfigured: Boolean(updated.encryptedPassword),
       passwordSetAt: updated.passwordSetAt ? updated.passwordSetAt.toISOString() : null,
       encryptionVersion: updated.encryptionVersion ?? null,

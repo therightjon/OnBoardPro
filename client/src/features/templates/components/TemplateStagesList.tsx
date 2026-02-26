@@ -14,11 +14,11 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { Archive } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/shared/hooks/use-toast';
 
 interface TemplateStage {
   templateStageId: string;
@@ -94,6 +94,7 @@ function SortableRow({ id, stageId, name, phase, index, isPending, onRemove }: {
 
 export function TemplateStagesList({ templateId, stages }: TemplateStagesListProps) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const sensors = useSensors(
     useSensor(PointerSensor, { 
       activationConstraint: { distance: 4 } 
@@ -117,10 +118,10 @@ export function TemplateStagesList({ templateId, stages }: TemplateStagesListPro
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/templates", templateId, "template-stages"] });
-      toast.success('Stage order saved successfully');
+      toast({ title: 'Stage order saved successfully' });
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast({ title: error.message, variant: 'destructive' });
       // Rollback by invalidating queries to refetch from server
       queryClient.invalidateQueries({ queryKey: ["/api/templates", templateId, "template-stages"] });
     },
@@ -134,10 +135,10 @@ export function TemplateStagesList({ templateId, stages }: TemplateStagesListPro
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/templates", templateId, "template-stages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/templates", templateId] });
-      toast.success('Stage removed from template successfully');
+      toast({ title: 'Stage removed from template successfully' });
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast({ title: error.message, variant: 'destructive' });
     },
   });
 

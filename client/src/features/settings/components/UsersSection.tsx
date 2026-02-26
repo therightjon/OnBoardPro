@@ -910,7 +910,7 @@ export function UsersSection() {
           {/* Users Table (Desktop) */}
           <div className="hidden md:block border rounded-lg">
             <div className="overflow-x-auto">
-              <Table className="min-w-full">
+              <Table className="min-w-[1200px]">
                 <TableHeader>
                   <TableRow>
                     <SortableTableHeader

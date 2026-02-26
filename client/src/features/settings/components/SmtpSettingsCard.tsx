@@ -40,6 +40,8 @@ const formSchema = z.object({
   fromName: z.string().optional().nullable(),
   fromEmail: z.string().email("Enter a valid from email address"),
   allowHeaderSpoofing: z.boolean(),
+  rateLimitPerMinute: z.number().int().min(1).max(1000),
+  rateLimitPerHour: z.number().int().min(1).max(10000),
   replacePassword: z.boolean(),
   newPassword: z.string().optional(),
 });
@@ -56,6 +58,8 @@ interface SmtpSettingsResponse {
   fromName: string | null;
   fromEmail: string | null;
   allowHeaderSpoofing: boolean;
+  rateLimitPerMinute: number;
+  rateLimitPerHour: number;
   passwordConfigured: boolean;
   passwordSetAt: string | null;
   encryptionVersion: string | null;
@@ -93,6 +97,8 @@ export function SmtpSettingsCard() {
       fromName: "",
       fromEmail: "",
       allowHeaderSpoofing: false,
+      rateLimitPerMinute: 30,
+      rateLimitPerHour: 500,
       replacePassword: false,
       newPassword: "",
     },
@@ -116,6 +122,8 @@ export function SmtpSettingsCard() {
         fromName: settings.fromName ?? "",
         fromEmail: settings.fromEmail ?? "",
         allowHeaderSpoofing: settings.allowHeaderSpoofing ?? false,
+        rateLimitPerMinute: settings.rateLimitPerMinute ?? 30,
+        rateLimitPerHour: settings.rateLimitPerHour ?? 500,
         replacePassword: false,
         newPassword: "",
       });
@@ -143,6 +151,8 @@ export function SmtpSettingsCard() {
         fromName: values.fromName?.trim() || null,
         fromEmail: values.fromEmail?.trim(),
         allowHeaderSpoofing: values.allowHeaderSpoofing,
+        rateLimitPerMinute: values.rateLimitPerMinute,
+        rateLimitPerHour: values.rateLimitPerHour,
       };
 
       if (isReplacingPassword && values.newPassword) {
@@ -170,6 +180,8 @@ export function SmtpSettingsCard() {
           fromName: data.fromName ?? "",
           fromEmail: data.fromEmail ?? "",
           allowHeaderSpoofing: data.allowHeaderSpoofing ?? false,
+          rateLimitPerMinute: data.rateLimitPerMinute ?? 30,
+          rateLimitPerHour: data.rateLimitPerHour ?? 500,
           replacePassword: false,
           newPassword: "",
         });
@@ -221,6 +233,8 @@ export function SmtpSettingsCard() {
         fromName: initialSettings.fromName ?? "",
         fromEmail: initialSettings.fromEmail ?? "",
         allowHeaderSpoofing: initialSettings.allowHeaderSpoofing ?? false,
+        rateLimitPerMinute: initialSettings.rateLimitPerMinute ?? 30,
+        rateLimitPerHour: initialSettings.rateLimitPerHour ?? 500,
         replacePassword: false,
         newPassword: "",
       });
@@ -511,6 +525,56 @@ export function SmtpSettingsCard() {
                   value={field.value ?? ""}
                   onChange={field.onChange}
                   disabled={loadingState || updateMutation.isPending}
+                />
+              )}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-[220px_1fr]">
+            <div>
+              <Label htmlFor="rateLimitPerMinute">Max emails per minute</Label>
+              <p className="text-xs text-muted-foreground">
+                Maximum number of emails the system will send per minute (1–1,000).
+              </p>
+            </div>
+            <Controller
+              name="rateLimitPerMinute"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  id="rateLimitPerMinute"
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={field.value}
+                  onChange={(e) => field.onChange(Number(e.target.value))}
+                  disabled={loadingState || updateMutation.isPending}
+                  className="w-32"
+                />
+              )}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-[220px_1fr]">
+            <div>
+              <Label htmlFor="rateLimitPerHour">Max emails per hour</Label>
+              <p className="text-xs text-muted-foreground">
+                Maximum number of emails the system will send per hour (1–10,000).
+              </p>
+            </div>
+            <Controller
+              name="rateLimitPerHour"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  id="rateLimitPerHour"
+                  type="number"
+                  min={1}
+                  max={10000}
+                  value={field.value}
+                  onChange={(e) => field.onChange(Number(e.target.value))}
+                  disabled={loadingState || updateMutation.isPending}
+                  className="w-32"
                 />
               )}
             />

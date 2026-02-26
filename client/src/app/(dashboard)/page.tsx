@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -341,8 +342,7 @@ export default function Dashboard() {
     queryKey: ["/api/candidates", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const res = await fetch('/api/candidates', { credentials: 'include' });
-      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      const res = await apiRequest("GET", "/api/candidates");
       return res.json();
     }
   });
@@ -353,8 +353,7 @@ export default function Dashboard() {
     queryKey: ["/api/candidate-types", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const res = await fetch('/api/candidate-types', { credentials: 'include' });
-      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      const res = await apiRequest("GET", "/api/candidate-types");
       return res.json();
     }
   });
@@ -363,8 +362,7 @@ export default function Dashboard() {
     queryKey: ["/api/dashboard/recent-activity", 4, user?.id],
     enabled: !!user && canViewRecentActivity,
     queryFn: async () => {
-      const res = await fetch('/api/dashboard/recent-activity?limit=4', { credentials: 'include' });
-      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      const res = await apiRequest("GET", "/api/dashboard/recent-activity?limit=4");
       return res.json();
     }
   });
@@ -373,12 +371,7 @@ export default function Dashboard() {
     queryKey: ["/api/dashboard/divisions", user?.id],
     enabled: !!user && canViewDivisionOverview,
     queryFn: async () => {
-      const res = await fetch('/api/dashboard/divisions?limit=4', { credentials: 'include' });
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('Division overview fetch failed:', res.status, errorText);
-        throw new Error(`${res.status}: ${res.statusText}`);
-      }
+      const res = await apiRequest("GET", "/api/dashboard/divisions?limit=4");
       return res.json();
     }
   });
@@ -387,8 +380,7 @@ export default function Dashboard() {
     queryKey: ["/api/dashboard/metrics", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const res = await fetch('/api/dashboard/metrics', { credentials: 'include' });
-      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      const res = await apiRequest("GET", "/api/dashboard/metrics");
       return res.json();
     }
   });
@@ -625,73 +617,73 @@ export default function Dashboard() {
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
         <Card className="hover:shadow-md transition-shadow" data-testid="card-active-candidates">
-          <CardContent className="p-3 xs:p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs xs:text-sm font-medium text-muted-foreground">Active Candidates</p>
-                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground" data-testid="text-active-candidates">{activeCandidates}</p>
-              </div>
-              <div className="w-10 h-10 xs:w-12 xs:h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Users className="text-primary text-lg xs:text-xl" />
+          <CardContent className="p-3 xs:p-4 sm:p-6 h-full flex flex-col">
+            <div className="space-y-1">
+              <p className="text-xs xs:text-sm font-medium text-muted-foreground leading-tight min-h-[2.5rem]">Active Candidates</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground leading-none min-w-0" data-testid="text-active-candidates">{activeCandidates}</p>
+                <div className="w-10 h-10 xs:w-12 xs:h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Users className="text-primary text-lg xs:text-xl" />
+                </div>
               </div>
             </div>
-            <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
-              <span className={activeCandidatesChange.className}>{activeCandidatesChange.text}</span>
-              <span className="text-muted-foreground ml-2">{activeCandidatesChange.label}</span>
+            <div className="mt-3 xs:mt-4 flex items-start gap-2 text-xs xs:text-sm leading-tight min-h-[2.5rem]">
+              <span className={`${activeCandidatesChange.className} w-12 shrink-0`}>{activeCandidatesChange.text}</span>
+              <span className="text-muted-foreground">{activeCandidatesChange.label}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow" data-testid="card-tasks-due">
-          <CardContent className="p-3 xs:p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs xs:text-sm font-medium text-muted-foreground">Tasks Due (7 days)</p>
-                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground" data-testid="text-tasks-due">{tasksDue}</p>
-              </div>
-              <div className="w-10 h-10 xs:w-12 xs:h-12 bg-chart-3/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Clock className="text-chart-3 text-lg xs:text-xl" />
+          <CardContent className="p-3 xs:p-4 sm:p-6 h-full flex flex-col">
+            <div className="space-y-1">
+              <p className="text-xs xs:text-sm font-medium text-muted-foreground leading-tight min-h-[2.5rem]">Tasks Due (7 days)</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground leading-none min-w-0" data-testid="text-tasks-due">{tasksDue}</p>
+                <div className="w-10 h-10 xs:w-12 xs:h-12 bg-chart-3/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Clock className="text-chart-3 text-lg xs:text-xl" />
+                </div>
               </div>
             </div>
-            <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
-              <span className={tasksDueChange.className}>{tasksDueChange.text}</span>
-              <span className="text-muted-foreground ml-2">{tasksDueChange.label}</span>
+            <div className="mt-3 xs:mt-4 flex items-start gap-2 text-xs xs:text-sm leading-tight min-h-[2.5rem]">
+              <span className={`${tasksDueChange.className} w-12 shrink-0`}>{tasksDueChange.text}</span>
+              <span className="text-muted-foreground">{tasksDueChange.label}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow" data-testid="card-overdue-tasks">
-          <CardContent className="p-3 xs:p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs xs:text-sm font-medium text-muted-foreground">Overdue Tasks</p>
-                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground" data-testid="text-overdue-tasks">{overdueTasks}</p>
-              </div>
-              <div className="w-10 h-10 xs:w-12 xs:h-12 bg-destructive/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="text-destructive text-lg xs:text-xl" />
+          <CardContent className="p-3 xs:p-4 sm:p-6 h-full flex flex-col">
+            <div className="space-y-1">
+              <p className="text-xs xs:text-sm font-medium text-muted-foreground leading-tight min-h-[2.5rem]">Overdue Tasks</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground leading-none min-w-0" data-testid="text-overdue-tasks">{overdueTasks}</p>
+                <div className="w-10 h-10 xs:w-12 xs:h-12 bg-destructive/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="text-destructive text-lg xs:text-xl" />
+                </div>
               </div>
             </div>
-            <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
-              <span className={overdueTasksChange.className}>{overdueTasksChange.text}</span>
-              <span className="text-muted-foreground ml-2">{overdueTasksChange.label}</span>
+            <div className="mt-3 xs:mt-4 flex items-start gap-2 text-xs xs:text-sm leading-tight min-h-[2.5rem]">
+              <span className={`${overdueTasksChange.className} w-12 shrink-0`}>{overdueTasksChange.text}</span>
+              <span className="text-muted-foreground">{overdueTasksChange.label}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow" data-testid="card-completion-rate">
-          <CardContent className="p-3 xs:p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs xs:text-sm font-medium text-muted-foreground">Completion Rate</p>
-                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground" data-testid="text-completion-rate">{completionRate}%</p>
-              </div>
-              <div className="w-10 h-10 xs:w-12 xs:h-12 bg-accent/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                <CheckCircle className="text-accent text-lg xs:text-xl" />
+          <CardContent className="p-3 xs:p-4 sm:p-6 h-full flex flex-col">
+            <div className="space-y-1">
+              <p className="text-xs xs:text-sm font-medium text-muted-foreground leading-tight min-h-[2.5rem]">Completion Rate</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xl xs:text-2xl sm:text-3xl font-bold text-foreground leading-none min-w-0" data-testid="text-completion-rate">{completionRate}%</p>
+                <div className="w-10 h-10 xs:w-12 xs:h-12 bg-accent/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="text-accent text-lg xs:text-xl" />
+                </div>
               </div>
             </div>
-            <div className="mt-3 xs:mt-4 flex items-center text-xs xs:text-sm">
-              <span className={completionRateChange.className}>{completionRateChange.text}</span>
-              <span className="text-muted-foreground ml-2">{completionRateChange.label}</span>
+            <div className="mt-3 xs:mt-4 flex items-start gap-2 text-xs xs:text-sm leading-tight min-h-[2.5rem]">
+              <span className={`${completionRateChange.className} w-12 shrink-0`}>{completionRateChange.text}</span>
+              <span className="text-muted-foreground">{completionRateChange.label}</span>
             </div>
           </CardContent>
         </Card>

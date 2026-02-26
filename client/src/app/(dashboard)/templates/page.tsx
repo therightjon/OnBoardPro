@@ -399,7 +399,7 @@ export default function TemplatesPage() {
       {/* Templates Table (Desktop) */}
       <Card className="hidden md:block overflow-hidden">
         <CardContent className="p-0 min-w-0">
-          <Table>
+          <Table className="min-w-[920px]">
             <TableHeader>
               <TableRow>
                 <SortableTableHeader

@@ -23,8 +23,14 @@ export function useUnreadNotifications(options: UseUnreadNotificationsOptions = 
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     staleTime: 0,
-    // Add retry with exponential backoff to handle transient network issues
-    retry: 2,
+    // Retry transient errors but never retry 401s — let the session-expired
+    // redirect in throwIfResNotOk fire immediately instead of wasting retries.
+    retry: (failureCount, error) => {
+      if (error && typeof (error as any).status === "number" && (error as any).status === 401) {
+        return false;
+      }
+      return failureCount < 2;
+    },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
     // Don't throw on network errors - just return stale data if available
     throwOnError: false,

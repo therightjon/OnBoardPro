@@ -25,7 +25,7 @@ const ArchiveCandidateDialog = lazy(() => import("@/features/candidates/componen
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { candidateStatusBadgeClass, resolveCandidateStatus, canArchiveCandidate } from "@/features/candidates/utils/status";
-import { getHiringPhase, resolveCandidateStageLabel } from "@/features/candidates/utils/hiring-phase";
+import { getHiringPhase, resolveCandidateStageLabel, stageLabelsMatch } from "@/features/candidates/utils/hiring-phase";
 import { useLocalStorage } from "@/shared/hooks/use-local-storage";
 import type { Candidate, CandidateType, HiringStage } from "@shared/schemas";
 import { PaginationControls } from "@/shared/components/pagination-controls";
@@ -66,12 +66,9 @@ export default function CandidatesPage() {
     // Include user id to avoid cross-user cache reuse when list visibility differs by role
     queryKey: ["/api/candidates", user?.id, showArchived],
     queryFn: async ({ queryKey }) => {
-      const url = new URL(`${queryKey[0]}`, window.location.origin);
-      // queryKey: [path, userId, showArchived]
-      url.searchParams.set('includeArchived', String(queryKey[2]));
-      const response = await fetch(url.toString(), { credentials: 'include' });
-      if (!response.ok) throw new Error(`${response.status}: ${response.statusText}`);
-      return response.json();
+      const includeArchived = String(queryKey[2]);
+      const res = await apiRequest("GET", `/api/candidates?includeArchived=${includeArchived}`);
+      return res.json();
     },
     enabled: !!user,
   });
@@ -118,6 +115,10 @@ const formatLooAge = (isoDate?: string | null) => {
   return `${diff}d`;
 };
 
+const stageNameById = useMemo(() => {
+  return new Map(hiringStages.map((stage) => [stage.id, stage.name]));
+}, [hiringStages]);
+
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, typeFilter, stageFilter, phaseFilter, showArchived, showCanceled, showCompleted]);
@@ -130,9 +131,15 @@ const formatLooAge = (isoDate?: string | null) => {
                            candidate.email.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === "all" || candidate.status === statusFilter;
       const matchesType = typeFilter === "all" || candidate.candidateTypeId === typeFilter;
+      const selectedStageName = stageNameById.get(stageFilter);
+      const candidateStageLabel = resolveCandidateStageLabel(candidate);
+      const matchesStageFromMilestone =
+        !candidate.currentStage?.id &&
+        stageLabelsMatch(candidateStageLabel, selectedStageName);
       const matchesStage = stageFilter === "all" || 
                           (stageFilter === "not_started" && !candidate.currentStage?.id) ||
-                          candidate.currentStage?.id === stageFilter;
+                          candidate.currentStage?.id === stageFilter ||
+                          matchesStageFromMilestone;
       const resolvedPhase = getHiringPhase(candidate).phase;
       const matchesPhase =
         phaseFilter === "all" ||
@@ -196,7 +203,7 @@ const formatLooAge = (isoDate?: string | null) => {
       if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
-  }, [candidates, searchTerm, statusFilter, typeFilter, stageFilter, phaseFilter, sortBy, sortOrder, showCanceled, showCompleted]);
+  }, [candidates, searchTerm, statusFilter, typeFilter, stageFilter, phaseFilter, sortBy, sortOrder, showCanceled, showCompleted, stageNameById]);
 
   const pageSize = PAGE_SIZE;
   const totalCandidates = filteredAndSortedCandidates.length;
@@ -273,7 +280,7 @@ const formatLooAge = (isoDate?: string | null) => {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 xs:space-y-5 sm:space-y-6 min-w-0">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
@@ -293,15 +300,15 @@ const formatLooAge = (isoDate?: string | null) => {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-3 xs:p-4 sm:p-4">
+      <Card className="overflow-hidden">
+        <CardContent className="p-3 xs:p-4 sm:p-4 min-w-0">
           <div className="flex items-center gap-2 mb-3 text-sm font-medium text-muted-foreground">
             <Filter className="w-4 h-4" />
             <span>Filters</span>
           </div>
-          <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-3">
+          <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-3 min-w-0">
             {/* Search - Full width on mobile */}
-            <div className="w-full sm:flex-1 sm:min-w-[200px]">
+            <div className="w-full sm:flex-1 sm:min-w-[200px] min-w-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
@@ -315,7 +322,7 @@ const formatLooAge = (isoDate?: string | null) => {
             </div>
             
             {/* Filters row */}
-            <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 sm:gap-3">
+            <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 sm:gap-3 min-w-0">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]" data-testid="select-status-filter">
                   <SelectValue placeholder="Status" />
@@ -412,10 +419,9 @@ const formatLooAge = (isoDate?: string | null) => {
       </Card>
 
       {/* Desktop Table */}
-      <Card className="hidden md:block overflow-hidden">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
+      <Card className="hidden md:block overflow-hidden min-w-0">
+        <CardContent className="p-0 min-w-0">
+            <Table className="min-w-[1100px]">
               <caption className="sr-only">Candidates table with sorting and filtering capabilities</caption>
             <TableHeader>
               <TableRow>
@@ -594,7 +600,6 @@ const formatLooAge = (isoDate?: string | null) => {
               )}
             </TableBody>
           </Table>
-          </div>
           {totalCandidates > pageSize && (
             <div className="border-t border-border/60 px-4 py-3">
               <PaginationControls

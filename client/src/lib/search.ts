@@ -1,21 +1,10 @@
 // Search API helpers
+import { apiRequest } from "./queryClient";
+
 export async function searchDepartments(q: string) {
   const url = `/api/search/departments?q=${encodeURIComponent(q)}`;
-  const r = await fetch(url, { 
-    headers: { 'Accept': 'application/json' },
-    credentials: 'include'
-  });
-  if (!r.ok) {
-    const text = await r.text();
-    throw new Error(`searchDepartments ${r.status}: ${text.slice(0, 200)}`);
-  }
-  let json: any;
-  try { 
-    json = await r.json(); 
-  } catch (e) {
-    const text = await r.text();
-    throw new Error(`searchDepartments invalid JSON: ${text.slice(0, 200)}`);
-  }
+  const res = await apiRequest("GET", url);
+  const json = await res.json();
   return (json.items ?? []) as { id: string; name: string; score?: number }[];
 }
 
@@ -24,21 +13,8 @@ export async function searchDivisions(q: string, departmentId?: string) {
   if (departmentId) params.append('departmentId', departmentId);
   
   const url = `/api/search/divisions?${params}`;
-  const r = await fetch(url, { 
-    headers: { 'Accept': 'application/json' },
-    credentials: 'include'
-  });
-  if (!r.ok) {
-    const text = await r.text();
-    throw new Error(`searchDivisions ${r.status}: ${text.slice(0, 200)}`);
-  }
-  let json: any;
-  try { 
-    json = await r.json(); 
-  } catch (e) {
-    const text = await r.text();
-    throw new Error(`searchDivisions invalid JSON: ${text.slice(0, 200)}`);
-  }
+  const res = await apiRequest("GET", url);
+  const json = await res.json();
   return (json.items ?? []) as { id: string; name: string; score?: number }[];
 }
 
@@ -47,20 +23,7 @@ export async function searchManagers(q: string, departmentId?: string, divisionI
   if (divisionId) params.append('divisionId', divisionId);
   else if (departmentId) params.append('departmentId', departmentId);
   const url = `/api/search/users?${params.toString()}`;
-  const r = await fetch(url, { 
-    headers: { 'Accept': 'application/json' },
-    credentials: 'include'
-  });
-  if (!r.ok) {
-    const text = await r.text();
-    throw new Error(`searchManagers ${r.status}: ${text.slice(0, 200)}`);
-  }
-  let json: any;
-  try { 
-    json = await r.json(); 
-  } catch (e) {
-    const text = await r.text();
-    throw new Error(`searchManagers invalid JSON: ${text.slice(0, 200)}`);
-  }
+  const res = await apiRequest("GET", url);
+  const json = await res.json();
   return (json.items ?? []) as { id: string; name: string; score?: number }[];
 }

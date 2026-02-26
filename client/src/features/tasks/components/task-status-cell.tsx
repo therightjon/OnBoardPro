@@ -2,13 +2,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { TASK_STATUS, TASK_STATUS_LABEL } from '@/lib/task-status';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 import { apiRequest } from '@/lib/queryClient';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { useState } from 'react';
+import { useToast } from '@/shared/hooks/use-toast';
 
 export function TaskStatusCell({
   taskId,
@@ -26,6 +26,7 @@ export function TaskStatusCell({
   colorStyle?: 'text' | 'filled';
 }) {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [ack, setAck] = useState(false);
@@ -65,7 +66,7 @@ export function TaskStatusCell({
     onError: (err: any, _vars, ctx) => {
       // If server reports prior-stage block, treat as soft success: keep optimistic state and refresh
       if (err?.code === 'BLOCKED_BY_PRIOR_STAGE') {
-        toast.message('Task updated. Candidate remains blocked by prior-stage tasks.');
+        toast({ title: 'Task updated. Candidate remains blocked by prior-stage tasks.' });
         // Only refetch data we didn't update optimistically
         qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'stage-history'] });
         qc.invalidateQueries({ queryKey: ['/api/candidates', candidateId, 'estimate', { businessDays: true }] });
@@ -74,7 +75,7 @@ export function TaskStatusCell({
       }
       // Otherwise revert optimistic update and show error
       if (ctx?.previous) qc.setQueryData(ctx.taskKey, ctx.previous);
-      toast.error((err as Error).message);
+      toast({ title: (err as Error).message, variant: 'destructive' });
     },
     onSuccess: (data) => {
       // Handle new server response format: { task, candidate, advancement }
@@ -115,11 +116,11 @@ export function TaskStatusCell({
       
       // Show appropriate success messages
       if (data.advancement?.advanced) {
-        toast.success(`Status updated and advanced to ${data.advancement.toStageName}`);
+        toast({ title: `Status updated and advanced to ${data.advancement.toStageName}` });
       } else if (data?.recompute?.isBlocked) {
-        toast.message('Status updated. Candidate remains blocked by prior-stage tasks.');
+        toast({ title: 'Status updated. Candidate remains blocked by prior-stage tasks.' });
       } else {
-        toast.success('Status updated');
+        toast({ title: 'Status updated' });
       }
     },
   });

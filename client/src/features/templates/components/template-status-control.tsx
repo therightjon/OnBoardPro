@@ -2,8 +2,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, } from "@/shared/components/ui/alert-dialog";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/shared/hooks/use-toast";
 
 type Status = "draft" | "active" | "archived";
 
@@ -15,6 +15,7 @@ interface TemplateStatusControlProps {
 
 export function TemplateStatusControl({ templateId, value, canEdit }: TemplateStatusControlProps) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMsg, setDialogMsg] = useState("");
 
@@ -38,7 +39,7 @@ export function TemplateStatusControl({ templateId, value, canEdit }: TemplateSt
       queryClient.invalidateQueries({ queryKey: ["/api/templates"] });
       queryClient.invalidateQueries({ queryKey: ["/api/templates", templateId] });
       queryClient.invalidateQueries({ queryKey: ["templateReadiness", templateId] });
-      toast.success("Template status updated");
+      toast({ title: "Template status updated" });
     },
     onError: (error: any) => {
       const code =

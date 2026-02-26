@@ -2,6 +2,8 @@
 
 **A Practical Guide for HR Staff**
 
+Last Updated: 2026-02-18
+
 ---
 
 ## What You'll Learn

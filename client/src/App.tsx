@@ -1,19 +1,19 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/shared/components/ui/toaster";
-import { Toaster as SonnerToaster } from "sonner";
 import { TooltipProvider } from "@/shared/components/ui/tooltip";
 import { AuthProvider } from "@/features/auth/hooks/use-auth";
 import { ThemeProvider } from "@/shared/components/layout/theme-provider";
 import { ProtectedRoute } from "./lib/protected-route";
 import { Sidebar } from "@/shared/components/layout/sidebar";
-import { useState, lazy, Suspense, useCallback, useEffect } from "react";
+import { useState, lazy, Suspense, useCallback } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Sheet, SheetContent } from "@/shared/components/ui/sheet";
 import { Menu, Loader2 } from "lucide-react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/shared/components/layout/error-fallback";
+import { SessionExpirationHandler } from "@/features/auth/components/session-expiration-handler";
 
 // Lazy load pages for code splitting - reduces initial bundle size
 const NotFound = lazy(() => import("./app/not-found"));
@@ -62,16 +62,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         Skip to content
       </a>
       
-      <div className="min-h-screen grid md:grid-cols-[260px_1fr]">
+      <div className="min-h-screen grid md:grid-cols-[260px_minmax(0,1fr)]">
         {/* Sidebar for desktop */}
         <aside className="hidden md:flex border-r md:sticky md:top-0 md:h-screen">
           <Sidebar />
         </aside>
 
-        <div className="flex min-h-screen flex-col">
+        <div className="flex min-h-screen min-w-0 flex-col">
           <Header onMenuClick={() => setIsMobileMenuOpen(true)} />
           
-          <main id="main" className="flex-1 container mx-auto px-3 xs:px-4 sm:px-6 md:px-8 py-3 xs:py-4 sm:py-6">
+          <main id="main" className="flex-1 min-w-0 container mx-auto px-3 xs:px-4 sm:px-6 md:px-8 py-3 xs:py-4 sm:py-6">
             {children}
           </main>
         </div>
@@ -173,57 +173,6 @@ function Router() {
   );
 }
 
-/**
- * Type guard to check if an error has an HTTP status code
- */
-function isHttpError(error: unknown): error is Error & { status: number } {
-  return (
-    error instanceof Error &&
-    typeof (error as any).status === "number"
-  );
-}
-
-/**
- * SessionExpirationHandler monitors for 401 errors from API calls
- * and redirects to the auth page when the session expires.
- */
-function SessionExpirationHandler() {
-  const [, setLocation] = useLocation();
-
-  useEffect(() => {
-    const handleError = (error: Error) => {
-      // Check if the error is a 401 Unauthorized error
-      if (isHttpError(error) && error.status === 401) {
-        // Clear all cached data
-        queryClient.clear();
-        // Redirect to auth page
-        setLocation("/auth");
-      }
-    };
-
-    // Subscribe to the query cache to catch all query errors
-    const unsubscribeQuery = queryClient.getQueryCache().subscribe((event) => {
-      if (event.type === "updated" && event.query.state.error) {
-        handleError(event.query.state.error as Error);
-      }
-    });
-
-    // Subscribe to the mutation cache to catch all mutation errors
-    const unsubscribeMutation = queryClient.getMutationCache().subscribe((event) => {
-      if (event.type === "updated" && event.mutation.state.error) {
-        handleError(event.mutation.state.error as Error);
-      }
-    });
-
-    return () => {
-      unsubscribeQuery();
-      unsubscribeMutation();
-    };
-  }, [setLocation]);
-
-  return null;
-}
-
 function App() {
   // Reset query cache when error boundary resets to clear any stale error states
   const handleReset = useCallback(() => {
@@ -238,7 +187,6 @@ function App() {
             <SessionExpirationHandler />
             <TooltipProvider>
               <Toaster />
-              <SonnerToaster richColors />
               <Router />
             </TooltipProvider>
           </AuthProvider>

@@ -9,6 +9,41 @@ import { getCsrfToken, clearCsrfTokenCache } from "./csrf";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
+/**
+ * Debounce flag to prevent multiple simultaneous 401 redirects.
+ * Once set, all subsequent 401s are ignored until the redirect completes.
+ */
+let sessionExpiredRedirecting = false;
+
+/** Check whether a session-expired redirect is already in progress. */
+export function isSessionExpiredRedirecting() {
+  return sessionExpiredRedirecting;
+}
+
+/**
+ * Reset the session-expired debounce flag. Only intended for use in tests.
+ * @internal
+ */
+export function _resetSessionExpiredFlag() {
+  sessionExpiredRedirecting = false;
+}
+
+/**
+ * Immediately redirect to the login page when the session has expired.
+ * Clears the query cache and uses a hard navigation to reset all React state.
+ */
+function handleSessionExpired() {
+  if (sessionExpiredRedirecting) return;
+  sessionExpiredRedirecting = true;
+  clearCsrfTokenCache();
+  // Defer the clear + redirect to the next microtask so the calling fetch
+  // can finish propagating its error without hitting a cleared cache.
+  queueMicrotask(() => {
+    queryClient.clear();
+    window.location.replace("/auth?expired=1");
+  });
+}
+
 function extractErrorMessage(errorData: any, fallback: string): string {
   if (!errorData) return fallback;
   if (typeof errorData === "string") return errorData;
@@ -51,6 +86,10 @@ function deriveErrorMessage(res: Response, rawText: string): { message: string; 
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
+    // Immediately redirect on 401 — session is no longer valid
+    if (res.status === 401) {
+      handleSessionExpired();
+    }
     const text = await res.text();
     const { message, parsed } = deriveErrorMessage(res, text);
     const error: any = new Error(message);
@@ -135,10 +174,12 @@ export function getQueryFn<T>({ on401: unauthorizedBehavior }: { on401: Unauthor
 
     if (res.status === 401) {
       clearCsrfTokenCache();
-    }
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null as unknown as T;
+      // For the auth-check query (/api/user), return null so ProtectedRoute
+      // can redirect via Wouter. For everything else, trigger hard redirect.
+      if (unauthorizedBehavior === "returnNull") {
+        return null as unknown as T;
+      }
+      handleSessionExpired();
     }
 
     await throwIfResNotOk(res);

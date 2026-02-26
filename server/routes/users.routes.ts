@@ -18,6 +18,7 @@ import {
 import { eventBus, userCreated, userRoleChanged } from "../events";
 import { getUserService, getInvitationService, getOrganizationService } from "../services/service-factory";
 import { UserValidationError } from "../services/users/user.service";
+import { sendTestEmail } from "../features/email/smtp-settings.service";
 
 const router = Router();
 
@@ -73,8 +74,17 @@ router.patch("/me/preferences", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/me/preferences/test-email", requireAuth, (_req, res) => {
-  res.status(200).json({ message: "Test email requested" });
+router.post("/me/preferences/test-email", requireAuth, async (req: any, res) => {
+  const email = req.user?.email;
+  if (!email) {
+    return res.status(400).json({ ok: false, message: "Your account does not have an email address configured" });
+  }
+  const name = `${req.user?.firstName ?? ""} ${req.user?.lastName ?? ""}`.trim() || email;
+  const result = await sendTestEmail(email, name);
+  if (result.ok) {
+    return res.json({ ok: true, message: "Test email sent" });
+  }
+  return res.status(502).json(result);
 });
 
 // Managers routes

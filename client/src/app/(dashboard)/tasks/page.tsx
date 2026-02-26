@@ -355,7 +355,7 @@ export default function TasksPage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table className="min-w-full">
+            <Table className="min-w-[900px]">
             <TableHeader>
               <TableRow>
                 <SortableTableHeader

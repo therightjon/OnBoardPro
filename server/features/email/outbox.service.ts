@@ -57,7 +57,17 @@ export async function claimImmediateOutbox(limit: number): Promise<NotificationO
     SET status = 'retrying'
     FROM candidates c
     WHERE o.id = c.id
-    RETURNING o.*
+    RETURNING
+      o.id            AS "id",
+      o.notification_id AS "notificationId",
+      o.user_id       AS "userId",
+      o.status        AS "status",
+      o.retry_count   AS "retryCount",
+      o.next_attempt_at AS "nextAttemptAt",
+      o.created_at    AS "createdAt",
+      o.digest_candidate AS "digestCandidate",
+      o.last_error    AS "lastError",
+      o.delivered_at  AS "deliveredAt"
   `);
 
   return result.rows ?? [];

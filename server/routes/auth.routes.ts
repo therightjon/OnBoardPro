@@ -10,7 +10,7 @@ import { getInvitationService, getAuthProviderService, getUserService } from "..
 import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../services/login-rate-limit";
 import { comparePasswords } from "../utils/passwords";
 import { hydrateAuthUser } from "../features/auth/services";
-import { FIXED_LDAP_USER_FILTER_TEMPLATE } from "../features/auth/identifier";
+import { FIXED_LDAP_USER_FILTER_TEMPLATE, normalizeLdapBindDn } from '../features/auth/identifier';
 import { logger } from "../utils/logger";
 
 const router = Router();
@@ -661,11 +661,26 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
     };
     const authProviderService = getAuthProviderService();
     const current = await authProviderService.getLdapSettings();
-    const cfg = { ...current, ...override, userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE };
+    const cfg = {
+      url: override.url ?? current?.url,
+      startTls: override.startTls ?? current?.startTls,
+      baseDn: override.baseDn ?? current?.baseDn,
+      bindDn: override.bindDn ?? current?.bindDn,
+      bindPassword: override.bindPassword ?? current?.bindPassword,
+      usernameAttr: override.usernameAttr ?? current?.usernameAttr,
+      firstNameAttr: override.firstNameAttr ?? current?.firstNameAttr,
+      lastNameAttr: override.lastNameAttr ?? current?.lastNameAttr,
+      emailAttr: override.emailAttr ?? current?.emailAttr,
+      disabledFilter: override.disabledFilter ?? current?.disabledFilter,
+      userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
+    };
 
     if (!cfg.url || !cfg.bindDn || !cfg.bindPassword || !cfg.baseDn) {
       return res.status(400).json({ ok: false, message: 'Missing required settings (url, bindDn, bindPassword, baseDn)' });
     }
+
+    // Normalize bare username to UPN format (e.g. jesteen → jesteen@ad.hs.uab.edu)
+    cfg.bindDn = normalizeLdapBindDn(cfg.bindDn, cfg.url);
 
     const ldapMod: any = await import('ldapjs');
     const createClient: any = ldapMod?.createClient ?? ldapMod?.default?.createClient;
@@ -678,36 +693,55 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
     const doTest = () => new Promise<{ ok: boolean; message: string }>((resolve) => {
       client.on('error', (err: any) => {
         logger.error('LDAP test connection error', err);
-        resolve({ ok: false, message: 'Connection failed' });
+        resolve({ ok: false, message: `Connection failed: ${err.message || err.code || 'unknown'}` });
       });
 
-      client.bind(cfg.bindDn!, cfg.bindPassword!, (bindErr: any) => {
-        if (bindErr) {
-          logger.error('LDAP test bind error', bindErr);
-          client.destroy();
-          resolve({ ok: false, message: 'Bind failed' });
-          return;
-        }
-        // Optional: quick search to verify baseDn reachable
-        const opts = { filter: LDAP_TEST_BASE_DN_FILTER, scope: 'base' as const };
-        client.search(cfg.baseDn!, opts, (searchErr: any, searchRes: any) => {
-          if (searchErr) {
-            logger.error('LDAP test search error', searchErr);
+      const performBind = () => {
+        logger.debug('LDAP test: attempting bind', { bindDn: cfg.bindDn, url: cfg.url, startTls: cfg.startTls });
+        client.bind(cfg.bindDn!, cfg.bindPassword!, (bindErr: any) => {
+          if (bindErr) {
+            logger.error('LDAP test bind error', bindErr);
             client.destroy();
-            resolve({ ok: false, message: 'Search failed' });
+            resolve({ ok: false, message: `Bind failed: ${bindErr.lde_message || bindErr.message || bindErr.code || 'unknown'}` });
             return;
           }
-          searchRes.on('end', () => {
-            client.destroy();
-            resolve({ ok: true, message: 'OK' });
-          });
-          searchRes.on('error', (err: any) => {
-            logger.error('LDAP test search result error', err);
-            client.destroy();
-            resolve({ ok: false, message: 'Search error' });
+          // Optional: quick search to verify baseDn reachable
+          const opts = { filter: LDAP_TEST_BASE_DN_FILTER, scope: 'base' as const };
+          client.search(cfg.baseDn!, opts, (searchErr: any, searchRes: any) => {
+            if (searchErr) {
+              logger.error('LDAP test search error', searchErr);
+              client.destroy();
+              resolve({ ok: false, message: 'Search failed' });
+              return;
+            }
+            searchRes.on('end', () => {
+              client.destroy();
+              resolve({ ok: true, message: 'OK' });
+            });
+            searchRes.on('error', (err: any) => {
+              logger.error('LDAP test search result error', err);
+              client.destroy();
+              resolve({ ok: false, message: 'Search error' });
+            });
           });
         });
-      });
+      };
+
+      if (cfg.startTls) {
+        logger.debug('LDAP test: initiating StartTLS', { url: cfg.url });
+        client.starttls({ rejectUnauthorized: false }, null, (tlsErr: any) => {
+          if (tlsErr) {
+            logger.error('LDAP test StartTLS error', tlsErr);
+            client.destroy();
+            resolve({ ok: false, message: `StartTLS negotiation failed: ${tlsErr.message || tlsErr.code || 'unknown'}` });
+            return;
+          }
+          logger.debug('LDAP test: StartTLS successful');
+          performBind();
+        });
+      } else {
+        performBind();
+      }
     });
 
     const result = await doTest();

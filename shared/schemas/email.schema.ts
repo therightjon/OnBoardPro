@@ -57,6 +57,8 @@ export const smtpSettings = pgTable("smtp_settings", {
   fromName: text("from_name"),
   fromEmail: text("from_email"),
   allowHeaderSpoofing: boolean("allow_header_spoofing").notNull().default(false),
+  rateLimitPerMinute: integer("rate_limit_per_minute").notNull().default(30),
+  rateLimitPerHour: integer("rate_limit_per_hour").notNull().default(500),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });

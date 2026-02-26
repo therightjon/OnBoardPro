@@ -11,6 +11,7 @@
 import type { User, InsertUser, UserRole, UserIdentity, InsertUserIdentity } from "@shared/schemas";
 import type { UserRepository } from "../../repositories/users/UserRepository";
 import type { UserIdentityRepository } from "../../repositories/users/UserIdentityRepository";
+import type { UserPreferencesRepository } from "../../repositories/users/UserPreferencesRepository";
 import { eventBus, userCreated, userRoleChanged } from "../../events";
 import { writeAuditLog } from "../shared/audit-logger";
 import { assertPasswordPolicy, hashPassword } from "../../utils/passwords";
@@ -64,7 +65,8 @@ export interface GetUsersFilters {
 export class UserService {
   constructor(
     private userRepo: UserRepository,
-    private userIdentityRepo?: UserIdentityRepository
+    private userIdentityRepo?: UserIdentityRepository,
+    private userPreferencesRepo?: UserPreferencesRepository
   ) {}
 
   /**
@@ -300,9 +302,8 @@ export class UserService {
    * Get user preferences
    */
   async getUserPreferences(userId: string): Promise<any> {
-    const repo: any = this.userRepo as any;
-    if (typeof repo.getUserPreferences === "function") {
-      return repo.getUserPreferences(userId);
+    if (this.userPreferencesRepo) {
+      return this.userPreferencesRepo.getUserPreferences(userId);
     }
     return undefined;
   }
@@ -311,9 +312,8 @@ export class UserService {
    * Upsert user preferences
    */
   async upsertUserPreferences(userId: string, preferences: any, actorId?: string, requestId?: string): Promise<any> {
-    const repo: any = this.userRepo as any;
-    if (typeof repo.upsertUserPreferences === "function") {
-      const result = await repo.upsertUserPreferences(userId, preferences);
+    if (this.userPreferencesRepo) {
+      const result = await this.userPreferencesRepo.upsertUserPreferences(userId, preferences);
       await writeAuditLog({
         actorId: actorId ?? userId,
         resourceType: "user",

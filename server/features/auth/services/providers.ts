@@ -1,7 +1,8 @@
 // Authentication provider interfaces and implementations
 
 import type { User, InsertUser, UserIdentity, InsertUserIdentity } from "@shared/schemas";
-import { buildLdapUserSearchFilter, toLdapUsername } from "../identifier";
+import { buildLdapUserSearchFilter, toLdapUsername, normalizeLdapBindDn } from "../identifier";
+import { logger } from '../../../utils/logger';
 
 // Common user profile from any provider
 export interface UserProfile {
@@ -65,7 +66,7 @@ export class LdapAuthProvider implements AuthProvider {
       const ldapMod: any = await import('ldapjs');
       const createClient: any = ldapMod?.createClient ?? ldapMod?.default?.createClient;
       if (typeof createClient !== 'function') {
-        console.error('ldapjs module shape unexpected in provider:', Object.keys(ldapMod || {}));
+        logger.error('ldapjs module shape unexpected in provider', undefined, { keys: Object.keys(ldapMod || {}) });
         return { success: false, error: 'LDAP library load failed' };
       }
 
@@ -81,18 +82,21 @@ export class LdapAuthProvider implements AuthProvider {
 
         // Handle connection errors
         client.on('error', (err: any) => {
-          console.error('LDAP connection error:', err);
-          resolve({ success: false, error: 'LDAP connection failed' });
+          logger.error('LDAP connection error', err);
+          resolve({ success: false, error: `LDAP connection failed: ${err.message || err.code || 'unknown'}` });
         });
 
-        // Step 1: Bind with service account to search for user
-        client.bind(this.config.bindDn, this.config.bindPassword, (bindErr: any) => {
-          if (bindErr) {
-            console.error('LDAP bind error:', bindErr);
-            client.destroy();
-            resolve({ success: false, error: 'LDAP authentication failed' });
-            return;
-          }
+        // Step 1: Optionally upgrade to TLS, then bind with service account
+        const normalizedBindDn = normalizeLdapBindDn(this.config.bindDn, this.config.url);
+        const performServiceBind = () => {
+          logger.debug('LDAP auth: attempting service account bind', { bindDn: normalizedBindDn, url: this.config.url, startTls: this.config.startTls });
+          client.bind(normalizedBindDn, this.config.bindPassword, (bindErr: any) => {
+            if (bindErr) {
+              logger.error('LDAP bind error', bindErr);
+              client.destroy();
+              resolve({ success: false, error: `LDAP authentication failed: ${bindErr.lde_message || bindErr.message || 'unknown'}` });
+              return;
+            }
 
           // Step 2: Search for user
           const searchFilter = buildLdapUserSearchFilter(username ?? "");
@@ -110,7 +114,7 @@ export class LdapAuthProvider implements AuthProvider {
 
           client.search(this.config.baseDn, searchOptions, (searchErr: any, searchRes: any) => {
             if (searchErr) {
-              console.error('LDAP search error:', searchErr);
+              logger.error('LDAP search error', searchErr);
               client.destroy();
               resolve({ success: false, error: 'User search failed' });
               return;
@@ -147,7 +151,7 @@ export class LdapAuthProvider implements AuthProvider {
             });
 
             searchRes.on('error', (err: any) => {
-              console.error('LDAP search result error:', err);
+              logger.error('LDAP search result error', err);
               client.destroy();
               resolve({ success: false, error: 'User search failed' });
             });
@@ -171,7 +175,7 @@ export class LdapAuthProvider implements AuthProvider {
                 client.destroy();
                 
                 if (userBindErr) {
-                  console.error('LDAP user bind error:', userBindErr, { input: originalInput });
+                  logger.error('LDAP user bind error', userBindErr, { input: originalInput });
                   resolve({ success: false, error: 'Invalid credentials' });
                   return;
                 }
@@ -184,10 +188,27 @@ export class LdapAuthProvider implements AuthProvider {
             });
           });
         });
+        };
+
+        if (this.config.startTls) {
+          logger.debug('LDAP auth: initiating StartTLS', { url: this.config.url });
+          client.starttls({ rejectUnauthorized: false }, null, (tlsErr: any) => {
+            if (tlsErr) {
+              logger.error('LDAP StartTLS error', tlsErr);
+              client.destroy();
+              resolve({ success: false, error: `StartTLS negotiation failed: ${tlsErr.message || tlsErr.code || 'unknown'}` });
+              return;
+            }
+            logger.debug('LDAP auth: StartTLS successful');
+            performServiceBind();
+          });
+        } else {
+          performServiceBind();
+        }
       });
 
     } catch (error) {
-      console.error('LDAP authentication error:', error);
+      logger.error('LDAP authentication error', error as Error);
       return { success: false, error: 'LDAP authentication failed' };
     }
   }

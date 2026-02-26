@@ -70,6 +70,8 @@ export function LooDateDialog({
   // Parse reference dates for validation (using local date parsing to avoid timezone issues)
   const loiDate = parseAsLocalDate(letterOfIntentDate);
   const issuedDate = parseAsLocalDate(offerLetterIssuedAt);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   const updateMutation = useMutation({
     mutationFn: async (date: Date) => {
@@ -110,6 +112,19 @@ export function LooDateDialog({
   });
 
   const handleSubmit = () => {
+    if (type === "accepted" && selectedDate) {
+      const normalizedSelectedDate = new Date(selectedDate);
+      normalizedSelectedDate.setHours(0, 0, 0, 0);
+      if (normalizedSelectedDate > today) {
+        toast({
+          title: "Invalid date",
+          description: "LOO accepted date cannot be in the future.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     if (selectedDate) {
       updateMutation.mutate(selectedDate);
     }
@@ -134,6 +149,11 @@ export function LooDateDialog({
         return true;
       }
     } else if (type === "accepted") {
+      // LOO Accepted cannot be in the future
+      if (d > today) {
+        return true;
+      }
+
       // LOO Accepted must be on or after LOO Issued date
       if (issuedDate && d < issuedDate) {
         return true;

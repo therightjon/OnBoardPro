@@ -18,7 +18,7 @@ npm run db:import     # Import database export
 npm run user:set-password  # Set user password
 
 # Docker
-docker-compose up     # Start PostgreSQL 16 locally (port 5432)
+docker-compose up     # Start PostgreSQL 17.6 locally (port 5432)
 ```
 
 ## Architecture

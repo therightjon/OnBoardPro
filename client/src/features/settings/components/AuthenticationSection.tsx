@@ -111,7 +111,7 @@ export function AuthenticationProvidersSection() {
           <>
             {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
-              <Table>
+              <Table className="min-w-[980px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Provider</TableHead>
@@ -382,6 +382,9 @@ export function LdapSettingsSection() {
                       Stored as <code className="bg-muted px-1 rounded">{data.settings.bindDnMasked}</code>. Leave empty to keep.
                     </p>
                   )}
+                  <p className="text-xs text-muted-foreground">
+                    You can enter just a username (e.g. <code className="bg-muted px-1 rounded">jesteen</code>) — the domain from the LDAP URL will be appended automatically.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="ldap-bindpw">Bind Password</Label>

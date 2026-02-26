@@ -1,64 +1,87 @@
 # Domain Glossary
 
-Common terms for OnBoardPro so client/server/services stay aligned.
+Common terms used across OnBoardPro's client, server, and shared schemas.
 
-## Roles & access
-- **system_admin**: Full control, manages settings/users/templates.
-- **hr_staff**: Core HR operations, candidate/task/template management.
-- **department_admin**: Department-scoped management; elevated visibility.
-- **division_leader**: Division-scoped management; elevated visibility.
-- **manager**: Manages assigned candidates/tasks; limited admin powers.
-- **candidate**: Self-service access for linked candidate users.
-- **Scopes**: Department/division/managed-candidate scopes are applied in repositories and middleware for visibility filtering.
+Last Updated: 2026-02-18
 
-## Candidate lifecycle
-- **Candidate**: Person moving through onboarding. Key fields: status, currentStageId, department/division, primaryOwnerId, linkedUserId.
-- **Status**: `active`, `archived`, plus lifecycle states in shared enums (e.g., hired/rejected). `statusBeforeArchive` tracks rollback state.
-- **Stage**: Steps in the hiring pipeline (Drizzle table `hiring_stages`). Stored on candidates as `currentStageId`; history tracked via repositories.
-- **Candidate Type**: Classification (faculty/staff/etc.) from `candidate_types`.
-- **Followers**: Users subscribed to updates on a candidate.
-- **Template Application**: Applying a workflow template to a candidate to materialize stages/tasks.
-- **Owner/Manager**: Primary owner (often HR) vs manager; both used in auth visibility checks.
+## Roles and Access
 
-## Templates & tasks
-- **Template**: Reusable onboarding workflow; composed of template stages and template tasks.
-- **Template Stage**: Grouping of tasks with ordering; can be reordered.
-- **Template Task**: Task definition tied to a stage; can include due rules and assignee info.
-- **Task Definition**: Reference data used when creating candidate tasks; lives in `task_definitions`.
-- **Candidate Task**: Task instantiated for a candidate; status/assignee/due date tracked per candidate.
-- **Due Rules**: Rules for task due dates relative to anchor dates; computed via TaskDueDateService.
-- **Priority**: Task priority enum (`priorityEnum`).
+- `system_admin`: Full system administration, including auth provider and SMTP/security settings.
+- `hr_staff`: Broad operational access across candidates, templates, tasks, users, and org data.
+- `department_admin`: Department-scoped management.
+- `division_leader`: Division-scoped management.
+- `manager`: Manager-scoped candidate/task access.
+- `candidate`: Self-service access for linked candidate users.
+- Scope tables: `user_department_scopes`, `user_division_scopes`, `manager_candidate_scopes`.
 
-## Notifications & comments
-- **Notification**: Stored notification records keyed by entity (`notificationEntityEnum`); delivered via UI and email outbox.
-- **Notification Key**: Prevents duplicates for certain events (`notificationKeys` table).
-- **Outbox**: Email outbox entries (`notificationOutbox`) processed by jobs.
-- **Comments**: User comments on candidates/tasks with mention support (`mentionKey` on users).
+## Candidate Lifecycle
 
-## Audit logging
-- **Audit Log Entry**: Immutable record of a system action or event; stored in `audit_log` table.
-- **Actor**: User who performed the action (`actorId` field).
-- **Resource Type**: Type of entity affected (candidate, task, template, user, etc.).
-- **Resource ID**: Unique identifier of the affected resource.
-- **Action**: Type of operation (create, update, delete, archive, restore, assign, status_change, access_denied).
-- **Event Type**: Category of audit event (crud, authorization).
-- **Access Denied**: Authorization failure logged for security tracking.
-- **writeAuditLog()**: Helper function called from services to record audit entries; non-blocking.
-- **Cursor Pagination**: Efficient pagination using `occurredAt` timestamps with `before` parameter.
+- Candidate: person moving through a hiring/onboarding process (`candidates`).
+- Candidate status enum:
+  - `draft`, `active`, `on_hold`, `completed`, `canceled`, `offer_declined`, `archived`.
+- Letter of Intent date: `letterOfIntentDate`; required at candidate creation and treated as immutable.
+- LOO dates: `offerLetterIssuedAt`, `offerLetterAcceptedAt`.
+- Template selection vs application:
+  - selected via `templateAppliedFromId`
+  - fully applied when `templateAppliedAt` is set
+- Stage history: transition trail in `candidate_stage_history`.
+- Followers: watchers in `candidate_followers`.
 
-## Auth & identity
-- **Auth Providers**: Local, Google, Azure AD, LDAP; configured in auth provider service and routes.
-- **Session**: Express-session with Postgres store; cookie `connect.sid`.
-- **Mention Key**: Unique per user for mentions in comments/notifications.
+## Templates and Tasks
 
-## Data/shared
-- **Shared schema**: `shared/schema.ts` and `shared/schemas/*.ts` define database tables/enums and Zod schemas reused by client/server.
-- **Preferences**: User preference payloads defined in `shared/preferences.ts` and consumed via `/api/me/preferences`.
+- Template: reusable workflow definition (`templates`).
+- Template stage: ordered stage row in `template_stages` with `phase` (`pre_hire` or `onboarding`).
+- Template task: task blueprint in `template_tasks`, including due rule and assignee defaults.
+- Candidate task: runtime task instance in `candidate_tasks`.
+- Prerequisite task: template task with `isPrerequisite=true`, expanded at candidate creation.
+- Prerequisite condition enum:
+  - `requires_pt`, `always`.
+- Due rules: 18 values in `due_rule_type` enum (`shared/schemas/task.enums.ts`).
+- Pending anchor: task has a rule but missing required anchor date (`pendingAnchor=true`).
 
-## Database migrations
-- **Migration Scripts**: SQL migration files in `migrations/` directory (e.g., `0018_crud_audit.sql`).
-- **runMigration.ts**: TypeScript script to run a single SQL migration file with transaction support.
-- **runSqlFiles.ts**: TypeScript script to run multiple SQL migration files sequentially.
-- **DATABASE_URL**: Environment variable for PostgreSQL connection; SSL auto-enabled for Neon hosts.
-- **npm run db:migrate-file**: Command to run a single migration file.
-- **npm run db:run-sql**: Command to run multiple SQL files.
+## Notifications and Email
+
+- Notification: in-app event record (`notifications`).
+- Notification key: idempotency key for de-duping (`notification_keys`).
+- Notification outbox: email delivery queue (`notification_outbox`).
+- Digest frequency: user preference (`immediate`, `hourly`, `daily`, `weekly`, `none`).
+- SMTP settings: encrypted transport config in `smtp_settings`.
+
+## Comments and Mentions
+
+- Comment: collaboration entry attached to candidate/task.
+- Mention key: user lookup token (`users.mentionKey`) for mention parsing.
+- Mention notification: created as `type="mention"` in notifications flow.
+
+## Authentication and Identity
+
+- Auth providers: `local`, `ldap`, `google`, `azuread` (`auth_providers`).
+- Session: server-side session with `connect.sid` cookie.
+- User identity: provider-linked identity in `user_identities`.
+- Invitation: pre-provisioned onboarding token in `invitations`.
+
+## Audit and Operations
+
+- Audit log: immutable admin/system audit entries (`audit_log`).
+- System settings: JSON-backed key/value controls (`system_settings`).
+- Security settings: session timeout values managed via `/api/settings/security`.
+- Health endpoints:
+  - `/health`
+  - `/health/ready`
+  - `/health/live`
+  - `/ping`
+
+## Shared Contracts
+
+- Canonical schemas: `shared/schemas/*.ts`.
+- Legacy aggregate schema export: `shared/schema.ts`.
+- Preferences contract: `shared/preferences.ts`.
+
+## Migration Utilities
+
+- SQL migrations: `migrations/*.sql`.
+- Single file migration runner: `scripts/runMigration.ts`.
+- Multi-file SQL runner: `scripts/runSqlFiles.ts`.
+- Script wrappers:
+  - `npm run db:migrate-file -- <file.sql>`
+  - `npm run db:run-sql -- <file1.sql> [file2.sql...]`

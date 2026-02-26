@@ -265,7 +265,8 @@ export class ServiceFactory {
     if (!this.userServiceInstance) {
       this.userServiceInstance = new UserService(
         this.userRepo,
-        this.userIdentityRepo
+        this.userIdentityRepo,
+        this.userPreferencesRepo
       );
     }
     return this.userServiceInstance;

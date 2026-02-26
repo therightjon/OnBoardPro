@@ -93,6 +93,7 @@ export function ArchiveCandidateDialog({
       anticipatedStartDate: undefined,
     },
   });
+  const selectedRestoreIssuedDate = resetForm.watch("offerLetterIssuedAt");
 
   useEffect(() => {
     if (open && wasCanceledBeforeArchive) {
@@ -325,35 +326,47 @@ export function ArchiveCandidateDialog({
                   <FormField
                     control={resetForm.control}
                     name="offerLetterAcceptedAt"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>LOO Accepted Date (optional)</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-between text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                              type="button"
-                            >
-                              {field.value ? format(field.value, "LLL dd, yyyy") : "Select date"}
-                              <CalendarIcon className="h-4 w-4 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value ?? undefined}
-                              onSelect={(date) => field.onChange(date ?? undefined)}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const issuedDate = selectedRestoreIssuedDate ? new Date(selectedRestoreIssuedDate) : null;
+                      if (issuedDate) issuedDate.setHours(0, 0, 0, 0);
+
+                      return (
+                        <FormItem>
+                          <FormLabel>LOO Accepted Date (optional)</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-between text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                                type="button"
+                              >
+                                {field.value ? format(field.value, "LLL dd, yyyy") : "Select date"}
+                                <CalendarIcon className="h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value ?? undefined}
+                                onSelect={(date) => field.onChange(date ?? undefined)}
+                                disabled={(date) => {
+                                  if (date > today) return true;
+                                  if (issuedDate && date < issuedDate) return true;
+                                  return false;
+                                }}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
 
                   <FormField
