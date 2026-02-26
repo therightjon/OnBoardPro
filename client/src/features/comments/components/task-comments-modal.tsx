@@ -10,7 +10,7 @@ export function TaskCommentsModal({ open, taskId, taskTitle, candidateId, onClos
     <Dialog open={visible} onOpenChange={(o) => { setVisible(o); if (!o) onClose(); }}>
       <DialogContent className="w-[100vw] max-h-min sm:h-auto sm:w-auto sm:max-w-[600px] md:max-w-[700px] p-0 sm:p-0">
         <div className="p-4 sm:p-6">
-          <DialogHeader>
+          <DialogHeader className="pr-10">
             <DialogTitle>{taskTitle ? `Comments for ${taskTitle}` : 'Task comments'}</DialogTitle>
             <DialogDescription className="sr-only">
               View and add comments for this task.
