@@ -4,7 +4,7 @@
  * A headless Tiptap editor with a custom toolbar for formatting,
  * link insertion, and template variable insertion via a dialog.
  */
-import { useCallback, useEffect, useState } from "react";
+import { forwardRef, useCallback, useEffect, useState } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 export type { Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -98,6 +98,24 @@ function ToolbarButton({ action, isActive, title, icon, disabled }: ToolbarButto
 // LINK POPOVER
 // ============================================================================
 
+const LinkToggleButton = forwardRef<
+  HTMLButtonElement,
+  { editor: Editor; onToggle: () => void }
+>(({ editor, onToggle, ...props }, ref) => (
+  <Toggle
+    ref={ref}
+    size="sm"
+    pressed={editor.isActive("link")}
+    onPressedChange={onToggle}
+    className="h-8 w-8 p-0"
+    aria-label="Insert link"
+    {...props}
+  >
+    <LinkIcon className="h-4 w-4" />
+  </Toggle>
+));
+LinkToggleButton.displayName = "LinkToggleButton";
+
 function LinkPopover({ editor }: { editor: Editor }) {
   const [url, setUrl] = useState("");
   const [open, setOpen] = useState(false);
@@ -112,36 +130,30 @@ function LinkPopover({ editor }: { editor: Editor }) {
     setUrl("");
   }, [editor, url]);
 
+  const handleToggle = useCallback(() => {
+    if (editor.isActive("link")) {
+      editor.chain().focus().unsetLink().run();
+    } else {
+      const existingHref = editor.getAttributes("link").href;
+      setUrl(existingHref ?? "");
+      setOpen(true);
+    }
+  }, [editor]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Toggle
-                size="sm"
-                pressed={editor.isActive("link")}
-                onPressedChange={() => {
-                  if (editor.isActive("link")) {
-                    editor.chain().focus().unsetLink().run();
-                  } else {
-                    const existingHref = editor.getAttributes("link").href;
-                    setUrl(existingHref ?? "");
-                    setOpen(true);
-                  }
-                }}
-                className="h-8 w-8 p-0"
-                aria-label="Insert link"
-              >
-                <LinkIcon className="h-4 w-4" />
-              </Toggle>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-xs">
-              Insert link
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </PopoverTrigger>
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <LinkToggleButton editor={editor} onToggle={handleToggle} />
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">
+            Insert link
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <PopoverContent className="w-80 p-3" align="start">
         <div className="flex gap-2">
           <Input
@@ -336,6 +348,8 @@ export function TemplateEditor({
     extensions: [
       StarterKit.configure({
         heading: false,  // Email templates don't need headings typically
+        link: false,     // Use standalone Link with custom config below
+        underline: false, // Use standalone Underline below to avoid duplicates
       }),
       Link.configure({
         openOnClick: false,
