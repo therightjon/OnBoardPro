@@ -21,3 +21,6 @@ export {
   LdapSettingsSection, 
   AuthenticationSettingsSection 
 } from "./components/AuthenticationSection";
+
+// Email Template Components
+export { EmailTemplatesCard } from "./components/email-templates";

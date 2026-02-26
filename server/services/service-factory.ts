@@ -58,6 +58,8 @@ import { AuthProviderService } from "./auth/auth-provider.service";
 import { DashboardService } from "./dashboard/dashboard.service";
 import { AuthorizationService } from "./authorization/AuthorizationService";
 import { AuditService } from "./audit/audit.service";
+import { EmailTemplateService } from "./email/email-template.service";
+import { EmailTemplateRepository } from "../repositories/email/EmailTemplateRepository";
 
 /**
  * Service factory class
@@ -96,6 +98,7 @@ export class ServiceFactory {
   protected notificationRepo: NotificationRepository;
   protected commentRepo: CommentRepository;
   protected searchRepo: SearchRepository;
+  protected emailTemplateRepo: EmailTemplateRepository;
 
   // Service instances (singletons)
   protected candidateServiceInstance: CandidateService | null = null;
@@ -117,6 +120,7 @@ export class ServiceFactory {
   protected dashboardServiceInstance: DashboardService | null = null;
   protected authorizationServiceInstance: AuthorizationService | null = null;
   protected auditServiceInstance: AuditService | null = null;
+  protected emailTemplateServiceInstance: EmailTemplateService | null = null;
 
   constructor() {
     // Initialize repositories - Candidates
@@ -149,6 +153,9 @@ export class ServiceFactory {
     this.notificationRepo = new NotificationRepository(db, pool);
     this.commentRepo = new CommentRepository(db, pool);
     this.searchRepo = new SearchRepository(db, pool);
+
+    // Initialize repositories - Email
+    this.emailTemplateRepo = new EmailTemplateRepository(db, pool);
   }
 
   /**
@@ -375,6 +382,18 @@ export class ServiceFactory {
   }
 
   /**
+   * Get EmailTemplateService instance
+   */
+  getEmailTemplateService(): EmailTemplateService {
+    if (!this.emailTemplateServiceInstance) {
+      this.emailTemplateServiceInstance = new EmailTemplateService(
+        this.emailTemplateRepo
+      );
+    }
+    return this.emailTemplateServiceInstance;
+  }
+
+  /**
    * Get all services
    * Useful for initializing everything at once
    */
@@ -485,6 +504,7 @@ export interface IServiceFactory {
   getDashboardService(): DashboardService;
   getAuthorizationService(): AuthorizationService;
   getAuditService(): AuditService;
+  getEmailTemplateService(): EmailTemplateService;
   // Repository getters
   getNotificationRepository(): NotificationRepository;
   getCandidateRepository(): CandidateRepository;
@@ -604,6 +624,10 @@ export const getAuthorizationService = () => activeFactory.getAuthorizationServi
  * Convenience getter for audit service.
  */
 export const getAuditService = () => activeFactory.getAuditService();
+/**
+ * Convenience getter for email template service.
+ */
+export const getEmailTemplateService = () => activeFactory.getEmailTemplateService();
 
 // Repository convenience getters
 

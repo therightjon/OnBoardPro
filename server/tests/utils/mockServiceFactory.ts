@@ -991,6 +991,18 @@ export class MockServiceFactory {
       getUsersWithPreferences: () => Promise.resolve([])
     };
   }
+
+  getEmailTemplateService(): any {
+    return {
+      getAllTemplates: () => Promise.resolve([]),
+      getTemplate: () => Promise.resolve(null),
+      updateTemplate: () => Promise.resolve(null),
+      resetTemplate: () => Promise.resolve(null),
+      renderPreview: () => ({ subject: "Test", html: "<p>Test</p>" }),
+      renderFromTemplate: () => ({ subject: "Test", text: "Test", html: "<p>Test</p>" }),
+      renderDigestFromTemplate: () => ({ subject: "Digest", text: "Digest", html: "<p>Digest</p>" }),
+    };
+  }
 }
 
 // Export singleton for tests

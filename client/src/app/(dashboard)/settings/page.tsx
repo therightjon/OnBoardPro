@@ -16,7 +16,8 @@ import {
   Building,
   Users,
   Target,
-  Key
+  Key,
+  Mail,
 } from "lucide-react";
 
 // Personal Settings Components
@@ -31,7 +32,8 @@ import {
   UsersSection,
   AuthenticationSettingsSection,
   SmtpSettingsCard,
-  SecuritySettingsSection
+  SecuritySettingsSection,
+  EmailTemplatesCard,
 } from "@/features/settings";
 
 // ============================================================================
@@ -100,9 +102,17 @@ function AuthenticationTab() {
 function SystemTab() {
   return (
     <div className="space-y-6">
-      <SmtpSettingsCard />
       <SecuritySettingsSection />
       <SystemPreferencesSection />
+    </div>
+  );
+}
+
+function EmailTab() {
+  return (
+    <div className="space-y-6">
+      <SmtpSettingsCard />
+      <EmailTemplatesCard />
     </div>
   );
 }
@@ -182,6 +192,14 @@ export default function SettingsPage() {
                     Authentication
                   </TabsTrigger>
                   <TabsTrigger
+                    value="email"
+                    data-testid="tab-email"
+                    className="capitalize text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-background data-[state=active]:shadow-sm border border-border sm:border-0"
+                  >
+                    <Mail className="w-4 h-4 mr-1.5 shrink-0" />
+                    Email
+                  </TabsTrigger>
+                  <TabsTrigger
                     value="system"
                     data-testid="tab-system"
                     className="capitalize text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-background data-[state=active]:shadow-sm border border-border sm:border-0"
@@ -213,6 +231,9 @@ export default function SettingsPage() {
             </TabsContent>
             <TabsContent value="authentication" className="mt-6 min-h-[70vh]">
               <AuthenticationTab />
+            </TabsContent>
+            <TabsContent value="email" className="mt-6 min-h-[70vh]">
+              <EmailTab />
             </TabsContent>
             <TabsContent value="system" className="mt-6 min-h-[70vh]">
               <SystemTab />
