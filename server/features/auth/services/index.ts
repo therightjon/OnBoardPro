@@ -47,8 +47,8 @@ export async function initializeAuthProviders() {
         providerRegistry.register(ldapProvider);
         console.log("✓ LDAP authentication provider registered");
       } catch (error) {
-        console.error("✗ Failed to register LDAP provider:", error);
-        throw error;
+        // Log but do NOT throw — LDAP failure must not prevent server startup or local auth
+        console.error("✗ Failed to register LDAP provider (non-fatal, local auth unaffected):", error);
       }
     } else if (!ldapEnabled) {
       console.log("⚠ LDAP provider disabled in database");
@@ -62,7 +62,13 @@ export async function initializeAuthProviders() {
     console.error("Failed to initialize auth providers:", error);
     // Fall back to environment-only configuration
     console.log("Falling back to environment-only configuration...");
-    initializeProvidersFromConfig();
+    try {
+      initializeProvidersFromConfig();
+    } catch (fallbackError) {
+      console.error("Fallback provider initialization also failed (non-fatal):", fallbackError);
+      // Continue with whatever providers were successfully registered.
+      // At minimum the server should start so local auth can work.
+    }
     return;
   }
 
@@ -100,8 +106,8 @@ function initializeProvidersFromConfig() {
       providerRegistry.register(ldapProvider);
       console.log("✓ LDAP authentication provider registered (config fallback)");
     } catch (error) {
-      console.error("✗ Failed to register LDAP provider:", error);
-      throw error;
+      // Log but do NOT throw — LDAP failure must not prevent server startup or local auth
+      console.error("✗ Failed to register LDAP provider (non-fatal, local auth unaffected):", error);
     }
   }
 }
