@@ -347,7 +347,7 @@ router.get("/candidates/:id", sensitiveRateLimiter, requireAuth, async (req, res
           }
         }
       } catch (expansionError: any) {
-        console.error('Failed to auto-expand template on GET:', expansionError);
+        logger.error('Failed to auto-expand template on GET', expansionError);
         // Don't fail the request - just log the error
       }
     } else if (
@@ -588,7 +588,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
           });
         }
       } catch (prerequisiteError: any) {
-        console.error('Failed to expand prerequisite tasks on creation:', prerequisiteError);
+        logger.error('Failed to expand prerequisite tasks on creation', prerequisiteError);
         // Don't fail candidate creation - prerequisites can be expanded later
       }
     }
@@ -632,7 +632,7 @@ router.post("/candidates", requireAuth, requireRole(["system_admin", "hr_staff",
         autoRecomputeResult = stageSync.recompute;
         autoAdvanceCandidate = stageSync.updatedCandidate;
       } catch (templateError: any) {
-        console.error('Failed to auto-apply template on creation:', templateError);
+        logger.error('Failed to auto-apply template on creation', templateError);
         // Don't fail candidate creation - user can manually apply template later
       }
     }
@@ -874,7 +874,7 @@ router.patch("/candidates/:id", requireAuth, requireRole(["system_admin", "hr_st
         autoRecomputeResult = stageSync.recompute;
         autoAdvanceCandidate = stageSync.updatedCandidate;
       } catch (templateError: any) {
-        console.error('Failed to auto-apply template on LOO acceptance:', templateError);
+        logger.error('Failed to auto-apply template on LOO acceptance', templateError);
         // Don't fail the whole request - the LOO acceptance was recorded
         // User can manually apply template later if needed
       }
@@ -1259,13 +1259,13 @@ router.get("/candidates/:id/stages", requireAuth, async (req, res, next) => {
 
     // Return empty array if no snapshots found instead of throwing
     if (!stages || stages.length === 0) {
-      console.warn(`No stage snapshots found for candidate ${id}`);
+      logger.warn('No stage snapshots found for candidate', { candidateId: id });
       return res.json([]);
     }
 
     res.json(stages);
   } catch (error) {
-    console.error("Error fetching candidate stages for %s:", req.params.id, error);
+    logger.error('Error fetching candidate stages', error, { candidateId: req.params.id });
     // Return empty array instead of crashing
     res.json([]);
   }
@@ -1397,7 +1397,7 @@ router.post("/candidates/:id/apply-template", requireAuth, requireRole(["system_
         )
       );
     } catch (notifyError) {
-      console.error('Failed to dispatch template task assignment notifications:', notifyError);
+      logger.error('Failed to dispatch template task assignment notifications', notifyError);
     }
 
     const stageSync = await synchronizeCandidateStage({
@@ -1415,7 +1415,7 @@ router.post("/candidates/:id/apply-template", requireAuth, requireRole(["system_
       recompute: stageSync.recompute,
     });
   } catch (error: any) {
-    console.error('Template application failed:', error);
+    logger.error('Template application failed', error);
     if (error.message) {
       return res.status(400).json({ message: error.message });
     }
