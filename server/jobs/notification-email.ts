@@ -22,8 +22,11 @@ import {
 import type { DigestCapableFrequency } from "../features/email/outbox.service";
 import { getOrCreateTransport } from "../features/email/smtp-settings.service";
 import type { MaterializedSmtpSettings } from "../features/email/smtp-settings.service";
-import { renderImmediateEmail, renderDigestEmail } from "../features/email/templates";
+import { renderImmediateEmail, renderDigestEmail, summarizeNotification } from "../features/email/templates";
 import { evaluateRateLimit, incrementRateLimit } from "../services/rate-limit.service";
+import { getEmailTemplateService } from "../services/service-factory";
+import { buildAppUrl } from "../utils/app-url";
+import { logger } from "../utils/logger";
 
 const IMMEDIATE_POLL_INTERVAL_MS = 30_000;
 const DIGEST_CHECK_INTERVAL_MS = 60_000;
@@ -295,12 +298,27 @@ async function processImmediateBatch(entries: NotificationOutboxEntry[]) {
         break;
       }
 
-      const content = renderImmediateEmail({
-        id: notification.id,
-        type: notification.type,
-        payload: notification.payload as Record<string, any>,
-        createdAt: notification.createdAt,
-      });
+      const content = await (async () => {
+        try {
+          const templateService = getEmailTemplateService();
+          const dbTemplate = await templateService.getTemplate(notification.type as any);
+          if (dbTemplate?.isActive) {
+            return templateService.renderFromTemplate(
+              dbTemplate,
+              (notification.payload ?? {}) as Record<string, any>,
+              notification.id
+            );
+          }
+        } catch (err) {
+          logger.warn("[smtp] DB template lookup failed, using hardcoded fallback", { error: err });
+        }
+        return renderImmediateEmail({
+          id: notification.id,
+          type: notification.type,
+          payload: notification.payload as Record<string, any>,
+          createdAt: notification.createdAt,
+        });
+      })();
 
       const fromEmail = settings.fromEmail ?? settings.username;
       if (!fromEmail) {
@@ -455,15 +473,34 @@ async function processDigest(frequency: DigestCapableFrequency) {
         continue;
       }
 
-      const content = renderDigestEmail(
-        frequency,
-        items.map((item) => ({
-          id: item.notificationId,
-          type: item.type,
-          payload: item.payload as Record<string, any>,
-          createdAt: item.createdAt,
-        }))
-      );
+      const notificationItems = items.map((item) => ({
+        id: item.notificationId,
+        type: item.type,
+        payload: item.payload as Record<string, any>,
+        createdAt: item.createdAt,
+      }));
+
+      const content = await (async () => {
+        try {
+          const templateService = getEmailTemplateService();
+          const digestTemplate = await templateService.getTemplate("digest" as any);
+          if (digestTemplate?.isActive) {
+            const itemSummaries = notificationItems.map((n) => {
+              const { summary } = summarizeNotification(n as any);
+              const link = buildAppUrl(`/notifications?focus=${n.id}`);
+              return { summary, link };
+            });
+            return templateService.renderDigestFromTemplate(
+              digestTemplate,
+              frequency,
+              itemSummaries
+            );
+          }
+        } catch (err) {
+          logger.warn("[smtp] DB digest template lookup failed, using hardcoded fallback", { error: err });
+        }
+        return renderDigestEmail(frequency, notificationItems);
+      })();
 
       const fromEmail = settings.fromEmail ?? settings.username;
       if (!fromEmail) {

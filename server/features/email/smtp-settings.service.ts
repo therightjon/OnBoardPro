@@ -507,7 +507,12 @@ export function mapNodemailerError(error: any): { code: string; message: string 
   return { code: "smtp_error", message };
 }
 
-export async function sendTestEmail(recipientEmail: string, recipientName: string | null | undefined): Promise<TestEmailResult> {
+export async function sendTestEmail(
+  recipientEmail: string,
+  recipientName: string | null | undefined,
+  customSubject?: string,
+  customHtml?: string
+): Promise<TestEmailResult> {
   try {
     const { transport, settings } = await getOrCreateTransport();
     const displayName = settings.fromName ?? "OnBoardPro";
@@ -517,9 +522,9 @@ export async function sendTestEmail(recipientEmail: string, recipientName: strin
     await transport.sendMail({
       from: settings.fromEmail ? `${displayName} <${settings.fromEmail}>` : settings.username ?? settings.fromEmail ?? undefined,
       to: recipientName ? `"${recipientName}" <${recipientEmail}>` : recipientEmail,
-      subject: "[OnBoardPro] SMTP Test Email",
-      text: "SMTP configuration is working correctly.",
-      html: `<p>SMTP configuration is working correctly.</p>`,
+      subject: customSubject ?? "[OnBoardPro] SMTP Test Email",
+      text: customHtml ? customHtml.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim() : "SMTP configuration is working correctly.",
+      html: customHtml ?? `<p>SMTP configuration is working correctly.</p>`,
     });
 
     return { ok: true };

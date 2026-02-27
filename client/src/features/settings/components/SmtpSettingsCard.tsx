@@ -616,7 +616,7 @@ export function SmtpSettingsCard() {
                   (isReplacingPassword && !form.getValues("newPassword"))
                 }
               >
-                Save changes
+                Save Changes
               </Button>
               <Button type="button" variant="outline" onClick={handleReset} disabled={loadingState || updateMutation.isPending}>
                 Reset
@@ -631,7 +631,7 @@ export function SmtpSettingsCard() {
               onClick={() => testMutation.mutate()}
               disabled={loadingState || testMutation.isPending || !enabledValue}
             >
-              Send test
+              Send Test
             </Button>
           </div>
         </form>

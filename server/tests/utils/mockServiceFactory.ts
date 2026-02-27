@@ -991,6 +991,43 @@ export class MockServiceFactory {
       getUsersWithPreferences: () => Promise.resolve([])
     };
   }
+
+  getEmailTemplateService(): any {
+    return {
+      getAllTemplates: () => Promise.resolve([]),
+      getTemplate: () => Promise.resolve(null),
+      updateTemplate: () => Promise.resolve(null),
+      resetTemplate: () => Promise.resolve(null),
+      renderPreview: () => Promise.resolve({ subject: "Test", html: "<p>Test</p>" }),
+      renderFromTemplate: () => Promise.resolve({ subject: "Test", text: "Test", html: "<p>Test</p>" }),
+      renderDigestFromTemplate: () => Promise.resolve({ subject: "Digest", text: "Digest", html: "<p>Digest</p>" }),
+      getGlobalSettings: () => Promise.resolve({
+        id: "mock-id",
+        headerText: "OnBoardPro",
+        headerBgColor: "#1e293b",
+        headerTextColor: "#ffffff",
+        footerText: "Sent by OnBoardPro",
+        footerBgColor: "#f8fafc",
+        footerTextColor: "#64748b",
+        pageBgColor: "#f4f4f5",
+        cardBgColor: "#ffffff",
+        updatedBy: null,
+        updatedAt: new Date(),
+      }),
+      updateGlobalSettings: () => Promise.resolve({}),
+      resetGlobalSettings: () => Promise.resolve({}),
+      getLayoutSettings: () => Promise.resolve({
+        headerText: "OnBoardPro",
+        headerBgColor: "#1e293b",
+        headerTextColor: "#ffffff",
+        footerText: "Sent by OnBoardPro",
+        footerBgColor: "#f8fafc",
+        footerTextColor: "#64748b",
+        pageBgColor: "#f4f4f5",
+        cardBgColor: "#ffffff",
+      }),
+    };
+  }
 }
 
 // Export singleton for tests

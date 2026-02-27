@@ -84,10 +84,24 @@ function deriveErrorMessage(res: Response, rawText: string): { message: string; 
   return { message: statusText, parsed: undefined };
 }
 
-async function throwIfResNotOk(res: Response) {
+/**
+ * Authentication endpoint paths where a 401 means "wrong credentials",
+ * NOT "session expired". These should NOT trigger a session-expired redirect.
+ */
+const AUTH_ENDPOINT_PATHS = ["/api/login", "/api/auth/login", "/api/register"];
+
+function isAuthEndpoint(url?: string): boolean {
+  if (!url) return false;
+  // Strip query string / fragment then compare against known auth paths.
+  const path = url.split("?")[0].split("#")[0];
+  return AUTH_ENDPOINT_PATHS.some((p) => path === p || path.endsWith(p));
+}
+
+async function throwIfResNotOk(res: Response, requestUrl?: string) {
   if (!res.ok) {
-    // Immediately redirect on 401 — session is no longer valid
-    if (res.status === 401) {
+    // Only redirect on 401 for non-auth endpoints.
+    // A 401 from a login/register endpoint means bad credentials, not expired session.
+    if (res.status === 401 && !isAuthEndpoint(requestUrl)) {
       handleSessionExpired();
     }
     const text = await res.text();
@@ -133,7 +147,7 @@ export async function apiRequest(
     clearCsrfTokenCache();
   }
 
-  await throwIfResNotOk(res);
+  await throwIfResNotOk(res, url);
   return res;
 }
 
@@ -182,7 +196,7 @@ export function getQueryFn<T>({ on401: unauthorizedBehavior }: { on401: Unauthor
       handleSessionExpired();
     }
 
-    await throwIfResNotOk(res);
+    await throwIfResNotOk(res, url);
     const data = await parseJsonSafe(res, `Request to ${url} `);
     return data as T;
   };

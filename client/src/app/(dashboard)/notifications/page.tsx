@@ -118,7 +118,7 @@ export default function NotificationsPage() {
           disabled={markAllMutation.isPending}
           className="shrink-0"
         >
-          {markAllMutation.isPending ? "Marking…" : "Mark all read"}
+          {markAllMutation.isPending ? "Marking…" : "Mark All Read"}
         </Button>
       </div>
 

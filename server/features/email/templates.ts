@@ -3,7 +3,7 @@ import { buildAppUrl } from "../../utils/app-url";
 
 type FrequencyLabel = "Hourly" | "Daily" | "Weekly";
 
-interface NotificationForEmail {
+export interface NotificationForEmail {
   id: string;
   type: Notification["type"];
   payload: Record<string, any>;
@@ -41,7 +41,7 @@ function formatTaskTitle(payload: Record<string, any> | null | undefined): strin
   return "Task";
 }
 
-function summarizeNotification(notification: NotificationForEmail): { subject: string; summary: string } {
+export function summarizeNotification(notification: NotificationForEmail): { subject: string; summary: string } {
   const { type, payload } = notification;
   const actorName = payload?.actor?.name;
   switch (type) {

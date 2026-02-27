@@ -96,7 +96,7 @@ export function CommentList({ candidateId, taskId, initialVisibility, candidateI
       </div>
 
       {query?.hasNextPage && (
-        <Button size="sm" variant="outline" onClick={() => query.fetchNextPage()} aria-label="Load more comments">Load more</Button>
+        <Button size="sm" variant="outline" onClick={() => query.fetchNextPage()} aria-label="Load more comments">Load More</Button>
       )}
 
       {/* No global reply composer; reply is shown inline beneath the selected parent. */}
