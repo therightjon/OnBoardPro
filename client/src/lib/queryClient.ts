@@ -88,17 +88,21 @@ function deriveErrorMessage(res: Response, rawText: string): { message: string; 
  * Authentication endpoint paths where a 401 means "wrong credentials",
  * NOT "session expired". These should NOT trigger a session-expired redirect.
  */
-const AUTH_ENDPOINT_PATHS = new Set(["/api/login", "/api/auth/login", "/api/register"]);
+const AUTH_ENDPOINT_PATHS = ["/api/login", "/api/auth/login", "/api/register"];
+
+function isAuthEndpoint(url?: string): boolean {
+  if (!url) return false;
+  // Strip query string / fragment then compare against known auth paths.
+  const path = url.split("?")[0].split("#")[0];
+  return AUTH_ENDPOINT_PATHS.some((p) => path === p || path.endsWith(p));
+}
 
 async function throwIfResNotOk(res: Response, requestUrl?: string) {
   if (!res.ok) {
     // Only redirect on 401 for non-auth endpoints.
     // A 401 from a login/register endpoint means bad credentials, not expired session.
-    if (res.status === 401) {
-      const isAuthEndpoint = requestUrl && AUTH_ENDPOINT_PATHS.has(new URL(requestUrl, window.location.origin).pathname);
-      if (!isAuthEndpoint) {
-        handleSessionExpired();
-      }
+    if (res.status === 401 && !isAuthEndpoint(requestUrl)) {
+      handleSessionExpired();
     }
     const text = await res.text();
     const { message, parsed } = deriveErrorMessage(res, text);

@@ -65,7 +65,7 @@ describe("queryClient CSRF/session handling", () => {
     );
 
     await expect(
-      apiRequest("POST", "/api/login", { email: "user@example.com", password: "secret" }),
+      apiRequest("POST", "/api/candidates", { name: "Test" }),
     ).rejects.toMatchObject({ status: 401 });
 
     expect(getCsrfToken).toHaveBeenCalledTimes(1);
