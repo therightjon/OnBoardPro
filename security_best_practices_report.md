@@ -60,6 +60,7 @@ Recommended fix:
 
 #### SBP-003: TLS certificate validation is disabled on secure transport paths
 Impact: Attackers on-path can perform MITM attacks to capture credentials and sensitive content.
+Status: Accepted risk (time-bounded) for this remediation batch. See [docs/SECURITY_RISK_ACCEPTANCE.md](/Users/jonsteen/Documents/GitHub/OnBoardPro/docs/SECURITY_RISK_ACCEPTANCE.md).
 
 Evidence:
 - LDAP StartTLS path disables cert validation:
@@ -139,8 +140,7 @@ Recommended fix:
 ## Prioritized Remediation Plan
 1. Emergency secret rotation and secret removal from repository (SBP-001).
 2. Remove token/link logging and deploy (SBP-002).
-3. Enforce TLS cert validation defaults; add safe CA configuration path (SBP-003).
+3. Enforce TLS cert validation defaults; add safe CA configuration path (SBP-003, deferred with documented risk acceptance).
 4. Migrate invitation tokens to hashed-at-rest model (SBP-004).
 5. Unify and harden client IP/proxy trust handling for login throttling (SBP-005).
 6. Apply low-risk hardening items (SBP-006, SBP-007).
-

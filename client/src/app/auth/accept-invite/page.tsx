@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import { Button } from "@/shared/components/ui/button";
 import { Loader2, CheckCircle, XCircle, Users, ArrowRight } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { isInvitationsEnabled } from "@/lib/feature-flags";
 
 type AcceptStatus = "loading" | "success" | "error";
 
@@ -21,12 +22,19 @@ interface InvitationDetails {
 export default function AcceptInvitePage() {
   const [, setLocation] = useLocation();
   const search = useSearch();
+  const invitationsEnabled = isInvitationsEnabled();
   const [status, setStatus] = useState<AcceptStatus>("loading");
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
 
   useEffect(() => {
     async function acceptInvitation() {
+      if (!invitationsEnabled) {
+        setStatus("error");
+        setErrorMessage("Invitation feature is currently unavailable.");
+        return;
+      }
+
       // Extract token from URL query params
       const params = new URLSearchParams(search);
       const token = params.get("token");
@@ -52,6 +60,8 @@ export default function AcceptInvitePage() {
         // Handle specific error messages from the backend
         if (error.status === 410) {
           setErrorMessage("This invitation has expired or is no longer valid. Please request a new invitation.");
+        } else if (error.status === 404) {
+          setErrorMessage("Invitation feature is currently unavailable.");
         } else if (error.status === 400) {
           setErrorMessage(error.message || "Invalid invitation token. Please check your invitation link.");
         } else {
@@ -61,7 +71,7 @@ export default function AcceptInvitePage() {
     }
 
     acceptInvitation();
-  }, [search]);
+  }, [invitationsEnabled, search]);
 
   const handleContinueToLogin = () => {
     setLocation("/auth");

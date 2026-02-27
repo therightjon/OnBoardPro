@@ -1,5 +1,4 @@
 import type { Request } from "express";
-import { env } from "../config/env";
 
 /**
  * Parses the TRUSTED_PROXIES environment variable into a set of trusted proxy identifiers.
@@ -137,9 +136,6 @@ export function resolveClientIpWithProxies(req: Request, trustedProxySet: Set<st
   return ips[0];
 }
 
-// Module-level cache of trusted proxies parsed from environment
-const cachedTrustedProxies = parseTrustedProxies(env.TRUSTED_PROXIES);
-
 /**
  * Securely resolves the client IP address from a request.
  * 
@@ -156,6 +152,7 @@ export function resolveClientIp(req: Request): string {
   if (process.env.NODE_ENV === "test") {
     return getDirectIp(req);
   }
-  
-  return resolveClientIpWithProxies(req, cachedTrustedProxies);
+
+  const trustedProxies = parseTrustedProxies(process.env.TRUSTED_PROXIES);
+  return resolveClientIpWithProxies(req, trustedProxies);
 }

@@ -19,6 +19,7 @@ import { eventBus, userCreated, userRoleChanged } from "../events";
 import { getUserService, getInvitationService, getOrganizationService } from "../services/service-factory";
 import { UserValidationError } from "../services/users/user.service";
 import { sendTestEmail } from "../features/email/smtp-settings.service";
+import { isInvitationsEnabled } from "../utils/feature-flags";
 
 const router = Router();
 
@@ -138,6 +139,10 @@ router.get("/users", requireAuth, requireRole(["system_admin", "hr_staff"]), asy
 
     const userService = getUserService();
     const users = await userService.getAllUsers(filters);
+
+    if (!isInvitationsEnabled()) {
+      return res.json(users);
+    }
 
     // Append pending invitations as pseudo-users unless status filter excludes them
     let includeInvites = true;

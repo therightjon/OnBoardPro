@@ -89,6 +89,7 @@ export async function createAuthedAgent({
     const memoryStore = new session.MemoryStore();
     app.use(
       session({
+        name: "obp.sid",
         secret: process.env.TEST_SESSION_SECRET || "test-session-secret",
         resave: false,
         saveUninitialized: false,

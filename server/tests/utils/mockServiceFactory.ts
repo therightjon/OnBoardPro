@@ -739,6 +739,32 @@ export class MockServiceFactory {
 
   getUserService(): any {
     const self = this;
+    const applyUserFilters = (filters: any = {}) => {
+      let users = Array.from(this.data.users.values()).map((u) => ({ ...u }));
+
+      if (filters.status && filters.status !== "all") {
+        users = users.filter((u) => u.status === filters.status);
+      }
+      if (filters.role && filters.role !== "all") {
+        users = users.filter((u) => u.role === filters.role);
+      }
+      if (filters.departmentId) {
+        users = users.filter((u) => u.departmentId === filters.departmentId);
+      }
+      if (filters.divisionId) {
+        users = users.filter((u) => u.divisionId === filters.divisionId);
+      }
+      if (filters.search) {
+        const search = String(filters.search).toLowerCase();
+        users = users.filter((u) =>
+          `${u.firstName ?? ""} ${u.lastName ?? ""}`.toLowerCase().includes(search) ||
+          (u.email ?? "").toLowerCase().includes(search)
+        );
+      }
+
+      return users;
+    };
+
     return {
       getUser: (id: string) => this.getUser(id),
       getUserByUsername: (username: string) => {
@@ -749,6 +775,7 @@ export class MockServiceFactory {
       },
       getUserByEmail: (email: string) => this.getUserByEmail(email),
       getUsers: (filters?: any) => Promise.resolve(Array.from(this.data.users.values()).map(u => ({ ...u }))),
+      getAllUsers: (filters?: any) => Promise.resolve(applyUserFilters(filters)),
       createUser: (data: any) => {
         const id = data.id || randomUUID();
         const user = { ...data, id, createdAt: new Date(), updatedAt: new Date() };
@@ -777,8 +804,11 @@ export class MockServiceFactory {
   getInvitationService(): any {
     return {
       getInvitations: () => Promise.resolve([]),
+      getPendingInvitations: () => Promise.resolve([]),
       createInvitation: () => Promise.resolve(null),
-      acceptInvitation: () => Promise.resolve(null)
+      acceptInvitation: () => Promise.resolve(null),
+      cancelInvitation: () => Promise.resolve(false),
+      getInvitationByToken: () => Promise.resolve(null)
     };
   }
 
