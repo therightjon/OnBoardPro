@@ -18,6 +18,7 @@ import {
   type InsertCandidateTemplateStage,
 } from "@shared/schemas";
 import { BaseRepository } from "../base/BaseRepository";
+import { logger } from "../../utils/logger";
 
 /**
  * Repository for candidate stage-related data operations
@@ -202,7 +203,7 @@ export class CandidateStageRepository extends BaseRepository {
         .where(eq(candidateTemplateStages.candidateId, candidateId))
         .orderBy(asc(candidateTemplateStages.orderIndex));
     } catch (error) {
-      console.warn("Error fetching candidate template stages for %s:", candidateId, error);
+      logger.error('Error fetching candidate template stages', error, { candidateId });
       // Return empty array instead of throwing to maintain API resilience
       return [];
     }

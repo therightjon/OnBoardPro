@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { getRequestId } from "../middleware/request-id";
+import { logger } from "./logger";
 
 /**
  * Custom API Error class for structured error handling
@@ -107,13 +108,7 @@ export function errorHandler(
   }
 
   // Log unexpected errors
-  console.error("Unexpected error:", {
-    requestId,
-    error: err.message,
-    stack: err.stack,
-    path: req.path,
-    method: req.method
-  });
+  logger.error('Unexpected error', err, { requestId, path: req.path, method: req.method });
 
   // Return generic error for unexpected errors
   res.status(err.statusCode || err.status || 500).json({
