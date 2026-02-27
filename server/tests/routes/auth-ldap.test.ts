@@ -61,7 +61,10 @@ describe("LDAP Settings API", () => {
   });
 
   test("POST /api/auth/ldap/test strips userFilter from payload instead of treating it as schema input", async (t) => {
-    const { agent } = await setupTest(t);
+    const { agent, storage } = await setupTest(t);
+
+    // Seed an empty LDAP config so the mock doesn't fall back to env vars
+    storage.setSystemSetting("auth.ldap", {});
 
     const response = await agent
       .post("/api/auth/ldap/test")
