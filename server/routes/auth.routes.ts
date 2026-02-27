@@ -12,6 +12,8 @@ import { comparePasswords } from "../utils/passwords";
 import { hydrateAuthUser } from "../features/auth/services";
 import { FIXED_LDAP_USER_FILTER_TEMPLATE, normalizeLdapBindDn } from '../features/auth/identifier';
 import { logger } from "../utils/logger";
+import { resolveClientIp } from "../utils/ip-resolution";
+import { isInvitationsEnabled } from "../utils/feature-flags";
 
 const router = Router();
 
@@ -27,6 +29,8 @@ const router = Router();
  * In tests: Direct authentication via mock authentication service
  */
 router.post("/auth/login", async (req, res, next) => {
+  const clientIp = resolveClientIp(req);
+
   // Validate request body
   const { email, username, password } = req.body;
   
@@ -49,9 +53,8 @@ router.post("/auth/login", async (req, res, next) => {
   if (hasPassport && passport.authenticate) {
     // Production mode: use Passport authentication
     const identifier = email || username || "";
-    const clientIp = req.ip || req.headers["x-forwarded-for"] || req.connection?.remoteAddress || "";
 
-    const limitCheck = await checkLoginLimits({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+    const limitCheck = await checkLoginLimits({ identifier, ip: clientIp });
     if (!limitCheck.allowed) {
       if (limitCheck.retryAfterSeconds) {
         res.setHeader("Retry-After", String(limitCheck.retryAfterSeconds));
@@ -62,7 +65,7 @@ router.post("/auth/login", async (req, res, next) => {
     return passport.authenticate("local", async (err: any, user: any, info: any) => {
       if (err) return next(err);
       if (!user) {
-        await recordLoginFailure({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+        await recordLoginFailure({ identifier, ip: clientIp });
         return res.status(401).json({ message: info?.message || 'Authentication failed' });
       }
       
@@ -82,7 +85,7 @@ router.post("/auth/login", async (req, res, next) => {
             }
           }
 
-          await resetLoginLimit({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+          await resetLoginLimit({ identifier, ip: clientIp });
           
           res.status(200).json({ user });
         });
@@ -96,8 +99,8 @@ router.post("/auth/login", async (req, res, next) => {
       const { email, username, password } = req.body;
       const userService = getUserService();
 
-      const clientIp = req.ip || req.headers["x-forwarded-for"] || req.connection?.remoteAddress || "";
-      const limitCheck = await checkLoginLimits({ identifier: email || username, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+      const identifier = email || username;
+      const limitCheck = await checkLoginLimits({ identifier, ip: clientIp });
       if (!limitCheck.allowed) {
         if (limitCheck.retryAfterSeconds) {
           res.setHeader("Retry-After", String(limitCheck.retryAfterSeconds));
@@ -113,7 +116,7 @@ router.post("/auth/login", async (req, res, next) => {
           : null;
       
       if (!user || !user.passwordHash) {
-        await recordLoginFailure({ identifier: email || username, ip: req.ip });
+        await recordLoginFailure({ identifier, ip: clientIp });
         return res.status(401).json({ message: 'Invalid credentials' });
       }
       
@@ -126,7 +129,7 @@ router.post("/auth/login", async (req, res, next) => {
       const validPassword = await comparePasswords(password, user.passwordHash);
       
       if (!validPassword) {
-        await recordLoginFailure({ identifier: email || username, ip: req.ip });
+        await recordLoginFailure({ identifier, ip: clientIp });
         return res.status(401).json({ message: 'Invalid credentials' });
       }
       
@@ -164,7 +167,7 @@ router.post("/auth/login", async (req, res, next) => {
         
         req.user = enrichedUser as any;
         (req as any).isAuthenticated = () => true;
-        await resetLoginLimit({ identifier: email || username, ip: req.ip });
+        await resetLoginLimit({ identifier, ip: clientIp });
         res.status(200).json({ user: enrichedUser });
       } catch (hydrationError) {
         // If hydration fails, fall back to basic user (test environment may not have all data)
@@ -204,7 +207,7 @@ router.post("/auth/login", async (req, res, next) => {
 
         req.user = basicUser as any;
         (req as any).isAuthenticated = () => true;
-        await resetLoginLimit({ identifier: email || username, ip: req.ip });
+        await resetLoginLimit({ identifier, ip: clientIp });
         res.status(200).json({ user: basicUser });
       }
     } catch (error) {
@@ -256,6 +259,13 @@ router.get("/user", (req, res) => {
 // Invitation Routes
 // ============================================
 
+function requireInvitationsEnabled(req: any, res: any, next: any) {
+  if (!isInvitationsEnabled()) {
+    return res.status(404).json({ message: "Not found" });
+  }
+  next();
+}
+
 const inviteRequestSchema = z.object({
   email: z.string().email(),
   roles: z.array(z.string().min(1)).min(1),
@@ -268,6 +278,7 @@ const inviteRequestSchema = z.object({
 const ldapSettingsPatchSchema = z.object({
   url: z.string().optional(),
   startTls: z.coerce.boolean().optional(),
+  verifyTlsCert: z.coerce.boolean().optional(),
   baseDn: z.string().optional(),
   bindDn: z.string().optional(),
   bindPassword: z.string().optional(),
@@ -355,6 +366,7 @@ async function getProviderDetails(providerId: string) {
 // POST /api/invitations - Create a new invitation
 router.post(
   "/invitations",
+  requireInvitationsEnabled,
   requireAuth,
   requireRole(["system_admin", "hr_staff"]),
   async (req, res, next) => {
@@ -408,6 +420,7 @@ router.post(
 // DELETE /api/invitations/:id - Cancel a pending invitation
 router.delete(
   "/invitations/:id",
+  requireInvitationsEnabled,
   requireAuth,
   requireRole(["system_admin", "hr_staff"]),
   async (req, res, next) => {
@@ -434,7 +447,7 @@ router.delete(
 
 // POST /api/invitations/accept - Accept an invitation
 // Changed from GET to POST to properly apply CSRF protection for this state-changing operation
-router.post("/invitations/accept", async (req: any, res, next) => {
+router.post("/invitations/accept", requireInvitationsEnabled, async (req: any, res, next) => {
   try {
     // Token now comes from request body instead of query params
     const token = req.body?.token;
@@ -580,11 +593,15 @@ router.get("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]),
     if (cfg.url && !cfg.url.startsWith('ldaps://') && !cfg.startTls) {
       warnings.push('LDAP requires LDAPS (ldaps://) or StartTLS for security');
     }
+    if (cfg.startTls && cfg.verifyTlsCert === false) {
+      warnings.push('LDAP StartTLS certificate verification is disabled');
+    }
     // Prepare masked response
     const response = {
       settings: {
         url: cfg.url,
         startTls: !!cfg.startTls,
+        verifyTlsCert: !!cfg.verifyTlsCert,
         baseDn: cfg.baseDn,
         userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
         usernameAttr: cfg.usernameAttr,
@@ -611,6 +628,7 @@ router.put("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]),
     const patch = {
       url: normalizeOptionalString(parsedPatch.url),
       startTls: parsedPatch.startTls,
+      verifyTlsCert: parsedPatch.verifyTlsCert,
       baseDn: normalizeOptionalString(parsedPatch.baseDn),
       bindDn: normalizeOptionalString(parsedPatch.bindDn),
       bindPassword: parsedPatch.bindPassword,
@@ -650,6 +668,7 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
     const override = {
       url: normalizeOptionalString(parsedOverride.url),
       startTls: parsedOverride.startTls,
+      verifyTlsCert: parsedOverride.verifyTlsCert,
       baseDn: normalizeOptionalString(parsedOverride.baseDn),
       bindDn: normalizeOptionalString(parsedOverride.bindDn),
       bindPassword: parsedOverride.bindPassword,
@@ -664,6 +683,7 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
     const cfg = {
       url: override.url ?? current?.url,
       startTls: override.startTls ?? current?.startTls,
+      verifyTlsCert: override.verifyTlsCert ?? current?.verifyTlsCert ?? false,
       baseDn: override.baseDn ?? current?.baseDn,
       bindDn: override.bindDn ?? current?.bindDn,
       bindPassword: override.bindPassword ?? current?.bindPassword,
@@ -728,8 +748,11 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
       };
 
       if (cfg.startTls) {
-        logger.debug('LDAP test: initiating StartTLS', { url: cfg.url });
-        client.starttls({ rejectUnauthorized: false }, null, (tlsErr: any) => {
+        logger.debug('LDAP test: initiating StartTLS', {
+          url: cfg.url,
+          verifyTlsCert: cfg.verifyTlsCert
+        });
+        client.starttls({ rejectUnauthorized: cfg.verifyTlsCert === true }, null, (tlsErr: any) => {
           if (tlsErr) {
             logger.error('LDAP test StartTLS error', tlsErr);
             client.destroy();

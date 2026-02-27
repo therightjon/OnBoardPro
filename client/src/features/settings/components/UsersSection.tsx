@@ -19,6 +19,7 @@ import {
 
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { isInvitationsEnabled } from "@/lib/feature-flags";
 import { useToast } from "@/shared/hooks/use-toast";
 import { useSortableTable } from "@/shared/hooks/use-sortable-table";
 import { SortableTableHeader } from "@/shared/components/sortable-table-header";
@@ -125,6 +126,7 @@ const getRoleBadgeColor = (role: string) => {
 export function UsersSection() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const invitationsEnabled = isInvitationsEnabled();
 
   // ---- State ----
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
@@ -204,7 +206,7 @@ export function UsersSection() {
 
   const { data: divisionsForInviteDept = [] } = useQuery({
     queryKey: ["/api/divisions", selectedInviteDepartmentId, "invite", user?.id],
-    enabled: !!user && !!selectedInviteDepartmentId,
+    enabled: invitationsEnabled && !!user && !!selectedInviteDepartmentId,
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/divisions?departmentId=${selectedInviteDepartmentId}`);
       return res.json();
@@ -489,6 +491,15 @@ export function UsersSection() {
   };
 
   const handleCancelInvitation = (u: any) => {
+    if (!invitationsEnabled) {
+      toast({
+        title: "Invitations unavailable",
+        description: "The invitation feature is currently disabled.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Extract the actual invitation ID from the pseudo-user ID format "invite:actual-id"
     if (!u.id?.startsWith('invite:')) {
       toast({
@@ -522,6 +533,14 @@ export function UsersSection() {
   };
 
   const onInviteSubmit = (data: InviteForm) => {
+    if (!invitationsEnabled) {
+      toast({
+        title: "Invitations unavailable",
+        description: "The invitation feature is currently disabled.",
+        variant: "destructive"
+      });
+      return;
+    }
     sendInviteMutation.mutate(data);
   };
 
@@ -545,139 +564,140 @@ export function UsersSection() {
               User Management
             </CardTitle>
             <div className="flex items-center gap-2">
-              {/* Invite Dialog */}
-              <Dialog
-                open={isInviteDialogOpen}
-                onOpenChange={(open) => {
-                  setIsInviteDialogOpen(open);
-                  if (!open) {
-                    inviteForm.reset({ email: "", roles: [] });
-                    inviteForm.clearErrors();
-                  }
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button variant="outline" data-testid="button-send-invite">
-                    <Send className="w-4 h-4 mr-2" />
-                    Invite Users
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-h-min max-w-[95vw] w-full sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Invite Users</DialogTitle>
-                    <DialogDescription className="sr-only">
-                      Send an invitation email to add new users to the system.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={inviteForm.handleSubmit(onInviteSubmit)} className="space-y-4" data-testid="form-send-invite">
-                    <div className="space-y-2">
-                      <Label htmlFor="invite-email">Email</Label>
-                      <Input
-                        id="invite-email"
-                        type="email"
-                        placeholder="person@example.edu"
-                        {...inviteForm.register("email")}
-                        data-testid="input-invite-email"
-                      />
-                      {inviteForm.formState.errors.email && (
-                        <p className="text-sm text-destructive mt-1">{inviteForm.formState.errors.email.message}</p>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {invitationsEnabled && (
+                <Dialog
+                  open={isInviteDialogOpen}
+                  onOpenChange={(open) => {
+                    setIsInviteDialogOpen(open);
+                    if (!open) {
+                      inviteForm.reset({ email: "", roles: [] });
+                      inviteForm.clearErrors();
+                    }
+                  }}
+                >
+                  <DialogTrigger asChild>
+                    <Button variant="outline" data-testid="button-send-invite">
+                      <Send className="w-4 h-4 mr-2" />
+                      Invite Users
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-h-min max-w-[95vw] w-full sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Invite Users</DialogTitle>
+                      <DialogDescription className="sr-only">
+                        Send an invitation email to add new users to the system.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={inviteForm.handleSubmit(onInviteSubmit)} className="space-y-4" data-testid="form-send-invite">
                       <div className="space-y-2">
-                        <Label htmlFor="invite-firstName">First name</Label>
-                        <Input id="invite-firstName" placeholder="First name" {...inviteForm.register("firstName")} />
+                        <Label htmlFor="invite-email">Email</Label>
+                        <Input
+                          id="invite-email"
+                          type="email"
+                          placeholder="person@example.edu"
+                          {...inviteForm.register("email")}
+                          data-testid="input-invite-email"
+                        />
+                        {inviteForm.formState.errors.email && (
+                          <p className="text-sm text-destructive mt-1">{inviteForm.formState.errors.email.message}</p>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="invite-firstName">First name</Label>
+                          <Input id="invite-firstName" placeholder="First name" {...inviteForm.register("firstName")} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="invite-lastName">Last name</Label>
+                          <Input id="invite-lastName" placeholder="Last name" {...inviteForm.register("lastName")} />
+                        </div>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="invite-lastName">Last name</Label>
-                        <Input id="invite-lastName" placeholder="Last name" {...inviteForm.register("lastName")} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="invite-department">Department</Label>
-                      <Select
-                        onValueChange={(value) => {
-                          inviteForm.setValue("departmentId", value);
-                          inviteForm.setValue("divisionId", "");
-                        }}
-                        value={inviteForm.watch("departmentId") || ""}
-                      >
-                        <SelectTrigger data-testid="select-invite-department">
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(departments as any[]).map((dept: any) => (
-                            <SelectItem key={dept.id} value={dept.id}>
-                              {dept.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="invite-division">Division</Label>
-                      <Select
-                        onValueChange={(value) => inviteForm.setValue("divisionId", value)}
-                        value={inviteForm.watch("divisionId") || ""}
-                        disabled={!inviteForm.watch("departmentId")}
-                      >
-                        <SelectTrigger data-testid="select-invite-division">
-                          <SelectValue placeholder="Select division" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {!inviteForm.watch("departmentId") || divisionsForInviteDept.length === 0 ? (
-                            <SelectItem disabled value="__no_divisions__">
-                              No divisions available.
-                            </SelectItem>
-                          ) : (
-                            (divisionsForInviteDept as any[]).map((div: any) => (
-                              <SelectItem key={div.id} value={div.id}>
-                                {div.name}
+                        <Label htmlFor="invite-department">Department</Label>
+                        <Select
+                          onValueChange={(value) => {
+                            inviteForm.setValue("departmentId", value);
+                            inviteForm.setValue("divisionId", "");
+                          }}
+                          value={inviteForm.watch("departmentId") || ""}
+                        >
+                          <SelectTrigger data-testid="select-invite-department">
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(departments as any[]).map((dept: any) => (
+                              <SelectItem key={dept.id} value={dept.id}>
+                                {dept.name}
                               </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Select Roles</Label>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {inviteRoleOptions.map((role) => (
-                          <div key={role.value} className="flex items-center gap-2 rounded border px-3 py-2">
-                            <Checkbox
-                              id={`invite-role-${role.value}`}
-                              checked={selectedInviteRoles.includes(role.value)}
-                              onCheckedChange={(checked) => toggleInviteRole(role.value, !!checked)}
-                            />
-                            <Label htmlFor={`invite-role-${role.value}`} className="font-normal">
-                              {role.label}
-                            </Label>
-                          </div>
-                        ))}
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                      {inviteForm.formState.errors.roles && (
-                        <p className="text-sm text-destructive mt-1">{inviteForm.formState.errors.roles.message}</p>
-                      )}
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          inviteForm.reset({ email: "", roles: [] });
-                          inviteForm.clearErrors();
-                          setIsInviteDialogOpen(false);
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={sendInviteMutation.isPending} data-testid="button-submit-invite">
-                        {sendInviteMutation.isPending ? "Sending…" : "Send Invite"}
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                      <div className="space-y-2">
+                        <Label htmlFor="invite-division">Division</Label>
+                        <Select
+                          onValueChange={(value) => inviteForm.setValue("divisionId", value)}
+                          value={inviteForm.watch("divisionId") || ""}
+                          disabled={!inviteForm.watch("departmentId")}
+                        >
+                          <SelectTrigger data-testid="select-invite-division">
+                            <SelectValue placeholder="Select division" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {!inviteForm.watch("departmentId") || divisionsForInviteDept.length === 0 ? (
+                              <SelectItem disabled value="__no_divisions__">
+                                No divisions available.
+                              </SelectItem>
+                            ) : (
+                              (divisionsForInviteDept as any[]).map((div: any) => (
+                                <SelectItem key={div.id} value={div.id}>
+                                  {div.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Select Roles</Label>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {inviteRoleOptions.map((role) => (
+                            <div key={role.value} className="flex items-center gap-2 rounded border px-3 py-2">
+                              <Checkbox
+                                id={`invite-role-${role.value}`}
+                                checked={selectedInviteRoles.includes(role.value)}
+                                onCheckedChange={(checked) => toggleInviteRole(role.value, !!checked)}
+                              />
+                              <Label htmlFor={`invite-role-${role.value}`} className="font-normal">
+                                {role.label}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                        {inviteForm.formState.errors.roles && (
+                          <p className="text-sm text-destructive mt-1">{inviteForm.formState.errors.roles.message}</p>
+                        )}
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            inviteForm.reset({ email: "", roles: [] });
+                            inviteForm.clearErrors();
+                            setIsInviteDialogOpen(false);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={sendInviteMutation.isPending} data-testid="button-submit-invite">
+                          {sendInviteMutation.isPending ? "Sending…" : "Send Invite"}
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
 
               {/* New User Dialog */}
               <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
@@ -783,7 +803,7 @@ export function UsersSection() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="invited">Invited</SelectItem>
+                          {invitationsEnabled && <SelectItem value="invited">Invited</SelectItem>}
                           <SelectItem value="disabled">Disabled</SelectItem>
                         </SelectContent>
                       </Select>
@@ -886,7 +906,7 @@ export function UsersSection() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="invited">Invited</SelectItem>
+                  {invitationsEnabled && <SelectItem value="invited">Invited</SelectItem>}
                   <SelectItem value="disabled">Disabled</SelectItem>
                 </SelectContent>
               </Select>
@@ -1019,7 +1039,7 @@ export function UsersSection() {
                               >
                                 <Archive className="w-4 h-4" />
                               </Button>
-                            ) : u.status === "invited" ? (
+                            ) : invitationsEnabled && u.status === "invited" ? (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -1127,7 +1147,7 @@ export function UsersSection() {
                       >
                         Edit
                       </Button>
-                      {u.status === "invited" ? (
+                      {invitationsEnabled && u.status === "invited" ? (
                         <Button
                           variant="ghost"
                           size="sm"

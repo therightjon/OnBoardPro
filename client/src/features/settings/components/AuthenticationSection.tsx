@@ -213,6 +213,7 @@ export function LdapSettingsSection() {
   const [form, setForm] = useState({
     url: "",
     startTls: false,
+    verifyTlsCert: false,
     baseDn: "",
     bindDn: "",
     bindPassword: "",
@@ -231,6 +232,7 @@ export function LdapSettingsSection() {
         ...prev,
         url: s.url || "",
         startTls: !!s.startTls,
+        verifyTlsCert: !!s.verifyTlsCert,
         baseDn: s.baseDn || "",
         bindDn: s.bindDnMasked ? "" : prev.bindDn,
         bindPassword: "",
@@ -251,6 +253,7 @@ export function LdapSettingsSection() {
       const payload: any = {
         url: form.url || undefined,
         startTls: !!form.startTls,
+        verifyTlsCert: !!form.verifyTlsCert,
         baseDn: form.baseDn || undefined,
         bindDn: form.bindDn || undefined,
         usernameAttr: form.usernameAttr || undefined,
@@ -279,6 +282,7 @@ export function LdapSettingsSection() {
       const payload: any = {
         url: form.url || undefined,
         startTls: !!form.startTls,
+        verifyTlsCert: !!form.verifyTlsCert,
         baseDn: form.baseDn || undefined,
         bindDn: form.bindDn || undefined,
         usernameAttr: form.usernameAttr || undefined,
@@ -361,6 +365,19 @@ export function LdapSettingsSection() {
                   checked={!!form.startTls}
                   onCheckedChange={(v) => onChange("startTls", v)}
                   data-testid="ldap-starttls"
+                />
+              </div>
+              <div className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <Label>Verify TLS Certificates</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Recommended. Disable only for trusted internal test environments.
+                  </p>
+                </div>
+                <Switch
+                  checked={!!form.verifyTlsCert}
+                  onCheckedChange={(v) => onChange("verifyTlsCert", v)}
+                  data-testid="ldap-verify-tls"
                 />
               </div>
             </SettingsGroup>

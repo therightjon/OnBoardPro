@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "../../db/connection";
 import {
   smtpSettings as smtpSettingsTable,
+  systemSettings as systemSettingsTable,
   type SmtpSettings,
   type SmtpEncryptedSecretPayload,
 } from "@shared/schemas";
@@ -13,6 +14,7 @@ import { writeAuditLog } from "../../services/shared/audit-logger";
 import { logger } from "../../utils/logger";
 
 const SETTINGS_ID = "primary";
+const SMTP_TLS_SETTINGS_KEY = "smtp.tls";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 type SecurityOption = "none" | "starttls" | "ssl_tls";
@@ -34,6 +36,7 @@ const updateSchema = z.object({
   fromName: z.string().trim().min(1, "From name is required").nullable().optional(),
   fromEmail: z.string().trim().email("From email must be valid").nullable().optional(),
   allowHeaderSpoofing: z.boolean().optional(),
+  verifyTlsCert: z.boolean().optional(),
   rateLimitPerMinute: z.number().int().min(1).max(1000).optional(),
   rateLimitPerHour: z.number().int().min(1).max(10000).optional(),
   replacePassword: z.boolean().optional(),
@@ -55,6 +58,7 @@ export interface PublicSmtpSettings {
   fromName: string | null;
   fromEmail: string | null;
   allowHeaderSpoofing: boolean;
+  verifyTlsCert: boolean;
   rateLimitPerMinute: number;
   rateLimitPerHour: number;
   passwordConfigured: boolean;
@@ -74,6 +78,7 @@ export interface MaterializedSmtpSettings {
   fromName: string | null;
   fromEmail: string | null;
   allowHeaderSpoofing: boolean;
+  verifyTlsCert: boolean;
   rateLimitPerMinute: number;
   rateLimitPerHour: number;
   passwordConfigured: boolean;
@@ -90,6 +95,55 @@ type CachedTransport = {
 };
 
 let cachedTransport: CachedTransport | undefined;
+
+function parseBooleanEnv(value: string | undefined, defaultValue = false): boolean {
+  if (value === undefined) return defaultValue;
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off", ""].includes(normalized)) return false;
+  return defaultValue;
+}
+
+function readTlsSettingValue(value: unknown): boolean | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.verifyTlsCert === "boolean") return record.verifyTlsCert;
+  if (typeof record.enabled === "boolean") return record.enabled;
+  return null;
+}
+
+async function getSmtpTlsVerificationSetting(): Promise<boolean> {
+  const [row] = await db
+    .select()
+    .from(systemSettingsTable)
+    .where(eq(systemSettingsTable.key, SMTP_TLS_SETTINGS_KEY));
+
+  const stored = readTlsSettingValue(row?.value);
+  if (stored !== null) return stored;
+
+  return parseBooleanEnv(process.env.SMTP_VERIFY_TLS, false);
+}
+
+async function setSmtpTlsVerificationSetting(verifyTlsCert: boolean): Promise<void> {
+  const now = new Date();
+  await db
+    .insert(systemSettingsTable)
+    .values({
+      key: SMTP_TLS_SETTINGS_KEY,
+      value: { verifyTlsCert },
+      createdAt: now,
+      updatedAt: now
+    } as any)
+    .onConflictDoUpdate({
+      target: systemSettingsTable.key,
+      set: {
+        value: { verifyTlsCert } as any,
+        updatedAt: now
+      }
+    });
+}
 
 function getDefaultPort(security: SecurityOption): number {
   if (security === "ssl_tls") return 465;
@@ -118,6 +172,7 @@ async function ensureRow(): Promise<SmtpSettings> {
 
 export async function getSmtpSettings(): Promise<PublicSmtpSettings> {
   const row = await ensureRow();
+  const verifyTlsCert = await getSmtpTlsVerificationSetting();
   console.info("[smtp] settings read", { id: SETTINGS_ID, updatedAt: row.updatedAt?.toISOString?.() ?? null });
 
   return {
@@ -130,6 +185,7 @@ export async function getSmtpSettings(): Promise<PublicSmtpSettings> {
     fromName: row.fromName ?? null,
     fromEmail: row.fromEmail ?? null,
     allowHeaderSpoofing: row.allowHeaderSpoofing ?? false,
+    verifyTlsCert,
     rateLimitPerMinute: row.rateLimitPerMinute ?? 30,
     rateLimitPerHour: row.rateLimitPerHour ?? 500,
     passwordConfigured: Boolean(row.encryptedPassword),
@@ -180,6 +236,7 @@ function calculateSignature(settings: MaterializedSmtpSettings): string {
     authType: settings.authType,
     username: settings.username,
     allowHeaderSpoofing: settings.allowHeaderSpoofing,
+    verifyTlsCert: settings.verifyTlsCert,
     passwordSetAt: settings.passwordSetAt?.toISOString() ?? null,
     encryptionVersion: settings.encryptionVersion ?? null,
     updatedAt: settings.updatedAt.toISOString()
@@ -191,6 +248,7 @@ async function materializeSettings(row: SmtpSettings): Promise<MaterializedSmtpS
   const security = (row.security ?? "none") as SecurityOption;
   const authType = (row.authType ?? "none") as AuthOption;
   const password = await decryptPassword(row.encryptedPassword as SmtpEncryptedSecretPayload | null, authType);
+  const verifyTlsCert = await getSmtpTlsVerificationSetting();
 
   return {
     enabled: row.enabled ?? false,
@@ -203,6 +261,7 @@ async function materializeSettings(row: SmtpSettings): Promise<MaterializedSmtpS
     fromName: row.fromName ?? null,
     fromEmail: row.fromEmail ?? null,
     allowHeaderSpoofing: row.allowHeaderSpoofing ?? false,
+    verifyTlsCert,
     rateLimitPerMinute: row.rateLimitPerMinute ?? 30,
     rateLimitPerHour: row.rateLimitPerHour ?? 500,
     passwordConfigured: Boolean(row.encryptedPassword),
@@ -282,11 +341,10 @@ let auth: SmtpAuth | undefined;
     auth,
     // When security is "none", skip opportunistic TLS entirely (server may
     // advertise STARTTLS with a self-signed cert, which would fail).
-    // For explicit TLS modes, accept self-signed certificates common on
-    // internal / trusted-network mail relays.
+    // For explicit TLS modes, certificate validation is controlled by settings.
     ...(settings.security === "none"
       ? { ignoreTLS: true }
-      : { tls: { rejectUnauthorized: false } }),
+      : { tls: { rejectUnauthorized: settings.verifyTlsCert } }),
   };
 
   if (authMethod) {
@@ -362,6 +420,7 @@ export async function updateSmtpSettings(payload: UpdateInput, actorId: string, 
   const fromName = sanitizeOptional(updates.fromName ?? row.fromName);
   const port = updates.port ?? row.port ?? getDefaultPort(security);
   const username = authType === "none" ? null : sanitizeOptional(updates.username ?? row.username ?? null);
+  const verifyTlsCert = updates.verifyTlsCert ?? await getSmtpTlsVerificationSetting();
 
   validateHostname(hostname, enabled);
   validateFromEmail(fromEmail, enabled);
@@ -410,6 +469,8 @@ export async function updateSmtpSettings(payload: UpdateInput, actorId: string, 
     .returning()
     .then((rows) => rows[0]);
 
+  await setSmtpTlsVerificationSetting(verifyTlsCert);
+
   invalidateTransportCache();
 
   logger.info('[smtp] settings updated', {
@@ -420,6 +481,7 @@ export async function updateSmtpSettings(payload: UpdateInput, actorId: string, 
     hostname,
     username,
     passwordChanged,
+    verifyTlsCert,
   });
 
   await writeAuditLog({
@@ -437,6 +499,7 @@ export async function updateSmtpSettings(payload: UpdateInput, actorId: string, 
       port,
       username: username ? true : false, // avoid leaking username in audit
       passwordChanged,
+      verifyTlsCert,
       allowHeaderSpoofing: updates.allowHeaderSpoofing ?? row.allowHeaderSpoofing ?? false
     }
   });
@@ -462,6 +525,7 @@ export async function updateSmtpSettings(payload: UpdateInput, actorId: string, 
       fromName: updated.fromName ?? null,
       fromEmail: updated.fromEmail ?? null,
       allowHeaderSpoofing: updated.allowHeaderSpoofing ?? false,
+      verifyTlsCert,
       rateLimitPerMinute: updated.rateLimitPerMinute ?? 30,
       rateLimitPerHour: updated.rateLimitPerHour ?? 500,
       passwordConfigured: Boolean(updated.encryptedPassword),

@@ -766,7 +766,7 @@ describe("Authentication - Security", () => {
 
     const cookies = response.headers['set-cookie'];
     if (cookies) {
-      const sessionCookie = cookies.find((c: string) => c.includes('connect.sid'));
+      const sessionCookie = cookies.find((c: string) => c.includes('obp.sid'));
       if (sessionCookie) {
         assert.ok(sessionCookie.includes('HttpOnly'), "Session cookie should be HttpOnly");
       }

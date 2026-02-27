@@ -8,6 +8,7 @@ import {
   isTrustedProxy,
   getDirectIp,
   resolveClientIpWithProxies,
+  resolveClientIp,
 } from "../../utils/ip-resolution";
 
 /**
@@ -305,6 +306,38 @@ describe("IP Resolution Utility", () => {
       const result = resolveClientIpWithProxies(req, proxies);
       // Should return attacker's real IP, not trust the header
       assert.equal(result, "198.51.100.1");
+    });
+  });
+
+  describe("resolveClientIp - login path safety", () => {
+    test("ignores spoofed X-Forwarded-For when direct peer is untrusted", () => {
+      const previousNodeEnv = process.env.NODE_ENV;
+      const previousTrustedProxies = process.env.TRUSTED_PROXIES;
+
+      try {
+        process.env.NODE_ENV = "production";
+        process.env.TRUSTED_PROXIES = "127.0.0.1";
+
+        const req = createMockRequest({
+          socketAddress: "198.51.100.99",
+          xForwardedFor: "1.2.3.4, 5.6.7.8",
+        });
+
+        const result = resolveClientIp(req);
+        assert.equal(result, "198.51.100.99");
+      } finally {
+        if (previousNodeEnv === undefined) {
+          delete process.env.NODE_ENV;
+        } else {
+          process.env.NODE_ENV = previousNodeEnv;
+        }
+
+        if (previousTrustedProxies === undefined) {
+          delete process.env.TRUSTED_PROXIES;
+        } else {
+          process.env.TRUSTED_PROXIES = previousTrustedProxies;
+        }
+      }
     });
   });
 });

@@ -33,6 +33,11 @@ export function getInviteBaseUrl(): string {
  * @param expiresAt - When the invitation expires
  */
 export async function sendInviteEmail(email: string, token: string, expiresAt: Date) {
-  const link = `${getInviteBaseUrl()}/accept-invite?token=${token}`;
-  logger.info('[invite] Sent invitation', { email, link, expiresAt: expiresAt.toISOString() });
+  const baseUrl = getInviteBaseUrl();
+  logger.info('[invite] Sent invitation', {
+    email,
+    expiresAt: expiresAt.toISOString(),
+    invitePath: `${baseUrl}/accept-invite`,
+    tokenLength: token.length
+  });
 }

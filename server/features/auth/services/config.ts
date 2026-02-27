@@ -11,6 +11,7 @@ export interface AuthConfig {
     enabled: boolean;
     url?: string;
     startTls?: boolean;
+    verifyTlsCert?: boolean;
     bindDn?: string;
     bindPassword?: string;
     baseDn?: string;
@@ -50,6 +51,15 @@ function readAuthEnv(...keys: string[]): string | undefined {
   return undefined;
 }
 
+function readAuthBooleanEnv(key: string, defaultValue = false): boolean {
+  const value = process.env[key];
+  if (value === undefined) return defaultValue;
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off", ""].includes(normalized)) return false;
+  return defaultValue;
+}
+
 // Load configuration from environment variables
 export function loadAuthConfig(): AuthConfig {
   const config: AuthConfig = {
@@ -61,6 +71,7 @@ export function loadAuthConfig(): AuthConfig {
       enabled: process.env.AUTH_ENABLE_LDAP === "true",
       url: process.env.LDAP_URL,
       startTls: process.env.LDAP_STARTTLS === "true",
+      verifyTlsCert: readAuthBooleanEnv("LDAP_VERIFY_TLS", false),
       bindDn: process.env.LDAP_BIND_DN,
       bindPassword: process.env.LDAP_BIND_PASSWORD,
       baseDn: readAuthEnv("LDAP_BASE_DN", "LDAP_SEARCH_BASE"),

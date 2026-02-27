@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import compression from "compression";
 import { env } from "./config/env"; // Validate environment early
+import { buildCspDirectives } from "./config/security-headers";
 import { registerRoutes } from "./routes";
 import { startDeadlineScanner } from "./jobs/scan-deadlines";
 import { startNotificationEmailJobs } from "./jobs/notification-email";
@@ -19,20 +20,7 @@ const isDevelopment = app.get("env") === "development";
 // Security headers (must be early in middleware chain)
 app.use(helmet({
   contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      scriptSrc: isDevelopment
-        ? ["'self'", "'unsafe-inline'", "'unsafe-eval'"]
-        : ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: isDevelopment
-        ? ["'self'", "ws:", "wss:", "https://fonts.googleapis.com", "https://fonts.gstatic.com"]
-        : ["'self'", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      ...(isDevelopment ? { upgradeInsecureRequests: null } : {})
-    }
+    directives: buildCspDirectives(isDevelopment)
   }
 }));
 

@@ -40,6 +40,7 @@ const formSchema = z.object({
   fromName: z.string().optional().nullable(),
   fromEmail: z.string().email("Enter a valid from email address"),
   allowHeaderSpoofing: z.boolean(),
+  verifyTlsCert: z.boolean(),
   rateLimitPerMinute: z.number().int().min(1).max(1000),
   rateLimitPerHour: z.number().int().min(1).max(10000),
   replacePassword: z.boolean(),
@@ -58,6 +59,7 @@ interface SmtpSettingsResponse {
   fromName: string | null;
   fromEmail: string | null;
   allowHeaderSpoofing: boolean;
+  verifyTlsCert: boolean;
   rateLimitPerMinute: number;
   rateLimitPerHour: number;
   passwordConfigured: boolean;
@@ -97,6 +99,7 @@ export function SmtpSettingsCard() {
       fromName: "",
       fromEmail: "",
       allowHeaderSpoofing: false,
+      verifyTlsCert: false,
       rateLimitPerMinute: 30,
       rateLimitPerHour: 500,
       replacePassword: false,
@@ -122,6 +125,7 @@ export function SmtpSettingsCard() {
         fromName: settings.fromName ?? "",
         fromEmail: settings.fromEmail ?? "",
         allowHeaderSpoofing: settings.allowHeaderSpoofing ?? false,
+        verifyTlsCert: settings.verifyTlsCert ?? false,
         rateLimitPerMinute: settings.rateLimitPerMinute ?? 30,
         rateLimitPerHour: settings.rateLimitPerHour ?? 500,
         replacePassword: false,
@@ -151,6 +155,7 @@ export function SmtpSettingsCard() {
         fromName: values.fromName?.trim() || null,
         fromEmail: values.fromEmail?.trim(),
         allowHeaderSpoofing: values.allowHeaderSpoofing,
+        verifyTlsCert: values.verifyTlsCert,
         rateLimitPerMinute: values.rateLimitPerMinute,
         rateLimitPerHour: values.rateLimitPerHour,
       };
@@ -180,6 +185,7 @@ export function SmtpSettingsCard() {
           fromName: data.fromName ?? "",
           fromEmail: data.fromEmail ?? "",
           allowHeaderSpoofing: data.allowHeaderSpoofing ?? false,
+          verifyTlsCert: data.verifyTlsCert ?? false,
           rateLimitPerMinute: data.rateLimitPerMinute ?? 30,
           rateLimitPerHour: data.rateLimitPerHour ?? 500,
           replacePassword: false,
@@ -233,6 +239,7 @@ export function SmtpSettingsCard() {
         fromName: initialSettings.fromName ?? "",
         fromEmail: initialSettings.fromEmail ?? "",
         allowHeaderSpoofing: initialSettings.allowHeaderSpoofing ?? false,
+        verifyTlsCert: initialSettings.verifyTlsCert ?? false,
         rateLimitPerMinute: initialSettings.rateLimitPerMinute ?? 30,
         rateLimitPerHour: initialSettings.rateLimitPerHour ?? 500,
         replacePassword: false,
@@ -384,6 +391,30 @@ export function SmtpSettingsCard() {
                   onChange={(event) => field.onChange(event.target.value === "" ? undefined : Number(event.target.value))}
                   disabled={loadingState || updateMutation.isPending}
                 />
+              )}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-[220px_1fr]">
+            <div>
+              <Label htmlFor="verifyTlsCert">Verify TLS certificates</Label>
+              <p className="text-xs text-muted-foreground">
+                Recommended. Disable only if your SMTP server uses an untrusted internal/self-signed certificate.
+              </p>
+            </div>
+            <Controller
+              name="verifyTlsCert"
+              control={control}
+              render={({ field }) => (
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="verifyTlsCert"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={securityValue === "none" || loadingState || updateMutation.isPending}
+                  />
+                  <span className="text-sm text-muted-foreground">{field.value ? "Enabled" : "Disabled"}</span>
+                </div>
               )}
             />
           </div>

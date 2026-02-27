@@ -24,6 +24,7 @@ import {
 } from "./index";
 import { checkLoginLimits, recordLoginFailure, resetLoginLimit } from "../../../services/login-rate-limit";
 import { comparePasswords } from "../../../utils/passwords";
+import { resolveClientIp } from "../../../utils/ip-resolution";
 
 declare module "express-session" {
   interface SessionData {
@@ -37,6 +38,23 @@ declare module "express-session" {
 }
 
 const PostgresSessionStore = connectPg(session);
+
+function resolveTrustProxySetting(trustedProxies?: string): false | string | string[] {
+  if (!trustedProxies) {
+    return false;
+  }
+
+  const entries = trustedProxies
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  if (entries.length === 0) {
+    return false;
+  }
+
+  return entries.length === 1 ? entries[0] : entries;
+}
 
 /**
  * Hydrate a SelectUser with roles and scope metadata for session use.
@@ -90,6 +108,7 @@ export async function setupAuth(app: Express) {
   const TEN_HOURS_MS = 10 * 60 * 60 * 1000;
 
   const sessionSettings: session.SessionOptions = {
+    name: "obp.sid",
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
@@ -107,7 +126,7 @@ export async function setupAuth(app: Express) {
     }
   };
 
-  app.set("trust proxy", 1);
+  app.set("trust proxy", resolveTrustProxySetting(process.env.TRUSTED_PROXIES));
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
@@ -159,9 +178,9 @@ export async function setupAuth(app: Express) {
         : typeof req.body?.username === "string"
           ? req.body.username
           : "";
-      const clientIp = req.ip || req.headers["x-forwarded-for"] || req.connection?.remoteAddress || "";
+      const clientIp = resolveClientIp(req);
 
-      const limitCheck = await checkLoginLimits({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+      const limitCheck = await checkLoginLimits({ identifier, ip: clientIp });
       if (!limitCheck.allowed) {
         if (limitCheck.retryAfterSeconds) {
           res.setHeader("Retry-After", String(limitCheck.retryAfterSeconds));
@@ -172,7 +191,7 @@ export async function setupAuth(app: Express) {
       passport.authenticate("local", async (err: any, user: any, info: any) => {
         if (err) return next(err);
         if (!user) {
-          await recordLoginFailure({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+          await recordLoginFailure({ identifier, ip: clientIp });
           return res.status(401).json({ message: info?.message || "Authentication failed" });
         }
 
@@ -230,7 +249,7 @@ export async function setupAuth(app: Express) {
             }
           }
 
-          await resetLoginLimit({ identifier, ip: Array.isArray(clientIp) ? clientIp[0] : String(clientIp) });
+          await resetLoginLimit({ identifier, ip: clientIp });
 
           res.status(200).json(req.user);
         } catch (error) {

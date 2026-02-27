@@ -1,6 +1,18 @@
 import 'dotenv/config'; // Load .env file first
 import { z } from 'zod';
 
+const booleanEnv = (defaultValue: boolean) =>
+  z.preprocess((value) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+      if (['0', 'false', 'no', 'off', ''].includes(normalized)) return false;
+    }
+    return value;
+  }, z.boolean().default(defaultValue));
+
 const envSchema = z.object({
   // Environment
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -67,6 +79,7 @@ const envSchema = z.object({
   LDAP_EMAIL_ATTR: z.string().optional(),
 
   // Feature Flags
+  ENABLE_INVITATIONS: booleanEnv(false),
   ENABLE_GOOGLE_AUTH: z.string().optional(),
   ENABLE_AZURE_AUTH: z.string().optional(),
   ENABLE_LDAP_AUTH: z.string().optional(),

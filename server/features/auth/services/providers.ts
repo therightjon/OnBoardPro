@@ -191,8 +191,12 @@ export class LdapAuthProvider implements AuthProvider {
         };
 
         if (this.config.startTls) {
-          logger.debug('LDAP auth: initiating StartTLS', { url: this.config.url });
-          client.starttls({ rejectUnauthorized: false }, null, (tlsErr: any) => {
+          const verifyTlsCert = this.config.verifyTlsCert === true;
+          logger.debug('LDAP auth: initiating StartTLS', {
+            url: this.config.url,
+            verifyTlsCert
+          });
+          client.starttls({ rejectUnauthorized: verifyTlsCert }, null, (tlsErr: any) => {
             if (tlsErr) {
               logger.error('LDAP StartTLS error', tlsErr);
               client.destroy();
