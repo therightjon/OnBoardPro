@@ -10,6 +10,7 @@ import {
 } from "@shared/schemas";
 import { encryptEnvelopeSecret, decryptEnvelopeSecret } from "../../utils/envelope";
 import { writeAuditLog } from "../../services/shared/audit-logger";
+import { logger } from "../../utils/logger";
 
 const SETTINGS_ID = "primary";
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -411,7 +412,7 @@ export async function updateSmtpSettings(payload: UpdateInput, actorId: string, 
 
   invalidateTransportCache();
 
-  console.info("[smtp] settings updated", {
+  logger.info('[smtp] settings updated', {
     actorId,
     enabled,
     security,

@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { logger } from "./logger";
 
 const INVITE_TOKEN_BYTES = 32;
 
@@ -33,5 +34,5 @@ export function getInviteBaseUrl(): string {
  */
 export async function sendInviteEmail(email: string, token: string, expiresAt: Date) {
   const link = `${getInviteBaseUrl()}/accept-invite?token=${token}`;
-  console.info(`[invite] Sent invitation`, { email, link, expiresAt: expiresAt.toISOString() });
+  logger.info('[invite] Sent invitation', { email, link, expiresAt: expiresAt.toISOString() });
 }

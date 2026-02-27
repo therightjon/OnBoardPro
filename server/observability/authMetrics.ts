@@ -1,3 +1,5 @@
+import { logger } from "../utils/logger";
+
 export type AuthorizationFailureEvent = {
   resource: string;
   action: string;
@@ -28,7 +30,7 @@ function stdoutReporter(event: AuthorizationFailureEvent): void {
       taskId: event.taskId,
       timestamp: event.timestamp.toISOString()
     };
-    console.info("[auth-denied]", payload);
+    logger.info('[auth-denied]', payload);
   }
 }
 
