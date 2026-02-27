@@ -14,6 +14,7 @@ import { FIXED_LDAP_USER_FILTER_TEMPLATE } from "../../features/auth/identifier"
 export interface LdapSettings {
   url?: string;
   startTls?: boolean;
+  verifyTlsCert?: boolean;
   bindDn?: string;
   bindPassword?: string;
   baseDn?: string;
@@ -33,6 +34,15 @@ function readEnv(...keys: string[]): string | undefined {
     }
   }
   return undefined;
+}
+
+function readBooleanEnv(key: string, defaultValue = false): boolean {
+  const raw = process.env[key];
+  if (raw === undefined) return defaultValue;
+  const normalized = raw.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off", ""].includes(normalized)) return false;
+  return defaultValue;
 }
 
 export class AuthProviderService {
@@ -102,6 +112,7 @@ export class AuthProviderService {
     const seeded: LdapSettings = Object.keys(stored).length === 0 ? {
       url: readEnv('LDAP_URL'),
       startTls: process.env.LDAP_STARTTLS === 'true',
+      verifyTlsCert: readBooleanEnv('LDAP_VERIFY_TLS', false),
       bindDn: readEnv('LDAP_BIND_DN'),
       bindPassword: process.env.LDAP_BIND_PASSWORD ? encryptSecret(process.env.LDAP_BIND_PASSWORD) : undefined,
       baseDn: readEnv('LDAP_BASE_DN', 'LDAP_SEARCH_BASE'),
@@ -114,6 +125,7 @@ export class AuthProviderService {
     } : stored;
     const normalized: LdapSettings = {
       ...seeded,
+      verifyTlsCert: seeded.verifyTlsCert ?? false,
       userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
     };
 
@@ -135,6 +147,7 @@ export class AuthProviderService {
     const next: LdapSettings = {
       url: partial.url ?? existing.url,
       startTls: partial.startTls ?? existing.startTls,
+      verifyTlsCert: partial.verifyTlsCert ?? existing.verifyTlsCert ?? false,
       bindDn: partial.bindDn ?? existing.bindDn,
       bindPassword: existing.bindPassword, // temporary plain for now
       baseDn: partial.baseDn ?? existing.baseDn,
@@ -176,6 +189,7 @@ export class AuthProviderService {
       details: {
         url: toStore.url,
         startTls: toStore.startTls,
+        verifyTlsCert: toStore.verifyTlsCert,
         baseDn: toStore.baseDn,
         userFilter: toStore.userFilter,
         usernameAttr: toStore.usernameAttr,

@@ -884,6 +884,7 @@ export class MockServiceFactory {
       const fallback = {
         url: process.env.LDAP_URL,
         startTls: process.env.LDAP_STARTTLS === "true",
+        verifyTlsCert: process.env.LDAP_VERIFY_TLS === "true",
         bindDn: process.env.LDAP_BIND_DN,
         bindPassword: process.env.LDAP_BIND_PASSWORD,
         baseDn: process.env.LDAP_BASE_DN ?? process.env.LDAP_SEARCH_BASE,

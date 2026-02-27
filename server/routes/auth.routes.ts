@@ -278,6 +278,7 @@ const inviteRequestSchema = z.object({
 const ldapSettingsPatchSchema = z.object({
   url: z.string().optional(),
   startTls: z.coerce.boolean().optional(),
+  verifyTlsCert: z.coerce.boolean().optional(),
   baseDn: z.string().optional(),
   bindDn: z.string().optional(),
   bindPassword: z.string().optional(),
@@ -592,11 +593,15 @@ router.get("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]),
     if (cfg.url && !cfg.url.startsWith('ldaps://') && !cfg.startTls) {
       warnings.push('LDAP requires LDAPS (ldaps://) or StartTLS for security');
     }
+    if (cfg.startTls && cfg.verifyTlsCert === false) {
+      warnings.push('LDAP StartTLS certificate verification is disabled');
+    }
     // Prepare masked response
     const response = {
       settings: {
         url: cfg.url,
         startTls: !!cfg.startTls,
+        verifyTlsCert: !!cfg.verifyTlsCert,
         baseDn: cfg.baseDn,
         userFilter: FIXED_LDAP_USER_FILTER_TEMPLATE,
         usernameAttr: cfg.usernameAttr,
@@ -623,6 +628,7 @@ router.put("/auth/ldap", requireAuth, requireRole(["system_admin", "hr_staff"]),
     const patch = {
       url: normalizeOptionalString(parsedPatch.url),
       startTls: parsedPatch.startTls,
+      verifyTlsCert: parsedPatch.verifyTlsCert,
       baseDn: normalizeOptionalString(parsedPatch.baseDn),
       bindDn: normalizeOptionalString(parsedPatch.bindDn),
       bindPassword: parsedPatch.bindPassword,
@@ -662,6 +668,7 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
     const override = {
       url: normalizeOptionalString(parsedOverride.url),
       startTls: parsedOverride.startTls,
+      verifyTlsCert: parsedOverride.verifyTlsCert,
       baseDn: normalizeOptionalString(parsedOverride.baseDn),
       bindDn: normalizeOptionalString(parsedOverride.bindDn),
       bindPassword: parsedOverride.bindPassword,
@@ -676,6 +683,7 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
     const cfg = {
       url: override.url ?? current?.url,
       startTls: override.startTls ?? current?.startTls,
+      verifyTlsCert: override.verifyTlsCert ?? current?.verifyTlsCert ?? false,
       baseDn: override.baseDn ?? current?.baseDn,
       bindDn: override.bindDn ?? current?.bindDn,
       bindPassword: override.bindPassword ?? current?.bindPassword,
@@ -740,8 +748,11 @@ router.post("/auth/ldap/test", requireAuth, requireRole(["system_admin", "hr_sta
       };
 
       if (cfg.startTls) {
-        logger.debug('LDAP test: initiating StartTLS', { url: cfg.url });
-        client.starttls({ rejectUnauthorized: false }, null, (tlsErr: any) => {
+        logger.debug('LDAP test: initiating StartTLS', {
+          url: cfg.url,
+          verifyTlsCert: cfg.verifyTlsCert
+        });
+        client.starttls({ rejectUnauthorized: cfg.verifyTlsCert === true }, null, (tlsErr: any) => {
           if (tlsErr) {
             logger.error('LDAP test StartTLS error', tlsErr);
             client.destroy();
