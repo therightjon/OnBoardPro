@@ -409,7 +409,7 @@ export default function Dashboard() {
         if (isNaN(startDate.getTime())) return null;
         return { ...candidate, startDate };
       })
-      .filter(Boolean) as Array<any & { startDate: Date }>;
+      .filter(Boolean) as Array<CandidateType & { startDate: Date }>;
 
     if (withStartDates.length === 0) return [];
 
