@@ -11,7 +11,7 @@ function createAgent() {
   app.use(express.urlencoded({ extended: false }));
   app.use(
     session({
-      secret: "csrf-test-secret",
+      secret: process.env.TEST_SESSION_SECRET || "csrf-test-secret",
       resave: false,
       saveUninitialized: false,
       store: new session.MemoryStore(),
