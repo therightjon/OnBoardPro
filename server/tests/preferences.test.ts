@@ -33,8 +33,8 @@ function applyUpdates(base: UserPreferencesDTO, updates: Partial<UserPreferences
 
 test("GET /api/me/preferences returns defaults with all fields", () => {
   const response = buildPreferenceResponse(undefined);
-  const keys = Object.keys(response).sort();
-  assert.deepEqual(keys, [...PREFERENCE_KEYS].sort());
+  const keys = Object.keys(response).sort((a, b) => a.localeCompare(b));
+  assert.deepEqual(keys, [...PREFERENCE_KEYS].sort((a, b) => a.localeCompare(b)));
 
   assert.equal(response.allowSelfNotifications, false, "default allowSelfNotifications should be false");
 

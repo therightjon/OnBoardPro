@@ -25,19 +25,14 @@ function createMockDb(): MockDb {
       from: (table: any) => ({
         where: (condition: any) => {
           const results = Array.from(notifications.values());
-          const whereObj = {
+          return Object.assign(Promise.resolve(results), {
             orderBy: (order: any) => ({
               limit: (count: number) => {
-                const sorted = results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+                const sorted = [...results].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
                 return Promise.resolve(sorted.slice(0, count));
               }
             }),
-            // Make it thenable for direct await
-            then: (resolve: any, reject: any) => {
-              return Promise.resolve(results).then(resolve, reject);
-            }
-          };
-          return whereObj;
+          });
         },
         orderBy: (order: any) => ({
           limit: (count: number) => {
