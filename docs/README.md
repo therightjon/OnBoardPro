@@ -1,12 +1,13 @@
 # Documentation Index
 
-Last Updated: 2026-03-19
+Last Updated: 2026-03-20
 
 This folder contains both actively maintained docs and historical snapshots.
 
 ## Actively Maintained
 
 - `ARCHITECTURE.md` - System architecture and runtime design
+- `AUTHORIZATION_VISIBILITY_FIX_PLAN.md` - Implementation plan for current authorization and visibility fixes
 - `BOUNDED_CONTEXTS.md` - Current domain boundary map
 - `DOMAIN_GLOSSARY.md` - Shared terminology
 - `MIGRATIONS.md` - Migration workflow and scripts
