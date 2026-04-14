@@ -1,7 +1,7 @@
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { encryptEnvelopeSecret, decryptEnvelopeSecret } from "../utils/envelope";
-import { buildTransportOptions, mapNodemailerError, type MaterializedSmtpSettings } from "../features/email/smtp-settings.service";
+import { buildMailboxAddress, buildTransportOptions, mapNodemailerError, type MaterializedSmtpSettings } from "../features/email/smtp-settings.service";
 import { computeBackoff, computeQuietHoursWindow, parseTimeToMinutes } from "../jobs/notification-email";
 import { renderImmediateEmail, renderDigestEmail } from "../features/email/templates";
 import type { NotificationOutboxEntry } from "@shared/schemas";
@@ -85,6 +85,18 @@ describe("SMTP transport builders", () => {
   test("mapNodemailerError maps STARTTLS failures", () => {
     const mapped = mapNodemailerError({ code: "EHLOSTARTTLS", message: "STARTTLS not offered" });
     assert.equal(mapped.code, "starttls_unavailable");
+  });
+
+  test("mapNodemailerError maps ENOAUTH failures from Nodemailer 8", () => {
+    const mapped = mapNodemailerError({ code: "ENOAUTH", message: "Missing credentials for PLAIN" });
+    assert.equal(mapped.code, "auth_failure");
+  });
+
+  test("buildMailboxAddress rejects CRLF injection", () => {
+    assert.throws(
+      () => buildMailboxAddress("recipient@example.com", "Admin\r\nBcc: attacker@example.com"),
+      /invalid control characters/
+    );
   });
 });
 
