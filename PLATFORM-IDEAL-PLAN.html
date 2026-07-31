@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>OnBoardPro — The Lean O365-Native Alternative</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+  :root {
+    --bg: #ffffff; --fg: #1a202c; --muted: #64748b; --accent: #1e6b52;
+    --border: #e2e8f0; --code-bg: #f6f8fa; --th-bg: #f1f5f9; --row-alt: #f8fafc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a; --fg: #e2e8f0; --muted: #94a3b8; --accent: #4fd1a5;
+      --border: #334155; --code-bg: #1e293b; --th-bg: #1e293b; --row-alt: #16223a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; max-width: 60rem; padding: 2.5rem 1.5rem 5rem;
+    background: var(--bg); color: var(--fg);
+    font: 16px/1.65 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 1.9rem; line-height: 1.25; border-bottom: 3px solid var(--accent); padding-bottom: .6rem; }
+  h2 { font-size: 1.35rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.8rem; }
+  a { color: var(--accent); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+  code {
+    font: 0.875em/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: var(--code-bg); padding: .12em .35em; border-radius: 4px;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 1rem; overflow-x: auto;
+  }
+  pre code { background: none; padding: 0; }
+  table {
+    border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .9rem;
+    display: block; overflow-x: auto;
+  }
+  th, td { border: 1px solid var(--border); padding: .45rem .65rem; text-align: left; vertical-align: top; }
+  th { background: var(--th-bg); }
+  tbody tr:nth-child(even) { background: var(--row-alt); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--accent); color: var(--muted); }
+  li { margin: .25rem 0; }
+  em { color: var(--muted); }
+  </style>
+</head>
+<body>
+<h1 id="onboardpro--the-lean-o365-native-alternative">OnBoardPro — The
+Lean O365-Native Alternative</h1>
+<p><strong>Date:</strong> 2026-07-30 · <strong>Rev 2</strong> (reviewed
+alongside parity plan Rev 4; confidence assessment added — §9) ·
+<strong>Status:</strong> Proposed alternative <strong>Companion
+to:</strong> <a
+href="PLATFORM-REBUILD-PLAN.md">PLATFORM-REBUILD-PLAN.md</a> (the parity
+rebuild). Same tenant, same licensing, same data backbone — this
+document only describes what differs.</p>
+<hr />
+<h2 id="1-premise">1. Premise</h2>
+<p>The parity plan faithfully rebuilds the web app's shape: six canvas
+screens reproducing every surface the old app had. This plan asks a
+different question: <strong>knowing the intent, what is the least system
+that delivers the workflow</strong> on SharePoint + canvas apps + Power
+Automate + O365 + Power BI?</p>
+<p>The observation driving it: most of the old app's surface area was
+screens whose jobs O365 already does.</p>
+<table>
+<thead>
+<tr>
+<th>Old app surface</th>
+<th>O365 already provides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dashboard + analytics page</td>
+<td>Power BI (pinned in Teams)</td>
+</tr>
+<tr>
+<td>Notification center + bell</td>
+<td>Outlook + Teams activity feed (email-primary)</td>
+</tr>
+<tr>
+<td>My Tasks inbox</td>
+<td>email digest + a <code>[Me]</code>-filtered list view (+ optional
+Teams cards)</td>
+</tr>
+<tr>
+<td>Admin CRUD (departments, ranks, stages)</td>
+<td>Microsoft Lists UI</td>
+</tr>
+<tr>
+<td>Template editor</td>
+<td>Microsoft Lists UI + a validation flow</td>
+</tr>
+<tr>
+<td>Sign-off tasks</td>
+<td>The Approvals app</td>
+</tr>
+</tbody>
+</table>
+<p>Custom UI earns its place only where the domain demands
+<strong>guarded, cross-list orchestration</strong>: creating a candidate
+correctly, and running a candidate's pipeline. Everything else rides
+native surfaces.</p>
+<h2 id="2-what-stays-custom--a-two-screen-canvas-app">2. What stays
+custom — a two-screen canvas app</h2>
+<ol type="1">
+<li><strong>New Candidate wizard.</strong> The creation gates genuinely
+need guarded UI: LOI date + template required, faculty rank required for
+Faculty types, and the P&amp;T check (a rank that requires P&amp;T must
+pair with a template containing a Requires-P&amp;T prerequisite task). A
+native list form can't enforce cross-list rules; the wizard can, and
+it's one screen.</li>
+<li><strong>Candidate cockpit.</strong> The one screen where cross-list
+context matters: header + status transitions (the enforced matrix — e.g.
+Completed blocked while required tasks remain open, with the blockers
+listed), anchor dates (LOO acceptance triggers expansion),
+tasks-by-stage with inline status/assignee edits, watchers, comments,
+timeline, the candidate's document folders (Phase 1), and the HR Notes
+tab (backed by the server-enforced HR-only HRNotes list). This is the
+old app's 1,600-line centerpiece and it stays — it's the part that was
+actually valuable.</li>
+</ol>
+<p><em>(Optional screen 3: My Tasks. Hold it back — the Teams agenda
+card plus a "My open tasks" list view may make it unnecessary. Let the
+pilot decide; adding it later is cheap because the Tasks list is already
+denormalized for exactly that screen.)</em></p>
+<p>All parity-plan construction rules apply unchanged (IfError on every
+write, FirstN delegation guards, blank-safe variables, UI audit).</p>
+<h2 id="3-what-goes-native">3. What goes native</h2>
+<p><strong>Template authoring → Microsoft Lists.</strong> HR edits
+<code>TemplateTasks</code> in a grouped-by-stage list view with column
+validation and choice pills. A <strong>"Validate Template" flow</strong>
+(button/selected-item trigger) runs the readiness rules — every active
+stage has ≥1 task, every Fixed rule has a date, every role slot has a
+role, offsets sane — and either flips the template to Active or posts a
+Teams card listing what's wrong. Rationale: template authoring is
+HR-only and happens a few times a year, yet the drag-drop editor is the
+single most expensive screen in both the old app and the parity plan. A
+grouped list view plus a validating flow gets 90% of the value for ~5%
+of the build.</p>
+<p><strong>Reference data → Microsoft Lists.</strong> Departments,
+divisions, ranks, stages: native forms, version history, done.</p>
+<p><strong>Dashboard → Power BI only.</strong> No canvas KPI screen. The
+report (pipeline, throughput, workload, history — same four pages as the
+parity plan) is pinned as a Teams tab and linked from the app; every
+user can open it, since all users carry A5 licenses (Power BI Pro
+included). Operational numbers ("due this week") also arrive in the
+daily digest, below.</p>
+<p><strong>Task inbox → your inbox (email-first, Teams opt-in).</strong>
+Email is the primary route — everyone has it; Teams usage varies across
+the team. Each user's <code>NotifyChannel</code> (on AppPermissions:
+<strong>Email</strong> default · Teams · both) picks the route;
+<strong>critical notifications always email</strong>.</p>
+<ul>
+<li><strong>Assignment email</strong> when a task is created/assigned:
+title, candidate, due date, deep links to the cockpit
+(<code>Param("candidateId")</code>) and the list item. Opted-in users
+get a Teams card too.</li>
+<li><strong>Daily agenda email</strong> (weekday mornings, one per
+person with open work): overdue first, then due ≤7 days, grouped by
+candidate, with links. The Teams variant is a card — deliberately
+<strong>informational, not interactive</strong>: "wait for a response"
+cards hold a flow run open per card and take one response, a poor fit
+for a digest. Links beat embedded buttons.</li>
+<li><strong>Overdue escalation</strong> (weekly): manager + HR get a
+rollup of anything overdue &gt;7 days.</li>
+</ul>
+<p><strong>Sign-offs → Approvals</strong> (identical to parity plan §9:
+fire on stage entry, assign individuals, re-issue on the 28-day
+timeout).</p>
+<p><strong>Candidate experience → an email drip, not a portal.</strong>
+Template tasks with <code>AssigneeRole = Candidate</code> become
+scheduled touchpoints from the shared mailbox: welcome-on-acceptance,
+document requests, first-day info. The candidate "experience" is defined
+per template, in data — no candidate-facing UI at all.</p>
+<h2 id="4-a-working-day">4. A working day</h2>
+<p>HR creates a candidate in the wizard → prerequisite tasks appear and
+the P&amp;T reviewer gets an Approval when that stage arrives. Offer
+accepted → HR sets one date in the cockpit; the checklist materializes;
+every assignee gets an assignment email (Teams card if they opted in).
+People work from morning agenda emails; sign-offs are decided from the
+approval email or the Teams Approvals app; the candidate gets their
+document-request email without anyone sending it. HR watches the cockpit
+and the Power BI tab. <strong>Most participants never open the canvas
+app at all</strong> — only HR and managers do, and only for the two
+screens that earn it.</p>
+<h2 id="5-flow-set">5. Flow set</h2>
+<p>F1–F7 carry over exactly as specified in the parity plan — including
+the <code>UpdatedVia</code> sentinel discipline and each flow's
+ChangeLog duties (expansion, anchor recompute, task-change/advancement,
+comments, approvals, deadline scan, archive sweep). Add:</p>
+<ul>
+<li><strong>F8 — <code>OnBoard - Validate Template</code></strong>
+(selected-item trigger on Templates): the readiness check that replaces
+the in-app editor's validation.</li>
+<li>F6 absorbs the <strong>agenda digest</strong> (email; Teams card for
+opt-ins) and candidate-drip sends (it already scans deadlines
+daily).</li>
+</ul>
+<p>Net: one more flow than parity, several fewer screens.</p>
+<h2 id="6-cost-and-trade-offs">6. Cost and trade-offs</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Parity plan</th>
+<th>Lean plan</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Canvas screens</td>
+<td>6 (dashboard, candidates, cockpit, my tasks, templates, admin)</td>
+<td><strong>2</strong> (wizard, cockpit)</td>
+</tr>
+<tr>
+<td>Flows</td>
+<td>7</td>
+<td>8</td>
+</tr>
+<tr>
+<td>Native Lists config</td>
+<td>minimal</td>
+<td>grouped views, validation, formatting</td>
+</tr>
+<tr>
+<td>Power BI</td>
+<td>4 pages</td>
+<td>same 4 pages, now the <em>only</em> dashboard</td>
+</tr>
+<tr>
+<td>Build effort</td>
+<td>the canvas app is the long pole (per MOMPOD/IRB experience)</td>
+<td>roughly <strong>halves</strong> the canvas effort</td>
+</tr>
+</tbody>
+</table>
+<p>Honest trade-offs:</p>
+<ol type="1">
+<li><strong>Native list editing is less guarded than app forms.</strong>
+Column validation + the validate flow + version history mitigate, but a
+determined editor can enter odd template data that only surfaces at
+validation time. (The parity plan's editor prevents it at entry.)</li>
+<li><strong>Two UIs for HR</strong> — Lists for authoring, the app for
+operating. Acceptable for a few-times-a-year activity, but it is a
+context switch and a training note.</li>
+<li><strong>Less branded polish</strong> for leadership demos — the
+cockpit and the Power BI report carry the demo instead of a full
+app.</li>
+<li><strong>Notification fatigue is real either way.</strong>
+Email-primary with per-user <code>NotifyChannel</code> opt-ins keeps the
+default in the tool everyone reads; the digest pattern (one morning
+email, not one per task) is what keeps it tolerable.</li>
+</ol>
+<h2 id="7-considered-and-rejected">7. Considered and rejected</h2>
+<ul>
+<li><strong>Planner as the task store</strong> — no custom fields
+(anchors, offsets, stages, required/prereq flags), weak reporting, no
+delegable queries. The domain outgrows it immediately. A <strong>one-way
+mirror</strong> of assigned tasks into Planner/To Do (standard
+connector) is feasible if the pilot shows people living in those tools —
+but it creates a second source of truth and a sync/mapping burden, so
+it's a post-pilot consideration, not a v1 feature.</li>
+<li><strong>The out-of-box "New employee onboarding" SharePoint
+template</strong> — a communications site for new-hire content, not a
+pipeline tracker. Could complement later; doesn't compete.</li>
+<li><strong>Dataverse / Power Pages candidate portal</strong> — premium
+licensing and outside the stated constraints; remains the §14 escape
+hatch in the parity plan.</li>
+<li><strong>Interactive agenda cards with completion buttons</strong> —
+each "wait for response" card parks an open flow run and takes one
+response only; wrong shape for a daily digest (see §3).</li>
+</ul>
+<h2 id="8-recommendation">8. Recommendation</h2>
+<p><strong>These plans aren't rivals — they share the backbone.</strong>
+Identical lists, identical flows F1–F7, identical security model
+(including the sensitivity partition — HR-only containers are
+server-enforced in both), identical caveats checklist (parity plan §16
+applies to the platform, not the screens). The only real question is how
+much custom UI to build, and when.</p>
+<p>Start lean: wizard + cockpit + flows + Power BI + native Lists. Pilot
+with one real hire. Then let observed friction — not speculation —
+justify each additional screen, in the order the parity plan already
+specifies (My Tasks first if assignees ask for it; the template editor
+last, and probably never).</p>
+<p>That sequencing also front-loads the approval story: the pilot exists
+weeks earlier, and everything a reviewer would scrutinize (identity,
+mail, storage) is native M365 either way.</p>
+<h2 id="9-confidence-assessment-rev-2-review">9. Confidence assessment
+(Rev 2 review)</h2>
+<p><strong>Overall: 8 / 10</strong> — wider variance than the parity
+plan, and higher expected value if the pilot-first premise holds.</p>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Confidence</th>
+<th>Basis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shared backbone (lists, flows, security, scale)</td>
+<td>inherits parity §18 scores</td>
+<td>identical by construction</td>
+</tr>
+<tr>
+<td>Execution risk</td>
+<td>9/10</td>
+<td>Two screens instead of six removes the parity plan's biggest
+schedule risk (the canvas app is historically the long pole)</td>
+</tr>
+<tr>
+<td>Lists-based template authoring</td>
+<td>6.5/10</td>
+<td>Mechanically sound, but HR acceptance of the Lists UI is the one
+genuinely untested UX bet; the validate-flow safety net bounds the
+damage</td>
+</tr>
+<tr>
+<td>Email digest / task-inbox adoption</td>
+<td>7.5/10</td>
+<td>Email-primary matches the team's stated habits; digest fatigue is
+the watch item</td>
+</tr>
+<tr>
+<td>Reversibility</td>
+<td>9.5/10</td>
+<td>Every lean choice upgrades to its parity equivalent without rework —
+same data, same flows; screens are additive</td>
+</tr>
+</tbody>
+</table>
+<p>The two plans share ~80% of their risk profile because they share the
+backbone. The lean plan trades a <strong>known cost</strong> (six
+screens of canvas work) for one <strong>unknown</strong> (will HR accept
+Lists-based template authoring?) — an unknown the pilot resolves with
+its first real template. Recommendation unchanged: <strong>start lean,
+let the pilot vote.</strong></p>
+</body>
+</html>
