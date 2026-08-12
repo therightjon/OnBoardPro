@@ -1,0 +1,6 @@
+EditorState:
+  ScreensOrder:
+    - scr_candidates
+    - scr_mytasks
+    - scr_new_candidate
+    - scr_templates

@@ -1376,7 +1376,12 @@ Screens:
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
                                           OnSelect: |-
-                                            =ClearCollect(colPvPreview,
+                                            =ClearCollect(colPvStages,
+                                                ForAll(Filter(TemplateStages, Template.Id = Coalesce(cmbDtTemplate.Selected.ID, LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Template.Id, 0)) As s,
+                                                    {ID: s.ID,
+                                                     SgName: Coalesce(LookUp(Stages, ID = s.Stage.Id).Title,
+                                                         s.Title, "No stage")}));
+                                            ClearCollect(colPvPreview,
                                                 SortByColumns(
                                                     AddColumns(
                                                         Filter(TemplateTasks,
@@ -2425,6 +2430,24 @@ Screens:
                   Size: =2
                   Text: =""
                   Wrap: =false
+      - galPvStagesAll:
+          Control: Gallery
+          Variant: Vertical
+          Properties:
+            Height: =400
+            Items: =Filter(TemplateStages, Template.Id = Coalesce(cmbDtTemplate.Selected.ID, LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Template.Id, 0))
+            TemplatePadding: =0
+            TemplateSize: =1
+            Visible: =false
+            Width: =1
+          Children:
+            - lblPvStageStub:
+                Control: Label
+                Properties:
+                  Height: =1
+                  Size: =8
+                  Text: =ThisItem.Stage.Value & ThisItem.Title
+                  Width: =1
       - conPvModal:
           Control: GroupContainer
           Variant: AutoLayout
@@ -2465,6 +2488,7 @@ Screens:
                   - lblPvTitle:
                       Control: ModernText
                       Properties:
+                        AutoHeight: =true
                         Color: =UAB.TextPrimary
                         FontWeight: =FontWeight.Semibold
                         Height: =34
@@ -2476,6 +2500,7 @@ Screens:
                   - lblPvSub:
                       Control: ModernText
                       Properties:
+                        AutoHeight: =true
                         Color: =UAB.Gray500
                         Height: =23
                         LayoutMinHeight: =0
@@ -2489,6 +2514,7 @@ Screens:
                   - lblPvCounts:
                       Control: ModernText
                       Properties:
+                        AutoHeight: =true
                         Color: =UAB.Gray700
                         Height: =If(scr_candidates.Size = ScreenSize.Small, 46, 26)
                         LayoutMinHeight: =0
@@ -2545,6 +2571,7 @@ Screens:
                         - lblPvHeadTask:
                             Control: ModernText
                             Properties:
+                              AutoHeight: =true
                               Color: =UAB.Gray500
                               FillPortions: =1
                               FontWeight: =FontWeight.Semibold
@@ -2557,6 +2584,7 @@ Screens:
                         - lblPvHeadRule:
                             Control: ModernText
                             Properties:
+                              AutoHeight: =true
                               Color: =UAB.Gray500
                               FontWeight: =FontWeight.Semibold
                               Height: =23
@@ -2571,6 +2599,7 @@ Screens:
                             Control: ModernText
                             Properties:
                               Align: =Align.Right
+                              AutoHeight: =true
                               Color: =UAB.Gray500
                               FontWeight: =FontWeight.Semibold
                               Height: =23
@@ -2585,7 +2614,17 @@ Screens:
                       Variant: Vertical
                       Properties:
                         Fill: =UAB.White
-                        Items: =colPvPreview
+                        Items: |-
+                          =SortByColumns(
+                              Filter(TemplateTasks,
+                                  Template.Id = Coalesce(cmbDtTemplate.Selected.ID, LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Template.Id, 0),
+                                  If(If(IsBlank(dpDtLOOAcc.SelectedDate), "prereq", "full") = "prereq",
+                                     And(IsPrereq, Or(IsBlank(PrereqCondition.Value), PrereqCondition.Value = "Always",
+                                     And(PrereqCondition.Value = "Requires P&T", Coalesce(LookUp(FacultyRanks, ID = Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).FacultyRank.Id, 0)).RequiresPT, false)))),
+                                     Or(Not(IsPrereq),
+                                        And(IsPrereq, Not(!IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).PrereqsExpanded)), Or(IsBlank(PrereqCondition.Value), PrereqCondition.Value = "Always",
+                                     And(PrereqCondition.Value = "Requires P&T", Coalesce(LookUp(FacultyRanks, ID = Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).FacultyRank.Id, 0)).RequiresPT, false))))))),
+                              "OrderIndex", SortOrder.Ascending)
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         TemplatePadding: =0
@@ -2631,6 +2670,7 @@ Screens:
                                           - lblPvRowTitle:
                                               Control: ModernText
                                               Properties:
+                                                AutoHeight: =true
                                                 Color: =UAB.TextPrimary
                                                 FontWeight: =FontWeight.Semibold
                                                 Height: =26
@@ -2642,33 +2682,50 @@ Screens:
                                           - lblPvRowMeta:
                                               Control: ModernText
                                               Properties:
+                                                AutoHeight: =true
                                                 Color: =UAB.Gray500
                                                 Height: =23
                                                 LayoutMinHeight: =0
                                                 LayoutMinWidth: =0
                                                 Size: =UABSize.Secondary
-                                                Text: =ThisItem.PvStage & "  ·  " & ThisItem.PvRole
+                                                Text: |-
+                                                  =With({s: LookUp(galPvStagesAll.AllItems, ID = ThisItem.TemplateStage.Id)},
+                                                      Coalesce(s.Stage.Value, s.Title, "No stage"))
+                                                      & "  ·  " & Coalesce(ThisItem.AssigneeRole.Value, "No role")
                                                 Wrap: =false
                                           - lblPvRowRuleSmall:
                                               Control: ModernText
                                               Properties:
+                                                AutoHeight: =true
                                                 Color: =UAB.Gray500
                                                 Height: =If(scr_candidates.Size = ScreenSize.Small, 23, 0)
                                                 LayoutMinHeight: =0
                                                 LayoutMinWidth: =0
                                                 Size: =UABSize.Secondary
-                                                Text: =ThisItem.PvRule
-                                                Visible: =scr_candidates.Size = ScreenSize.Small
+                                                Text: |-
+                                                  =If(scr_candidates.Size = ScreenSize.Small, With({a: Coalesce(ThisItem.Anchor.Value, "None"), n: Coalesce(ThisItem.OffsetDays, 0)},
+                                                      If(a = "None", "No date rule",
+                                                         a = "Fixed", "Fixed date",
+                                                         n = 0, "On " & a,
+                                                         n < 0, Abs(n) & If(n = -1, " day before ", " days before ") & a,
+                                                         n & If(n = 1, " day after ", " days after ") & a)), "")
                                                 Wrap: =false
                                     - lblPvRowRule:
                                         Control: ModernText
                                         Properties:
+                                          AutoHeight: =true
                                           Color: =UAB.Gray700
                                           Height: =23
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
                                           Size: =UABSize.Secondary
-                                          Text: =ThisItem.PvRule
+                                          Text: |-
+                                            =With({a: Coalesce(ThisItem.Anchor.Value, "None"), n: Coalesce(ThisItem.OffsetDays, 0)},
+                                                If(a = "None", "No date rule",
+                                                   a = "Fixed", "Fixed date",
+                                                   n = 0, "On " & a,
+                                                   n < 0, Abs(n) & If(n = -1, " day before ", " days before ") & a,
+                                                   n & If(n = 1, " day after ", " days after ") & a))
                                           Visible: =!(scr_candidates.Size = ScreenSize.Small)
                                           Width: =If(scr_candidates.Size = ScreenSize.Small, 0, 190)
                                           Wrap: =false
@@ -2676,15 +2733,23 @@ Screens:
                                         Control: ModernText
                                         Properties:
                                           Align: =Align.Right
-                                          Color: =If(IsBlank(ThisItem.PvDue), UAB.InfoText, UAB.TextPrimary)
+                                          AutoHeight: =true
+                                          Color: =If(Self.Text = "Awaiting a Date", UAB.InfoText, UAB.TextPrimary)
                                           FontWeight: =FontWeight.Semibold
                                           Height: =26
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
                                           Size: =UABSize.Body
                                           Text: |-
-                                            =If(IsBlank(ThisItem.PvDue), "Awaiting a Date",
-                                                Text(ThisItem.PvDue, "ddd, mmm d, yyyy"))
+                                            =With({a: Coalesce(ThisItem.Anchor.Value, "None")},
+                                                With({ad: Switch(a, "Fixed", ThisItem.FixedDate,
+                                                    "LOI", dpDtLOI.SelectedDate,
+                                                    "LOO Issued", dpDtLOOIss.SelectedDate,
+                                                    "LOO Accepted", dpDtLOOAcc.SelectedDate,
+                                                    "Start", dpDtStart.SelectedDate, Blank())},
+                                                    If(Or(a = "None", IsBlank(ad)), "Awaiting a Date",
+                                                        Text(DateAdd(ad, Coalesce(ThisItem.OffsetDays, 0), TimeUnit.Days),
+                                                            "ddd, mmm d, yyyy"))))
                                           Width: =If(scr_candidates.Size = ScreenSize.Small, 122, 150)
                                           Wrap: =false
                               - lblPvRowLine:
@@ -2699,13 +2764,15 @@ Screens:
                       Control: ModernText
                       Properties:
                         Align: =Align.Center
+                        AutoHeight: =true
                         Color: =UAB.Gray500
                         Height: =If(CountRows(colPvPreview) = 0, 23, 0)
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         Size: =UABSize.Secondary
-                        Text: ="This template has no tasks that apply to this candidate yet."
-                        Visible: =CountRows(colPvPreview) = 0
+                        Text: |-
+                          =If(CountRows(colPvPreview) = 0,
+                              "This template has no tasks that apply to this candidate yet.", "")
                   - conPvActions:
                       Control: GroupContainer
                       Variant: AutoLayout
@@ -2728,6 +2795,6 @@ Screens:
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
-                              OnSelect: =Set(varPvShow, false); Clear(colPvPreview)
+                              OnSelect: =Set(varPvShow, false); Clear(colPvPreview); Clear(colPvStages)
                               Text: ="Close"
                               Width: =120

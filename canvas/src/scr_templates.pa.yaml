@@ -1430,9 +1430,9 @@ Screens:
                                     DropShadow: =DropShadow.None
                                     Fill: =UAB.White
                                     FillPortions: =0
-                                    Height: =40
-                                    LayoutAlignItems: =LayoutAlignItems.Center
-                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    Height: =If(scr_templates.Size = ScreenSize.Small, 84, 40)
+                                    LayoutAlignItems: =If(scr_templates.Size = ScreenSize.Small, LayoutAlignItems.Stretch, LayoutAlignItems.Center)
+                                    LayoutDirection: =If(scr_templates.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
                                     LayoutGap: =8
                                     LayoutMinHeight: =0
                                     LayoutMinWidth: =0
@@ -1442,7 +1442,6 @@ Screens:
                                         Properties:
                                           AutoHeight: =true
                                           Color: =UAB.Green
-                                          FillPortions: =1
                                           FontWeight: =FontWeight.Bold
                                           Height: =22
                                           LayoutMinHeight: =0
@@ -1450,6 +1449,14 @@ Screens:
                                           Size: =UABSize.Eyebrow
                                           Text: ="TASKS IN THIS TEMPLATE"
                                           Wrap: =false
+                                    - txtTpTaskSearch:
+                                        Control: ModernTextInput
+                                        Properties:
+                                          FillPortions: =1
+                                          Height: =36
+                                          LayoutMinHeight: =36
+                                          LayoutMinWidth: =0
+                                          Placeholder: ="Search tasks"
                                     - btnTpAddTask:
                                         Control: Button
                                         Properties:
@@ -1475,7 +1482,11 @@ Screens:
                                     Fill: =UAB.White
                                     Items: |-
                                       =SortByColumns(
-                                          Filter(TemplateTasks, Template.Id = Coalesce(varSelTemplateId, 0)),
+                                          Filter(TemplateTasks,
+                                              Template.Id = Coalesce(varSelTemplateId, 0),
+                                              Or(IsBlank(Trim(txtTpTaskSearch.Text)),
+                                                 StartsWith(Title, Trim(txtTpTaskSearch.Text)),
+                                                 Trim(txtTpTaskSearch.Text) in Title)),
                                           "OrderIndex", SortOrder.Ascending)
                                     LayoutMinHeight: =0
                                     LayoutMinWidth: =0
@@ -1557,7 +1568,8 @@ Screens:
                                                               Reset(tglTeRequired); Reset(tglTePrereq); Reset(tglTeApproval)
                                                             Size: =UABSize.Secondary
                                                             Text: |-
-                                                              =Coalesce(ThisItem.TemplateStage.Value, "No stage")
+                                                              =With({s: LookUp(galSgStages.AllItems, ID = ThisItem.TemplateStage.Id)},
+                                                                  Coalesce(s.Stage.Value, s.Title, "No stage"))
                                                                   & "  ·  " & Coalesce(ThisItem.AssigneeRole.Value, "No role")
                                                                   & If(Coalesce(ThisItem.Anchor.Value, "None") = "None", "",
                                                                       "  ·  " & ThisItem.Anchor.Value
