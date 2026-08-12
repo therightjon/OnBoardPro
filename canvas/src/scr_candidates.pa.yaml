@@ -1,0 +1,2733 @@
+Screens:
+  scr_candidates:
+    Properties:
+      Fill: =UAB.OffWhite
+    Children:
+      - NavRail_Candidates:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =UAB.Green
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutGap: =4
+            PaddingBottom: =32
+            PaddingTop: =32
+            Width: =If(scr_candidates.Size = ScreenSize.Small, UABLayout.NavRailWidthCollapsed, UABLayout.NavRailWidth)
+          Children:
+            - lblAppName_Candidates:
+                Control: Label
+                Properties:
+                  AlignInContainer: =AlignInContainer.Stretch
+                  Color: =UAB.White
+                  Font: =Font.Arial
+                  FontWeight: =FontWeight.Bold
+                  Height: =56
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =20
+                  PaddingRight: =0
+                  PaddingTop: =0
+                  Size: =20
+                  Text: ="OnBoardPro"
+                  Visible: =scr_candidates.Size <> ScreenSize.Small
+                  Wrap: =false
+            - lblAppSub_Candidates:
+                Control: Label
+                Properties:
+                  AlignInContainer: =AlignInContainer.Stretch
+                  Color: =UAB.Gold
+                  Font: =Font.Arial
+                  Height: =24
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =20
+                  PaddingRight: =0
+                  PaddingTop: =0
+                  Size: =11
+                  Text: ="OBGYN Onboarding"
+                  Visible: =scr_candidates.Size <> ScreenSize.Small
+                  Wrap: =false
+            - conNavMyTasks_Candidates:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - conNavBarMyTasks_Candidates:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_mytasks, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavMyTasks_Candidates:
+                      Control: Classic/Icon
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        Height: =44
+                        Icon: =Icon.Check
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_mytasks)
+                        PaddingLeft: =12
+                        Width: =44
+                  - lblNavMyTasks_Candidates:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_mytasks, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_mytasks)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        Text: ="My Tasks"
+                        Visible: =scr_candidates.Size <> ScreenSize.Small
+                        Wrap: =false
+            - conNavCandidates_Candidates:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsManagerOrHR
+                Children:
+                  - conNavBarCandidates_Candidates:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_candidates, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavCandidates_Candidates:
+                      Control: Classic/Icon
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_candidates, UAB.White, UAB.NavInactive)
+                        Height: =44
+                        Icon: =Icon.People
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_candidates)
+                        PaddingLeft: =12
+                        Width: =44
+                  - lblNavCandidates_Candidates:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_candidates, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_candidates, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_candidates)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        Text: ="Candidates"
+                        Visible: =scr_candidates.Size <> ScreenSize.Small
+                        Wrap: =false
+            - conNavNewCand_Candidates:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsHR
+                Children:
+                  - conNavBarNewCand_Candidates:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_new_candidate, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavNewCand_Candidates:
+                      Control: Classic/Icon
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        Height: =44
+                        Icon: =Icon.Add
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_new_candidate)
+                        PaddingLeft: =12
+                        Width: =44
+                  - lblNavNewCand_Candidates:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_new_candidate, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_new_candidate)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        Text: ="New Candidate"
+                        Visible: =scr_candidates.Size <> ScreenSize.Small
+                        Wrap: =false
+            - conNavTemplates_Candidates:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsHR
+                Children:
+                  - conNavBarTemplates_Candidates:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_templates, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavTemplates_Candidates:
+                      Control: Classic/Icon
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_templates, UAB.White, UAB.NavInactive)
+                        Height: =44
+                        Icon: =Icon.DocumentWithContent
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_templates)
+                        PaddingLeft: =12
+                        Width: =44
+                  - lblNavTemplates_Candidates:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_templates, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_templates, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_templates)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        Text: ="Templates"
+                        Visible: =scr_candidates.Size <> ScreenSize.Small
+                        Wrap: =false
+      - cntCandidatesRoot:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =UAB.OffWhite
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutGap: =16
+            LayoutOverflowY: =LayoutOverflow.Scroll
+            PaddingBottom: =24
+            PaddingLeft: =If(scr_candidates.Size = ScreenSize.Small, 12, 24)
+            PaddingRight: =If(scr_candidates.Size = ScreenSize.Small, 12, 24)
+            PaddingTop: =24
+            Width: =Parent.Width - If(scr_candidates.Size = ScreenSize.Small, UABLayout.NavRailWidthCollapsed, UABLayout.NavRailWidth)
+            X: =If(scr_candidates.Size = ScreenSize.Small, UABLayout.NavRailWidthCollapsed, UABLayout.NavRailWidth)
+          Children:
+            - cntCKHeader:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.OffWhite
+                  FillPortions: =0
+                  Height: =60
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - lblCKTitle:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.TextPrimary
+                        FontWeight: =FontWeight.Semibold
+                        Height: =44
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.ScreenTitle
+                        Text: ="Candidates"
+            - conCKSplit:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.OffWhite
+                  FillPortions: =0
+                  Height: =If(scr_candidates.Size = ScreenSize.Small, 1088, Max(560, scr_candidates.Height - 132))
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =If(scr_candidates.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                  LayoutGap: =16
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - conCKPicker:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        BorderColor: =UAB.Line
+                        BorderThickness: =1
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =If(scr_candidates.Size = ScreenSize.Small, 432, Parent.Height)
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =If(scr_candidates.Size = ScreenSize.Small, Parent.Width, 320)
+                      Children:
+                        - conCKFilters:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              FillPortions: =0
+                              Height: =208
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =8
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              PaddingBottom: =12
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =12
+                            Children:
+                              - txtCKSearch:
+                                  Control: ModernTextInput
+                                  Properties:
+                                    Height: =36
+                                    LayoutMinHeight: =36
+                                    LayoutMinWidth: =0
+                                    Placeholder: ="Search by name or email"
+                              - lblCKStatusCap:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =16
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Status"
+                              - cmbCKStatus:
+                                  Control: ModernCombobox
+                                  Properties:
+                                    DefaultSelectedItems: |-
+                                      =Table({Value: "Active"})
+                                    Height: =36
+                                    ItemDisplayText: =ThisItem.Value
+                                    Items: =Choices(Candidates.CStatus)
+                                    LayoutMinHeight: =36
+                                    LayoutMinWidth: =0
+                              - lblCKDivisionCap:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =16
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Division"
+                              - cmbCKDivision:
+                                  Control: ModernCombobox
+                                  Properties:
+                                    DefaultSelectedItems: =Filter(Divisions, ID = MyDivisionId)
+                                    Height: =36
+                                    ItemDisplayText: =ThisItem.Title
+                                    Items: =SortByColumns(Divisions, "Title", SortOrder.Ascending)
+                                    LayoutMinHeight: =36
+                                    LayoutMinWidth: =0
+                        - lblMTBottomSpacer_1:
+                            Control: ModernText
+                            Properties:
+                              Align: =Align.Center
+                              Color: =UAB.OffWhite
+                              Height: =10
+                              Size: =2
+                              Text: =""
+                              Wrap: =false
+                              X: =40
+                              Y: =40
+                        - galCKCands:
+                            Control: Gallery
+                            Variant: Vertical
+                            Properties:
+                              Fill: =UAB.White
+                              Items: |-
+                                =SortByColumns(
+                                    Filter(FirstN(Candidates, 500),
+                                        (IsBlank(txtCKSearch.Text) || txtCKSearch.Text in Title
+                                            || txtCKSearch.Text in Coalesce(Email, "")),
+                                        (Coalesce(CountRows(cmbCKStatus.SelectedItems), 0) = 0
+                                            || CStatus.Value in ShowColumns(cmbCKStatus.SelectedItems, Value)),
+                                        (Coalesce(CountRows(cmbCKDivision.SelectedItems), 0) = 0
+                                            || Division.Id in ShowColumns(cmbCKDivision.SelectedItems, ID))),
+                                    "Title", SortOrder.Ascending)
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: |-
+                                =Set(varSelCandId, ThisItem.ID);
+                                Set(varDtClearLOI, false);
+                                Set(varDtClearLOOIss, false);
+                                Set(varDtClearLOOAcc, false);
+                                Set(varDtClearStart, false)
+                              TemplatePadding: =0
+                              TemplateSize: =56
+                            Children:
+                              - conCKPickRow:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =If(ThisItem.ID = Coalesce(varSelCandId, 0), UAB.GoldTint, UAB.White)
+                                    Height: =Parent.TemplateHeight
+                                    LayoutAlignItems: =LayoutAlignItems.Stretch
+                                    LayoutDirection: =LayoutDirection.Vertical
+                                    Width: =Parent.TemplateWidth
+                                  Children:
+                                    - conCKPickRowContent:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =If(ThisItem.ID = Coalesce(varSelCandId, 0), UAB.GoldTint, UAB.White)
+                                          FillPortions: =0
+                                          Height: =55
+                                          LayoutAlignItems: =LayoutAlignItems.Center
+                                          LayoutDirection: =LayoutDirection.Horizontal
+                                          LayoutGap: =8
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          PaddingLeft: =12
+                                          PaddingRight: =12
+                                        Children:
+                                          - conCKPickRowMain:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                DropShadow: =DropShadow.None
+                                                Fill: =If(ThisItem.ID = Coalesce(varSelCandId, 0), UAB.GoldTint, UAB.White)
+                                                LayoutAlignItems: =LayoutAlignItems.Stretch
+                                                LayoutDirection: =LayoutDirection.Vertical
+                                                LayoutGap: =2
+                                                LayoutJustifyContent: =LayoutJustifyContent.Center
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                              Children:
+                                                - lblCKPickName:
+                                                    Control: Label
+                                                    Properties:
+                                                      Color: =UAB.TextPrimary
+                                                      Font: =Font.Arial
+                                                      FontWeight: =FontWeight.Semibold
+                                                      Height: =25
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      OnSelect: |-
+                                                        =Set(varSelCandId, ThisItem.ID);
+                                                        Set(varDtClearLOI, false);
+                                                        Set(varDtClearLOOIss, false);
+                                                        Set(varDtClearLOOAcc, false);
+                                                        Set(varDtClearStart, false)
+                                                      PaddingBottom: =0
+                                                      PaddingLeft: =0
+                                                      PaddingRight: =0
+                                                      PaddingTop: =0
+                                                      Size: =UABSize.Body
+                                                      Text: =Coalesce(ThisItem.Title, "(unnamed)")
+                                                      Wrap: =false
+                                                - lblCKPickSub:
+                                                    Control: Label
+                                                    Properties:
+                                                      Color: =UAB.Gray500
+                                                      Font: =Font.Arial
+                                                      Height: =22
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      OnSelect: |-
+                                                        =Set(varSelCandId, ThisItem.ID);
+                                                        Set(varDtClearLOI, false);
+                                                        Set(varDtClearLOOIss, false);
+                                                        Set(varDtClearLOOAcc, false);
+                                                        Set(varDtClearStart, false)
+                                                      PaddingBottom: =0
+                                                      PaddingLeft: =0
+                                                      PaddingRight: =0
+                                                      PaddingTop: =0
+                                                      Size: =UABSize.Secondary
+                                                      Text: =Coalesce(ThisItem.CurrentStage.Value, "No stage") & "  ·  " & Coalesce(ThisItem.CStatus.Value, "")
+                                                      Wrap: =false
+                                          - icoCKPickGo:
+                                              Control: Classic/Icon
+                                              Properties:
+                                                Color: =UAB.Gray300
+                                                Height: =20
+                                                Icon: =Icon.ChevronRight
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                OnSelect: |-
+                                                  =Set(varSelCandId, ThisItem.ID);
+                                                  Set(varDtClearLOI, false);
+                                                  Set(varDtClearLOOIss, false);
+                                                  Set(varDtClearLOOAcc, false);
+                                                  Set(varDtClearStart, false)
+                                                Width: =20
+                                    - conCKPickRowDivider:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.Line
+                                          FillPortions: =0
+                                          Height: =1
+                                          LayoutDirection: =LayoutDirection.Horizontal
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                        - conCKPickEmpty:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              FillPortions: =0
+                              Height: =56
+                              LayoutAlignItems: =LayoutAlignItems.Center
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutJustifyContent: =LayoutJustifyContent.Center
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Visible: =galCKCands.AllItemsCount = 0
+                            Children:
+                              - lblCKPickEmpty:
+                                  Control: ModernText
+                                  Properties:
+                                    Align: =Align.Center
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray500
+                                    Height: =20
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="No candidates match the current filters."
+                  - conCKDetail:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.OffWhite
+                        Height: =Parent.Height
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =16
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        LayoutOverflowY: =LayoutOverflow.Scroll
+                        PaddingLeft: =2
+                        PaddingRight: =2
+                      Children:
+                        - conCKNoSelection:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              BorderColor: =UAB.Line
+                              BorderThickness: =1
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              FillPortions: =0
+                              Height: =If(Coalesce(varSelCandId, 0) = 0, 120, 0)
+                              LayoutAlignItems: =LayoutAlignItems.Center
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutJustifyContent: =LayoutJustifyContent.Center
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Visible: =Coalesce(varSelCandId, 0) = 0
+                            Children:
+                              - lblCKNoSelection:
+                                  Control: ModernText
+                                  Properties:
+                                    Align: =Align.Center
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray500
+                                    Height: =20
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Body
+                                    Text: ="Select a candidate to see their pipeline."
+                        - conCKHead:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              BorderColor: =UAB.Line
+                              BorderThickness: =1
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              FillPortions: =0
+                              Height: =If(scr_candidates.Size = ScreenSize.Small, 415, 310)
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =12
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              PaddingBottom: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingLeft: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingRight: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingTop: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              Visible: =Coalesce(varSelCandId, 0) > 0
+                            Children:
+                              - lblCKHeadEyebrow:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Green
+                                    FontWeight: =FontWeight.Bold
+                                    Height: =22
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Eyebrow
+                                    Text: ="CANDIDATE"
+                              - lblCKHeadName:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.TextPrimary
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =44
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =26
+                                    Text: |-
+                                      =Trim(Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Salutation.Value, "") & " "
+                                          & Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).FirstName, "") & " " & Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LastName, ""))
+                                    Wrap: =false
+                              - lblCKHeadSub:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray500
+                                    Height: =If(scr_candidates.Size = ScreenSize.Small, 46, 25)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Body
+                                    Text: |-
+                                      =Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).CandidateType.Value, "—")
+                                          & "  ·  " & Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Division.Value, "No division")
+                                          & "  ·  " & Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).FacultyRank.Value, "No rank")
+                                    Wrap: =If(scr_candidates.Size = ScreenSize.Small, true, false)
+                              - conCKPillRow:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =28
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutGap: =8
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                  Children:
+                                    - conCKPillStage:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.Paper
+                                          FillPortions: =0
+                                          Height: =24
+                                          LayoutAlignItems: =LayoutAlignItems.Center
+                                          LayoutDirection: =LayoutDirection.Horizontal
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          PaddingLeft: =10
+                                          PaddingRight: =10
+                                          RadiusBottomLeft: =999
+                                          RadiusBottomRight: =999
+                                          RadiusTopLeft: =999
+                                          RadiusTopRight: =999
+                                          Width: =If(scr_candidates.Size = ScreenSize.Small, 130, 150)
+                                        Children:
+                                          - lblCKPillStage:
+                                              Control: ModernText
+                                              Properties:
+                                                Align: =Align.Center
+                                                AutoHeight: =true
+                                                Color: =UAB.Gray700
+                                                FillPortions: =1
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =18
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =12
+                                                Text: =Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).CurrentStage.Value, "No Stage Yet")
+                                    - conCKPillStatus:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =CandStatusFill(Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).CStatus.Value, ""))
+                                          FillPortions: =0
+                                          Height: =24
+                                          LayoutAlignItems: =LayoutAlignItems.Center
+                                          LayoutDirection: =LayoutDirection.Horizontal
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          PaddingLeft: =10
+                                          PaddingRight: =10
+                                          RadiusBottomLeft: =999
+                                          RadiusBottomRight: =999
+                                          RadiusTopLeft: =999
+                                          RadiusTopRight: =999
+                                          Width: =If(scr_candidates.Size = ScreenSize.Small, 90, 110)
+                                        Children:
+                                          - lblCKPillStatus:
+                                              Control: ModernText
+                                              Properties:
+                                                Align: =Align.Center
+                                                AutoHeight: =true
+                                                Color: =CandStatusColor(Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).CStatus.Value, ""))
+                                                FillPortions: =1
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =18
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =12
+                                                Text: =Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).CStatus.Value, "—")
+                                    - conCKPillBlocked:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.DangerTint
+                                          FillPortions: =0
+                                          Height: =24
+                                          LayoutAlignItems: =LayoutAlignItems.Center
+                                          LayoutDirection: =LayoutDirection.Horizontal
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          PaddingLeft: =10
+                                          PaddingRight: =10
+                                          RadiusBottomLeft: =999
+                                          RadiusBottomRight: =999
+                                          RadiusTopLeft: =999
+                                          RadiusTopRight: =999
+                                          Visible: =Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Blocked, false)
+                                          Width: =If(scr_candidates.Size = ScreenSize.Small, 84, 100)
+                                        Children:
+                                          - lblCKPillBlocked:
+                                              Control: ModernText
+                                              Properties:
+                                                Align: =Align.Center
+                                                AutoHeight: =true
+                                                Color: =UAB.Danger
+                                                FillPortions: =1
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =18
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =12
+                                                Text: ="Blocked"
+                              - lblCKHeadPeople:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    Height: =If(scr_candidates.Size = ScreenSize.Small, 44, 22)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: |-
+                                      =If(scr_candidates.Size = ScreenSize.Small,
+                                          "Manager: " & Coalesce(FriendlyName(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Manager.DisplayName), "—") & Char(10)
+                                              & "Owner: " & Coalesce(FriendlyName(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).PrimaryOwner.DisplayName), "—"),
+                                          "Manager: " & Coalesce(FriendlyName(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Manager.DisplayName), "—")
+                                              & "     Owner: " & Coalesce(FriendlyName(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).PrimaryOwner.DisplayName), "—"))
+                                    Wrap: =If(scr_candidates.Size = ScreenSize.Small, true, false)
+                              - conCKDatesRow:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =If(scr_candidates.Size = ScreenSize.Small, 132, 56)
+                                    LayoutAlignItems: =LayoutAlignItems.Stretch
+                                    LayoutDirection: =If(scr_candidates.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                                    LayoutGap: =If(scr_candidates.Size = ScreenSize.Small, 6, 16)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                  Children:
+                                    - conCKDateLOI:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          LayoutAlignItems: =If(scr_candidates.Size = ScreenSize.Small, LayoutAlignItems.Center, LayoutAlignItems.Stretch)
+                                          LayoutDirection: =If(scr_candidates.Size = ScreenSize.Small, LayoutDirection.Horizontal, LayoutDirection.Vertical)
+                                          LayoutGap: =If(scr_candidates.Size = ScreenSize.Small, 8, 2)
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - lblCKDateLOICap:
+                                              Control: ModernText
+                                              Properties:
+                                                AutoHeight: =true
+                                                Color: =UAB.Gray500
+                                                Height: =19
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =11
+                                                Text: =If(scr_candidates.Size = ScreenSize.Small, "LOI", "LETTER OF INTENT")
+                                                Wrap: =false
+                                          - lblCKDateLOIVal:
+                                              Control: ModernText
+                                              Properties:
+                                                AutoHeight: =true
+                                                Color: =UAB.TextPrimary
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =26
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Body
+                                                Text: =If(IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOIDate), "—", Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOIDate, "mmm d, yyyy"))
+                                                Wrap: =false
+                                    - conCKDateLOOIss:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          LayoutAlignItems: =If(scr_candidates.Size = ScreenSize.Small, LayoutAlignItems.Center, LayoutAlignItems.Stretch)
+                                          LayoutDirection: =If(scr_candidates.Size = ScreenSize.Small, LayoutDirection.Horizontal, LayoutDirection.Vertical)
+                                          LayoutGap: =If(scr_candidates.Size = ScreenSize.Small, 8, 2)
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - lblCKDateLOOIssCap:
+                                              Control: ModernText
+                                              Properties:
+                                                AutoHeight: =true
+                                                Color: =UAB.Gray500
+                                                Height: =19
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =11
+                                                Text: =If(scr_candidates.Size = ScreenSize.Small, "LOO ISSUED", "LOO ISSUED")
+                                                Wrap: =false
+                                          - lblCKDateLOOIssVal:
+                                              Control: ModernText
+                                              Properties:
+                                                AutoHeight: =true
+                                                Color: =UAB.TextPrimary
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =26
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Body
+                                                Text: =If(IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOIssued), "—", Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOIssued, "mmm d, yyyy"))
+                                                Wrap: =false
+                                    - conCKDateLOOAcc:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          LayoutAlignItems: =If(scr_candidates.Size = ScreenSize.Small, LayoutAlignItems.Center, LayoutAlignItems.Stretch)
+                                          LayoutDirection: =If(scr_candidates.Size = ScreenSize.Small, LayoutDirection.Horizontal, LayoutDirection.Vertical)
+                                          LayoutGap: =If(scr_candidates.Size = ScreenSize.Small, 8, 2)
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - lblCKDateLOOAccCap:
+                                              Control: ModernText
+                                              Properties:
+                                                AutoHeight: =true
+                                                Color: =UAB.Gray500
+                                                Height: =19
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =11
+                                                Text: =If(scr_candidates.Size = ScreenSize.Small, "LOO ACCEPTED", "LOO ACCEPTED")
+                                                Wrap: =false
+                                          - lblCKDateLOOAccVal:
+                                              Control: ModernText
+                                              Properties:
+                                                AutoHeight: =true
+                                                Color: =UAB.TextPrimary
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =26
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Body
+                                                Text: =If(IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted), "—", Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted, "mmm d, yyyy"))
+                                                Wrap: =false
+                                    - conCKDateStart:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          LayoutAlignItems: =If(scr_candidates.Size = ScreenSize.Small, LayoutAlignItems.Center, LayoutAlignItems.Stretch)
+                                          LayoutDirection: =If(scr_candidates.Size = ScreenSize.Small, LayoutDirection.Horizontal, LayoutDirection.Vertical)
+                                          LayoutGap: =If(scr_candidates.Size = ScreenSize.Small, 8, 2)
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - lblCKDateStartCap:
+                                              Control: ModernText
+                                              Properties:
+                                                AutoHeight: =true
+                                                Color: =UAB.Gray500
+                                                Height: =19
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =11
+                                                Text: =If(scr_candidates.Size = ScreenSize.Small, "START", "START DATE")
+                                                Wrap: =false
+                                          - lblCKDateStartVal:
+                                              Control: ModernText
+                                              Properties:
+                                                AutoHeight: =true
+                                                Color: =UAB.TextPrimary
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =26
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Body
+                                                Text: =If(IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).StartDate), "—", Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).StartDate, "mmm d, yyyy"))
+                                                Wrap: =false
+                        - conDtCard:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              BorderColor: =UAB.Line
+                              BorderThickness: =1
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              FillPortions: =0
+                              Height: =If(scr_candidates.Size = ScreenSize.Small, 658, 320)
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =12
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              PaddingBottom: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingLeft: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingRight: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingTop: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              Visible: =Coalesce(varSelCandId, 0) > 0
+                            Children:
+                              - conDtHead:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =24
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                  Children:
+                                    - lblDtEyebrow:
+                                        Control: ModernText
+                                        Properties:
+                                          AutoHeight: =true
+                                          Color: =UAB.Green
+                                          FillPortions: =1
+                                          FontWeight: =FontWeight.Bold
+                                          Height: =23
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Size: =UABSize.Eyebrow
+                                          Text: ="KEY DATES & TEMPLATE"
+                                          Wrap: =false
+                              - conDtGrid:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =If(scr_candidates.Size = ScreenSize.Small, 308, 68)
+                                    LayoutAlignItems: =LayoutAlignItems.Stretch
+                                    LayoutDirection: =If(scr_candidates.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                                    LayoutGap: =If(scr_candidates.Size = ScreenSize.Small, 12, 16)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                  Children:
+                                    - conDtFieldLOI:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          Height: =68
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutGap: =4
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - conDtLabelRowLOI:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                DropShadow: =DropShadow.None
+                                                Fill: =UAB.White
+                                                FillPortions: =0
+                                                Height: =22
+                                                LayoutAlignItems: =LayoutAlignItems.Center
+                                                LayoutDirection: =LayoutDirection.Horizontal
+                                                LayoutGap: =8
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                              Children:
+                                                - lblDtLOICap:
+                                                    Control: ModernText
+                                                    Properties:
+                                                      AutoHeight: =true
+                                                      Color: =UAB.Gray700
+                                                      FillPortions: =1
+                                                      FontWeight: =FontWeight.Semibold
+                                                      Height: =22
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Size: =UABSize.Secondary
+                                                      Text: ="Letter of Intent"
+                                                      Wrap: =false
+                                                - icoDtClearLOI:
+                                                    Control: Classic/Icon
+                                                    Properties:
+                                                      Color: =UAB.Gray500
+                                                      Height: =20
+                                                      Icon: =Icon.Cancel
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      OnSelect: |-
+                                                        =Set(varDtClearLOI, true);
+                                                        Reset(dpDtLOI)
+                                                      Tooltip: ="Clear this date"
+                                                      Width: =20
+                                          - dpDtLOI:
+                                              Control: ModernDatePicker
+                                              Properties:
+                                                DefaultDate: =If(Coalesce(varDtClearLOI, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOIDate)
+                                                Height: =40
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                    - conDtFieldLOOIss:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          Height: =68
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutGap: =4
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - conDtLabelRowLOOIss:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                DropShadow: =DropShadow.None
+                                                Fill: =UAB.White
+                                                FillPortions: =0
+                                                Height: =22
+                                                LayoutAlignItems: =LayoutAlignItems.Center
+                                                LayoutDirection: =LayoutDirection.Horizontal
+                                                LayoutGap: =8
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                              Children:
+                                                - lblDtLOOIssCap:
+                                                    Control: ModernText
+                                                    Properties:
+                                                      AutoHeight: =true
+                                                      Color: =UAB.Gray700
+                                                      FillPortions: =1
+                                                      FontWeight: =FontWeight.Semibold
+                                                      Height: =22
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Size: =UABSize.Secondary
+                                                      Text: ="LOO Issued"
+                                                      Wrap: =false
+                                                - icoDtClearLOOIss:
+                                                    Control: Classic/Icon
+                                                    Properties:
+                                                      Color: =UAB.Gray500
+                                                      Height: =20
+                                                      Icon: =Icon.Cancel
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      OnSelect: |-
+                                                        =Set(varDtClearLOOIss, true);
+                                                        Reset(dpDtLOOIss)
+                                                      Tooltip: ="Clear this date"
+                                                      Width: =20
+                                          - dpDtLOOIss:
+                                              Control: ModernDatePicker
+                                              Properties:
+                                                DefaultDate: =If(Coalesce(varDtClearLOOIss, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOIssued)
+                                                Height: =40
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                    - conDtFieldLOOAcc:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          Height: =68
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutGap: =4
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - conDtLabelRowLOOAcc:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                DropShadow: =DropShadow.None
+                                                Fill: =UAB.White
+                                                FillPortions: =0
+                                                Height: =22
+                                                LayoutAlignItems: =LayoutAlignItems.Center
+                                                LayoutDirection: =LayoutDirection.Horizontal
+                                                LayoutGap: =8
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                              Children:
+                                                - lblDtLOOAccCap:
+                                                    Control: ModernText
+                                                    Properties:
+                                                      AutoHeight: =true
+                                                      Color: =UAB.Gray700
+                                                      FillPortions: =1
+                                                      FontWeight: =FontWeight.Semibold
+                                                      Height: =22
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Size: =UABSize.Secondary
+                                                      Text: ="LOO Accepted"
+                                                      Wrap: =false
+                                                - icoDtClearLOOAcc:
+                                                    Control: Classic/Icon
+                                                    Properties:
+                                                      Color: =UAB.Gray500
+                                                      Height: =20
+                                                      Icon: =Icon.Cancel
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      OnSelect: |-
+                                                        =Set(varDtClearLOOAcc, true);
+                                                        Reset(dpDtLOOAcc)
+                                                      Tooltip: ="Clear this date"
+                                                      Width: =20
+                                          - dpDtLOOAcc:
+                                              Control: ModernDatePicker
+                                              Properties:
+                                                DefaultDate: =If(Coalesce(varDtClearLOOAcc, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted)
+                                                Height: =40
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                    - conDtFieldStart:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          Height: =68
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutGap: =4
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - conDtLabelRowStart:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                DropShadow: =DropShadow.None
+                                                Fill: =UAB.White
+                                                FillPortions: =0
+                                                Height: =22
+                                                LayoutAlignItems: =LayoutAlignItems.Center
+                                                LayoutDirection: =LayoutDirection.Horizontal
+                                                LayoutGap: =8
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                              Children:
+                                                - lblDtStartCap:
+                                                    Control: ModernText
+                                                    Properties:
+                                                      AutoHeight: =true
+                                                      Color: =UAB.Gray700
+                                                      FillPortions: =1
+                                                      FontWeight: =FontWeight.Semibold
+                                                      Height: =22
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Size: =UABSize.Secondary
+                                                      Text: ="Start Date"
+                                                      Wrap: =false
+                                                - icoDtClearStart:
+                                                    Control: Classic/Icon
+                                                    Properties:
+                                                      Color: =UAB.Gray500
+                                                      Height: =20
+                                                      Icon: =Icon.Cancel
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      OnSelect: |-
+                                                        =Set(varDtClearStart, true);
+                                                        Reset(dpDtStart)
+                                                      Tooltip: ="Clear this date"
+                                                      Width: =20
+                                          - dpDtStart:
+                                              Control: ModernDatePicker
+                                              Properties:
+                                                DefaultDate: =If(Coalesce(varDtClearStart, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).StartDate)
+                                                Height: =40
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                              - conDtTemplate:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =66
+                                    LayoutAlignItems: =LayoutAlignItems.Stretch
+                                    LayoutDirection: =LayoutDirection.Vertical
+                                    LayoutGap: =4
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                  Children:
+                                    - lblDtTemplateCap:
+                                        Control: ModernText
+                                        Properties:
+                                          AutoHeight: =true
+                                          Color: =UAB.Gray700
+                                          FontWeight: =FontWeight.Semibold
+                                          Height: =22
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Size: =UABSize.Secondary
+                                          Text: ="Template"
+                                          Wrap: =false
+                                    - cmbDtTemplate:
+                                        Control: ModernCombobox
+                                        Properties:
+                                          DefaultSelectedItems: =Filter(Templates, ID = Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Template.Id, 0))
+                                          Height: =40
+                                          ItemDisplayText: =ThisItem.Title
+                                          Items: |-
+                                            =SortByColumns(
+                                                Filter(Templates,
+                                                    Coalesce(TStatus.Value, "Draft") <> "Archived",
+                                                    CandidateType.Value = LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).CandidateType.Value
+                                                        || ID = Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Template.Id, 0)),
+                                                "Title", SortOrder.Ascending)
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          SelectMultiple: =false
+                              - conDtActions:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =If(scr_candidates.Size = ScreenSize.Small, 136, 44)
+                                    LayoutAlignItems: =If(scr_candidates.Size = ScreenSize.Small, LayoutAlignItems.Stretch, LayoutAlignItems.Center)
+                                    LayoutDirection: =If(scr_candidates.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                                    LayoutGap: =8
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                  Children:
+                                    - btnDtSave:
+                                        Control: Button
+                                        Properties:
+                                          Appearance: ='ButtonCanvas.Appearance'.Primary
+                                          BasePaletteColor: =UAB.Green
+                                          DisplayMode: |-
+                                            =If(And(Coalesce(varSelCandId, 0) > 0, And(
+                                                Or(IsBlank(dpDtLOI.SelectedDate), IsBlank(dpDtLOOIss.SelectedDate),
+                                                    dpDtLOOIss.SelectedDate >= dpDtLOI.SelectedDate),
+                                                Or(IsBlank(dpDtLOOIss.SelectedDate), IsBlank(dpDtLOOAcc.SelectedDate),
+                                                    dpDtLOOAcc.SelectedDate >= dpDtLOOIss.SelectedDate),
+                                                Or(IsBlank(dpDtLOOAcc.SelectedDate), IsBlank(dpDtStart.SelectedDate),
+                                                    dpDtStart.SelectedDate >= dpDtLOOAcc.SelectedDate))), DisplayMode.Edit, DisplayMode.Disabled)
+                                          Height: =40
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          OnSelect: |-
+                                            =IfError(
+                                                Patch(Candidates, LookUp(Candidates, ID = Coalesce(varSelCandId, 0)),
+                                                    {LOIDate: dpDtLOI.SelectedDate,
+                                                     LOOIssued: dpDtLOOIss.SelectedDate,
+                                                     LOOAccepted: dpDtLOOAcc.SelectedDate,
+                                                     StartDate: dpDtStart.SelectedDate,
+                                                     Template: If(IsBlank(cmbDtTemplate.Selected), Blank(),
+                                                         {Id: cmbDtTemplate.Selected.ID, Value: cmbDtTemplate.Selected.Title})}),
+                                                Notify("Couldn't save the dates - " & FirstError.Message
+                                                    & " Nothing was changed. Try again.", NotificationType.Error),
+                                                Notify("Saved. Due dates recalculate within a minute.",
+                                                    NotificationType.Success))
+                                          Text: ="Save Dates"
+                                          Width: =If(scr_candidates.Size = ScreenSize.Small, 130, 150)
+                                    - btnDtPreview:
+                                        Control: Button
+                                        Properties:
+                                          Appearance: ='ButtonCanvas.Appearance'.Secondary
+                                          BasePaletteColor: =UAB.Green
+                                          DisplayMode: |-
+                                            =If(And(Coalesce(varSelCandId, 0) > 0, !IsBlank(cmbDtTemplate.Selected)),
+                                                DisplayMode.Edit, DisplayMode.Disabled)
+                                          Height: =40
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          OnSelect: |-
+                                            =ClearCollect(colPvPreview,
+                                                SortByColumns(
+                                                    AddColumns(
+                                                        Filter(TemplateTasks,
+                                                            Template.Id = Coalesce(cmbDtTemplate.Selected.ID, LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Template.Id, 0),
+                                                            If(If(IsBlank(dpDtLOOAcc.SelectedDate), "prereq", "full") = "prereq",
+                                                                And(IsPrereq, Or(IsBlank(PrereqCondition.Value),
+                                                                    PrereqCondition.Value = "Always",
+                                                                    And(PrereqCondition.Value = "Requires P&T", Coalesce(LookUp(FacultyRanks, ID = Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).FacultyRank.Id, 0)).RequiresPT, false)))),
+                                                                Or(Not(IsPrereq),
+                                                                   And(IsPrereq, Not(!IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).PrereqsExpanded)), Or(IsBlank(PrereqCondition.Value),
+                                                                    PrereqCondition.Value = "Always",
+                                                                    And(PrereqCondition.Value = "Requires P&T", Coalesce(LookUp(FacultyRanks, ID = Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).FacultyRank.Id, 0)).RequiresPT, false))))))),
+                                                        PvDue,
+                                                            With({a: Coalesce(Anchor.Value, "None")},
+                                                                With({ad: Switch(a,
+                                                                        "Fixed", FixedDate,
+                                                                        "LOI", dpDtLOI.SelectedDate,
+                                                                        "LOO Issued", dpDtLOOIss.SelectedDate,
+                                                                        "LOO Accepted", dpDtLOOAcc.SelectedDate,
+                                                                        "Start", dpDtStart.SelectedDate,
+                                                                        Blank())},
+                                                                    If(Or(a = "None", IsBlank(ad)), Blank(),
+                                                                        DateAdd(ad, Coalesce(OffsetDays, 0), TimeUnit.Days)))),
+                                                        PvRule,
+                                                            With({a: Coalesce(Anchor.Value, "None"), n: Coalesce(OffsetDays, 0)},
+                                                                If(a = "None", "No date rule",
+                                                                   a = "Fixed", "Fixed date",
+                                                                   n = 0, "On " & a,
+                                                                   n < 0, Abs(n) & If(n = -1, " day before ", " days before ") & a,
+                                                                   n & If(n = 1, " day after ", " days after ") & a)),
+                                                        PvStage, Coalesce(TemplateStage.Value,
+                                                            LookUp(TemplateStages, ID = Coalesce(TemplateStage.Id, 0)).Title,
+                                                            "No stage"),
+                                                        PvRole, Coalesce(AssigneeRole.Value, "No role")),
+                                                    "OrderIndex", SortOrder.Ascending));
+                                            Set(varPvShow, true)
+                                          Text: ="Preview Due Dates"
+                                          Width: =If(scr_candidates.Size = ScreenSize.Small, Parent.Width, 165)
+                                    - btnDtApply:
+                                        Control: Button
+                                        Properties:
+                                          Appearance: ='ButtonCanvas.Appearance'.Secondary
+                                          BasePaletteColor: =UAB.Green
+                                          DisplayMode: |-
+                                            =If(And(Coalesce(varSelCandId, 0) > 0,
+                                                    !IsBlank(cmbDtTemplate.Selected),
+                                                    If(IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted),
+                                                        And(IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).PrereqsExpanded), CountRows(Filter(TemplateTasks,
+                                                        Template.Id = Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Template.Id, 0), IsPrereq)) > 0),
+                                                        IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).TemplateApplied))),
+                                                DisplayMode.Edit, DisplayMode.Disabled)
+                                          Height: =40
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          OnSelect: |-
+                                            =IfError(
+                                                With({r: 'OnBoard-ApplyTemplate'.Run(Coalesce(varSelCandId, 0),
+                                                        If(IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted), "prereq", "full"))},
+                                                    Set(varDtApplyPending, true);
+                                                    Notify("Building the checklist — the tasks appear in a few seconds.",
+                                                        NotificationType.Information)),
+                                                Notify("Couldn't apply the template - " & FirstError.Message
+                                                    & " Nothing was changed. Try again.", NotificationType.Error))
+                                          Text: =If(IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted), "Apply Prerequisites", "Build Full Checklist")
+                                          Width: =If(scr_candidates.Size = ScreenSize.Small, 130, 190)
+                              - lblDtHint:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: |-
+                                      =If(And(Coalesce(varSelCandId, 0) > 0, Not(And(
+                                          Or(IsBlank(dpDtLOI.SelectedDate), IsBlank(dpDtLOOIss.SelectedDate),
+                                              dpDtLOOIss.SelectedDate >= dpDtLOI.SelectedDate),
+                                          Or(IsBlank(dpDtLOOIss.SelectedDate), IsBlank(dpDtLOOAcc.SelectedDate),
+                                              dpDtLOOAcc.SelectedDate >= dpDtLOOIss.SelectedDate),
+                                          Or(IsBlank(dpDtLOOAcc.SelectedDate), IsBlank(dpDtStart.SelectedDate),
+                                              dpDtStart.SelectedDate >= dpDtLOOAcc.SelectedDate)))), UAB.Danger, UAB.Gray500)
+                                    Height: =If(scr_candidates.Size = ScreenSize.Small, 44, 22)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: |-
+                                      =If(And(Coalesce(varSelCandId, 0) > 0, Not(And(
+                                          Or(IsBlank(dpDtLOI.SelectedDate), IsBlank(dpDtLOOIss.SelectedDate),
+                                              dpDtLOOIss.SelectedDate >= dpDtLOI.SelectedDate),
+                                          Or(IsBlank(dpDtLOOIss.SelectedDate), IsBlank(dpDtLOOAcc.SelectedDate),
+                                              dpDtLOOAcc.SelectedDate >= dpDtLOOIss.SelectedDate),
+                                          Or(IsBlank(dpDtLOOAcc.SelectedDate), IsBlank(dpDtStart.SelectedDate),
+                                              dpDtStart.SelectedDate >= dpDtLOOAcc.SelectedDate)))),
+                                              "Check the order — each date should fall on or after the one before it.",
+                                          IsBlank(cmbDtTemplate.Selected),
+                                              "Choose a template, then save, before building the checklist.",
+                                          !IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).TemplateApplied),
+                                              "Full checklist built " & Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).TemplateApplied, "mmm d, yyyy") & ".",
+                                          IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted) && !IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).PrereqsExpanded),
+                                              "Prerequisites applied. The full checklist unlocks once the offer is accepted.",
+                                          IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted) && Not(CountRows(Filter(TemplateTasks,
+                                                  Template.Id = Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Template.Id, 0), IsPrereq)) > 0),
+                                              "This template has no prerequisite tasks — the checklist builds once the offer is accepted.",
+                                          IsBlank(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted),
+                                              "Adds the prerequisite tasks only — the rest follows offer acceptance.",
+                                          "Builds every remaining task from the template.")
+                                    Wrap: =If(scr_candidates.Size = ScreenSize.Small, true, false)
+                        - conTkCard:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              BorderColor: =UAB.Line
+                              BorderThickness: =1
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              FillPortions: =0
+                              Height: =If(scr_candidates.Size = ScreenSize.Small, 620, 560)
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =12
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              PaddingBottom: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingLeft: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingRight: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingTop: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              Visible: =Coalesce(varSelCandId, 0) > 0
+                            Children:
+                              - conTkHead:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =44
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutGap: =8
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                  Children:
+                                    - lblTkEyebrow:
+                                        Control: ModernText
+                                        Properties:
+                                          AutoHeight: =true
+                                          Color: =UAB.Green
+                                          FillPortions: =1
+                                          FontWeight: =FontWeight.Bold
+                                          Height: =23
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Size: =UABSize.Eyebrow
+                                          Text: ="CHECKLIST"
+                                          Wrap: =false
+                                    - lblTkCounts:
+                                        Control: ModernText
+                                        Properties:
+                                          Align: =Align.Right
+                                          AutoHeight: =true
+                                          Color: =UAB.Gray500
+                                          Height: =22
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Size: =UABSize.Secondary
+                                          Text: |-
+                                            =With(
+                                                {t: Filter(FirstN(Tasks, 500), Candidate.Id = Coalesce(varSelCandId, 0))},
+                                                With({open: Filter(t, TStatus.Value <> "Done" && TStatus.Value <> "Canceled")},
+                                                    CountRows(t) & " task" & If(CountRows(t) = 1, "", "s")
+                                                        & "  ·  " & CountRows(open) & " open"
+                                                        & "  ·  " & CountRows(Filter(open, !IsBlank(DueDate) && DueDate < Today()))
+                                                        & " overdue"))
+                                          Width: =If(scr_candidates.Size = ScreenSize.Small, 190, 240)
+                                          Wrap: =false
+                              - conTkFilters:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =If(scr_candidates.Size = ScreenSize.Small, 104, 56)
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =If(scr_candidates.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                                    LayoutGap: =12
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                  Children:
+                                    - cmbTkStageFilter:
+                                        Control: ModernCombobox
+                                        Properties:
+                                          FillPortions: =1
+                                          Height: =40
+                                          ItemDisplayText: =ThisItem.Title
+                                          Items: =SortByColumns(Stages, "OrderIndex", SortOrder.Ascending)
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                    - conTkOpenWrap:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          Height: =40
+                                          LayoutAlignItems: =LayoutAlignItems.Center
+                                          LayoutDirection: =LayoutDirection.Horizontal
+                                          LayoutGap: =8
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Width: =170
+                                        Children:
+                                          - tglTkOpenTasks:
+                                              Control: Toggle
+                                              Properties:
+                                                BasePaletteColor: =UAB.Green
+                                                Checked: =true
+                                                FillPortions: =1
+                                                Height: =32
+                                                Label: ="Open only"
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                              - conTkColHead:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.Paper
+                                    FillPortions: =0
+                                    Height: =If(scr_candidates.Size = ScreenSize.Small, 0, 40)
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutGap: =12
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    PaddingLeft: =16
+                                    PaddingRight: =16
+                                    Visible: =!(scr_candidates.Size = ScreenSize.Small)
+                                  Children:
+                                    - lblTkColTask:
+                                        Control: ModernText
+                                        Properties:
+                                          AutoHeight: =true
+                                          Color: =If(Coalesce(varTkSort, "Stage") = "Stage", UAB.Green, UAB.Gray700)
+                                          FillPortions: =1
+                                          FontWeight: =FontWeight.Semibold
+                                          Height: =20
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          OnSelect: |-
+                                            =If(Coalesce(varTkSort, "Stage") = "Stage",
+                                                Set(varTkSortAsc, !Coalesce(varTkSortAsc, true)),
+                                                Set(varTkSort, "Stage"); Set(varTkSortAsc, true))
+                                          Size: =UABSize.Secondary
+                                          Text: |-
+                                            =If(Coalesce(varTkSort, "Stage") = "Stage",
+                                                "Task" & If(Coalesce(varTkSortAsc, true), " ↑", " ↓"),
+                                                "Task")
+                                    - conTkColDue:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.Paper
+                                          FillPortions: =0
+                                          LayoutDirection: =LayoutDirection.Horizontal
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Visible: =!(scr_candidates.Size = ScreenSize.Small)
+                                          Width: =If(scr_candidates.Size = ScreenSize.Small, 0, 120)
+                                        Children:
+                                          - lblTkColDue:
+                                              Control: ModernText
+                                              Properties:
+                                                Align: =Align.Center
+                                                AlignInContainer: =AlignInContainer.Center
+                                                AutoHeight: =true
+                                                Color: =If(Coalesce(varTkSort, "Stage") = "Due", UAB.Green, UAB.Gray700)
+                                                FillPortions: =1
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =19
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                OnSelect: |-
+                                                  =If(Coalesce(varTkSort, "Stage") = "Due",
+                                                      Set(varTkSortAsc, !Coalesce(varTkSortAsc, true)),
+                                                      Set(varTkSort, "Due"); Set(varTkSortAsc, true))
+                                                Size: =UABSize.Secondary
+                                                Text: |-
+                                                  =If(Coalesce(varTkSort, "Stage") = "Due",
+                                                      "Due" & If(Coalesce(varTkSortAsc, true), " ↑", " ↓"),
+                                                      "Due")
+                                    - conTkColStatus:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.Paper
+                                          FillPortions: =0
+                                          LayoutDirection: =LayoutDirection.Horizontal
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Visible: =!(scr_candidates.Size = ScreenSize.Small)
+                                          Width: =If(scr_candidates.Size = ScreenSize.Small, 0, 110)
+                                        Children:
+                                          - lblTkColStatus:
+                                              Control: ModernText
+                                              Properties:
+                                                Align: =Align.Center
+                                                AlignInContainer: =AlignInContainer.Center
+                                                AutoHeight: =true
+                                                Color: =If(Coalesce(varTkSort, "Stage") = "Status", UAB.Green, UAB.Gray700)
+                                                FillPortions: =1
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =19
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                OnSelect: |-
+                                                  =If(Coalesce(varTkSort, "Stage") = "Status",
+                                                      Set(varTkSortAsc, !Coalesce(varTkSortAsc, true)),
+                                                      Set(varTkSort, "Status"); Set(varTkSortAsc, true))
+                                                Size: =UABSize.Secondary
+                                                Text: |-
+                                                  =If(Coalesce(varTkSort, "Stage") = "Status",
+                                                      "Status" & If(Coalesce(varTkSortAsc, true), " ↑", " ↓"),
+                                                      "Status")
+                                    - conTkColAct:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.Paper
+                                          FillPortions: =0
+                                          LayoutDirection: =LayoutDirection.Horizontal
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Visible: =!(scr_candidates.Size = ScreenSize.Small)
+                                          Width: =If(scr_candidates.Size = ScreenSize.Small, 0, 40)
+                                        Children:
+                                          - lblTkColAct:
+                                              Control: ModernText
+                                              Properties:
+                                                Align: =Align.Center
+                                                AutoHeight: =true
+                                                Color: =UAB.Gray700
+                                                FillPortions: =1
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =19
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Secondary
+                                                Text: =""
+                              - galTkTasks:
+                                  Control: Gallery
+                                  Variant: Vertical
+                                  Properties:
+                                    Fill: =UAB.White
+                                    Items: |-
+                                      =With({t: Filter(FirstN(Tasks, 500),
+                                              Candidate.Id = Coalesce(varSelCandId, 0),
+                                              (Coalesce(CountRows(cmbTkStageFilter.SelectedItems), 0) = 0
+                                                  || StageName in ShowColumns(cmbTkStageFilter.SelectedItems, Title)),
+                                              (!tglTkOpenTasks.Checked
+                                                  || (TStatus.Value <> "Done" && TStatus.Value <> "Canceled")))},
+                                          With({dir: If(Coalesce(varTkSortAsc, true),
+                                                  SortOrder.Ascending, SortOrder.Descending)},
+                                              Switch(Coalesce(varTkSort, "Stage"),
+                                                  "Due", Sort(t, Coalesce(DueDate, Date(2099, 12, 31)), dir),
+                                                  "Status", Sort(t, Switch(Coalesce(TStatus.Value, "To Do"),
+                                                      "Blocked", 1, "To Do", 2, "In Progress", 3, "Done", 4, 5), dir),
+                                                  SortByColumns(t, "StageOrder", SortOrder.Ascending,
+                                                      "DueDate", SortOrder.Ascending))))
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    TemplatePadding: =0
+                                    TemplateSize: =If(scr_candidates.Size = ScreenSize.Small, 72, 56)
+                                  Children:
+                                    - conTkRow:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          Height: =Parent.TemplateHeight
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          Width: =Parent.TemplateWidth
+                                        Children:
+                                          - conTkRowContent:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                DropShadow: =DropShadow.None
+                                                Fill: =UAB.White
+                                                FillPortions: =0
+                                                Height: =If(scr_candidates.Size = ScreenSize.Small, 71, 55)
+                                                LayoutAlignItems: =LayoutAlignItems.Center
+                                                LayoutDirection: =LayoutDirection.Horizontal
+                                                LayoutGap: =If(scr_candidates.Size = ScreenSize.Small, 8, 12)
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                PaddingLeft: =If(scr_candidates.Size = ScreenSize.Small, 12, 16)
+                                                PaddingRight: =If(scr_candidates.Size = ScreenSize.Small, 12, 16)
+                                              Children:
+                                                - conTkCellMain:
+                                                    Control: GroupContainer
+                                                    Variant: AutoLayout
+                                                    Properties:
+                                                      DropShadow: =DropShadow.None
+                                                      Fill: =UAB.White
+                                                      LayoutAlignItems: =LayoutAlignItems.Stretch
+                                                      LayoutDirection: =LayoutDirection.Vertical
+                                                      LayoutGap: =If(scr_candidates.Size = ScreenSize.Small, 4, 2)
+                                                      LayoutJustifyContent: =LayoutJustifyContent.Center
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                    Children:
+                                                      - lblTkRowTitle:
+                                                          Control: ModernText
+                                                          Properties:
+                                                            AutoHeight: =true
+                                                            Color: =UAB.TextPrimary
+                                                            FontWeight: =FontWeight.Semibold
+                                                            Height: =25
+                                                            LayoutMinHeight: =0
+                                                            LayoutMinWidth: =0
+                                                            Size: =UABSize.Body
+                                                            Text: |-
+                                                              =With({t: Trim(Coalesce(ThisItem.Title, ""))},
+                                                                  If(Len(t) > 70, Trim(Left(t, 69)) & "…", t))
+                                                            Wrap: =false
+                                                      - lblTkRowSub:
+                                                          Control: ModernText
+                                                          Properties:
+                                                            AutoHeight: =true
+                                                            Color: |-
+                                                              =If(scr_candidates.Size = ScreenSize.Small
+                                                                      && TaskDueBucket(ThisItem.DueDate, ThisItem.PendingAnchor) = "Overdue",
+                                                                  UAB.Danger, UAB.Gray500)
+                                                            Height: =22
+                                                            LayoutMinHeight: =0
+                                                            LayoutMinWidth: =0
+                                                            Size: =UABSize.Secondary
+                                                            Text: |-
+                                                              =If(scr_candidates.Size = ScreenSize.Small,
+                                                                  TaskDueText(ThisItem.DueDate, ThisItem.PendingAnchor) & "  ·  "
+                                                                      & Coalesce(FriendlyName(ThisItem.Assignee.DisplayName), "Unassigned"),
+                                                                  Coalesce(ThisItem.StageName, "No stage") & "  ·  "
+                                                                      & Coalesce(FriendlyName(ThisItem.Assignee.DisplayName), "Unassigned"))
+                                                            Wrap: =false
+                                                - conTkCellDue:
+                                                    Control: GroupContainer
+                                                    Variant: AutoLayout
+                                                    Properties:
+                                                      DropShadow: =DropShadow.None
+                                                      Fill: =UAB.White
+                                                      FillPortions: =0
+                                                      LayoutDirection: =LayoutDirection.Vertical
+                                                      LayoutJustifyContent: =LayoutJustifyContent.Center
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Visible: =!(scr_candidates.Size = ScreenSize.Small)
+                                                      Width: =If(scr_candidates.Size = ScreenSize.Small, 0, 120)
+                                                    Children:
+                                                      - conTkPillDue:
+                                                          Control: GroupContainer
+                                                          Variant: AutoLayout
+                                                          Properties:
+                                                            AlignInContainer: =AlignInContainer.Center
+                                                            DropShadow: =DropShadow.None
+                                                            Fill: =TaskDueFill(TaskDueBucket(ThisItem.DueDate, ThisItem.PendingAnchor))
+                                                            FillPortions: =0
+                                                            Height: =24
+                                                            LayoutAlignItems: =LayoutAlignItems.Center
+                                                            LayoutDirection: =LayoutDirection.Horizontal
+                                                            LayoutJustifyContent: =LayoutJustifyContent.Center
+                                                            LayoutMinHeight: =0
+                                                            LayoutMinWidth: =0
+                                                            PaddingLeft: =10
+                                                            PaddingRight: =10
+                                                            RadiusBottomLeft: =999
+                                                            RadiusBottomRight: =999
+                                                            RadiusTopLeft: =999
+                                                            RadiusTopRight: =999
+                                                            Width: =120
+                                                          Children:
+                                                            - lblTkPillDue:
+                                                                Control: ModernText
+                                                                Properties:
+                                                                  Align: =Align.Center
+                                                                  AutoHeight: =true
+                                                                  Color: =TaskDueColor(TaskDueBucket(ThisItem.DueDate, ThisItem.PendingAnchor))
+                                                                  FillPortions: =1
+                                                                  FontWeight: =FontWeight.Semibold
+                                                                  Height: =18
+                                                                  LayoutMinHeight: =0
+                                                                  LayoutMinWidth: =0
+                                                                  Size: =12
+                                                                  Text: =TaskDueText(ThisItem.DueDate, ThisItem.PendingAnchor)
+                                                - conTkCellStatus:
+                                                    Control: GroupContainer
+                                                    Variant: AutoLayout
+                                                    Properties:
+                                                      DropShadow: =DropShadow.None
+                                                      Fill: =UAB.White
+                                                      FillPortions: =0
+                                                      LayoutDirection: =LayoutDirection.Vertical
+                                                      LayoutJustifyContent: =LayoutJustifyContent.Center
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Visible: =!(scr_candidates.Size = ScreenSize.Small)
+                                                      Width: =If(scr_candidates.Size = ScreenSize.Small, 0, 110)
+                                                    Children:
+                                                      - conTkPillStatus:
+                                                          Control: GroupContainer
+                                                          Variant: AutoLayout
+                                                          Properties:
+                                                            AlignInContainer: =AlignInContainer.Center
+                                                            DropShadow: =DropShadow.None
+                                                            Fill: =TaskStatusFill(Coalesce(ThisItem.TStatus.Value, "To Do"))
+                                                            FillPortions: =0
+                                                            Height: =24
+                                                            LayoutAlignItems: =LayoutAlignItems.Center
+                                                            LayoutDirection: =LayoutDirection.Horizontal
+                                                            LayoutJustifyContent: =LayoutJustifyContent.Center
+                                                            LayoutMinHeight: =0
+                                                            LayoutMinWidth: =0
+                                                            PaddingLeft: =10
+                                                            PaddingRight: =10
+                                                            RadiusBottomLeft: =999
+                                                            RadiusBottomRight: =999
+                                                            RadiusTopLeft: =999
+                                                            RadiusTopRight: =999
+                                                            Width: =110
+                                                          Children:
+                                                            - lblTkPillStatus:
+                                                                Control: ModernText
+                                                                Properties:
+                                                                  Align: =Align.Center
+                                                                  AutoHeight: =true
+                                                                  Color: =TaskStatusColor(Coalesce(ThisItem.TStatus.Value, "To Do"))
+                                                                  FillPortions: =1
+                                                                  FontWeight: =FontWeight.Semibold
+                                                                  Height: =18
+                                                                  LayoutMinHeight: =0
+                                                                  LayoutMinWidth: =0
+                                                                  Size: =12
+                                                                  Text: =Coalesce(ThisItem.TStatus.Value, "To Do")
+                                                - conTkCellAct:
+                                                    Control: GroupContainer
+                                                    Variant: AutoLayout
+                                                    Properties:
+                                                      DropShadow: =DropShadow.None
+                                                      Fill: =UAB.White
+                                                      FillPortions: =0
+                                                      LayoutAlignItems: =LayoutAlignItems.Center
+                                                      LayoutDirection: =LayoutDirection.Vertical
+                                                      LayoutJustifyContent: =LayoutJustifyContent.Center
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Width: =40
+                                                    Children:
+                                                      - icoTkDone:
+                                                          Control: Classic/Icon
+                                                          Properties:
+                                                            Color: =If(Coalesce(ThisItem.TStatus.Value, "To Do") = "Done" || Coalesce(ThisItem.TStatus.Value, "") = "Canceled", UAB.Gray300, UAB.Green)
+                                                            DisplayMode: =If(Coalesce(ThisItem.TStatus.Value, "To Do") = "Done" || Coalesce(ThisItem.TStatus.Value, "") = "Canceled", DisplayMode.Disabled, DisplayMode.Edit)
+                                                            Height: =28
+                                                            Icon: =Icon.Check
+                                                            LayoutMinHeight: =0
+                                                            LayoutMinWidth: =0
+                                                            OnSelect: |-
+                                                              =IfError(
+                                                                  Patch(Tasks, ThisItem,
+                                                                      {TStatus: {Value: "Done"}, CompletedDate: Today(), UpdatedVia: "App"}),
+                                                                  Notify("Couldn't update the task - " & FirstError.Message
+                                                                      & " Nothing was changed. Try again.", NotificationType.Error),
+                                                                  Notify("Task marked done.", NotificationType.Success))
+                                                            Tooltip: ="Mark this task done"
+                                                            Width: =28
+                                          - conTkRowDivider:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                DropShadow: =DropShadow.None
+                                                Fill: =UAB.Line
+                                                FillPortions: =0
+                                                Height: =1
+                                                LayoutDirection: =LayoutDirection.Horizontal
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                              - conTkEmpty:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =If(galTkTasks.AllItemsCount = 0, 56, 0)
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutJustifyContent: =LayoutJustifyContent.Center
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Visible: =galTkTasks.AllItemsCount = 0
+                                  Children:
+                                    - lblTkEmpty:
+                                        Control: ModernText
+                                        Properties:
+                                          Align: =Align.Center
+                                          AutoHeight: =true
+                                          Color: =UAB.Gray500
+                                          Height: =25
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Size: =UABSize.Body
+                                          Text: |-
+                                            =If(tglTkOpenTasks.Checked
+                                                    || Coalesce(CountRows(cmbTkStageFilter.SelectedItems), 0) > 0,
+                                                "No tasks match these filters.",
+                                                "No tasks yet — apply a template to build the checklist.")
+                        - conCmCard:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              BorderColor: =UAB.Line
+                              BorderThickness: =1
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              FillPortions: =0
+                              Height: |-
+                                =With({n: CountRows(Filter(FirstN(Comments, 500), Candidate.Id = Coalesce(varSelCandId, 0)))},
+                                    If(scr_candidates.Size = ScreenSize.Small, 324, 266) + Min(n, 4) * 88 + If(n = 0, 44, 0))
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =12
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              PaddingBottom: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingLeft: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingRight: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingTop: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              Visible: =Coalesce(varSelCandId, 0) > 0
+                            Children:
+                              - conCmHead:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =24
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                  Children:
+                                    - lblCmEyebrow:
+                                        Control: ModernText
+                                        Properties:
+                                          AutoHeight: =true
+                                          Color: =UAB.Green
+                                          FillPortions: =1
+                                          FontWeight: =FontWeight.Bold
+                                          Height: =22
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Size: =UABSize.Eyebrow
+                                          Text: ="COMMENTS"
+                                          Wrap: =false
+                              - conCmCompose:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =If(scr_candidates.Size = ScreenSize.Small, 232, 158)
+                                    LayoutAlignItems: =LayoutAlignItems.Stretch
+                                    LayoutDirection: =LayoutDirection.Vertical
+                                    LayoutGap: =8
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                  Children:
+                                    - txtCmBody:
+                                        Control: ModernTextInput
+                                        Properties:
+                                          Height: =76
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Placeholder: ="Add a note for the team…"
+                                          Type: =TextInputType.Multiline
+                                    - conCmOptions:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          FillPortions: =0
+                                          Height: =If(scr_candidates.Size = ScreenSize.Small, 96, 44)
+                                          LayoutAlignItems: =LayoutAlignItems.Center
+                                          LayoutDirection: =If(scr_candidates.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                                          LayoutGap: =8
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - tglCmVisible:
+                                              Control: Toggle
+                                              Properties:
+                                                BasePaletteColor: =UAB.Green
+                                                FillPortions: =1
+                                                Height: =40
+                                                Label: ="Send to the candidate too"
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                          - btnCmPost:
+                                              Control: Button
+                                              Properties:
+                                                Appearance: ='ButtonCanvas.Appearance'.Primary
+                                                BasePaletteColor: =UAB.Green
+                                                DisplayMode: =If(And(Coalesce(varSelCandId, 0) > 0, !IsBlank(Trim(txtCmBody.Text))), DisplayMode.Edit, DisplayMode.Disabled)
+                                                Height: =40
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                OnSelect: |-
+                                                  =IfError(
+                                                      Patch(Comments, Defaults(Comments),
+                                                          {Candidate: {Id: Coalesce(varSelCandId, 0), Value: LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Title},
+                                                           Body: txtCmBody.Text,
+                                                           Visibility: {Value: If(tglCmVisible.Checked,
+                                                               "Candidate-Visible", "Internal")}}),
+                                                      Notify("Couldn't post the comment - " & FirstError.Message
+                                                          & " Nothing was posted. Try again.", NotificationType.Error),
+                                                      Reset(txtCmBody);
+                                                      Set(varCmVisible, false);
+                                                      Notify(If(tglCmVisible.Checked,
+                                                          "Posted. The candidate and the team are being notified.",
+                                                          "Posted. The team is being notified."), NotificationType.Success))
+                                                Text: ="Post Comment"
+                                                Width: =If(scr_candidates.Size = ScreenSize.Small, 150, 150)
+                                    - lblCmHint:
+                                        Control: ModernText
+                                        Properties:
+                                          AutoHeight: =true
+                                          Color: =UAB.Gray500
+                                          Height: =If(scr_candidates.Size = ScreenSize.Small, 40, 22)
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Size: =UABSize.Secondary
+                                          Text: |-
+                                            =If(tglCmVisible.Checked,
+                                                "The candidate will receive this by email.",
+                                                "Internal only — the candidate never sees this.")
+                                          Wrap: =If(scr_candidates.Size = ScreenSize.Small, true, false)
+                              - galCmComments:
+                                  Control: Gallery
+                                  Variant: Vertical
+                                  Properties:
+                                    Fill: =UAB.White
+                                    Items: |-
+                                      =SortByColumns(
+                                          Filter(FirstN(Comments, 500), Candidate.Id = Coalesce(varSelCandId, 0)),
+                                          "Created", SortOrder.Descending)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    TemplatePadding: =0
+                                    TemplateSize: =88
+                                  Children:
+                                    - conCmRow:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          Height: =Parent.TemplateHeight
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          Width: =Parent.TemplateWidth
+                                        Children:
+                                          - conCmRowBody:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                DropShadow: =DropShadow.None
+                                                Fill: =UAB.White
+                                                FillPortions: =0
+                                                Height: =87
+                                                LayoutAlignItems: =LayoutAlignItems.Stretch
+                                                LayoutDirection: =LayoutDirection.Vertical
+                                                LayoutGap: =4
+                                                LayoutJustifyContent: =LayoutJustifyContent.Center
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                PaddingLeft: =4
+                                                PaddingRight: =4
+                                              Children:
+                                                - lblCmRowMeta:
+                                                    Control: ModernText
+                                                    Properties:
+                                                      AutoHeight: =true
+                                                      Color: =UAB.Gray500
+                                                      Height: =22
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Size: =UABSize.Secondary
+                                                      Text: |-
+                                                        =Coalesce(FriendlyName(ThisItem.'Created By'.DisplayName), "Someone")
+                                                            & "  ·  " & Text(ThisItem.Created, "mmm d, h:mm AM/PM")
+                                                            & If(Coalesce(ThisItem.Visibility.Value, "") = "Candidate-Visible",
+                                                                "  ·  shared with candidate", "")
+                                                      Wrap: =false
+                                                - lblCmRowBody:
+                                                    Control: ModernText
+                                                    Properties:
+                                                      AutoHeight: =true
+                                                      Color: =UAB.TextPrimary
+                                                      Height: =50
+                                                      LayoutMaxHeight: =50
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Size: =UABSize.Body
+                                                      Text: |-
+                                                        =With({t: Trim(Coalesce(PlainText(ThisItem.Body), ""))},
+                                                            If(Len(t) > 180, Trim(Left(t, 179)) & "…", t))
+                                          - conCmRowDivider:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                DropShadow: =DropShadow.None
+                                                Fill: =UAB.Line
+                                                FillPortions: =0
+                                                Height: =1
+                                                LayoutDirection: =LayoutDirection.Horizontal
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                              - conCmEmpty:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =If(galCmComments.AllItemsCount = 0, 44, 0)
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutJustifyContent: =LayoutJustifyContent.Center
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Visible: =galCmComments.AllItemsCount = 0
+                                  Children:
+                                    - lblCmEmpty:
+                                        Control: ModernText
+                                        Properties:
+                                          Align: =Align.Center
+                                          AutoHeight: =true
+                                          Color: =UAB.Gray500
+                                          Height: =25
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Size: =UABSize.Body
+                                          Text: ="No comments yet."
+                        - conTlCard:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              BorderColor: =UAB.Line
+                              BorderThickness: =1
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              FillPortions: =0
+                              Height: |-
+                                =With({n: CountRows(Filter(FirstN(ChangeLog, 500), Candidate.Id = Coalesce(varSelCandId, 0)))},
+                                    If(scr_candidates.Size = ScreenSize.Small, 80, 96) + Min(n, 5) * 64 + If(n = 0, 44, 0))
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =12
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              PaddingBottom: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingLeft: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingRight: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              PaddingTop: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                              Visible: =Coalesce(varSelCandId, 0) > 0
+                            Children:
+                              - conTlHead:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =24
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                  Children:
+                                    - lblTlEyebrow:
+                                        Control: ModernText
+                                        Properties:
+                                          AutoHeight: =true
+                                          Color: =UAB.Green
+                                          FillPortions: =1
+                                          FontWeight: =FontWeight.Bold
+                                          Height: =22
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Size: =UABSize.Eyebrow
+                                          Text: ="TIMELINE"
+                                          Wrap: =false
+                              - galTlLog:
+                                  Control: Gallery
+                                  Variant: Vertical
+                                  Properties:
+                                    Fill: =UAB.White
+                                    Items: |-
+                                      =SortByColumns(
+                                          Filter(FirstN(ChangeLog, 500), Candidate.Id = Coalesce(varSelCandId, 0)),
+                                          "ChangedDate", SortOrder.Descending)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    TemplatePadding: =0
+                                    TemplateSize: =64
+                                  Children:
+                                    - conTlRow:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          Height: =Parent.TemplateHeight
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          Width: =Parent.TemplateWidth
+                                        Children:
+                                          - conTlRowBody:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                DropShadow: =DropShadow.None
+                                                Fill: =UAB.White
+                                                FillPortions: =0
+                                                Height: =63
+                                                LayoutAlignItems: =LayoutAlignItems.Stretch
+                                                LayoutDirection: =LayoutDirection.Vertical
+                                                LayoutGap: =2
+                                                LayoutJustifyContent: =LayoutJustifyContent.Center
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                PaddingLeft: =4
+                                                PaddingRight: =4
+                                              Children:
+                                                - lblTlRowLine:
+                                                    Control: ModernText
+                                                    Properties:
+                                                      AutoHeight: =true
+                                                      Color: =UAB.TextPrimary
+                                                      Height: =25
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Size: =UABSize.Body
+                                                      Text: |-
+                                                        =Switch(Coalesce(ThisItem.EventType.Value, ""),
+                                                            "Stage", "Stage moved to " & Coalesce(ThisItem.ToValue, "—"),
+                                                            "CandidateStatus", "Candidate status " & Coalesce(ThisItem.ToValue, "—"),
+                                                            "TaskStatus", Coalesce(ThisItem.TaskTitle, "Task") & " — "
+                                                                & Coalesce(ThisItem.ToValue, "—"),
+                                                            "TaskAssignee", Coalesce(ThisItem.TaskTitle, "Task") & " assigned to "
+                                                                & Coalesce(FriendlyName(ThisItem.ToValue), "unassigned"),
+                                                            "TaskDue", Coalesce(ThisItem.TaskTitle, "Task") & " due "
+                                                                & Coalesce(ThisItem.ToValue, "—"),
+                                                            Coalesce(ThisItem.TaskTitle, "Activity"))
+                                                      Wrap: =false
+                                                - lblTlRowMeta:
+                                                    Control: ModernText
+                                                    Properties:
+                                                      AutoHeight: =true
+                                                      Color: =UAB.Gray500
+                                                      Height: =22
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Size: =UABSize.Secondary
+                                                      Text: |-
+                                                        =Text(ThisItem.ChangedDate, "mmm d, h:mm AM/PM")
+                                                            & "  ·  " & If(Coalesce(ThisItem.Automated, false), "Automatic",
+                                                                Coalesce(FriendlyName(ThisItem.ChangedBy.DisplayName), "Someone"))
+                                                            & If(IsBlank(ThisItem.FromValue) || ThisItem.FromValue = "", "",
+                                                                "  ·  was " & ThisItem.FromValue)
+                                                      Wrap: =false
+                                          - conTlRowDivider:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                DropShadow: =DropShadow.None
+                                                Fill: =UAB.Line
+                                                FillPortions: =0
+                                                Height: =1
+                                                LayoutDirection: =LayoutDirection.Horizontal
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                              - conTlEmpty:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =If(galTlLog.AllItemsCount = 0, 44, 0)
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutJustifyContent: =LayoutJustifyContent.Center
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Visible: =galTlLog.AllItemsCount = 0
+                                  Children:
+                                    - lblTlEmpty:
+                                        Control: ModernText
+                                        Properties:
+                                          Align: =Align.Center
+                                          AutoHeight: =true
+                                          Color: =UAB.Gray500
+                                          Height: =25
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Size: =UABSize.Body
+                                          Text: ="Nothing has happened yet."
+                        - tmrDtApplyWatch:
+                            Control: Timer
+                            Properties:
+                              Duration: =7000
+                              Height: =1
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnTimerEnd: |-
+                                =Refresh(Tasks);
+                                Refresh(Candidates);
+                                Set(varDtApplyPending, false);
+                                Notify("Checklist ready.", NotificationType.Success)
+                              Start: =Coalesce(varDtApplyPending, false)
+                              Visible: =false
+                              Width: =1
+            - lblCKBottomSpacer:
+                Control: ModernText
+                Properties:
+                  Align: =Align.Center
+                  Color: =UAB.OffWhite
+                  Height: =5
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Size: =2
+                  Text: =""
+                  Wrap: =false
+      - conPvModal:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =RGBA(32, 38, 45, 0.4)
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutJustifyContent: =LayoutJustifyContent.Center
+            Visible: =Coalesce(varPvShow, false)
+            Width: =Parent.Width
+          Children:
+            - conPvPanel:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  AlignInContainer: =AlignInContainer.Center
+                  DropShadow: =DropShadow.Regular
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  Height: =If(scr_candidates.Size = ScreenSize.Small, Parent.Height - 32, Min(Parent.Height - 48, 640))
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                  PaddingLeft: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                  PaddingRight: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                  PaddingTop: =If(scr_candidates.Size = ScreenSize.Small, 16, 24)
+                  RadiusBottomLeft: =8
+                  RadiusBottomRight: =8
+                  RadiusTopLeft: =8
+                  RadiusTopRight: =8
+                  Width: =Min(760, Parent.Width - 32)
+                Children:
+                  - lblPvTitle:
+                      Control: ModernText
+                      Properties:
+                        Color: =UAB.TextPrimary
+                        FontWeight: =FontWeight.Semibold
+                        Height: =34
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =20
+                        Text: ="Due Date Preview"
+                        Wrap: =false
+                  - lblPvSub:
+                      Control: ModernText
+                      Properties:
+                        Color: =UAB.Gray500
+                        Height: =23
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: |-
+                          =Coalesce(cmbDtTemplate.Selected.Title, "No template selected")
+                              & "  ·  " & If(IsBlank(dpDtLOOAcc.SelectedDate),
+                                  "Prerequisites Only", "Full Checklist")
+                        Wrap: =false
+                  - lblPvCounts:
+                      Control: ModernText
+                      Properties:
+                        Color: =UAB.Gray700
+                        Height: =If(scr_candidates.Size = ScreenSize.Small, 46, 26)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Body
+                        Text: |-
+                          =With({n: CountRows(colPvPreview),
+                                 dated: CountRows(Filter(colPvPreview, !IsBlank(PvDue))),
+                                 pend: CountRows(Filter(colPvPreview, IsBlank(PvDue)))},
+                              n & If(n = 1, " Task", " Tasks")
+                              & If(dated = 0, "",
+                                  "  ·  " & Text(Min(colPvPreview, PvDue), "mmm d, yyyy")
+                                      & "  –  " & Text(Max(colPvPreview, PvDue), "mmm d, yyyy"))
+                              & If(pend = 0, "", "  ·  " & pend & " Awaiting a Date"))
+                        Wrap: =scr_candidates.Size = ScreenSize.Small
+                  - lblPvNote:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: |-
+                          =If(Or(
+                              Text(dpDtLOI.SelectedDate, "yyyy-mm-dd") <> Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOIDate, "yyyy-mm-dd"),
+                              Text(dpDtLOOIss.SelectedDate, "yyyy-mm-dd") <> Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOIssued, "yyyy-mm-dd"),
+                              Text(dpDtLOOAcc.SelectedDate, "yyyy-mm-dd") <> Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted, "yyyy-mm-dd"),
+                              Text(dpDtStart.SelectedDate, "yyyy-mm-dd") <> Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).StartDate, "yyyy-mm-dd")), UAB.GoldText, UAB.Gray500)
+                        Height: =If(scr_candidates.Size = ScreenSize.Small, 54, 36)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: |-
+                          =If(Or(
+                              Text(dpDtLOI.SelectedDate, "yyyy-mm-dd") <> Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOIDate, "yyyy-mm-dd"),
+                              Text(dpDtLOOIss.SelectedDate, "yyyy-mm-dd") <> Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOIssued, "yyyy-mm-dd"),
+                              Text(dpDtLOOAcc.SelectedDate, "yyyy-mm-dd") <> Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted, "yyyy-mm-dd"),
+                              Text(dpDtStart.SelectedDate, "yyyy-mm-dd") <> Text(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).StartDate, "yyyy-mm-dd")),
+                              "Previewing with the dates in the form, which you have not saved yet. Save Dates first or the real due dates will differ.",
+                              "Awaiting a Date means the task has a rule but the date it counts from is not set yet. Those fill in on their own once you set it.")
+                  - conPvHead:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.Paper
+                        FillPortions: =0
+                        Height: =28
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        PaddingLeft: =8
+                        PaddingRight: =8
+                      Children:
+                        - lblPvHeadTask:
+                            Control: ModernText
+                            Properties:
+                              Color: =UAB.Gray500
+                              FillPortions: =1
+                              FontWeight: =FontWeight.Semibold
+                              Height: =23
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Eyebrow
+                              Text: ="TASK"
+                              Wrap: =false
+                        - lblPvHeadRule:
+                            Control: ModernText
+                            Properties:
+                              Color: =UAB.Gray500
+                              FontWeight: =FontWeight.Semibold
+                              Height: =23
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Eyebrow
+                              Text: ="DUE RULE"
+                              Visible: =!(scr_candidates.Size = ScreenSize.Small)
+                              Width: =If(scr_candidates.Size = ScreenSize.Small, 0, 190)
+                              Wrap: =false
+                        - lblPvHeadDue:
+                            Control: ModernText
+                            Properties:
+                              Align: =Align.Right
+                              Color: =UAB.Gray500
+                              FontWeight: =FontWeight.Semibold
+                              Height: =23
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Eyebrow
+                              Text: ="DUE DATE"
+                              Width: =If(scr_candidates.Size = ScreenSize.Small, 122, 150)
+                              Wrap: =false
+                  - galPvTasks:
+                      Control: Gallery
+                      Variant: Vertical
+                      Properties:
+                        Fill: =UAB.White
+                        Items: =colPvPreview
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        TemplatePadding: =0
+                        TemplateSize: =If(scr_candidates.Size = ScreenSize.Small, 88, 64)
+                      Children:
+                        - conPvRow:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              Height: =Parent.TemplateHeight
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              Width: =Parent.TemplateWidth
+                            Children:
+                              - conPvRowBody:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutGap: =8
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    PaddingLeft: =8
+                                    PaddingRight: =8
+                                  Children:
+                                    - conPvRowMain:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutGap: =2
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - lblPvRowTitle:
+                                              Control: ModernText
+                                              Properties:
+                                                Color: =UAB.TextPrimary
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =26
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Body
+                                                Text: =ThisItem.Title
+                                                Wrap: =false
+                                          - lblPvRowMeta:
+                                              Control: ModernText
+                                              Properties:
+                                                Color: =UAB.Gray500
+                                                Height: =23
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Secondary
+                                                Text: =ThisItem.PvStage & "  ·  " & ThisItem.PvRole
+                                                Wrap: =false
+                                          - lblPvRowRuleSmall:
+                                              Control: ModernText
+                                              Properties:
+                                                Color: =UAB.Gray500
+                                                Height: =If(scr_candidates.Size = ScreenSize.Small, 23, 0)
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Secondary
+                                                Text: =ThisItem.PvRule
+                                                Visible: =scr_candidates.Size = ScreenSize.Small
+                                                Wrap: =false
+                                    - lblPvRowRule:
+                                        Control: ModernText
+                                        Properties:
+                                          Color: =UAB.Gray700
+                                          Height: =23
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Size: =UABSize.Secondary
+                                          Text: =ThisItem.PvRule
+                                          Visible: =!(scr_candidates.Size = ScreenSize.Small)
+                                          Width: =If(scr_candidates.Size = ScreenSize.Small, 0, 190)
+                                          Wrap: =false
+                                    - lblPvRowDue:
+                                        Control: ModernText
+                                        Properties:
+                                          Align: =Align.Right
+                                          Color: =If(IsBlank(ThisItem.PvDue), UAB.InfoText, UAB.TextPrimary)
+                                          FontWeight: =FontWeight.Semibold
+                                          Height: =26
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Size: =UABSize.Body
+                                          Text: |-
+                                            =If(IsBlank(ThisItem.PvDue), "Awaiting a Date",
+                                                Text(ThisItem.PvDue, "ddd, mmm d, yyyy"))
+                                          Width: =If(scr_candidates.Size = ScreenSize.Small, 122, 150)
+                                          Wrap: =false
+                              - lblPvRowLine:
+                                  Control: ModernText
+                                  Properties:
+                                    Fill: =UAB.Line
+                                    Height: =1
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Text: =""
+                  - lblPvEmpty:
+                      Control: ModernText
+                      Properties:
+                        Align: =Align.Center
+                        Color: =UAB.Gray500
+                        Height: =If(CountRows(colPvPreview) = 0, 23, 0)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: ="This template has no tasks that apply to this candidate yet."
+                        Visible: =CountRows(colPvPreview) = 0
+                  - conPvActions:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =44
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutJustifyContent: =LayoutJustifyContent.End
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - btnPvClose:
+                            Control: Button
+                            Properties:
+                              Appearance: ='ButtonCanvas.Appearance'.Primary
+                              BasePaletteColor: =UAB.Green
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varPvShow, false); Clear(colPvPreview)
+                              Text: ="Close"
+                              Width: =120

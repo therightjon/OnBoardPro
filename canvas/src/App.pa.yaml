@@ -1,0 +1,63 @@
+App:
+  Properties:
+    Formulas: |-
+      =UAB = {
+          Green: RGBA(26, 86, 50, 1),        GreenDark: RGBA(3, 51, 25, 1),
+          Gold: RGBA(253, 185, 19, 1),       GoldTint: RGBA(255, 248, 232, 1),
+          OffWhite: RGBA(250, 249, 246, 1),  White: RGBA(255, 255, 255, 1),
+          Paper: RGBA(244, 242, 236, 1),     Line: RGBA(227, 225, 218, 1),
+          Gray300: RGBA(201, 198, 189, 1),   Gray500: RGBA(110, 109, 104, 1),
+          Gray700: RGBA(58, 58, 55, 1),      TextPrimary: RGBA(3, 51, 25, 1),
+          Success: RGBA(23, 176, 69, 1),     SuccessTint: RGBA(232, 247, 237, 1),
+          SuccessText: RGBA(13, 138, 52, 1),
+          Info: RGBA(66, 202, 240, 1),       InfoTint: RGBA(237, 249, 253, 1),
+          InfoText: RGBA(15, 127, 163, 1),
+          GoldText: RGBA(140, 100, 10, 1),
+          Danger: RGBA(207, 69, 32, 1),      DangerTint: RGBA(207, 69, 32, 0.1),
+          NavInactive: RGBA(255, 255, 255, 0.8)
+      };
+      UABSize = { ScreenTitle: 32, SectionHeading: 22, FieldLabel: 17, Eyebrow: 13, Body: 15, Secondary: 13, ButtonLabel: 15 };
+      UABLayout = { NavRailWidth: 220, NavRailWidthCollapsed: 64, ScreenPadding: 48, SectionGap: 32, BlockGap: 24, FieldGap: 16, RowGap: 12, TightGap: 8 };
+      // ---- Role model (AppPermissions list; unknown users are Viewers) ----
+      MyRole = Coalesce(LookUp(AppPermissions, Lower(Coalesce(AppUser.Email, "")) = Lower(User().Email)).Role.Value, "Viewer");
+      IsHR = MyRole = "HR";
+      IsManagerOrHR = MyRole = "HR" || MyRole = "Manager";
+      // ---- Task status pills ----
+      TaskStatusColor(s: Text): Color = Switch(Coalesce(s, ""), "Done", UAB.SuccessText, "In Progress", UAB.InfoText, "Blocked", UAB.Danger, "Canceled", UAB.Gray500, UAB.Gray700);
+      TaskStatusFill(s: Text): Color = Switch(Coalesce(s, ""), "Done", UAB.SuccessTint, "In Progress", UAB.InfoTint, "Blocked", UAB.DangerTint, "Canceled", UAB.Paper, UAB.Paper);
+      // ---- Due-date buckets (PendingAnchor tasks are waiting on a candidate date) ----
+      TaskDueBucket(d: Date, pending: Boolean): Text =
+          If(Coalesce(pending, false), "Pending",
+             IsBlank(d), "None",
+             d < Today(), "Overdue",
+             d <= Today() + 7, "Soon",
+             "OK");
+      TaskDueText(d: Date, pending: Boolean): Text =
+          Switch(TaskDueBucket(d, pending),
+              "Pending", "Awaiting Date",
+              "None", "No Due Date",
+              "Overdue", "Overdue " & Text(d, "mmm d"),
+              "Soon", "Due " & Text(d, "mmm d"),
+              Text(d, "mmm d"));
+      TaskDueColor(bucket: Text): Color = Switch(Coalesce(bucket, ""), "Overdue", UAB.Danger, "Soon", UAB.GoldText, "Pending", UAB.InfoText, UAB.Gray700);
+      TaskDueFill(bucket: Text): Color = Switch(Coalesce(bucket, ""), "Overdue", UAB.DangerTint, "Soon", UAB.GoldTint, "Pending", UAB.InfoTint, UAB.Paper);
+      TemplateStatusColor(s: Text): Color = Switch(Coalesce(s, ""), "Active", UAB.SuccessText, "Archived", UAB.Gray500, UAB.Gray700);
+      TemplateStatusFill(s: Text): Color = Switch(Coalesce(s, ""), "Active", UAB.SuccessTint, "Archived", UAB.Paper, UAB.GoldTint);
+      FriendlyName(raw: Text): Text =
+          With({base: Trim(If("(" in Coalesce(raw, ""), First(Split(raw, "(")).Value, Coalesce(raw, "")))},
+              If(IsBlank(base), "",
+                 !("," in base), base,
+                 With({lastName: Trim(First(Split(base, ",")).Value),
+                       rest: Trim(Last(Split(base, ",")).Value)},
+                     If(IsBlank(rest), lastName,
+                        Trim(First(Split(rest, " ")).Value) & " " & lastName))));
+      // ---- Cockpit ----
+      MyDivisionId = Coalesce(LookUp(AppPermissions, Lower(Coalesce(AppUser.Email, "")) = Lower(User().Email)).Division.Id, 0);
+      CandStatusColor(s: Text): Color = Switch(Coalesce(s, ""), "Active", UAB.SuccessText, "Draft", UAB.Gray700, "On Hold", UAB.GoldText, "Completed", UAB.InfoText, UAB.Gray500);
+      CandStatusFill(s: Text): Color = Switch(Coalesce(s, ""), "Active", UAB.SuccessTint, "Draft", UAB.Paper, "On Hold", UAB.GoldTint, "Completed", UAB.InfoTint, UAB.Paper)
+    OnStart: |-
+      =Set(varMyTasksFilter, "All");
+      Set(varMyTasksPage, 1);
+      Set(varSelCandId, If(IsBlank(Param("candidateId")), Blank(), Value(Param("candidateId"))))
+    StartScreen: =If(IsBlank(Param("candidateId")), scr_mytasks, scr_candidates)
+    Theme: =PowerAppsTheme
