@@ -52,7 +52,7 @@ Screens:
                   Text: ="OBGYN Onboarding"
                   Visible: =scr_candidates.Size <> ScreenSize.Small
                   Wrap: =false
-            - conNavMyTasks_Candidates:
+            - conNavNewCand_Candidates:
                 Control: GroupContainer
                 Variant: AutoLayout
                 Properties:
@@ -64,47 +64,48 @@ Screens:
                   LayoutDirection: =LayoutDirection.Horizontal
                   LayoutMinHeight: =0
                   LayoutMinWidth: =0
+                  Visible: =IsHR
                 Children:
-                  - conNavBarMyTasks_Candidates:
+                  - conNavBarNewCand_Candidates:
                       Control: GroupContainer
                       Variant: AutoLayout
                       Properties:
                         DropShadow: =DropShadow.None
-                        Fill: =If(App.ActiveScreen = scr_mytasks, UAB.Gold, RGBA(0, 0, 0, 0))
+                        Fill: =If(App.ActiveScreen = scr_new_candidate, UAB.Gold, RGBA(0, 0, 0, 0))
                         FillPortions: =0
                         LayoutDirection: =LayoutDirection.Horizontal
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         Width: =4
-                  - icoNavMyTasks_Candidates:
+                  - icoNavNewCand_Candidates:
                       Control: Classic/Icon
                       Properties:
                         AlignInContainer: =AlignInContainer.Center
-                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
                         Height: =44
-                        Icon: =Icon.Check
+                        Icon: =Icon.Add
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
-                        OnSelect: =Navigate(scr_mytasks)
+                        OnSelect: =Navigate(scr_new_candidate)
                         PaddingLeft: =12
                         Width: =44
-                  - lblNavMyTasks_Candidates:
+                  - lblNavNewCand_Candidates:
                       Control: Label
                       Properties:
                         AlignInContainer: =AlignInContainer.Stretch
-                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
                         FillPortions: =1
                         Font: =Font.Arial
-                        FontWeight: =If(App.ActiveScreen = scr_mytasks, FontWeight.Semibold, FontWeight.Normal)
+                        FontWeight: =If(App.ActiveScreen = scr_new_candidate, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
-                        OnSelect: =Navigate(scr_mytasks)
+                        OnSelect: =Navigate(scr_new_candidate)
                         PaddingBottom: =0
                         PaddingLeft: =8
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
-                        Text: ="My Tasks"
+                        Text: ="New Candidate"
                         Visible: =scr_candidates.Size <> ScreenSize.Small
                         Wrap: =false
             - conNavCandidates_Candidates:
@@ -163,7 +164,7 @@ Screens:
                         Text: ="Candidates"
                         Visible: =scr_candidates.Size <> ScreenSize.Small
                         Wrap: =false
-            - conNavNewCand_Candidates:
+            - conNavMyTasks_Candidates:
                 Control: GroupContainer
                 Variant: AutoLayout
                 Properties:
@@ -175,48 +176,47 @@ Screens:
                   LayoutDirection: =LayoutDirection.Horizontal
                   LayoutMinHeight: =0
                   LayoutMinWidth: =0
-                  Visible: =IsHR
                 Children:
-                  - conNavBarNewCand_Candidates:
+                  - conNavBarMyTasks_Candidates:
                       Control: GroupContainer
                       Variant: AutoLayout
                       Properties:
                         DropShadow: =DropShadow.None
-                        Fill: =If(App.ActiveScreen = scr_new_candidate, UAB.Gold, RGBA(0, 0, 0, 0))
+                        Fill: =If(App.ActiveScreen = scr_mytasks, UAB.Gold, RGBA(0, 0, 0, 0))
                         FillPortions: =0
                         LayoutDirection: =LayoutDirection.Horizontal
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         Width: =4
-                  - icoNavNewCand_Candidates:
+                  - icoNavMyTasks_Candidates:
                       Control: Classic/Icon
                       Properties:
                         AlignInContainer: =AlignInContainer.Center
-                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
                         Height: =44
-                        Icon: =Icon.Add
+                        Icon: =Icon.Check
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
-                        OnSelect: =Navigate(scr_new_candidate)
+                        OnSelect: =Navigate(scr_mytasks)
                         PaddingLeft: =12
                         Width: =44
-                  - lblNavNewCand_Candidates:
+                  - lblNavMyTasks_Candidates:
                       Control: Label
                       Properties:
                         AlignInContainer: =AlignInContainer.Stretch
-                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
                         FillPortions: =1
                         Font: =Font.Arial
-                        FontWeight: =If(App.ActiveScreen = scr_new_candidate, FontWeight.Semibold, FontWeight.Normal)
+                        FontWeight: =If(App.ActiveScreen = scr_mytasks, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
-                        OnSelect: =Navigate(scr_new_candidate)
+                        OnSelect: =Navigate(scr_mytasks)
                         PaddingBottom: =0
                         PaddingLeft: =8
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
-                        Text: ="New Candidate"
+                        Text: ="My Tasks"
                         Visible: =scr_candidates.Size <> ScreenSize.Small
                         Wrap: =false
             - conNavTemplates_Candidates:

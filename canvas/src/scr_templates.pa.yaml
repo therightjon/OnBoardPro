@@ -52,7 +52,7 @@ Screens:
                   Text: ="OBGYN Onboarding"
                   Visible: =scr_templates.Size <> ScreenSize.Small
                   Wrap: =false
-            - conNavMyTasks_Templates:
+            - conNavNewCand_Templates:
                 Control: GroupContainer
                 Variant: AutoLayout
                 Properties:
@@ -64,47 +64,48 @@ Screens:
                   LayoutDirection: =LayoutDirection.Horizontal
                   LayoutMinHeight: =0
                   LayoutMinWidth: =0
+                  Visible: =IsHR
                 Children:
-                  - conNavBarMyTasks_Templates:
+                  - conNavBarNewCand_Templates:
                       Control: GroupContainer
                       Variant: AutoLayout
                       Properties:
                         DropShadow: =DropShadow.None
-                        Fill: =If(App.ActiveScreen = scr_mytasks, UAB.Gold, RGBA(0, 0, 0, 0))
+                        Fill: =If(App.ActiveScreen = scr_new_candidate, UAB.Gold, RGBA(0, 0, 0, 0))
                         FillPortions: =0
                         LayoutDirection: =LayoutDirection.Horizontal
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         Width: =4
-                  - icoNavMyTasks_Templates:
+                  - icoNavNewCand_Templates:
                       Control: Classic/Icon
                       Properties:
                         AlignInContainer: =AlignInContainer.Center
-                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
                         Height: =44
-                        Icon: =Icon.Check
+                        Icon: =Icon.Add
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
-                        OnSelect: =Navigate(scr_mytasks)
+                        OnSelect: =Navigate(scr_new_candidate)
                         PaddingLeft: =12
                         Width: =44
-                  - lblNavMyTasks_Templates:
+                  - lblNavNewCand_Templates:
                       Control: Label
                       Properties:
                         AlignInContainer: =AlignInContainer.Stretch
-                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
                         FillPortions: =1
                         Font: =Font.Arial
-                        FontWeight: =If(App.ActiveScreen = scr_mytasks, FontWeight.Semibold, FontWeight.Normal)
+                        FontWeight: =If(App.ActiveScreen = scr_new_candidate, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
-                        OnSelect: =Navigate(scr_mytasks)
+                        OnSelect: =Navigate(scr_new_candidate)
                         PaddingBottom: =0
                         PaddingLeft: =8
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
-                        Text: ="My Tasks"
+                        Text: ="New Candidate"
                         Visible: =scr_templates.Size <> ScreenSize.Small
                         Wrap: =false
             - conNavCandidates_Templates:
@@ -163,7 +164,7 @@ Screens:
                         Text: ="Candidates"
                         Visible: =scr_templates.Size <> ScreenSize.Small
                         Wrap: =false
-            - conNavNewCand_Templates:
+            - conNavMyTasks_Templates:
                 Control: GroupContainer
                 Variant: AutoLayout
                 Properties:
@@ -175,48 +176,47 @@ Screens:
                   LayoutDirection: =LayoutDirection.Horizontal
                   LayoutMinHeight: =0
                   LayoutMinWidth: =0
-                  Visible: =IsHR
                 Children:
-                  - conNavBarNewCand_Templates:
+                  - conNavBarMyTasks_Templates:
                       Control: GroupContainer
                       Variant: AutoLayout
                       Properties:
                         DropShadow: =DropShadow.None
-                        Fill: =If(App.ActiveScreen = scr_new_candidate, UAB.Gold, RGBA(0, 0, 0, 0))
+                        Fill: =If(App.ActiveScreen = scr_mytasks, UAB.Gold, RGBA(0, 0, 0, 0))
                         FillPortions: =0
                         LayoutDirection: =LayoutDirection.Horizontal
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         Width: =4
-                  - icoNavNewCand_Templates:
+                  - icoNavMyTasks_Templates:
                       Control: Classic/Icon
                       Properties:
                         AlignInContainer: =AlignInContainer.Center
-                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
                         Height: =44
-                        Icon: =Icon.Add
+                        Icon: =Icon.Check
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
-                        OnSelect: =Navigate(scr_new_candidate)
+                        OnSelect: =Navigate(scr_mytasks)
                         PaddingLeft: =12
                         Width: =44
-                  - lblNavNewCand_Templates:
+                  - lblNavMyTasks_Templates:
                       Control: Label
                       Properties:
                         AlignInContainer: =AlignInContainer.Stretch
-                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
                         FillPortions: =1
                         Font: =Font.Arial
-                        FontWeight: =If(App.ActiveScreen = scr_new_candidate, FontWeight.Semibold, FontWeight.Normal)
+                        FontWeight: =If(App.ActiveScreen = scr_mytasks, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
-                        OnSelect: =Navigate(scr_new_candidate)
+                        OnSelect: =Navigate(scr_mytasks)
                         PaddingBottom: =0
                         PaddingLeft: =8
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
-                        Text: ="New Candidate"
+                        Text: ="My Tasks"
                         Visible: =scr_templates.Size <> ScreenSize.Small
                         Wrap: =false
             - conNavTemplates_Templates:
@@ -578,6 +578,8 @@ Screens:
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         LayoutOverflowY: =LayoutOverflow.Scroll
+                        PaddingLeft: =2
+                        PaddingRight: =2
                       Children:
                         - conTpNoSelection:
                             Control: GroupContainer
@@ -1411,7 +1413,7 @@ Screens:
                               FillPortions: =0
                               Height: |-
                                 =With({n: Coalesce(varTpStats, {stages: 0, tasks: 0, unnamed: 0, stageless: 0, fixedNoDate: 0, prereqs: 0, approvals: 0}).tasks},
-                                    If(scr_templates.Size = ScreenSize.Small, 96, 104) + Min(n, 8) * 64 + If(n = 0, 44, 0))
+                                    If(scr_templates.Size = ScreenSize.Small, 96, 104) + If(scr_templates.Size = ScreenSize.Small, 128, 56) + Min(n, 8) * 64 + If(n = 0, 44, 0))
                               LayoutAlignItems: =LayoutAlignItems.Stretch
                               LayoutDirection: =LayoutDirection.Vertical
                               LayoutGap: =12
@@ -1442,6 +1444,7 @@ Screens:
                                         Properties:
                                           AutoHeight: =true
                                           Color: =UAB.Green
+                                          FillPortions: =1
                                           FontWeight: =FontWeight.Bold
                                           Height: =22
                                           LayoutMinHeight: =0
@@ -1452,7 +1455,7 @@ Screens:
                                     - txtTpTaskSearch:
                                         Control: ModernTextInput
                                         Properties:
-                                          FillPortions: =1
+                                          FillPortions: =2
                                           Height: =36
                                           LayoutMinHeight: =36
                                           LayoutMinWidth: =0
@@ -1486,7 +1489,8 @@ Screens:
                                               Template.Id = Coalesce(varSelTemplateId, 0),
                                               Or(IsBlank(Trim(txtTpTaskSearch.Text)),
                                                  StartsWith(Title, Trim(txtTpTaskSearch.Text)),
-                                                 Trim(txtTpTaskSearch.Text) in Title)),
+                                                 Trim(txtTpTaskSearch.Text) in Title),
+                                              Or(Not(tglTpUnstaged.Checked), IsBlank(TemplateStage.Id))),
                                           "OrderIndex", SortOrder.Ascending)
                                     LayoutMinHeight: =0
                                     LayoutMinWidth: =0
@@ -1700,6 +1704,66 @@ Screens:
                                           LayoutMinWidth: =0
                                           Size: =UABSize.Body
                                           Text: ="This template has no tasks yet."
+                              - conTpBulkBar:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.Paper
+                                    FillPortions: =0
+                                    Height: =If(scr_templates.Size = ScreenSize.Small, 116, 44)
+                                    LayoutAlignItems: =If(scr_templates.Size = ScreenSize.Small, LayoutAlignItems.Stretch, LayoutAlignItems.Center)
+                                    LayoutDirection: =If(scr_templates.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                                    LayoutGap: =8
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    PaddingLeft: =8
+                                    PaddingRight: =8
+                                    RadiusBottomLeft: =6
+                                    RadiusBottomRight: =6
+                                    RadiusTopLeft: =6
+                                    RadiusTopRight: =6
+                                  Children:
+                                    - tglTpUnstaged:
+                                        Control: Toggle
+                                        Properties:
+                                          BasePaletteColor: =UAB.Green
+                                          Height: =32
+                                          Label: ="Unassigned only"
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Width: =If(scr_templates.Size = ScreenSize.Small, Parent.Width - 16, 190)
+                                    - cmbTpBulkStage:
+                                        Control: ModernCombobox
+                                        Properties:
+                                          FillPortions: =If(scr_templates.Size = ScreenSize.Small, 0, 1)
+                                          InputTextPlaceholder: ="Move to stage…"
+                                          ItemDisplayText: =ThisItem.PickerLabel
+                                          Items: |-
+                                            =AddColumns(
+                                                SortByColumns(Filter(TemplateStages, Template.Id = Coalesce(varSelTemplateId, 0)),
+                                                    "OrderIndex", SortOrder.Ascending),
+                                                PickerLabel, Coalesce(Stage.Value, Title))
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          SelectMultiple: =false
+                                    - btnTpBulkApply:
+                                        Control: Button
+                                        Properties:
+                                          Appearance: ='ButtonCanvas.Appearance'.Secondary
+                                          BasePaletteColor: =UAB.Green
+                                          DisplayMode: |-
+                                            =If(And(!IsBlank(cmbTpBulkStage.Selected), galTpTasks.AllItemsCount > 0),
+                                                DisplayMode.Edit, DisplayMode.Disabled)
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          OnSelect: |-
+                                            =ClearCollect(colTpBulk, galTpTasks.AllItems);
+                                            Set(varTpBulkConfirm, true)
+                                          Text: |-
+                                            =If(galTpTasks.AllItemsCount = 1, "Assign 1 Task",
+                                                "Assign " & galTpTasks.AllItemsCount & " Tasks")
+                                          Width: =If(scr_templates.Size = ScreenSize.Small, Parent.Width - 16, 150)
             - lblTpSpacer:
                 Control: ModernText
                 Properties:
@@ -1960,6 +2024,7 @@ Screens:
                                   Properties:
                                     AutoHeight: =true
                                     Color: =UAB.Gray700
+                                    FillPortions: =1
                                     FontWeight: =FontWeight.Semibold
                                     Height: =22
                                     LayoutMinHeight: =0
@@ -1970,11 +2035,26 @@ Screens:
                               - cmbTeAnchor:
                                   Control: ModernCombobox
                                   Properties:
-                                    DefaultSelectedItems: =Filter(Choices(TemplateTasks.Anchor), Value = Coalesce(varTeTask.Anchor.Value, "None"))
-                                    FillPortions: =1
+                                    DefaultSelectedItems: |-
+                                      =Filter(Table(
+                                          {Value: "LOI", Label: "LOI Date"},
+                                          {Value: "LOO Issued", Label: "LOO Issued Date"},
+                                          {Value: "LOO Accepted", Label: "LOO Accepted Date"},
+                                          {Value: "Start", Label: "Start Date"},
+                                          {Value: "Fixed", Label: "A Fixed Date"},
+                                          {Value: "None", Label: "No Due Date"}),
+                                          Value = Coalesce(varTeTask.Anchor.Value, "None"))
+                                    FillPortions: =2
                                     Height: =40
-                                    ItemDisplayText: =ThisItem.Value
-                                    Items: =Choices(TemplateTasks.Anchor)
+                                    ItemDisplayText: =ThisItem.Label
+                                    Items: |-
+                                      =Table(
+                                          {Value: "LOI", Label: "LOI Date"},
+                                          {Value: "LOO Issued", Label: "LOO Issued Date"},
+                                          {Value: "LOO Accepted", Label: "LOO Accepted Date"},
+                                          {Value: "Start", Label: "Start Date"},
+                                          {Value: "Fixed", Label: "A Fixed Date"},
+                                          {Value: "None", Label: "No Due Date"})
                                     LayoutMinHeight: =0
                                     LayoutMinWidth: =0
                                     SelectMultiple: =false
@@ -1996,6 +2076,7 @@ Screens:
                                   Properties:
                                     AutoHeight: =true
                                     Color: =UAB.Gray700
+                                    FillPortions: =1
                                     FontWeight: =FontWeight.Semibold
                                     Height: =22
                                     LayoutMinHeight: =0
@@ -2009,7 +2090,7 @@ Screens:
                                   Properties:
                                     DropShadow: =DropShadow.None
                                     Fill: =UAB.White
-                                    FillPortions: =0
+                                    FillPortions: =2
                                     Height: =40
                                     LayoutAlignItems: =LayoutAlignItems.Center
                                     LayoutDirection: =LayoutDirection.Horizontal
@@ -3184,4 +3265,136 @@ Screens:
                               LayoutMinWidth: =0
                               OnSelect: =Set(varTdConfirm, false)
                               Text: ="Keep It"
+                              Width: =120
+      - conTpBulkConfirm:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =RGBA(32, 38, 45, 0.4)
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutJustifyContent: =LayoutJustifyContent.Center
+            Visible: =Coalesce(varTpBulkConfirm, false)
+            Width: =Parent.Width
+          Children:
+            - conTpBulkPanel:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  AlignInContainer: =AlignInContainer.Center
+                  DropShadow: =DropShadow.Regular
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  Height: =264
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =24
+                  PaddingLeft: =24
+                  PaddingRight: =24
+                  PaddingTop: =24
+                  RadiusBottomLeft: =8
+                  RadiusBottomRight: =8
+                  RadiusTopLeft: =8
+                  RadiusTopRight: =8
+                  Width: =Min(480, Parent.Width - 32)
+                Children:
+                  - lblTpBulkTitle:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.TextPrimary
+                        FontWeight: =FontWeight.Semibold
+                        Height: =34
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =20
+                        Text: ="Assign Stage?"
+                        Wrap: =false
+                  - lblTpBulkBody:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray700
+                        Height: =52
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Body
+                        Text: |-
+                          =CountRows(colTpBulk)
+                              & If(CountRows(colTpBulk) = 1, " task moves to ", " tasks move to ")
+                              & Coalesce(cmbTpBulkStage.Selected.PickerLabel, "the selected stage") & "."
+                  - lblTpBulkNote:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray500
+                        Height: =44
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: ="These are the tasks shown in the list right now. Candidates who already have this template keep their own copies — nothing they see changes."
+                  - conTpBulkActions:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =44
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - btnTpBulkConfirm:
+                            Control: Button
+                            Properties:
+                              Appearance: ='ButtonCanvas.Appearance'.Primary
+                              BasePaletteColor: =UAB.Green
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: |-
+                                =IfError(
+                                    ForAll(colTpBulk As t,
+                                        Patch(TemplateTasks, LookUp(TemplateTasks, ID = t.ID),
+                                            {TemplateStage: {Id: cmbTpBulkStage.Selected.ID,
+                                                             Value: Coalesce(cmbTpBulkStage.Selected.Title,
+                                                                 cmbTpBulkStage.Selected.Stage.Value)}})),
+                                    Notify("Couldn't assign the stage - " & FirstError.Message
+                                        & " Some tasks may not have moved. Check the list.",
+                                        NotificationType.Error),
+                                    Notify(CountRows(colTpBulk) & " tasks moved to "
+                                        & cmbTpBulkStage.Selected.PickerLabel & ".",
+                                        NotificationType.Success));
+                                Set(varTpBulkConfirm, false);
+                                Clear(colTpBulk);
+                                Reset(cmbTpBulkStage);
+                                Set(varTpStats,
+                                    With({t: Filter(TemplateTasks, Template.Id = Coalesce(varSelTemplateId, 0))},
+                                        {stages: CountRows(Filter(TemplateStages, Template.Id = Coalesce(varSelTemplateId, 0))),
+                                         tasks: CountRows(t),
+                                         unnamed: CountRows(Filter(t, IsBlank(Trim(Title)))),
+                                         stageless: CountRows(Filter(t, IsBlank(TemplateStage.Id))),
+                                         fixedNoDate: CountRows(Filter(t, Anchor.Value = "Fixed", IsBlank(FixedDate))),
+                                         prereqs: CountRows(Filter(t, IsPrereq)),
+                                         approvals: CountRows(Filter(t, NeedsApproval))}))
+                              Text: ="Assign Stage"
+                              Width: =150
+                        - btnTpBulkCancel:
+                            Control: Button
+                            Properties:
+                              Appearance: ='ButtonCanvas.Appearance'.Secondary
+                              BasePaletteColor: =UAB.Green
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varTpBulkConfirm, false); Clear(colTpBulk)
+                              Text: ="Cancel"
                               Width: =120
