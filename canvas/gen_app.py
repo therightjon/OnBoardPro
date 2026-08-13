@@ -98,7 +98,7 @@ SCREENS = {
 }
 NAV_ITEMS = [
     # key, label, icon, target screen, extra active screens, visible formula
-    ("MyTasks", "My Tasks", "Icon.CheckList", "scr_mytasks", [], None),
+    ("MyTasks", "My Tasks", "Icon.Check", "scr_mytasks", [], None),
     ("Candidates", "Candidates", "Icon.People", "scr_candidates", [], "=IsManagerOrHR"),
     ("NewCand", "New Candidate", "Icon.Add", "scr_new_candidate", [], "=IsHR"),
     ("Templates", "Templates", "Icon.DocumentWithContent", "scr_templates", [], "=IsHR"),
@@ -169,12 +169,13 @@ def nav_rail(screen):
 
 def content_root(screen, name, children):
     w = rail_width(screen)[1:]  # strip leading =
+    side_pad = f"=If({screen}.Size = ScreenSize.Small, 12, 24)"
     return (name, con({**NOSHADOW,
         "Fill": "=UAB.OffWhite", "Height": "=Parent.Height",
         "LayoutAlignItems": "=LayoutAlignItems.Stretch",
         "LayoutDirection": "=LayoutDirection.Vertical", "LayoutGap": "=16",
         "LayoutOverflowY": "=LayoutOverflow.Scroll",
-        "PaddingBottom": "=24", "PaddingLeft": "=24", "PaddingRight": "=24",
+        "PaddingBottom": "=24", "PaddingLeft": side_pad, "PaddingRight": side_pad,
         "PaddingTop": "=24",
         "Width": f"=Parent.Width - {w}", "X": f"={w}"}, children))
 
@@ -203,6 +204,7 @@ def pill(name_suffix, width, fill, color, text):
 # ---------------------------------------------------------------- My Tasks
 
 SIZE = 8  # rows per page
+SM = "scr_mytasks.Size = ScreenSize.Small"  # phone breakpoint (< 600)
 
 MT_FILTER = (
     "=SortByColumns(\n"
@@ -238,13 +240,15 @@ MT_DONE = (
     "    Notify(\"Task marked done.\", NotificationType.Success))")
 
 
-def mt_filter_button(key, label, filter_val):
+def mt_filter_button(key, label, filter_val, small_label=None):
+    text = (f'=If({SM}, "{small_label}", "{label}")' if small_label
+            else f'="{label}"')
     return (f"btnMTFilter{key}", ctl("Button", {**AUTOZ,
         "Appearance": (f"=If(Coalesce(varMyTasksFilter, \"All\") = \"{filter_val}\", "
                        "'ButtonCanvas.Appearance'.Primary, 'ButtonCanvas.Appearance'.Secondary)"),
         "BasePaletteColor": "=UAB.Green", "FillPortions": "=0", "Height": "=36",
         "OnSelect": f"=Set(varMyTasksFilter, \"{filter_val}\");\nSet(varMyTasksPage, 1)",
-        "Text": f'="{label}"', "Width": "=130"}))
+        "Text": text, "Width": f"=If({SM}, 96, 130)"}))
 
 
 def mytasks_screen():
@@ -264,23 +268,26 @@ def mytasks_screen():
         "Fill": "=UAB.OffWhite", "FillPortions": "=0", "Height": "=44",
         "LayoutAlignItems": "=LayoutAlignItems.Center",
         "LayoutDirection": "=LayoutDirection.Horizontal", "LayoutGap": "=8"}, [
-        mt_filter_button("All", "All open", "All"),
+        mt_filter_button("All", "All open", "All", small_label="All"),
         mt_filter_button("Overdue", "Overdue", "Overdue"),
-        mt_filter_button("Week", "Due in 7 days", "Week"),
+        mt_filter_button("Week", "Due in 7 days", "Week", small_label="7 days"),
     ]))
 
     header_row = ("conMTHeaderRow", con({**NOSHADOW, **AUTOZ,
         "Fill": "=UAB.Paper", "FillPortions": "=0", "Height": "=40",
         "LayoutAlignItems": "=LayoutAlignItems.Center",
-        "LayoutDirection": "=LayoutDirection.Horizontal", "LayoutGap": "=12",
-        "PaddingLeft": "=16", "PaddingRight": "=16"}, [
+        "LayoutDirection": "=LayoutDirection.Horizontal",
+        "LayoutGap": f"=If({SM}, 8, 12)",
+        "PaddingLeft": f"=If({SM}, 12, 16)",
+        "PaddingRight": f"=If({SM}, 12, 16)"}, [
         ("lblMTColTask", ctl("ModernText", {**AUTOZ,
             "AutoHeight": "=true", "Color": "=UAB.Gray700", "FillPortions": "=1",
             "FontWeight": "=FontWeight.Semibold", "Height": "=18",
             "Size": "=UABSize.Secondary", "Text": '="Task"'})),
         ("conMTColDue", con({**NOSHADOW, **AUTOZ,
             "Fill": "=UAB.Paper", "FillPortions": "=0",
-            "LayoutDirection": "=LayoutDirection.Horizontal", "Width": "=120"}, [
+            "LayoutDirection": "=LayoutDirection.Horizontal",
+            "Visible": f"=!({SM})", "Width": f"=If({SM}, 0, 120)"}, [
             ("lblMTColDue", ctl("ModernText", {**AUTOZ,
                 "AutoHeight": "=true", "Color": "=UAB.Gray700", "FillPortions": "=1",
                 "FontWeight": "=FontWeight.Semibold", "Height": "=18",
@@ -288,7 +295,8 @@ def mytasks_screen():
         ])),
         ("conMTColStatus", con({**NOSHADOW, **AUTOZ,
             "Fill": "=UAB.Paper", "FillPortions": "=0",
-            "LayoutDirection": "=LayoutDirection.Horizontal", "Width": "=110"}, [
+            "LayoutDirection": "=LayoutDirection.Horizontal",
+            "Visible": f"=!({SM})", "Width": f"=If({SM}, 0, 110)"}, [
             ("lblMTColStatus", ctl("ModernText", {**AUTOZ,
                 "AutoHeight": "=true", "Color": "=UAB.Gray700", "FillPortions": "=1",
                 "FontWeight": "=FontWeight.Semibold", "Height": "=18",
@@ -312,11 +320,19 @@ def mytasks_screen():
             "AutoHeight": "=true", "Height": "=18", "Text": '=""'})),
     ], variant="Vertical"))
 
+    # On phone the Due/Status columns collapse, so the subline absorbs the due
+    # text (and turns red when overdue).
     row_sub = (
-        '=Coalesce(ThisItem.CandName, "") & "  ·  " & Coalesce(ThisItem.StageName, "")\n'
+        f'=If({SM},\n'
+        '    TaskDueText(ThisItem.DueDate, ThisItem.PendingAnchor) & "  ·  ", "")\n'
+        '    & Coalesce(ThisItem.CandName, "") & "  ·  " & Coalesce(ThisItem.StageName, "")\n'
         '    & If(Coalesce(ThisItem.Priority.Value, "") = "High"\n'
         '            || Coalesce(ThisItem.Priority.Value, "") = "Critical",\n'
         '        "  ·  " & ThisItem.Priority.Value & " priority", "")')
+    row_sub_color = (
+        f'=If({SM}\n'
+        '        && TaskDueBucket(ThisItem.DueDate, ThisItem.PendingAnchor) = "Overdue",\n'
+        '    UAB.Danger, UAB.Gray500)')
     row_title = (
         '=With({t: Trim(Coalesce(ThisItem.Title, ""))},\n'
         '    If(Len(t) > 70, Trim(Left(t, 69)) & "…", t))')
@@ -334,8 +350,10 @@ def mytasks_screen():
             ("conMTRowContent", con({**NOSHADOW, **AUTOZ,
                 "Fill": "=UAB.White", "FillPortions": "=0", "Height": "=55",
                 "LayoutAlignItems": "=LayoutAlignItems.Center",
-                "LayoutDirection": "=LayoutDirection.Horizontal", "LayoutGap": "=12",
-                "PaddingLeft": "=16", "PaddingRight": "=16"}, [
+                "LayoutDirection": "=LayoutDirection.Horizontal",
+                "LayoutGap": f"=If({SM}, 8, 12)",
+                "PaddingLeft": f"=If({SM}, 12, 16)",
+                "PaddingRight": f"=If({SM}, 12, 16)"}, [
                 ("conMTCellMain", con({**NOSHADOW, **AUTOZ,
                     "Fill": "=UAB.White", "FillPortions": "=1",
                     "LayoutAlignItems": "=LayoutAlignItems.Stretch",
@@ -348,7 +366,7 @@ def mytasks_screen():
                         "Size": "=UABSize.Body", "Text": row_title,
                         "Wrap": "=false"})),
                     ("lblMTRowSub", ctl("ModernText", {**AUTOZ,
-                        "AutoHeight": "=true", "Color": "=UAB.Gray500",
+                        "AutoHeight": "=true", "Color": row_sub_color,
                         "Height": "=18", "Size": "=UABSize.Secondary",
                         "Text": row_sub, "Wrap": "=false"})),
                 ])),
@@ -356,7 +374,7 @@ def mytasks_screen():
                     "Fill": "=UAB.White", "FillPortions": "=0",
                     "LayoutDirection": "=LayoutDirection.Vertical",
                     "LayoutJustifyContent": "=LayoutJustifyContent.Center",
-                    "Width": "=120"}, [
+                    "Visible": f"=!({SM})", "Width": f"=If({SM}, 0, 120)"}, [
                     pill("MTDue", 120,
                          "=TaskDueFill(TaskDueBucket(ThisItem.DueDate, ThisItem.PendingAnchor))",
                          "=TaskDueColor(TaskDueBucket(ThisItem.DueDate, ThisItem.PendingAnchor))",
@@ -366,7 +384,7 @@ def mytasks_screen():
                     "Fill": "=UAB.White", "FillPortions": "=0",
                     "LayoutDirection": "=LayoutDirection.Vertical",
                     "LayoutJustifyContent": "=LayoutJustifyContent.Center",
-                    "Width": "=110"}, [
+                    "Visible": f"=!({SM})", "Width": f"=If({SM}, 0, 110)"}, [
                     pill("MTStatus", 110,
                          '=TaskStatusFill(Coalesce(ThisItem.TStatus.Value, "To Do"))',
                          '=TaskStatusColor(Coalesce(ThisItem.TStatus.Value, "To Do"))',

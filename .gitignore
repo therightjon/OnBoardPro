@@ -71,3 +71,7 @@ Thumbs.db
 .codacy/codacy.yaml
 dist/
 dist/
+
+# Python bytecode from the canvas generators
+__pycache__/
+*.pyc
