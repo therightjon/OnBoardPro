@@ -1,0 +1,210 @@
+{
+ "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+ "contentVersion": "1.0.0.0",
+ "parameters": {
+  "$connections": {
+   "defaultValue": {},
+   "type": "Object"
+  },
+  "$authentication": {
+   "defaultValue": {},
+   "type": "SecureObject"
+  }
+ },
+ "triggers": {
+  "When_Comment_Posted": {
+   "type": "OpenApiConnection",
+   "recurrence": {
+    "frequency": "Minute",
+    "interval": 1
+   },
+   "splitOn": "@triggerOutputs()?['body/value']",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "GetOnNewItems"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "table": "cd080771-ae0c-4b33-97b4-99c247f48ad9"
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  }
+ },
+ "actions": {
+  "Get_Cmt": {
+   "runAfter": {},
+   "type": "OpenApiConnection",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "HttpRequest"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "parameters/method": "GET",
+     "parameters/uri": "_api/web/lists(guid'cd080771-ae0c-4b33-97b4-99c247f48ad9')/items(@{triggerBody()?['ID']})?$select=Id,Body,Visibility,CandidateId,Author/EMail,Author/Title,NotifyUsers/EMail&$expand=Author,NotifyUsers",
+     "parameters/headers": {
+      "Accept": "application/json;odata=nometadata",
+      "Content-Type": "application/json;odata=nometadata"
+     }
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  },
+  "Get_Cand": {
+   "runAfter": {
+    "Get_Cmt": [
+     "Succeeded"
+    ]
+   },
+   "type": "OpenApiConnection",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "HttpRequest"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "parameters/method": "GET",
+     "parameters/uri": "_api/web/lists(guid'ce3de9a9-702d-4707-9f30-a011b3d78264')/items(@{body('Get_Cmt')?['CandidateId']})?$select=Id,Title,Email,Manager/EMail,Watchers/EMail&$expand=Manager,Watchers",
+     "parameters/headers": {
+      "Accept": "application/json;odata=nometadata",
+      "Content-Type": "application/json;odata=nometadata"
+     }
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  },
+  "N_Mails": {
+   "runAfter": {
+    "Get_Cand": [
+     "Succeeded"
+    ]
+   },
+   "type": "Select",
+   "inputs": {
+    "from": "@coalesce(body('Get_Cmt')?['NotifyUsers'], json('[]'))",
+    "select": "@coalesce(item()?['EMail'],'')"
+   }
+  },
+  "W_Mails": {
+   "runAfter": {
+    "N_Mails": [
+     "Succeeded"
+    ]
+   },
+   "type": "Select",
+   "inputs": {
+    "from": "@coalesce(body('Get_Cand')?['Watchers'], json('[]'))",
+    "select": "@coalesce(item()?['EMail'],'')"
+   }
+  },
+  "Rcpts": {
+   "runAfter": {
+    "W_Mails": [
+     "Succeeded"
+    ]
+   },
+   "type": "Query",
+   "inputs": {
+    "from": "@union(body('N_Mails'), body('W_Mails'), createArray(coalesce(body('Get_Cand')?['Manager']?['EMail'],'')))",
+    "where": "@and(not(equals(item(),'')), not(equals(item(), coalesce(body('Get_Cmt')?['Author']?['EMail'],''))))"
+   }
+  },
+  "If_Send": {
+   "runAfter": {
+    "Rcpts": [
+     "Succeeded"
+    ]
+   },
+   "type": "If",
+   "expression": {
+    "and": [
+     {
+      "greater": [
+       "@length(body('Rcpts'))",
+       0
+      ]
+     }
+    ]
+   },
+   "actions": {
+    "Mail_Team": {
+     "runAfter": {},
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+       "connectionName": "shared_office365",
+       "operationId": "SendEmailV2"
+      },
+      "parameters": {
+       "emailMessage/To": "@join(body('Rcpts'), ';')",
+       "emailMessage/Subject": "@concat('[OnBoardPro] New comment on ', body('Get_Cand')?['Title'])",
+       "emailMessage/Body": "@concat('<p><b>', coalesce(body('Get_Cmt')?['Author']?['Title'],'Someone'), '</b> commented on <b>', body('Get_Cand')?['Title'], '</b>:</p>', coalesce(body('Get_Cmt')?['Body'],''))",
+       "emailMessage/Importance": "Normal"
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    }
+   },
+   "else": {
+    "actions": {}
+   }
+  },
+  "If_CandVisible": {
+   "runAfter": {
+    "If_Send": [
+     "Succeeded"
+    ]
+   },
+   "type": "If",
+   "expression": {
+    "and": [
+     {
+      "equals": [
+       "@coalesce(body('Get_Cmt')?['Visibility'],'Internal')",
+       "Candidate-Visible"
+      ]
+     },
+     {
+      "not": {
+       "equals": [
+        "@coalesce(body('Get_Cand')?['Email'],'')",
+        ""
+       ]
+      }
+     }
+    ]
+   },
+   "actions": {
+    "Mail_Cand": {
+     "runAfter": {},
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+       "connectionName": "shared_office365",
+       "operationId": "SendEmailV2"
+      },
+      "parameters": {
+       "emailMessage/To": "@body('Get_Cand')?['Email']",
+       "emailMessage/Subject": "@concat('An update on your onboarding with UAB OBGYN')",
+       "emailMessage/Body": "@concat('<p>Hello ', body('Get_Cand')?['Title'], ',</p>', coalesce(body('Get_Cmt')?['Body'],''), '<p>\u2014 UAB Department of Obstetrics and Gynecology</p>')",
+       "emailMessage/Importance": "Normal"
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    }
+   },
+   "else": {
+    "actions": {}
+   }
+  }
+ }
+}

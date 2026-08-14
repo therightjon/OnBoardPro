@@ -53,11 +53,11 @@ The stories are **identical in both plans** — parity vs. lean only changes the
 
 ### HR-5 · Author a hiring process
 *As HR, I want to define stages and tasks with human-readable due rules ("2 weeks before start"), and only activate a template that's complete.*
-**Surface (lean):** Microsoft Lists grouped-by-stage view + `OnBoard - Validate Template` flow. **(Parity: custom template editor screen.)**
+**Surface:** the template editor screen — **both plans** (committed for lean 2026-08-02: the HR staff aren't tech-savvy, and this is their one recurring build-like activity), with in-app readiness validation.
 **Acceptance criteria**
 - [ ] Due rules are Anchor (LOI / LOO Issued / LOO Accepted / Start / Fixed) + signed OffsetDays.
 - [ ] Validation blocks activation and names each gap: active stage with zero tasks, Fixed rule without a date, role slot without a role, Person slot without a person.
-- [ ] Validation result arrives as a card/email to the requester; a passing template flips to Active.
+- [ ] Validation failures are shown inline in the editor and named specifically; a passing template flips to Active.
 - [ ] Cloning a template copies stages + tasks; version increments.
 
 ### HR-6 · Cancel with accountability
@@ -93,7 +93,8 @@ The stories are **identical in both plans** — parity vs. lean only changes the
 **Acceptance criteria**
 - [ ] Manager sees candidates where they are Manager, PrimaryOwner, or a Watcher.
 - [ ] Blocked candidates visibly flagged with the earliest blocking stage.
-- [ ] Scoping is honest UX for operational data (group membership is that boundary); sensitive content is server-enforced HR-only (HR-8). Manager-scoped candidate visibility is deferred by decision — revisit on stakeholder pushback.
+- [ ] Scoping is honest UX for operational data (group membership is that boundary); sensitive content is server-enforced HR-only (HR-8).
+- [ ] Views default to the user's division when AppPermissions sets one (All toggle) — focus, not confidentiality. Division- and manager-scoped *blocking* is deferred by decision — revisit on stakeholder pushback.
 
 ### MGR-2 · Hear about movement without asking
 *As a manager, I want notified when my candidate changes stage or completes a task, so I never chase status.*
@@ -122,15 +123,15 @@ The stories are **identical in both plans** — parity vs. lean only changes the
 
 ### ASN-2 · Start my day with a list
 *As an assignee, I want one morning digest of everything due soon or overdue, so I don't monitor an app.*
-**Surface:** `OnBoard - Daily Deadline Scan` → **email digest (default)**; Teams agenda card for opt-ins. **(Parity adds a My Tasks screen; lean holds it for pilot feedback.)**
+**Surface:** `OnBoard - Daily Deadline Scan` → **email digest (default)**; Teams agenda card for opt-ins; links land on the **My Tasks screen (committed in both plans)**.
 **Acceptance criteria**
 - [ ] Weekday mornings, one message per person with open work: overdue first, then due ≤7 days, grouped by candidate, with links.
-- [ ] Deduped via `DueNotified`: a task reappears only in the digest cadence or if its due date changed.
+- [ ] Standing-agenda semantics: overdue items appear every day until resolved; `DueNotified` governs only one-time event alerts, never the agenda.
 - [ ] No open work = no message.
 
 ### ASN-3 · Close the loop cheaply
 *As an assignee, I want to mark my task done and have the system react.*
-**Surface:** cockpit or `[Me]`-filtered list view; advancement via `OnBoard - Task Changed`.
+**Surface:** My Tasks screen, cockpit, or `[Me]`-filtered list view; advancement via `OnBoard - Task Changed`.
 **Acceptance criteria**
 - [ ] Completing the last open required task in the current stage advances the candidate automatically (looping past empty stages), writes the ChangeLog stage row (automated), and notifies manager + watchers.
 - [ ] An assignee changing status on an unassigned task auto-claims it.

@@ -1,0 +1,70 @@
+{
+ "SP_Grp_Owners": {
+  "runAfter": {},
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "GET",
+    "parameters/uri": "_api/web/sitegroups/getbyname('OBGYN Onboarding Owners')/users?$select=Title,LoginName,PrincipalType",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "SP_Grp_Members": {
+  "runAfter": {
+   "SP_Grp_Owners": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "GET",
+    "parameters/uri": "_api/web/sitegroups/getbyname('OBGYN Onboarding Members')/users?$select=Title,LoginName,PrincipalType",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "SP_Grp_Visitors": {
+  "runAfter": {
+   "SP_Grp_Members": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "GET",
+    "parameters/uri": "_api/web/sitegroups/getbyname('OBGYN Onboarding Visitors')/users?$select=Title,LoginName,PrincipalType",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ }
+}

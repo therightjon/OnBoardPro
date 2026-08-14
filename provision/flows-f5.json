@@ -1,0 +1,360 @@
+{
+ "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+ "contentVersion": "1.0.0.0",
+ "parameters": {
+  "$connections": {
+   "defaultValue": {},
+   "type": "Object"
+  },
+  "$authentication": {
+   "defaultValue": {},
+   "type": "SecureObject"
+  }
+ },
+ "triggers": {
+  "When_Candidate_Changes": {
+   "type": "OpenApiConnection",
+   "recurrence": {
+    "frequency": "Minute",
+    "interval": 1
+   },
+   "splitOn": "@triggerOutputs()?['body/value']",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "GetOnUpdatedItems"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "table": "ce3de9a9-702d-4707-9f30-a011b3d78264"
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  }
+ },
+ "actions": {
+  "Get_Stages": {
+   "runAfter": {},
+   "type": "OpenApiConnection",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "HttpRequest"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "parameters/method": "GET",
+     "parameters/uri": "_api/web/lists(guid'f2f31e7b-1652-47fb-b215-775bdaa4a0fa')/items?$select=Id,OrderIndex&$top=50",
+     "parameters/headers": {
+      "Accept": "application/json;odata=nometadata",
+      "Content-Type": "application/json;odata=nometadata"
+     }
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  },
+  "Stage_Cur": {
+   "runAfter": {
+    "Get_Stages": [
+     "Succeeded"
+    ]
+   },
+   "type": "Query",
+   "inputs": {
+    "from": "@body('Get_Stages')?['value']",
+    "where": "@equals(item()?['Id'], coalesce(triggerBody()?['CurrentStageId'], 0))"
+   }
+  },
+  "CurOrd": {
+   "runAfter": {
+    "Stage_Cur": [
+     "Succeeded"
+    ]
+   },
+   "type": "Compose",
+   "inputs": "@int(coalesce(first(body('Stage_Cur'))?['OrderIndex'], 0))"
+  },
+  "Get_Appr": {
+   "runAfter": {
+    "CurOrd": [
+     "Succeeded"
+    ]
+   },
+   "type": "OpenApiConnection",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "HttpRequest"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "parameters/method": "GET",
+     "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items?$select=Id,Title,TStatus,Assignee/EMail&$expand=Assignee&$filter=CandidateId eq @{triggerBody()?['ID']} and NeedsApproval eq 1 and ApprovalStarted eq null and TStatus ne 'Done' and TStatus ne 'Canceled' and StageOrder eq @{outputs('CurOrd')}&$top=20",
+     "parameters/headers": {
+      "Accept": "application/json;odata=nometadata",
+      "Content-Type": "application/json;odata=nometadata"
+     }
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  },
+  "Get_HR": {
+   "runAfter": {
+    "Get_Appr": [
+     "Succeeded"
+    ]
+   },
+   "type": "OpenApiConnection",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "HttpRequest"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "parameters/method": "GET",
+     "parameters/uri": "_api/web/lists(guid'4832685a-06e1-4daf-8f2e-e1bf2fec9b83')/items?$select=Id,AppUser/EMail&$expand=AppUser&$filter=Role eq 'HR'&$top=10",
+     "parameters/headers": {
+      "Accept": "application/json;odata=nometadata",
+      "Content-Type": "application/json;odata=nometadata"
+     }
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  },
+  "HR_Mails": {
+   "runAfter": {
+    "Get_HR": [
+     "Succeeded"
+    ]
+   },
+   "type": "Select",
+   "inputs": {
+    "from": "@body('Get_HR')?['value']",
+    "select": "@coalesce(item()?['AppUser']?['EMail'],'')"
+   }
+  },
+  "Each_Appr": {
+   "runAfter": {
+    "HR_Mails": [
+     "Succeeded"
+    ]
+   },
+   "type": "Foreach",
+   "foreach": "@body('Get_Appr')?['value']",
+   "runtimeConfiguration": {
+    "concurrency": {
+     "repetitions": 1
+    }
+   },
+   "actions": {
+    "Stamp": {
+     "runAfter": {},
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+       "connectionName": "shared_sharepointonline",
+       "operationId": "HttpRequest"
+      },
+      "parameters": {
+       "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+       "parameters/method": "POST",
+       "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items(@{item()?['Id']})",
+       "parameters/headers": {
+        "Accept": "application/json;odata=nometadata",
+        "Content-Type": "application/json;odata=nometadata",
+        "X-HTTP-Method": "MERGE",
+        "IF-MATCH": "*"
+       },
+       "parameters/body": "@concat('{\"ApprovalStarted\":\"', utcNow('yyyy-MM-dd'), '\",\"UpdatedVia\":\"Flow\"}')"
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    },
+    "Approver": {
+     "runAfter": {
+      "Stamp": [
+       "Succeeded"
+      ]
+     },
+     "type": "Compose",
+     "inputs": "@coalesce(item()?['Assignee']?['EMail'], first(body('Get_HR')?['value'])?['AppUser']?['EMail'])"
+    },
+    "Appr": {
+     "runAfter": {
+      "Approver": [
+       "Succeeded"
+      ]
+     },
+     "type": "OpenApiConnectionWebhook",
+     "limit": {
+      "timeout": "P25D"
+     },
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_approvals",
+       "connectionName": "shared_approvals",
+       "operationId": "StartAndWaitForAnApproval"
+      },
+      "parameters": {
+       "approvalType": "Basic",
+       "WebhookApprovalCreationInput/title": "@concat('Approve: ', item()?['Title'], ' \u2014 ', triggerBody()?['Title'])",
+       "WebhookApprovalCreationInput/assignedTo": "@outputs('Approver')",
+       "WebhookApprovalCreationInput/details": "@concat('Candidate: ', triggerBody()?['Title'], '\n\nTask: ', item()?['Title'], '\n\nApprove to mark the task complete; reject to block it.')",
+       "WebhookApprovalCreationInput/enableNotifications": true,
+       "WebhookApprovalCreationInput/enableReassignment": true
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    },
+    "If_Outcome": {
+     "runAfter": {
+      "Appr": [
+       "Succeeded"
+      ]
+     },
+     "type": "If",
+     "expression": {
+      "and": [
+       {
+        "equals": [
+         "@body('Appr')?['outcome']",
+         "Approve"
+        ]
+       }
+      ]
+     },
+     "actions": {
+      "Complete": {
+       "runAfter": {},
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "POST",
+         "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items(@{item()?['Id']})",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata",
+          "X-HTTP-Method": "MERGE",
+          "IF-MATCH": "*"
+         },
+         "parameters/body": "@concat('{\"TStatus\":\"Done\",\"CompletedDate\":\"', utcNow('yyyy-MM-dd'), '\",\"UpdatedVia\":\"App\"}')"
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      }
+     },
+     "else": {
+      "actions": {
+       "Block": {
+        "runAfter": {},
+        "type": "OpenApiConnection",
+        "inputs": {
+         "host": {
+          "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+          "connectionName": "shared_sharepointonline",
+          "operationId": "HttpRequest"
+         },
+         "parameters": {
+          "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+          "parameters/method": "POST",
+          "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items(@{item()?['Id']})",
+          "parameters/headers": {
+           "Accept": "application/json;odata=nometadata",
+           "Content-Type": "application/json;odata=nometadata",
+           "X-HTTP-Method": "MERGE",
+           "IF-MATCH": "*"
+          },
+          "parameters/body": "'{\"TStatus\":\"Blocked\",\"UpdatedVia\":\"App\"}'"
+         },
+         "authentication": "@parameters('$authentication')"
+        }
+       },
+       "Mail_Reject": {
+        "runAfter": {
+         "Block": [
+          "Succeeded"
+         ]
+        },
+        "type": "OpenApiConnection",
+        "inputs": {
+         "host": {
+          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+          "connectionName": "shared_office365",
+          "operationId": "SendEmailV2"
+         },
+         "parameters": {
+          "emailMessage/To": "@join(body('HR_Mails'), ';')",
+          "emailMessage/Subject": "@concat('[OnBoardPro] Approval rejected: ', item()?['Title'])",
+          "emailMessage/Body": "@concat('<p>The approval for <b>', item()?['Title'], '</b> (', triggerBody()?['Title'], ') was <b>rejected</b> by ', coalesce(first(body('Appr')?['responses'])?['responder']?['displayName'],'the approver'), '.</p><p>Comments: ', coalesce(first(body('Appr')?['responses'])?['comments'],'(none)'), '</p>')",
+          "emailMessage/Importance": "Normal"
+         },
+         "authentication": "@parameters('$authentication')"
+        }
+       }
+      }
+     }
+    },
+    "If_Timeout": {
+     "runAfter": {
+      "If_Outcome": [
+       "Skipped",
+       "Failed"
+      ]
+     },
+     "type": "If",
+     "expression": {
+      "and": [
+       {
+        "equals": [
+         "@actions('Appr')?['status']",
+         "Failed"
+        ]
+       }
+      ]
+     },
+     "actions": {
+      "Unstamp": {
+       "runAfter": {},
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "POST",
+         "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items(@{item()?['Id']})",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata",
+          "X-HTTP-Method": "MERGE",
+          "IF-MATCH": "*"
+         },
+         "parameters/body": "'{\"ApprovalStarted\":null,\"UpdatedVia\":\"Flow\"}'"
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      }
+     },
+     "else": {
+      "actions": {}
+     }
+    }
+   }
+  }
+ }
+}

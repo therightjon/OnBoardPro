@@ -638,7 +638,7 @@ Screens:
                               DropShadow: =DropShadow.None
                               Fill: =UAB.White
                               FillPortions: =0
-                              Height: =If(scr_candidates.Size = ScreenSize.Small, 415, 310)
+                              Height: =If(scr_candidates.Size = ScreenSize.Small, 446, 310)
                               LayoutAlignItems: =LayoutAlignItems.Stretch
                               LayoutDirection: =LayoutDirection.Vertical
                               LayoutGap: =12
@@ -688,6 +688,7 @@ Screens:
                                       =Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).CandidateType.Value, "—")
                                           & "  ·  " & Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Division.Value, "No division")
                                           & "  ·  " & Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).FacultyRank.Value, "No rank")
+                                          & "  ·  " & Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Email, "No email")
                                     Wrap: =If(scr_candidates.Size = ScreenSize.Small, true, false)
                               - conCKPillRow:
                                   Control: GroupContainer
@@ -1094,6 +1095,7 @@ Screens:
                                               Control: ModernDatePicker
                                               Properties:
                                                 DefaultDate: =If(Coalesce(varDtClearLOI, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOIDate)
+                                                Format: =DatePickerFormat.Short
                                                 Height: =40
                                                 LayoutMinHeight: =0
                                                 LayoutMinWidth: =0
@@ -1154,6 +1156,7 @@ Screens:
                                               Control: ModernDatePicker
                                               Properties:
                                                 DefaultDate: =If(Coalesce(varDtClearLOOIss, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOIssued)
+                                                Format: =DatePickerFormat.Short
                                                 Height: =40
                                                 LayoutMinHeight: =0
                                                 LayoutMinWidth: =0
@@ -1214,6 +1217,7 @@ Screens:
                                               Control: ModernDatePicker
                                               Properties:
                                                 DefaultDate: =If(Coalesce(varDtClearLOOAcc, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted)
+                                                Format: =DatePickerFormat.Short
                                                 Height: =40
                                                 LayoutMinHeight: =0
                                                 LayoutMinWidth: =0
@@ -1274,6 +1278,7 @@ Screens:
                                               Control: ModernDatePicker
                                               Properties:
                                                 DefaultDate: =If(Coalesce(varDtClearStart, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).StartDate)
+                                                Format: =DatePickerFormat.Short
                                                 Height: =40
                                                 LayoutMinHeight: =0
                                                 LayoutMinWidth: =0
@@ -1533,6 +1538,22 @@ Screens:
                                           Size: =UABSize.Eyebrow
                                           Text: ="CHECKLIST"
                                           Wrap: =false
+                                    - btnTkAdd:
+                                        Control: Button
+                                        Properties:
+                                          Appearance: ='ButtonCanvas.Appearance'.Secondary
+                                          BasePaletteColor: =UAB.Green
+                                          DisplayMode: |-
+                                            =If(And(Coalesce(varSelCandId, 0) > 0, IsManagerOrHR),
+                                                DisplayMode.Edit, DisplayMode.Disabled)
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          OnSelect: |-
+                                            =Reset(txtTaTitle); Reset(cmbTaStage); Reset(cmbTaRole);
+                                            Reset(dpTaDue); Reset(cmbTaPriority); Reset(tglTaRequired);
+                                            Set(varTaShow, true)
+                                          Text: ="Add Task"
+                                          Width: =110
                                     - lblTkCounts:
                                         Control: ModernText
                                         Properties:
@@ -1924,6 +1945,10 @@ Screens:
                                                                   Height: =18
                                                                   LayoutMinHeight: =0
                                                                   LayoutMinWidth: =0
+                                                                  OnSelect: |-
+                                                                    =Set(varTkStatusTask, ThisItem);
+                                                                    Set(varTkCancelReason, "");
+                                                                    Set(varTkStatusShow, true)
                                                                   Size: =12
                                                                   Text: =Coalesce(ThisItem.TStatus.Value, "To Do")
                                                 - conTkCellAct:
@@ -2091,6 +2116,20 @@ Screens:
                                                 FillPortions: =1
                                                 Height: =40
                                                 Label: ="Send to the candidate too"
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                          - cmbCmNotify:
+                                              Control: ModernCombobox
+                                              Properties:
+                                                FillPortions: =1
+                                                Height: =36
+                                                InputTextPlaceholder: ="Notify people…"
+                                                ItemDisplayText: =ThisItem.DisplayName
+                                                Items: |-
+                                                  =Filter(Office365Users.SearchUser({searchTerm: Trim(cmbCmNotify.SearchText), top: 30}),
+                                                      Len(Trim(cmbCmNotify.SearchText)) >= 2,
+                                                      !IsBlank(Surname),
+                                                      !StartsWith(DisplayName, "!"))
                                                 LayoutMinHeight: =0
                                                 LayoutMinWidth: =0
                                           - btnCmPost:
@@ -2798,3 +2837,537 @@ Screens:
                               OnSelect: =Set(varPvShow, false); Clear(colPvPreview); Clear(colPvStages)
                               Text: ="Close"
                               Width: =120
+      - conTkStatusModal:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =RGBA(32, 38, 45, 0.4)
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutJustifyContent: =LayoutJustifyContent.Center
+            Visible: =Coalesce(varTkStatusShow, false)
+            Width: =Parent.Width
+          Children:
+            - conTkStatusPanel:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  AlignInContainer: =AlignInContainer.Center
+                  DropShadow: =DropShadow.Regular
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  Height: =510
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =24
+                  PaddingLeft: =24
+                  PaddingRight: =24
+                  PaddingTop: =24
+                  RadiusBottomLeft: =8
+                  RadiusBottomRight: =8
+                  RadiusTopLeft: =8
+                  RadiusTopRight: =8
+                  Width: =Min(520, Parent.Width - 32)
+                Children:
+                  - lblTkStTitle:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.TextPrimary
+                        FontWeight: =FontWeight.Semibold
+                        Height: =34
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =20
+                        Text: =Coalesce(varTkStatusTask.Title, "Task")
+                        Wrap: =false
+                  - lblTkStNow:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray500
+                        Height: =20
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: ="Currently " & Coalesce(varTkStatusTask.TStatus.Value, "To Do") & ". Pick a new status."
+                        Wrap: =false
+                  - btnTkStToDo:
+                      Control: Button
+                      Properties:
+                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        BasePaletteColor: =UAB.Green
+                        DisplayMode: |-
+                          =If(Coalesce(varTkStatusTask.TStatus.Value, "To Do") = "To Do",
+                              DisplayMode.Disabled, DisplayMode.Edit)
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =IfError(
+                              Patch(Tasks, LookUp(Tasks, ID = varTkStatusTask.ID),
+                                  {TStatus: {Value: "To Do"},
+                                   CompletedDate: If("To Do" = "Done", Today(), Blank()),
+                                   CancelReason: If("To Do" = "Canceled", Trim(txtTkCancelReason.Text),
+                                       varTkStatusTask.CancelReason),
+                                   UpdatedVia: "App"}),
+                              Notify("Couldn't update the status - " & FirstError.Message
+                                  & " Nothing changed. Try again.", NotificationType.Error),
+                              Notify(varTkStatusTask.Title & " is now To Do.",
+                                  NotificationType.Success));
+                          Set(varTkStatusShow, false)
+                        Text: ="To Do"
+                        Width: =Parent.Width - 48
+                  - btnTkStInProgress:
+                      Control: Button
+                      Properties:
+                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        BasePaletteColor: =UAB.Green
+                        DisplayMode: |-
+                          =If(Coalesce(varTkStatusTask.TStatus.Value, "To Do") = "In Progress",
+                              DisplayMode.Disabled, DisplayMode.Edit)
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =IfError(
+                              Patch(Tasks, LookUp(Tasks, ID = varTkStatusTask.ID),
+                                  {TStatus: {Value: "In Progress"},
+                                   CompletedDate: If("In Progress" = "Done", Today(), Blank()),
+                                   CancelReason: If("In Progress" = "Canceled", Trim(txtTkCancelReason.Text),
+                                       varTkStatusTask.CancelReason),
+                                   UpdatedVia: "App"}),
+                              Notify("Couldn't update the status - " & FirstError.Message
+                                  & " Nothing changed. Try again.", NotificationType.Error),
+                              Notify(varTkStatusTask.Title & " is now In Progress.",
+                                  NotificationType.Success));
+                          Set(varTkStatusShow, false)
+                        Text: ="In Progress"
+                        Width: =Parent.Width - 48
+                  - btnTkStBlocked:
+                      Control: Button
+                      Properties:
+                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        BasePaletteColor: =UAB.Green
+                        DisplayMode: |-
+                          =If(Coalesce(varTkStatusTask.TStatus.Value, "To Do") = "Blocked",
+                              DisplayMode.Disabled, DisplayMode.Edit)
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =IfError(
+                              Patch(Tasks, LookUp(Tasks, ID = varTkStatusTask.ID),
+                                  {TStatus: {Value: "Blocked"},
+                                   CompletedDate: If("Blocked" = "Done", Today(), Blank()),
+                                   CancelReason: If("Blocked" = "Canceled", Trim(txtTkCancelReason.Text),
+                                       varTkStatusTask.CancelReason),
+                                   UpdatedVia: "App"}),
+                              Notify("Couldn't update the status - " & FirstError.Message
+                                  & " Nothing changed. Try again.", NotificationType.Error),
+                              Notify(varTkStatusTask.Title & " is now Blocked.",
+                                  NotificationType.Success));
+                          Set(varTkStatusShow, false)
+                        Text: ="Blocked"
+                        Width: =Parent.Width - 48
+                  - btnTkStDone:
+                      Control: Button
+                      Properties:
+                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        BasePaletteColor: =UAB.Green
+                        DisplayMode: |-
+                          =If(Coalesce(varTkStatusTask.TStatus.Value, "To Do") = "Done",
+                              DisplayMode.Disabled, DisplayMode.Edit)
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =IfError(
+                              Patch(Tasks, LookUp(Tasks, ID = varTkStatusTask.ID),
+                                  {TStatus: {Value: "Done"},
+                                   CompletedDate: If("Done" = "Done", Today(), Blank()),
+                                   CancelReason: If("Done" = "Canceled", Trim(txtTkCancelReason.Text),
+                                       varTkStatusTask.CancelReason),
+                                   UpdatedVia: "App"}),
+                              Notify("Couldn't update the status - " & FirstError.Message
+                                  & " Nothing changed. Try again.", NotificationType.Error),
+                              Notify(varTkStatusTask.Title & " is now Done.",
+                                  NotificationType.Success));
+                          Set(varTkStatusShow, false)
+                        Text: ="Done"
+                        Width: =Parent.Width - 48
+                  - btnTkStCanceled:
+                      Control: Button
+                      Properties:
+                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        BasePaletteColor: =UAB.Green
+                        DisplayMode: |-
+                          =If(Or(Coalesce(varTkStatusTask.TStatus.Value, "To Do") = "Canceled",
+                                 IsBlank(Trim(txtTkCancelReason.Text))),
+                              DisplayMode.Disabled, DisplayMode.Edit)
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =IfError(
+                              Patch(Tasks, LookUp(Tasks, ID = varTkStatusTask.ID),
+                                  {TStatus: {Value: "Canceled"},
+                                   CompletedDate: If("Canceled" = "Done", Today(), Blank()),
+                                   CancelReason: If("Canceled" = "Canceled", Trim(txtTkCancelReason.Text),
+                                       varTkStatusTask.CancelReason),
+                                   UpdatedVia: "App"}),
+                              Notify("Couldn't update the status - " & FirstError.Message
+                                  & " Nothing changed. Try again.", NotificationType.Error),
+                              Notify(varTkStatusTask.Title & " is now Canceled.",
+                                  NotificationType.Success));
+                          Set(varTkStatusShow, false)
+                        Text: ="Canceled"
+                        Width: =Parent.Width - 48
+                  - lblTkStReasonCap:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray700
+                        FontWeight: =FontWeight.Semibold
+                        Height: =20
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: ="Reason (required to cancel)"
+                        Wrap: =false
+                  - txtTkCancelReason:
+                      Control: ModernTextInput
+                      Properties:
+                        Height: =36
+                        LayoutMinHeight: =36
+                        LayoutMinWidth: =0
+                        Placeholder: ="Why is this being canceled?"
+                  - btnTkStClose:
+                      Control: Button
+                      Properties:
+                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        BasePaletteColor: =UAB.Green
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Set(varTkStatusShow, false)
+                        Text: ="Close"
+                        Width: =120
+      - conTaModal:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =RGBA(32, 38, 45, 0.4)
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutJustifyContent: =LayoutJustifyContent.Center
+            Visible: =Coalesce(varTaShow, false)
+            Width: =Parent.Width
+          Children:
+            - conTaPanel:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  AlignInContainer: =AlignInContainer.Center
+                  DropShadow: =DropShadow.Regular
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  Height: =560
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =24
+                  PaddingLeft: =24
+                  PaddingRight: =24
+                  PaddingTop: =24
+                  RadiusBottomLeft: =8
+                  RadiusBottomRight: =8
+                  RadiusTopLeft: =8
+                  RadiusTopRight: =8
+                  Width: =Min(520, Parent.Width - 32)
+                Children:
+                  - lblTaTitle:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.TextPrimary
+                        FontWeight: =FontWeight.Semibold
+                        Height: =34
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =20
+                        Text: ="Add a Task"
+                        Wrap: =false
+                  - lblTaSub:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray500
+                        Height: =38
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: |-
+                          ="This task belongs to " & Coalesce(FriendlyName(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Title), "this candidate")
+                              & " only. It is not added to the template."
+                  - lblTaTitleCap:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray700
+                        FontWeight: =FontWeight.Semibold
+                        Height: =20
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: ="Task name"
+                        Wrap: =false
+                  - txtTaTitle:
+                      Control: ModernTextInput
+                      Properties:
+                        Height: =36
+                        LayoutMinHeight: =36
+                        LayoutMinWidth: =0
+                        Placeholder: ="Required"
+                  - conTaRow1:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =64
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =12
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - conTaStage:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =4
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                            Children:
+                              - lblTaStageCap:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =20
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Stage"
+                                    Wrap: =false
+                              - cmbTaStage:
+                                  Control: ModernCombobox
+                                  Properties:
+                                    Height: =36
+                                    ItemDisplayText: =ThisItem.Title
+                                    Items: =SortByColumns(Filter(Stages, IsActive), "OrderIndex", SortOrder.Ascending)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    SelectMultiple: =false
+                        - conTaRole:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =4
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                            Children:
+                              - lblTaRoleCap:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =20
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Assigned to"
+                                    Wrap: =false
+                              - cmbTaRole:
+                                  Control: ModernCombobox
+                                  Properties:
+                                    Height: =36
+                                    ItemDisplayText: =ThisItem.Value
+                                    Items: =Choices(Tasks.AssigneeRole)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    SelectMultiple: =false
+                  - conTaRow2:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =64
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =12
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - conTaDue:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =4
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                            Children:
+                              - lblTaDueCap:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =20
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Due date"
+                                    Wrap: =false
+                              - dpTaDue:
+                                  Control: ModernDatePicker
+                                  Properties:
+                                    Height: =36
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                        - conTaPrio:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =4
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                            Children:
+                              - lblTaPrioCap:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =20
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Priority"
+                                    Wrap: =false
+                              - cmbTaPriority:
+                                  Control: ModernCombobox
+                                  Properties:
+                                    DefaultSelectedItems: =Filter(Choices(Tasks.Priority), Value = "Medium")
+                                    Height: =36
+                                    ItemDisplayText: =ThisItem.Value
+                                    Items: =Choices(Tasks.Priority)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    SelectMultiple: =false
+                  - tglTaRequired:
+                      Control: Toggle
+                      Properties:
+                        BasePaletteColor: =UAB.Green
+                        Checked: =true
+                        Height: =36
+                        Label: ="Required to finish the stage"
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                  - conTaActions:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =44
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - btnTaSave:
+                            Control: Button
+                            Properties:
+                              Appearance: ='ButtonCanvas.Appearance'.Primary
+                              BasePaletteColor: =UAB.Green
+                              DisplayMode: |-
+                                =If(!IsBlank(Trim(txtTaTitle.Text)),
+                                    DisplayMode.Edit, DisplayMode.Disabled)
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: |-
+                                =IfError(
+                                    Patch(Tasks, Defaults(Tasks),
+                                        {Candidate: {Id: Coalesce(varSelCandId, 0),
+                                                     Value: LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Title},
+                                         CandName: LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Title,
+                                         Title: Trim(txtTaTitle.Text),
+                                         Stage: If(IsBlank(cmbTaStage.Selected), Blank(),
+                                             {Id: cmbTaStage.Selected.ID,
+                                              Value: cmbTaStage.Selected.Title}),
+                                         StageName: Coalesce(cmbTaStage.Selected.Title, ""),
+                                         StageOrder: Coalesce(cmbTaStage.Selected.OrderIndex, 0),
+                                         TStatus: {Value: "To Do"},
+                                         Priority: If(IsBlank(cmbTaPriority.Selected),
+                                             {Value: "Medium"}, {Value: cmbTaPriority.Selected.Value}),
+                                         AssigneeRole: If(IsBlank(cmbTaRole.Selected), Blank(),
+                                             {Value: cmbTaRole.Selected.Value}),
+                                         DueDate: dpTaDue.SelectedDate,
+                                         PendingAnchor: false,
+                                         IsRequired: tglTaRequired.Checked,
+                                         IsPrereq: false,
+                                         NeedsApproval: false,
+                                         Anchor: {Value: "None"},
+                                         UpdatedVia: "App"}),
+                                    Notify("Couldn't add the task - " & FirstError.Message
+                                        & " Nothing was created. Try again.", NotificationType.Error),
+                                    Notify(Trim(txtTaTitle.Text) & " added.", NotificationType.Success));
+                                Set(varTaShow, false)
+                              Text: ="Add Task"
+                              Width: =130
+                        - btnTaCancel:
+                            Control: Button
+                            Properties:
+                              Appearance: ='ButtonCanvas.Appearance'.Secondary
+                              BasePaletteColor: =UAB.Green
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varTaShow, false)
+                              Text: ="Cancel"
+                              Width: =110

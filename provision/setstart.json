@@ -1,0 +1,26 @@
+{
+ "SetStart": {
+  "runAfter": {},
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'ce3de9a9-702d-4707-9f30-a011b3d78264')/items(2)",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata",
+     "X-HTTP-Method": "MERGE",
+     "IF-MATCH": "*"
+    },
+    "parameters/body": "{\"StartDate\": \"2027-01-05\"}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ }
+}

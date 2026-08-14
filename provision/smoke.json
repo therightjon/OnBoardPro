@@ -1,0 +1,56 @@
+{
+  "SP_ReadWeb": {
+    "runAfter": {},
+    "type": "OpenApiConnection",
+    "inputs": {
+      "host": {
+        "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+        "connectionName": "shared_sharepointonline",
+        "operationId": "HttpRequest"
+      },
+      "parameters": {
+        "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+        "parameters/method": "GET",
+        "parameters/uri": "_api/web?$select=Title,Url,Created",
+        "parameters/headers": { "Accept": "application/json;odata=nometadata" }
+      },
+      "authentication": "@parameters('$authentication')"
+    }
+  },
+  "SP_ReadLists": {
+    "runAfter": { "SP_ReadWeb": [ "Succeeded" ] },
+    "type": "OpenApiConnection",
+    "inputs": {
+      "host": {
+        "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+        "connectionName": "shared_sharepointonline",
+        "operationId": "HttpRequest"
+      },
+      "parameters": {
+        "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+        "parameters/method": "GET",
+        "parameters/uri": "_api/web/lists?$select=Title,Id,BaseTemplate,Hidden&$filter=Hidden eq false",
+        "parameters/headers": { "Accept": "application/json;odata=nometadata" }
+      },
+      "authentication": "@parameters('$authentication')"
+    }
+  },
+  "SP_ReadRoleAssignments": {
+    "runAfter": { "SP_ReadLists": [ "Succeeded" ] },
+    "type": "OpenApiConnection",
+    "inputs": {
+      "host": {
+        "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+        "connectionName": "shared_sharepointonline",
+        "operationId": "HttpRequest"
+      },
+      "parameters": {
+        "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+        "parameters/method": "GET",
+        "parameters/uri": "_api/web/roleassignments?$expand=Member,RoleDefinitionBindings&$select=Member/Title,Member/LoginName,Member/PrincipalType,RoleDefinitionBindings/Name",
+        "parameters/headers": { "Accept": "application/json;odata=nometadata" }
+      },
+      "authentication": "@parameters('$authentication')"
+    }
+  }
+}

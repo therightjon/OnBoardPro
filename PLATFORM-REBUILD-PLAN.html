@@ -214,10 +214,10 @@
 <body>
 <h1 id="onboardpro--sharepoint--power-platform-rebuild-plan">OnBoardPro
 — SharePoint + Power Platform Rebuild Plan</h1>
-<p><strong>Date:</strong> 2026-07-30 · <strong>Rev 4</strong> (full
-review: decision log consolidated, sentinel/audit mechanics reconciled,
-confidence assessment added — §18) · <strong>Status:</strong> Proposed —
-no tenant changes made yet <strong>Companion:</strong> <a
+<p><strong>Date:</strong> 2026-08-02 · <strong>Rev 5</strong>
+(responsive layout committed; exec report subscriptions; template editor
+committed in lean — see decision log) · <strong>Status:</strong>
+Proposed — no tenant changes made yet <strong>Companion:</strong> <a
 href="PLATFORM-IDEAL-PLAN.md">PLATFORM-IDEAL-PLAN.md</a> — a leaner,
 O365-native alternative on the same data backbone <strong>Target
 stack:</strong> SharePoint Lists · Power Apps (canvas) · Power Automate
@@ -272,24 +272,32 @@ Pre-hire people don't have tenant accounts; they get email touchpoints
 instead of logins. (The old app's optional candidate self-service login
 is dropped — see §12.)</li>
 </ul>
-<p><strong>Decision log (running, as of 2026-07-30)</strong></p>
+<p><strong>Decision log (running, as of 2026-08-11)</strong></p>
 <ol type="1">
-<li><strong>Site — Jon creates it.</strong> <strong>"OBGYN
-Onboarding"</strong> at <code>/sites/OBGYN-Onboarding</code>, a
-<strong>private Team site without an M365 group</strong> — membership
-managed solely by the two security groups, no parallel roster to drift.
-Avoid a bare "HR …" name (reads as central UAB HR's namespace;
-department-scoped ages better).</li>
-<li><strong>Groups — Jon creates them.</strong>
+<li><strong>Site — created (2026-08-11):</strong>
+<code>https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding</code>
+— a <strong>subsite of the existing <code>/sites/obgyn</code> site
+collection</strong>, not the originally planned standalone site.
+Consequence: subsites <strong>inherit the parent's permissions by
+default</strong>, and <code>/sites/obgyn</code> carries the Supply Order
+app's membership. <strong>Before any data lands: break permission
+inheritance on the subsite and grant only the two OnBoardPro
+groups</strong>, then verify a Supply-Order-only user is denied. With
+inheritance broken, the per-list model in §6 works as designed.</li>
+<li><strong>Groups — created (2026-08-11):</strong>
 <strong><code>OBGYN-OnBoardPro-PA</code></strong> (all app users) and
 <strong><code>OBGYN-OnBoardPro-Admins-PA</code></strong> (HR tier),
 matching the <code>OBGYN-IRBStudyManager-PA</code> convention. Assigned
 membership, never per-user grants.</li>
-<li><strong>Shared mailbox — decided.</strong> Candidate-facing email
-sends from a shared onboarding mailbox via
-<code>Send an email from a shared mailbox (V2)</code>. Prerequisite:
-create it and grant the flow-owner account access before the
-notification flows are built.</li>
+<li><strong>Shared mailbox — decided, creation deferred.</strong>
+Candidate-facing email will send from <strong>"UAB OBGYN Onboarding"
+(<code>obgynonboarding@uab.edu</code>)</strong> via
+<code>Send an email from a shared mailbox (V2)</code>. The display name
+leads with the institution because candidates are external; not a
+noreply — HR monitors it. <strong>Interim (2026-08-11): the mailbox
+doesn't exist yet — candidate-facing sends run from
+<code>jsteen@uab.edu</code> during the build.</strong> Swap checklist in
+§10.</li>
 <li><strong>Email-primary notifications</strong> — per-user
 <code>NotifyChannel</code> choice (Email default · Teams · both);
 critical notifications always email (§10).</li>
@@ -305,6 +313,26 @@ service account is the optional step further (§15).</li>
 <li><strong>Manager-scoped candidate visibility — deferred.</strong> Not
 a requirement today; revisit on stakeholder pushback. Mechanism recorded
 in §6.</li>
+<li><strong>My Tasks is committed in both plans</strong> (2026-08-01) —
+a push digest can't answer "what's on my plate right now"; the screen is
+the cheapest in the design because Tasks is denormalized for it, and
+digest links land on it. The lean plan is a three-screen app.</li>
+<li><strong>One department, multiple divisions</strong> (2026-08-01).
+Division <em>filtering</em> is v1 (AppPermissions.Division defaults
+views; All toggle); division/manager <em>blocking</em> deferred —
+enforcement mechanism recorded in §6. A second department adopting =
+clone-per-department; several = Dataverse (§14).</li>
+<li><strong>Responsive canvas layout</strong> (2026-08-02) — the IRB
+breakpoint pattern (600/900/1200); clinicians open digest links on
+phones.</li>
+<li><strong>Executive surface = Power BI email subscriptions</strong>
+(2026-08-02) — scheduled Pipeline-page snapshots to leadership inboxes;
+native, A5-covered (§11).</li>
+<li><strong>Template editor committed in the lean plan too</strong>
+(2026-08-02) — the HR staff are not tech-savvy; Lists-based authoring
+was the wrong ask for their one recurring build-like activity. The lean
+plan is a four-screen app; its F8 validate flow is dropped (validation
+returns in-app).</li>
 </ol>
 <h2 id="3-what-the-current-app-does-functional-intent-compressed">3.
 What the current app does (functional intent, compressed)</h2>
@@ -466,11 +494,13 @@ the pipeline needs — including the candidate's contact email, which the
 touchpoint flows read.</p>
 <p><strong><code>AppPermissions</code></strong> — User (person), Role
 (choice: HR, Manager, Viewer), NotifyChannel (choice: Email, Teams,
-Email + Teams; <strong>default Email</strong>). The in-app role source,
-same pattern as the Supply Order app's permissions list, doubling as the
-one notification preference. Security groups control <em>access</em>;
-this list controls <em>what the app shows</em> and <em>where
-notifications go</em>. Every app user gets a row at onboarding.</p>
+Email + Teams; <strong>default Email</strong>), Division (lookup,
+optional — when set, the app defaults that user's views to their
+division, with an All toggle). The in-app role source, same pattern as
+the Supply Order app's permissions list, doubling as the one
+notification preference. Security groups control <em>access</em>; this
+list controls <em>what the app shows</em> and <em>where notifications
+go</em>. Every app user gets a row at onboarding.</p>
 <p><strong><code>Departments</code></strong> — Title.
 <strong><code>Divisions</code></strong> — Title, Department (lookup).
 <strong><code>FacultyRanks</code></strong> — Title, RequiresPT
@@ -613,19 +643,33 @@ remains UX-only: the app's manager-scoped filtering (any app user can
 read any candidate row directly), and Edit on Tasks means a user could
 edit someone else's task via the list UI — mitigated by the F3
 write-path guard (§8), which reverts rule-violating edits from ChangeLog
-and notifies. <strong>Item-level permission trimming (managers see only
-their own candidates) is deliberately deferred</strong> — not a
-requirement today; if stakeholders push back, the SharePoint connector's
-<code>Grant access to an item or a folder</code> action supports it at
-this scale on the Candidates list only, at the cost of a permission-sync
-flow. If enforced row-level security across the board ever becomes a
-hard requirement, that is the Dataverse trigger (§14).</p>
+and notifies. <strong>Division and manager scoping — filtering is in
+scope, blocking is deferred.</strong> One department (OBGYN), multiple
+divisions, one shared HR team — so per-division instances make no sense;
+the ladder is filter → item-level grants → Dataverse. The app
+<em>filters</em> by division out of the box (AppPermissions.Division
+defaults a user's views, All toggle available) — focus, not
+confidentiality. <strong>Server-enforced blocking (by division or
+manager) is deliberately deferred</strong> — not a requirement today. If
+stakeholders push back, division is the favorable case for item-level
+grants: a candidate's division is stable, so it's one
+<code>Grant access to an item or a folder</code> per row at creation
+against a per-division group, with almost no re-sync (unlike
+manager/watcher grants, which churn). The catch that makes it a real
+subsystem: candidate identity is deliberately denormalized
+(Tasks.CandName, ChangeLog, Comments, folder names), so blocking would
+have to be stamped across all of those by F1/F3/F4/F7 — not just on
+Candidates. If enforced blocking across the board ever becomes a hard
+requirement, that is the Dataverse trigger (§14).</p>
 <p>Onboarding a user = adding them to the group + one AppPermissions row
 (Role + NotifyChannel; defaults Viewer, Email). Never per-user
 grants.</p>
 <h2 id="7-canvas-app">7. Canvas app</h2>
 <p>UAB design system (<code>uab-canvas-design</code>), same construction
-discipline as MOMPOD/IRB. Screens:</p>
+discipline as MOMPOD/IRB. <strong>Responsive layout</strong> (the IRB
+breakpoint pattern — 600/900/1200): clinicians will open digest links on
+phones, and the screens must be usable there, not merely legible.
+Screens:</p>
 <table>
 <thead>
 <tr>
@@ -642,11 +686,13 @@ recent tasks/candidates)</td>
 </tr>
 <tr>
 <td><strong>Candidates</strong></td>
-<td>search + filters (status, type, stage, phase); New Candidate dialog
-with the original's validation gates: LOI required, template required,
-rank required for Faculty types, <strong>P&amp;T check</strong> (rank
-requires P&amp;T → template must contain a Requires-P&amp;T prerequisite
-task); restricted fields captured here write to CandidatesPrivate</td>
+<td>search + filters (status, type, stage, phase, division — defaulting
+to the user's division when AppPermissions sets one); New Candidate
+dialog with the original's validation gates: LOI required, template
+required, rank required for Faculty types, <strong>P&amp;T
+check</strong> (rank requires P&amp;T → template must contain a
+Requires-P&amp;T prerequisite task); restricted fields captured here
+write to CandidatesPrivate</td>
 </tr>
 <tr>
 <td><strong>Candidate detail</strong></td>
@@ -666,7 +712,7 @@ management</td>
 <td><strong>My Tasks</strong></td>
 <td>counters (To Do / In Progress / Due Soon / Overdue), search,
 status+priority filters — reads only Tasks (denormalized columns; no
-joins)</td>
+joins); the daily digest's links land here</td>
 </tr>
 <tr>
 <td><strong>Templates</strong></td>
@@ -772,15 +818,18 @@ watchers (minus the author). Candidate-visible comments additionally
 email the candidate.</p>
 <p><strong>F5 — <code>OnBoard - Approvals</code></strong> (see §9).</p>
 <p><strong>F6 — <code>OnBoard - Daily Deadline Scan</code></strong>
-(recurrence, weekday mornings) Due-soon (≤7 days, not yet stamped) and
-overdue tasks → one <strong>email digest</strong> per assignee listing
-their items (plus a Teams card for opt-ins); stamps
-<code>DueNotified</code> so a task never re-nags unless its due date
-changes (the original's idempotency-key semantics, one column instead of
-a table). Also: the candidate-touchpoint pass — candidate-role tasks due
-soon generate the external email to the candidate — and the nightly
-<code>MetricsSnapshots</code> append (active, due, overdue, completion
-rate) that powers exact 30-day KPI deltas.</p>
+(recurrence, weekday mornings) The daily digest is a <strong>standing
+agenda</strong>, not an alert: everything currently overdue (repeated
+daily until resolved) plus everything due ≤7 days, one
+<strong>email</strong> per assignee (plus a Teams card for opt-ins),
+linking into their My Tasks screen. <code>DueNotified</code> governs
+only one-time event alerts — a task's first entry into the due-soon
+window — never the agenda (the original's idempotency-key semantics, one
+column instead of a table). Also: the candidate-touchpoint pass —
+candidate-role tasks due soon generate the external email to the
+candidate — and the nightly <code>MetricsSnapshots</code> append
+(active, due, overdue, completion rate) that powers exact 30-day KPI
+deltas.</p>
 <p><strong>F7 — <code>OnBoard - Archive Sweep</code></strong>
 (recurrence, weekly) Moves tasks of 30-day-terminal candidates to
 TasksArchive, and their ChangeLog rows to ChangeLogArchive
@@ -912,6 +961,27 @@ doesn't have. HTML bodies follow the playbook rules: checked-in preview
 templates, Compose-object variable islands, inline images ≤100 KB
 quantized PNG (over the cap they silently arrive as broken boxes while
 the run reports Succeeded).</p>
+<p><strong>Interim state + mailbox swap checklist (2026-08-11).</strong>
+Until the shared mailbox exists, candidate-facing mail sends from
+<code>jsteen@uab.edu</code> via plain <code>Send an email (V2)</code>.
+When "UAB OBGYN Onboarding" is created:</p>
+<ol type="1">
+<li>Grant HR members access to the mailbox and the flow-owner account
+Send-As/full access — <strong>before</strong> touching the flows, or the
+new action fails on first run.</li>
+<li>In <strong>F4</strong> (candidate-visible comment emails) and
+<strong>F6</strong> (candidate touchpoints + drip) — the only two flows
+that email candidates — replace each <code>Send an email (V2)</code>
+action with
+<strong><code>Send an email from a shared mailbox (V2)</code></strong>
+pointing at <code>obgynonboarding@uab.edu</code>. This is a different
+action, not a parameter change; re-run the invariant audit after
+(designer saves can strip parameters).</li>
+<li>Send one rendered test touchpoint end-to-end and check the From line
+reads "UAB OBGYN Onboarding".</li>
+<li>No app-side work: F4/F6 aren't app-called, so no Studio refresh
+applies. Internal staff mail is unaffected.</li>
+</ol>
 <h2 id="11-power-bi">11. Power BI</h2>
 <p>Replaces the "Coming Soon" analytics page and the CSV/PDF export
 ambitions. Import mode over the SharePoint lists (Tasks + TasksArchive
@@ -919,9 +989,10 @@ unioned), scheduled refresh (up to 8/day on shared capacity —
 hourly-business-day cadence is fine for this domain). All users are
 A5-licensed (Power BI Pro included), so the report serves every app user
 directly. <strong>Row-level security</strong> in the semantic model
-scopes what viewers see (HR: everything; managers: their own candidates)
-— enforced for report viewers regardless of list permissions, since the
-dataset reads with the author's credentials. Report pages:</p>
+scopes what viewers see (HR: everything; division leads: their division;
+managers: their own candidates) — enforced for report viewers regardless
+of list permissions, since the dataset reads with the author's
+credentials. Report pages:</p>
 <ol type="1">
 <li><strong>Pipeline</strong> — candidates by stage/status, funnel,
 upcoming starts</li>
@@ -933,7 +1004,10 @@ category, priority</li>
 type/division over time</li>
 </ol>
 <p>Power BI's export (PDF/PPT) covers the reporting-artifact need
-natively. The canvas dashboard keeps its live KPI cards for the
+natively. For executives, <strong>Power BI email subscriptions</strong>
+push a scheduled snapshot of the Pipeline page straight to leadership
+inboxes — native, zero build, A5-covered; the friendliest possible
+executive surface. The canvas dashboard keeps its live KPI cards for the
 operational at-a-glance view; deep analysis lives here.</p>
 <h2 id="12-deliberately-dropped-or-simplified-with-rationale">12.
 Deliberately dropped or simplified (with rationale)</h2>
@@ -1030,16 +1104,19 @@ Power BI; the original's audit table had no reporting surface.</li>
 </ol>
 <h2 id="14-dataverse-path-unlikely-kept-cheap">14. Dataverse path
 (unlikely, kept cheap)</h2>
-<p>Triggers that would justify it: hard row-level security requirements,
-multi-department expansion beyond list-scale volume, candidate
-self-service via Power Pages, or offline/mobile needs. The design keeps
-the door open: choice values match original enums, lookups map to
-relationships 1:1, flows isolate all write logic (only connectors
-change), and the canvas app's data layer is the standard swap. No
-speculative abstraction beyond that — porting this design to Dataverse
-later is mostly mechanical: mirrored tables, a Power Query dataflow for
-the bulk move (SharePoint → Dataverse is well-trodden), connector swap
-in the flows, app rebind, Power BI repoint.</p>
+<p>Triggers that would justify it: hard row-level security requirements
+(division- or manager-level blocking across all lists), adoption by a
+second department (clone-per-department — the MOMPOD→IRB pattern —
+covers two or three departments; Dataverse business units beyond that),
+volume beyond list scale, candidate self-service via Power Pages, or
+offline/mobile needs. The design keeps the door open: choice values
+match original enums, lookups map to relationships 1:1, flows isolate
+all write logic (only connectors change), and the canvas app's data
+layer is the standard swap. No speculative abstraction beyond that —
+porting this design to Dataverse later is mostly mechanical: mirrored
+tables, a Power Query dataflow for the bulk move (SharePoint → Dataverse
+is well-trodden), connector swap in the flows, app rebind, Power BI
+repoint.</p>
 <p>The honest cost is licensing, not migration: A5 does
 <strong>not</strong> include Dataverse rights, so every user would need
 a Power Apps per-app or per-user premium license. Azure SQL is
@@ -1116,11 +1193,12 @@ app user can read any candidate's row, tasks, and staff comments via
 SharePoint directly. Sensitive content is server-enforced HR-only
 (HRNotes, CandidatesPrivate, the Restricted library), so the training
 rule shrinks to: <em>sensitive material goes in the HR-only containers,
-nowhere else.</em> Manager-scoped candidate visibility is
-<strong>deferred by decision</strong> (not a requirement today; revisit
-on stakeholder pushback — §6 records the mechanism if it comes). If
-enforced row-level security across the board ever becomes a requirement,
-it's the Dataverse trigger.</li>
+nowhere else.</em> Division- and manager-scoped <em>blocking</em> is
+<strong>deferred by decision</strong> — division <em>filtering</em>
+ships in v1 as focus, not confidentiality (not a requirement today;
+revisit on stakeholder pushback — §6 records the enforcement mechanism
+if it comes). If enforced row-level security across the board ever
+becomes a requirement, it's the Dataverse trigger.</li>
 <li><strong>Expansion idempotency is deliberate engineering.</strong> F1
 must check-and-set <code>TemplateApplied</code> and re-verify before
 bulk-creating; 30 creates aren't transactional, so the flow ends with a
@@ -1264,16 +1342,19 @@ window)</td>
 </table>
 <h2 id="17-build-sequence">17. Build sequence</h2>
 <ol type="1">
-<li><strong>Provisioning prep</strong> — Jon creates the site ("OBGYN
-Onboarding"), the two groups, and the shared onboarding mailbox
-(§2).</li>
-<li><strong>Provision</strong> — the 17 lists and the two document
-libraries via the schema-ops utility-flow route (snapshot → create →
-verify field internal names → diff), AppPermissions seed,
-<strong>per-list permission wiring</strong> (HR-only containers
-restricted to the Admins group — verify a non-HR test account is denied
-on each); add the HR co-owner to the app and flows as they're
-created.</li>
+<li><strong>Provisioning prep</strong> — ✅ site and groups created
+2026-08-11 (see decision log — <strong>the subsite must stop inheriting
+<code>/sites/obgyn</code> permissions before any data lands</strong>);
+mailbox deferred, interim sends from <code>jsteen@uab.edu</code> (swap
+checklist in §10).</li>
+<li><strong>Provision</strong> — ✅ done 2026-08-11: 17 lists + 2
+libraries created via the utility-flow route, all 141 columns verified
+(internal names intact), HR-only containers stripped to Admins-only,
+Tasks/Comments given direct PA Edit grants. Full inventory with GUIDs:
+<a href="provision/INVENTORY.md">provision/INVENTORY.md</a>. Remaining
+from this step: the non-HR denial test (needs a PA-only human account),
+AppPermissions seed rows, and the HR co-owner on the app/flows as
+they're created.</li>
 <li><strong>Reference data</strong> — stages, departments/divisions,
 ranks; build one real template (the current Faculty hire process) as the
 pilot.</li>

@@ -1,0 +1,303 @@
+{
+ "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+ "contentVersion": "1.0.0.0",
+ "parameters": {
+  "$connections": {
+   "defaultValue": {},
+   "type": "Object"
+  },
+  "$authentication": {
+   "defaultValue": {},
+   "type": "SecureObject"
+  }
+ },
+ "triggers": {
+  "When_Candidate_Changes": {
+   "type": "OpenApiConnection",
+   "recurrence": {
+    "frequency": "Minute",
+    "interval": 1
+   },
+   "splitOn": "@triggerOutputs()?['body/value']",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "GetOnUpdatedItems"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "table": "ce3de9a9-702d-4707-9f30-a011b3d78264"
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  }
+ },
+ "actions": {
+  "CandId": {
+   "runAfter": {},
+   "type": "Compose",
+   "inputs": "@coalesce(triggerBody()?['ID'], triggerBody()?['Id'])"
+  },
+  "Anchors": {
+   "runAfter": {
+    "CandId": [
+     "Succeeded"
+    ]
+   },
+   "type": "Compose",
+   "inputs": {
+    "LOI": "@coalesce(triggerBody()?['LOIDate'],'')",
+    "LOO Issued": "@coalesce(triggerBody()?['LOOIssued'],'')",
+    "LOO Accepted": "@coalesce(triggerBody()?['LOOAccepted'],'')",
+    "Start": "@coalesce(triggerBody()?['StartDate'],'')",
+    "None": ""
+   }
+  },
+  "Get_Open": {
+   "runAfter": {
+    "Anchors": [
+     "Succeeded"
+    ]
+   },
+   "type": "OpenApiConnection",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "HttpRequest"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "parameters/method": "GET",
+     "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items?$select=Id,Title,TStatus,Anchor,OffsetDays,FixedDate,DueDate,PendingAnchor&$filter=CandidateId eq @{outputs('CandId')} and TStatus ne 'Done' and TStatus ne 'Canceled'&$top=300",
+     "parameters/headers": {
+      "Accept": "application/json;odata=nometadata",
+      "Content-Type": "application/json;odata=nometadata"
+     }
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  },
+  "Select_New": {
+   "runAfter": {
+    "Get_Open": [
+     "Succeeded"
+    ]
+   },
+   "type": "Select",
+   "inputs": {
+    "from": "@body('Get_Open')?['value']",
+    "select": {
+     "Id": "@item()?['Id']",
+     "Title": "@replace(coalesce(item()?['Title'],''), '\"', '')",
+     "TStatus": "@coalesce(item()?['TStatus'],'To Do')",
+     "OldDue": "@if(empty(coalesce(item()?['DueDate'],'')), '', substring(item()?['DueDate'],0,10))",
+     "OldPending": "@coalesce(item()?['PendingAnchor'], false)",
+     "NewDue": "@if(or(equals(coalesce(item()?['Anchor'],'None'),'None'), empty(if(equals(coalesce(item()?['Anchor'],'None'),'Fixed'), coalesce(item()?['FixedDate'],''), coalesce(outputs('Anchors')?[coalesce(item()?['Anchor'],'None')],'')))), '', formatDateTime(addDays(if(equals(coalesce(item()?['Anchor'],'None'),'Fixed'), coalesce(item()?['FixedDate'],''), coalesce(outputs('Anchors')?[coalesce(item()?['Anchor'],'None')],'')), int(coalesce(item()?['OffsetDays'],0))),'yyyy-MM-dd'))",
+     "NewPending": "@and(not(equals(coalesce(item()?['Anchor'],'None'),'None')), empty(if(equals(coalesce(item()?['Anchor'],'None'),'Fixed'), coalesce(item()?['FixedDate'],''), coalesce(outputs('Anchors')?[coalesce(item()?['Anchor'],'None')],''))))"
+    }
+   }
+  },
+  "Filter_Changed": {
+   "runAfter": {
+    "Select_New": [
+     "Succeeded"
+    ]
+   },
+   "type": "Query",
+   "inputs": {
+    "from": "@body('Select_New')",
+    "where": "@or(not(equals(item()?['NewDue'], item()?['OldDue'])), not(equals(item()?['NewPending'], item()?['OldPending'])))"
+   }
+  },
+  "Each_Changed": {
+   "runAfter": {
+    "Filter_Changed": [
+     "Succeeded"
+    ]
+   },
+   "type": "Foreach",
+   "foreach": "@body('Filter_Changed')",
+   "runtimeConfiguration": {
+    "concurrency": {
+     "repetitions": 8
+    }
+   },
+   "actions": {
+    "Upd_Task": {
+     "runAfter": {},
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+       "connectionName": "shared_sharepointonline",
+       "operationId": "HttpRequest"
+      },
+      "parameters": {
+       "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+       "parameters/method": "POST",
+       "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items(@{item()?['Id']})",
+       "parameters/headers": {
+        "Accept": "application/json;odata=nometadata",
+        "Content-Type": "application/json;odata=nometadata",
+        "X-HTTP-Method": "MERGE",
+        "IF-MATCH": "*"
+       },
+       "parameters/body": "@concat('{\"DueDate\":', if(equals(item()?['NewDue'],''), 'null', concat('\"', item()?['NewDue'], '\"')), ',\"PendingAnchor\":', if(item()?['NewPending'],'true','false'), ',\"UpdatedVia\":\"Flow\"}')"
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    },
+    "Log_Due": {
+     "runAfter": {
+      "Upd_Task": [
+       "Succeeded"
+      ]
+     },
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+       "connectionName": "shared_sharepointonline",
+       "operationId": "HttpRequest"
+      },
+      "parameters": {
+       "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+       "parameters/method": "POST",
+       "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items",
+       "parameters/headers": {
+        "Accept": "application/json;odata=nometadata",
+        "Content-Type": "application/json;odata=nometadata"
+       },
+       "parameters/body": "@concat('{\"CandidateId\":', string(outputs('CandId')), ',\"EventType\":\"TaskDue\",\"TaskId\":', string(item()?['Id']), ',\"TaskTitle\":\"', item()?['Title'], '\",\"FromValue\":\"', if(item()?['OldPending'],'pending',item()?['OldDue']), '\",\"ToValue\":\"', if(item()?['NewPending'],'pending',item()?['NewDue']), '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":true}')"
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    }
+   }
+  },
+  "Filter_LOO": {
+   "runAfter": {
+    "Each_Changed": [
+     "Succeeded"
+    ]
+   },
+   "type": "Query",
+   "inputs": {
+    "from": "@body('Select_New')",
+    "where": "@equals(toLower(item()?['Title']), 'issue letter of offer')"
+   }
+  },
+  "If_LOO_Issued": {
+   "runAfter": {
+    "Filter_LOO": [
+     "Succeeded"
+    ]
+   },
+   "type": "If",
+   "expression": {
+    "and": [
+     {
+      "greater": [
+       "@length(body('Filter_LOO'))",
+       0
+      ]
+     },
+     {
+      "not": {
+       "equals": [
+        "@outputs('Anchors')?['LOO Issued']",
+        ""
+       ]
+      }
+     }
+    ]
+   },
+   "actions": {
+    "Each_LOO": {
+     "runAfter": {},
+     "type": "Foreach",
+     "foreach": "@body('Filter_LOO')",
+     "actions": {
+      "Complete_LOO": {
+       "runAfter": {},
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "POST",
+         "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items(@{item()?['Id']})",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata",
+          "X-HTTP-Method": "MERGE",
+          "IF-MATCH": "*"
+         },
+         "parameters/body": "@concat('{\"TStatus\":\"Done\",\"CompletedDate\":\"', utcNow('yyyy-MM-dd'), '\",\"UpdatedVia\":\"Flow\"}')"
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      },
+      "Log_LOO": {
+       "runAfter": {
+        "Complete_LOO": [
+         "Succeeded"
+        ]
+       },
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "POST",
+         "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata"
+         },
+         "parameters/body": "@concat('{\"CandidateId\":', string(outputs('CandId')), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(item()?['Id']), ',\"TaskTitle\":\"', item()?['Title'], '\",\"FromValue\":\"', item()?['TStatus'], '\",\"ToValue\":\"Done\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":true}')"
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      }
+     }
+    }
+   },
+   "else": {
+    "actions": {}
+   }
+  },
+  "Fallback_Check": {
+   "runAfter": {
+    "If_LOO_Issued": [
+     "Succeeded"
+    ]
+   },
+   "type": "Compose",
+   "inputs": "@if(and(not(empty(coalesce(triggerBody()?['LOOAccepted'],''))), empty(coalesce(triggerBody()?['TemplateApplied'],''))), 'ATTENTION: LOO accepted but template not applied - apply from the app', 'ok')"
+  },
+  "Result": {
+   "runAfter": {
+    "Fallback_Check": [
+     "Succeeded"
+    ]
+   },
+   "type": "Compose",
+   "inputs": {
+    "candidateId": "@outputs('CandId')",
+    "recomputed": "@length(body('Filter_Changed'))",
+    "fallback": "@outputs('Fallback_Check')"
+   }
+  }
+ }
+}

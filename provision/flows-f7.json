@@ -1,0 +1,323 @@
+{
+ "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+ "contentVersion": "1.0.0.0",
+ "parameters": {
+  "$connections": {
+   "defaultValue": {},
+   "type": "Object"
+  },
+  "$authentication": {
+   "defaultValue": {},
+   "type": "SecureObject"
+  }
+ },
+ "triggers": {
+  "Recurrence": {
+   "type": "Recurrence",
+   "recurrence": {
+    "frequency": "Week",
+    "interval": 1,
+    "timeZone": "Central Standard Time",
+    "schedule": {
+     "weekDays": [
+      "Sunday"
+     ],
+     "hours": [
+      22
+     ],
+     "minutes": [
+      0
+     ]
+    }
+   }
+  }
+ },
+ "actions": {
+  "Cut30": {
+   "runAfter": {},
+   "type": "Compose",
+   "inputs": "@formatDateTime(addDays(utcNow(),-30),'yyyy-MM-dd')"
+  },
+  "Get_Term": {
+   "runAfter": {
+    "Cut30": [
+     "Succeeded"
+    ]
+   },
+   "type": "OpenApiConnection",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "HttpRequest"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "parameters/method": "GET",
+     "parameters/uri": "_api/web/lists(guid'ce3de9a9-702d-4707-9f30-a011b3d78264')/items?$select=Id,Title,CStatus,StatusChanged&$filter=(CStatus eq 'Completed' or CStatus eq 'Canceled' or CStatus eq 'Archived') and StatusChanged le '@{outputs('Cut30')}'&$top=50",
+     "parameters/headers": {
+      "Accept": "application/json;odata=nometadata",
+      "Content-Type": "application/json;odata=nometadata"
+     }
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  },
+  "Each_Cand": {
+   "runAfter": {
+    "Get_Term": [
+     "Succeeded"
+    ]
+   },
+   "type": "Foreach",
+   "foreach": "@body('Get_Term')?['value']",
+   "runtimeConfiguration": {
+    "concurrency": {
+     "repetitions": 1
+    }
+   },
+   "actions": {
+    "Get_T": {
+     "runAfter": {},
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+       "connectionName": "shared_sharepointonline",
+       "operationId": "HttpRequest"
+      },
+      "parameters": {
+       "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+       "parameters/method": "GET",
+       "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items?$select=Id,Title,CandidateId,CandName,StageId,StageName,StageOrder,Phase,TStatus,Priority,Category,AssigneeId,AssigneeRole,Anchor,OffsetDays,FixedDate,DueDate,PendingAnchor,IsRequired,IsPrereq,NeedsApproval,CompletedDate,CancelReason,Notes,DueNotified,ApprovalStarted,UpdatedVia&$filter=CandidateId eq @{items('Each_Cand')?['Id']}&$top=500",
+       "parameters/headers": {
+        "Accept": "application/json;odata=nometadata",
+        "Content-Type": "application/json;odata=nometadata"
+       }
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    },
+    "Each_T": {
+     "runAfter": {
+      "Get_T": [
+       "Succeeded"
+      ]
+     },
+     "type": "Foreach",
+     "foreach": "@body('Get_T')?['value']",
+     "runtimeConfiguration": {
+      "concurrency": {
+       "repetitions": 4
+      }
+     },
+     "actions": {
+      "Cp_T": {
+       "runAfter": {},
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "POST",
+         "parameters/uri": "_api/web/lists(guid'26ec003f-71dd-465e-a1ab-1facb1cdb188')/items",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata"
+         },
+         "parameters/body": "@string(removeProperty(removeProperty(item(),'Id'),'ID'))"
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      },
+      "Del_T": {
+       "runAfter": {
+        "Cp_T": [
+         "Succeeded"
+        ]
+       },
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "DELETE",
+         "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items(@{item()?['Id']})",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata",
+          "IF-MATCH": "*"
+         }
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      }
+     }
+    },
+    "Get_L": {
+     "runAfter": {
+      "Each_T": [
+       "Succeeded"
+      ]
+     },
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+       "connectionName": "shared_sharepointonline",
+       "operationId": "HttpRequest"
+      },
+      "parameters": {
+       "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+       "parameters/method": "GET",
+       "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items?$select=Id,CandidateId,EventType,TaskId,TaskTitle,FromValue,ToValue,ChangedById,ChangedDate,Automated&$filter=CandidateId eq @{items('Each_Cand')?['Id']}&$top=500",
+       "parameters/headers": {
+        "Accept": "application/json;odata=nometadata",
+        "Content-Type": "application/json;odata=nometadata"
+       }
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    },
+    "Each_L": {
+     "runAfter": {
+      "Get_L": [
+       "Succeeded"
+      ]
+     },
+     "type": "Foreach",
+     "foreach": "@body('Get_L')?['value']",
+     "runtimeConfiguration": {
+      "concurrency": {
+       "repetitions": 4
+      }
+     },
+     "actions": {
+      "Cp_L": {
+       "runAfter": {},
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "POST",
+         "parameters/uri": "_api/web/lists(guid'df242280-33d2-40ff-a4f7-a8b8cca3d158')/items",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata"
+         },
+         "parameters/body": "@string(removeProperty(removeProperty(item(),'Id'),'ID'))"
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      },
+      "Del_L": {
+       "runAfter": {
+        "Cp_L": [
+         "Succeeded"
+        ]
+       },
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "DELETE",
+         "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items(@{item()?['Id']})",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata",
+          "IF-MATCH": "*"
+         }
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      }
+     }
+    },
+    "Verify": {
+     "runAfter": {
+      "Each_L": [
+       "Succeeded"
+      ]
+     },
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+       "connectionName": "shared_sharepointonline",
+       "operationId": "HttpRequest"
+      },
+      "parameters": {
+       "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+       "parameters/method": "GET",
+       "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items?$select=Id&$filter=CandidateId eq @{items('Each_Cand')?['Id']}&$top=5",
+       "parameters/headers": {
+        "Accept": "application/json;odata=nometadata",
+        "Content-Type": "application/json;odata=nometadata"
+       }
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    },
+    "If_Left": {
+     "runAfter": {
+      "Verify": [
+       "Succeeded"
+      ]
+     },
+     "type": "If",
+     "expression": {
+      "and": [
+       {
+        "greater": [
+         "@length(body('Verify')?['value'])",
+         0
+        ]
+       }
+      ]
+     },
+     "actions": {
+      "Mail_Warn": {
+       "runAfter": {},
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+         "connectionName": "shared_office365",
+         "operationId": "SendEmailV2"
+        },
+        "parameters": {
+         "emailMessage/To": "jsteen@uab.edu",
+         "emailMessage/Subject": "@concat('[OnBoardPro] Archive sweep left rows behind: ', items('Each_Cand')?['Title'])",
+         "emailMessage/Body": "@concat('<p>Verify pass found remaining Tasks rows for candidate ', items('Each_Cand')?['Title'], '. Re-run or inspect.</p>')",
+         "emailMessage/Importance": "Normal"
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      }
+     },
+     "else": {
+      "actions": {}
+     }
+    }
+   }
+  }
+ }
+}

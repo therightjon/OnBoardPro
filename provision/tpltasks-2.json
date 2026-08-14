@@ -1,0 +1,778 @@
+{
+ "TT_R_1_2": {
+  "runAfter": {},
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Candidate applies for faculty position (UAB Job Board)\", \"Description\": \"Candidate submits application through the UAB Job Board.\", \"TemplateId\": 2, \"TemplateStageId\": 6, \"Anchor\": \"LOI\", \"OffsetDays\": 7, \"AssigneeRole\": \"Candidate\", \"Priority\": \"Medium\", \"Category\": \"Processing\", \"OrderIndex\": 2, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_1_3": {
+  "runAfter": {
+   "TT_R_1_2": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Complete Promotion & Tenure review (HSOM Faculty Affairs)\", \"Description\": \"Required for Associate Professor and above before the LOO can be issued, per HSOM Faculty Affairs and HR protocol. ~1 month if the candidate provides documents on time.\", \"TemplateId\": 2, \"TemplateStageId\": 6, \"Anchor\": \"LOI\", \"OffsetDays\": 30, \"AssigneeRole\": \"HR\", \"Priority\": \"High\", \"Category\": \"Processing\", \"OrderIndex\": 3, \"IsRequired\": true, \"IsPrereq\": true, \"NeedsApproval\": true, \"PrereqCondition\": \"Requires P&T\"}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_2_1": {
+  "runAfter": {
+   "TT_R_1_3": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Issue Letter of Offer\", \"Description\": \"LOO issued by the Chair's Office or the Division Director.\", \"TemplateId\": 2, \"TemplateStageId\": 7, \"Anchor\": \"LOO Issued\", \"OffsetDays\": 0, \"AssigneeRole\": \"Manager\", \"Priority\": \"Medium\", \"Category\": \"Processing\", \"OrderIndex\": 1, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": true}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_3_1": {
+  "runAfter": {
+   "TT_R_2_1": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Complete Hiring Proposal in PeopleAdmin\", \"Description\": \"Internal OBGYN HR function.\", \"TemplateId\": 2, \"TemplateStageId\": 8, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 7, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Processing\", \"OrderIndex\": 1, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_3_2": {
+  "runAfter": {
+   "TT_R_3_1": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Complete Faculty Data Form in UAB Forms\", \"Description\": \"Internal OBGYN HR function.\", \"TemplateId\": 2, \"TemplateStageId\": 8, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 7, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Processing\", \"OrderIndex\": 2, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_3_3": {
+  "runAfter": {
+   "TT_R_3_2": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Submit ACT Document in Oracle\", \"Description\": \"Internal OBGYN HR function.\", \"TemplateId\": 2, \"TemplateStageId\": 8, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 10, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Processing\", \"OrderIndex\": 3, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_3_4": {
+  "runAfter": {
+   "TT_R_3_3": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Process relocation and transition allowances\", \"Description\": \"As applicable. Internal OBGYN HR function.\", \"TemplateId\": 2, \"TemplateStageId\": 8, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 14, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Processing\", \"OrderIndex\": 4, \"IsRequired\": false, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_3_5": {
+  "runAfter": {
+   "TT_R_3_4": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Notify internal teams of official start date\", \"Description\": \"HR, IT, Operations, Finance, Research, etc.\", \"TemplateId\": 2, \"TemplateStageId\": 8, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 7, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Processing\", \"OrderIndex\": 5, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_4_1": {
+  "runAfter": {
+   "TT_R_3_5": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Candidate submits credential document packet\", \"Description\": \"Full packet: AL State License; AL Controlled Substances; current certifications; DEA; NPI# + notification letter + password; board certificate or eligibility letter; ECFMG certificate (international MDs); medical school diploma; USMLE CK & CS scores; graduate/medical school transcripts; proof of ID; CV; training certificates + residency/internship letters; case list (10-15 cases); Social Security card copy (MSO); passport-sized photo. Files go to Onboarding Documents Restricted.\", \"TemplateId\": 2, \"TemplateStageId\": 9, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 30, \"AssigneeRole\": \"Candidate\", \"Priority\": \"High\", \"Category\": \"Documents\", \"OrderIndex\": 1, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_4_2": {
+  "runAfter": {
+   "TT_R_4_1": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Doc: CV\", \"Description\": \"Verify received and file to Onboarding Documents Restricted.\", \"TemplateId\": 2, \"TemplateStageId\": 9, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 45, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Documents\", \"OrderIndex\": 2, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_4_3": {
+  "runAfter": {
+   "TT_R_4_2": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Doc: Diploma (highest degree)\", \"Description\": \"Verify received and file to Onboarding Documents Restricted.\", \"TemplateId\": 2, \"TemplateStageId\": 9, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 45, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Documents\", \"OrderIndex\": 3, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_4_4": {
+  "runAfter": {
+   "TT_R_4_3": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Doc: Graduate school transcripts\", \"Description\": \"Verify received and file to Onboarding Documents Restricted.\", \"TemplateId\": 2, \"TemplateStageId\": 9, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 45, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Documents\", \"OrderIndex\": 4, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_4_5": {
+  "runAfter": {
+   "TT_R_4_4": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Doc: Proof of ID\", \"Description\": \"Verify received and file to Onboarding Documents Restricted.\", \"TemplateId\": 2, \"TemplateStageId\": 9, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 45, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Documents\", \"OrderIndex\": 5, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_4_6": {
+  "runAfter": {
+   "TT_R_4_5": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Doc: Social Security card copy (MSO)\", \"Description\": \"Verify received and file to Onboarding Documents Restricted.\", \"TemplateId\": 2, \"TemplateStageId\": 9, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 45, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Documents\", \"OrderIndex\": 6, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_4_7": {
+  "runAfter": {
+   "TT_R_4_6": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Doc: Passport-sized photo\", \"Description\": \"Verify received and file to Onboarding Documents Restricted.\", \"TemplateId\": 2, \"TemplateStageId\": 9, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 45, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Documents\", \"OrderIndex\": 7, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_4_8": {
+  "runAfter": {
+   "TT_R_4_7": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Doc: Training certificates & reference letters\", \"Description\": \"Verify received and file to Onboarding Documents Restricted.\", \"TemplateId\": 2, \"TemplateStageId\": 9, \"Anchor\": \"LOO Accepted\", \"OffsetDays\": 45, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Documents\", \"OrderIndex\": 8, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_1": {
+  "runAfter": {
+   "TT_R_4_8": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Candidate completes I-9 (UAB System HR)\", \"Description\": \"No more than 3 days before the official start date.\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -3, \"AssigneeRole\": \"Candidate\", \"Priority\": \"High\", \"Category\": \"Documents\", \"OrderIndex\": 1, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_2": {
+  "runAfter": {
+   "TT_R_5_1": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Order equipment (computer, phone, printer)\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -30, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Admin\", \"OrderIndex\": 2, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_3": {
+  "runAfter": {
+   "TT_R_5_2": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Office & workspace setup\", \"Description\": \"Assign office space; furniture needs assessment and order; name plate; office supplies; welcome gift.\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -30, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Admin\", \"OrderIndex\": 3, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_4": {
+  "runAfter": {
+   "TT_R_5_3": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Divisional admin setup\", \"Description\": \"Lab coats (if applicable); business cards; mail; assign admin support.\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -21, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Admin\", \"OrderIndex\": 4, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_5": {
+  "runAfter": {
+   "TT_R_5_4": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Physical access (keys, codes, ONE Card)\", \"Description\": \"Hospital perimeter; office (order keys); research locations as needed.\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -14, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Admin\", \"OrderIndex\": 5, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_6": {
+  "runAfter": {
+   "TT_R_5_5": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"IT access & software setup\", \"Description\": \"As needed per OBGYN IT Director (Bashirat Hahn).\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -14, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Admin\", \"OrderIndex\": 6, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_7": {
+  "runAfter": {
+   "TT_R_5_6": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Add to phone list & email groups; coordinate faculty photo\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -7, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Admin\", \"OrderIndex\": 7, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_8": {
+  "runAfter": {
+   "TT_R_5_7": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Schedule research trainings\", \"Description\": \"Occupational Health and Safety; IACUC (as needed); IRAP/Healthstream; International Medical Education; Effort Reporting; Responsible Conduct in Research; GCP; CITI IRB.\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -21, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Admin\", \"OrderIndex\": 8, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_9": {
+  "runAfter": {
+   "TT_R_5_8": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Schedule leadership meetings\", \"Description\": \"Chair (Warner Huh); Executive Administrator (Taylor Sisson); Division Director + divisional admin support staff.\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -21, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Meetings\", \"OrderIndex\": 9, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_10": {
+  "runAfter": {
+   "TT_R_5_9": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Schedule research program meetings\", \"Description\": \"VC of Research / CRWH Director (Alan Tita); Director of Research Development (Chelsea Crawford); CRWH Administrative Director (Donna Dunn Campbell); Finance Director (Kimberly Whitehurst) + preaward/postaward team as assigned; Senior Associate Dean of Research (Tika Benveniste, as applicable).\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -21, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Meetings\", \"OrderIndex\": 10, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_11": {
+  "runAfter": {
+   "TT_R_5_10": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Schedule mentorship & support meetings\", \"Description\": \"VC of Mentorship (Gena Dunivan); VC of Education (Akila Subramaniam); HRP Business Partner (Shawaii Jackson); Director of Communications (Hadley Robertson); OBGYN IT Director (Bashirat Hahn).\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -21, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Meetings\", \"OrderIndex\": 11, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_12": {
+  "runAfter": {
+   "TT_R_5_11": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Transfer awards to UAB (Preaward team)\", \"Description\": \"As applicable for funded investigators.\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -30, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Processing\", \"OrderIndex\": 12, \"IsRequired\": false, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_13": {
+  "runAfter": {
+   "TT_R_5_12": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Department announcement email\", \"Description\": \"Communications team emails the department announcing the new faculty member.\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -7, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Other\", \"OrderIndex\": 13, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "TT_R_5_14": {
+  "runAfter": {
+   "TT_R_5_13": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'80bde969-759f-4fb8-9b1d-8425b61ab2b5')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Parking access setup\", \"Description\": \"Parking deck access. Needs: account number (department pays); Blazer ID; name.\", \"TemplateId\": 2, \"TemplateStageId\": 10, \"Anchor\": \"Start\", \"OffsetDays\": -7, \"AssigneeRole\": \"HR\", \"Priority\": \"Medium\", \"Category\": \"Admin\", \"OrderIndex\": 14, \"IsRequired\": true, \"IsPrereq\": false, \"NeedsApproval\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ }
+}

@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Faculty Hire Templates — Strawman for HR Review</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+  :root {
+    --bg: #ffffff; --fg: #1a202c; --muted: #64748b; --accent: #1e6b52;
+    --border: #e2e8f0; --code-bg: #f6f8fa; --th-bg: #f1f5f9; --row-alt: #f8fafc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a; --fg: #e2e8f0; --muted: #94a3b8; --accent: #4fd1a5;
+      --border: #334155; --code-bg: #1e293b; --th-bg: #1e293b; --row-alt: #16223a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; max-width: 60rem; padding: 2.5rem 1.5rem 5rem;
+    background: var(--bg); color: var(--fg);
+    font: 16px/1.65 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 1.9rem; line-height: 1.25; border-bottom: 3px solid var(--accent); padding-bottom: .6rem; }
+  h2 { font-size: 1.35rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.8rem; }
+  a { color: var(--accent); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+  code {
+    font: 0.875em/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: var(--code-bg); padding: .12em .35em; border-radius: 4px;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 1rem; overflow-x: auto;
+  }
+  pre code { background: none; padding: 0; }
+  table {
+    border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .9rem;
+    display: block; overflow-x: auto;
+  }
+  th, td { border: 1px solid var(--border); padding: .45rem .65rem; text-align: left; vertical-align: top; }
+  th { background: var(--th-bg); }
+  tbody tr:nth-child(even) { background: var(--row-alt); }
+  blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 4px solid var(--accent); color: var(--muted); }
+  li { margin: .25rem 0; }
+  em { color: var(--muted); }
+  </style>
+</head>
+<body>
+<h1 id="faculty-hire-templates--strawman-for-hr-review">Faculty Hire
+Templates — Strawman for HR Review</h1>
+<p><strong>Generated 2026-08-11 from the live SharePoint lists</strong>
+(Templates, TemplateStages, TemplateTasks on the OBGYN Onboarding site)
+— this is what is actually seeded, not a plan.</p>
+<p>Sources: <em>Faculty Pre-Hire Process – Jon Steen.docx</em> (refined)
++ <em>Faculty Onboarding Checklist_May 2025.docx</em>. Both templates
+are <strong>Draft</strong> — nothing expands onto a real candidate until
+activated.</p>
+<p><strong>How to read due rules:</strong> dates compute from anchors —
+LOI (letter of intent executed), LOO Issued / LOO Accepted (offer),
+Start (start date). "120 days before Start" becomes a real date per
+candidate; tasks whose anchor date isn't known yet wait as "Pending
+date" and fill in automatically.</p>
+<p><strong>Marking this up:</strong> strike tasks that are wrong, add
+missing ones, correct owners/timing — any format is fine.</p>
+<h2 id="faculty-hire---clinical-44-tasks">Faculty Hire - Clinical (44
+tasks)</h2>
+<h3 id="stage-1-letter-of-intent-pre-hire-phase">Stage 1: Letter of
+Intent <em>(Pre-Hire phase)</em></h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Due</th>
+<th>Owner</th>
+<th>Req</th>
+<th>Flags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Issue formal Letter of Intent</td>
+<td>on LOI</td>
+<td>Manager</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Candidate applies for faculty position (UAB Job Board)</td>
+<td>7 days after LOI</td>
+<td>Candidate</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Complete Promotion &amp; Tenure review (HSOM Faculty Affairs)</td>
+<td>30 days after LOI</td>
+<td>HR</td>
+<td>required</td>
+<td>prereq (P&amp;T ranks only), <strong>approval</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="stage-2-offer-pre-hire-phase">Stage 2: Offer <em>(Pre-Hire
+phase)</em></h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Due</th>
+<th>Owner</th>
+<th>Req</th>
+<th>Flags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Issue Letter of Offer</td>
+<td>on LOO Issued</td>
+<td>Manager</td>
+<td>required</td>
+<td><strong>approval</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="stage-3-hr-processing-pre-hire-phase">Stage 3: HR Processing
+<em>(Pre-Hire phase)</em></h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Due</th>
+<th>Owner</th>
+<th>Req</th>
+<th>Flags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Complete Hiring Proposal in PeopleAdmin</td>
+<td>7 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Complete Faculty Data Form in UAB Forms</td>
+<td>7 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Submit ACT Document in Oracle</td>
+<td>10 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Process relocation and transition allowances</td>
+<td>14 days after LOO Accepted</td>
+<td>HR</td>
+<td>optional</td>
+<td></td>
+</tr>
+<tr>
+<td>Notify internal teams of official start date</td>
+<td>7 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="stage-4-credentialing-pre-hire-phase">Stage 4: Credentialing
+<em>(Pre-Hire phase)</em></h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Due</th>
+<th>Owner</th>
+<th>Req</th>
+<th>Flags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Submit packet to Credentialing</td>
+<td>120 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Submit packet to Provider Enrollment</td>
+<td>120 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Submit packet to Risk Management</td>
+<td>120 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Candidate submits credential document packet</td>
+<td>30 days after LOO Accepted</td>
+<td>Candidate</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Alabama State License</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Alabama Controlled Substances Certificate</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Current certifications</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: DEA registration</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: NPI number + notification letter</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Board certificate or eligibility letter</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: ECFMG certificate</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>optional</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Medical school diploma</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: USMLE CK &amp; CS scores</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Graduate/medical school transcripts</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Proof of ID</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: CV</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Training certificates &amp; residency/internship letters</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Case list (10-15 cases)</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Social Security card copy (MSO)</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Passport-sized photo</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="stage-5-onboarding-onboarding-phase">Stage 5: Onboarding
+<em>(Onboarding phase)</em></h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Due</th>
+<th>Owner</th>
+<th>Req</th>
+<th>Flags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Candidate completes I-9 (UAB System HR)</td>
+<td>3 days before Start</td>
+<td>Candidate</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Request clinic template build</td>
+<td>30 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Schedule Employee Health &amp; N95 fit testing</td>
+<td>14 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Order equipment (computer, phone, printer, Vocera)</td>
+<td>30 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Office &amp; workspace setup</td>
+<td>30 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Divisional admin setup</td>
+<td>21 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Physical access (keys, codes, ONE Card)</td>
+<td>14 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>IT access &amp; software setup</td>
+<td>14 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Add to phone list &amp; email groups; coordinate faculty photo</td>
+<td>7 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Schedule clinical trainings</td>
+<td>21 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Schedule leadership meetings</td>
+<td>21 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Schedule clinical operations meetings</td>
+<td>21 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Schedule mentorship, education &amp; support meetings</td>
+<td>21 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Department announcement email</td>
+<td>7 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Parking access setup</td>
+<td>7 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="faculty-hire---research-31-tasks">Faculty Hire - Research (31
+tasks)</h2>
+<h3 id="stage-1-letter-of-intent-pre-hire-phase-1">Stage 1: Letter of
+Intent <em>(Pre-Hire phase)</em></h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Due</th>
+<th>Owner</th>
+<th>Req</th>
+<th>Flags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Issue formal Letter of Intent</td>
+<td>on LOI</td>
+<td>Manager</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Candidate applies for faculty position (UAB Job Board)</td>
+<td>7 days after LOI</td>
+<td>Candidate</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Complete Promotion &amp; Tenure review (HSOM Faculty Affairs)</td>
+<td>30 days after LOI</td>
+<td>HR</td>
+<td>required</td>
+<td>prereq (P&amp;T ranks only), <strong>approval</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="stage-2-offer-pre-hire-phase-1">Stage 2: Offer <em>(Pre-Hire
+phase)</em></h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Due</th>
+<th>Owner</th>
+<th>Req</th>
+<th>Flags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Issue Letter of Offer</td>
+<td>on LOO Issued</td>
+<td>Manager</td>
+<td>required</td>
+<td><strong>approval</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="stage-3-hr-processing-pre-hire-phase-1">Stage 3: HR Processing
+<em>(Pre-Hire phase)</em></h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Due</th>
+<th>Owner</th>
+<th>Req</th>
+<th>Flags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Complete Hiring Proposal in PeopleAdmin</td>
+<td>7 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Complete Faculty Data Form in UAB Forms</td>
+<td>7 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Submit ACT Document in Oracle</td>
+<td>10 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Process relocation and transition allowances</td>
+<td>14 days after LOO Accepted</td>
+<td>HR</td>
+<td>optional</td>
+<td></td>
+</tr>
+<tr>
+<td>Notify internal teams of official start date</td>
+<td>7 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="stage-4-credentialing-pre-hire-phase-1">Stage 4: Credentialing
+<em>(Pre-Hire phase)</em></h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Due</th>
+<th>Owner</th>
+<th>Req</th>
+<th>Flags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Candidate submits credential document packet</td>
+<td>30 days after LOO Accepted</td>
+<td>Candidate</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: CV</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Diploma (highest degree)</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Graduate school transcripts</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Proof of ID</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Social Security card copy (MSO)</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Passport-sized photo</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Doc: Training certificates &amp; reference letters</td>
+<td>45 days after LOO Accepted</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="stage-5-onboarding-onboarding-phase-1">Stage 5: Onboarding
+<em>(Onboarding phase)</em></h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Due</th>
+<th>Owner</th>
+<th>Req</th>
+<th>Flags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Candidate completes I-9 (UAB System HR)</td>
+<td>3 days before Start</td>
+<td>Candidate</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Order equipment (computer, phone, printer)</td>
+<td>30 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Office &amp; workspace setup</td>
+<td>30 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Divisional admin setup</td>
+<td>21 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Physical access (keys, codes, ONE Card)</td>
+<td>14 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>IT access &amp; software setup</td>
+<td>14 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Add to phone list &amp; email groups; coordinate faculty photo</td>
+<td>7 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Schedule research trainings</td>
+<td>21 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Schedule leadership meetings</td>
+<td>21 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Schedule research program meetings</td>
+<td>21 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Schedule mentorship &amp; support meetings</td>
+<td>21 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Transfer awards to UAB (Preaward team)</td>
+<td>30 days before Start</td>
+<td>HR</td>
+<td>optional</td>
+<td></td>
+</tr>
+<tr>
+<td>Department announcement email</td>
+<td>7 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td>Parking access setup</td>
+<td>7 days before Start</td>
+<td>HR</td>
+<td>required</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

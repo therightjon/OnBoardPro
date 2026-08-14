@@ -1,0 +1,76 @@
+{
+ "Mk_T1": {
+  "runAfter": {},
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Archive test task 1\", \"CandidateId\": 3, \"CandName\": \"Zztest, Archive\", \"StageId\": 1, \"StageName\": \"Letter of Intent\", \"StageOrder\": 1, \"Phase\": \"Pre-Hire\", \"TStatus\": \"Canceled\", \"CancelReason\": \"test\", \"Priority\": \"Low\", \"Category\": \"Other\", \"AssigneeRole\": \"HR\", \"Anchor\": \"LOI\", \"OffsetDays\": 0, \"IsRequired\": false, \"IsPrereq\": false, \"NeedsApproval\": false, \"UpdatedVia\": \"Flow\"}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Mk_T2": {
+  "runAfter": {
+   "Mk_T1": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Archive test task 2\", \"CandidateId\": 3, \"CandName\": \"Zztest, Archive\", \"StageId\": 1, \"StageName\": \"Letter of Intent\", \"StageOrder\": 1, \"Phase\": \"Pre-Hire\", \"TStatus\": \"Canceled\", \"CancelReason\": \"test\", \"Priority\": \"Low\", \"Category\": \"Other\", \"AssigneeRole\": \"HR\", \"Anchor\": \"LOI\", \"OffsetDays\": 0, \"IsRequired\": false, \"IsPrereq\": false, \"NeedsApproval\": false, \"UpdatedVia\": \"Flow\"}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Mk_L1": {
+  "runAfter": {
+   "Mk_T2": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"CandidateId\": 3, \"EventType\": \"CandidateStatus\", \"FromValue\": \"Active\", \"ToValue\": \"Canceled\", \"ChangedDate\": \"2026-06-15T12:00:00Z\", \"Automated\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ }
+}

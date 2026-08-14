@@ -723,6 +723,10 @@ Screens:
                                                       Height: =18
                                                       LayoutMinHeight: =0
                                                       LayoutMinWidth: =0
+                                                      OnSelect: |-
+                                                        =Set(varMtStatusTask, ThisItem);
+                                                        Set(varMtCancelReason, "");
+                                                        Set(varMtStatusShow, true)
                                                       Size: =12
                                                       Text: =Coalesce(ThisItem.TStatus.Value, "To Do")
                                     - conMTCellAction:
@@ -857,3 +861,226 @@ Screens:
                   Size: =2
                   Text: =""
                   Wrap: =false
+      - conMtStatusModal:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =RGBA(32, 38, 45, 0.4)
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutJustifyContent: =LayoutJustifyContent.Center
+            Visible: =Coalesce(varMtStatusShow, false)
+            Width: =Parent.Width
+          Children:
+            - conMtStatusPanel:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  AlignInContainer: =AlignInContainer.Center
+                  DropShadow: =DropShadow.Regular
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  Height: =510
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =24
+                  PaddingLeft: =24
+                  PaddingRight: =24
+                  PaddingTop: =24
+                  RadiusBottomLeft: =8
+                  RadiusBottomRight: =8
+                  RadiusTopLeft: =8
+                  RadiusTopRight: =8
+                  Width: =Min(520, Parent.Width - 32)
+                Children:
+                  - lblMtStTitle:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.TextPrimary
+                        FontWeight: =FontWeight.Semibold
+                        Height: =34
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =20
+                        Text: =Coalesce(varMtStatusTask.Title, "Task")
+                        Wrap: =false
+                  - lblMtStNow:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray500
+                        Height: =20
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: |-
+                          =Coalesce(varMtStatusTask.CandName, "This task") & "  ·  Currently "
+                              & Coalesce(varMtStatusTask.TStatus.Value, "To Do")
+                        Wrap: =false
+                  - btnMtStToDo:
+                      Control: Button
+                      Properties:
+                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        BasePaletteColor: =UAB.Green
+                        DisplayMode: |-
+                          =If(Coalesce(varMtStatusTask.TStatus.Value, "To Do") = "To Do",
+                              DisplayMode.Disabled, DisplayMode.Edit)
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =IfError(
+                              Patch(Tasks, LookUp(Tasks, ID = varMtStatusTask.ID),
+                                  {TStatus: {Value: "To Do"},
+                                   CompletedDate: If("To Do" = "Done", Today(), Blank()),
+                                   CancelReason: If("To Do" = "Canceled", Trim(txtMtCancelReason.Text),
+                                       varMtStatusTask.CancelReason),
+                                   UpdatedVia: "App"}),
+                              Notify("Couldn't update the status - " & FirstError.Message
+                                  & " Nothing changed. Try again.", NotificationType.Error),
+                              Notify(varMtStatusTask.Title & " is now To Do.",
+                                  NotificationType.Success));
+                          Set(varMtStatusShow, false)
+                        Text: ="To Do"
+                        Width: =Parent.Width - 48
+                  - btnMtStInProgress:
+                      Control: Button
+                      Properties:
+                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        BasePaletteColor: =UAB.Green
+                        DisplayMode: |-
+                          =If(Coalesce(varMtStatusTask.TStatus.Value, "To Do") = "In Progress",
+                              DisplayMode.Disabled, DisplayMode.Edit)
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =IfError(
+                              Patch(Tasks, LookUp(Tasks, ID = varMtStatusTask.ID),
+                                  {TStatus: {Value: "In Progress"},
+                                   CompletedDate: If("In Progress" = "Done", Today(), Blank()),
+                                   CancelReason: If("In Progress" = "Canceled", Trim(txtMtCancelReason.Text),
+                                       varMtStatusTask.CancelReason),
+                                   UpdatedVia: "App"}),
+                              Notify("Couldn't update the status - " & FirstError.Message
+                                  & " Nothing changed. Try again.", NotificationType.Error),
+                              Notify(varMtStatusTask.Title & " is now In Progress.",
+                                  NotificationType.Success));
+                          Set(varMtStatusShow, false)
+                        Text: ="In Progress"
+                        Width: =Parent.Width - 48
+                  - btnMtStBlocked:
+                      Control: Button
+                      Properties:
+                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        BasePaletteColor: =UAB.Green
+                        DisplayMode: |-
+                          =If(Coalesce(varMtStatusTask.TStatus.Value, "To Do") = "Blocked",
+                              DisplayMode.Disabled, DisplayMode.Edit)
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =IfError(
+                              Patch(Tasks, LookUp(Tasks, ID = varMtStatusTask.ID),
+                                  {TStatus: {Value: "Blocked"},
+                                   CompletedDate: If("Blocked" = "Done", Today(), Blank()),
+                                   CancelReason: If("Blocked" = "Canceled", Trim(txtMtCancelReason.Text),
+                                       varMtStatusTask.CancelReason),
+                                   UpdatedVia: "App"}),
+                              Notify("Couldn't update the status - " & FirstError.Message
+                                  & " Nothing changed. Try again.", NotificationType.Error),
+                              Notify(varMtStatusTask.Title & " is now Blocked.",
+                                  NotificationType.Success));
+                          Set(varMtStatusShow, false)
+                        Text: ="Blocked"
+                        Width: =Parent.Width - 48
+                  - btnMtStDone:
+                      Control: Button
+                      Properties:
+                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        BasePaletteColor: =UAB.Green
+                        DisplayMode: |-
+                          =If(Coalesce(varMtStatusTask.TStatus.Value, "To Do") = "Done",
+                              DisplayMode.Disabled, DisplayMode.Edit)
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =IfError(
+                              Patch(Tasks, LookUp(Tasks, ID = varMtStatusTask.ID),
+                                  {TStatus: {Value: "Done"},
+                                   CompletedDate: If("Done" = "Done", Today(), Blank()),
+                                   CancelReason: If("Done" = "Canceled", Trim(txtMtCancelReason.Text),
+                                       varMtStatusTask.CancelReason),
+                                   UpdatedVia: "App"}),
+                              Notify("Couldn't update the status - " & FirstError.Message
+                                  & " Nothing changed. Try again.", NotificationType.Error),
+                              Notify(varMtStatusTask.Title & " is now Done.",
+                                  NotificationType.Success));
+                          Set(varMtStatusShow, false)
+                        Text: ="Done"
+                        Width: =Parent.Width - 48
+                  - btnMtStCanceled:
+                      Control: Button
+                      Properties:
+                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        BasePaletteColor: =UAB.Green
+                        DisplayMode: |-
+                          =If(Or(Coalesce(varMtStatusTask.TStatus.Value, "To Do") = "Canceled",
+                                 IsBlank(Trim(txtMtCancelReason.Text))),
+                              DisplayMode.Disabled, DisplayMode.Edit)
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =IfError(
+                              Patch(Tasks, LookUp(Tasks, ID = varMtStatusTask.ID),
+                                  {TStatus: {Value: "Canceled"},
+                                   CompletedDate: If("Canceled" = "Done", Today(), Blank()),
+                                   CancelReason: If("Canceled" = "Canceled", Trim(txtMtCancelReason.Text),
+                                       varMtStatusTask.CancelReason),
+                                   UpdatedVia: "App"}),
+                              Notify("Couldn't update the status - " & FirstError.Message
+                                  & " Nothing changed. Try again.", NotificationType.Error),
+                              Notify(varMtStatusTask.Title & " is now Canceled.",
+                                  NotificationType.Success));
+                          Set(varMtStatusShow, false)
+                        Text: ="Canceled"
+                        Width: =Parent.Width - 48
+                  - lblMtStReasonCap:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray700
+                        FontWeight: =FontWeight.Semibold
+                        Height: =20
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: ="Reason (required to cancel)"
+                        Wrap: =false
+                  - txtMtCancelReason:
+                      Control: ModernTextInput
+                      Properties:
+                        Height: =36
+                        LayoutMinHeight: =36
+                        LayoutMinWidth: =0
+                        Placeholder: ="Why is this being canceled?"
+                  - btnMtStClose:
+                      Control: Button
+                      Properties:
+                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        BasePaletteColor: =UAB.Green
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Set(varMtStatusShow, false)
+                        Text: ="Close"
+                        Width: =120

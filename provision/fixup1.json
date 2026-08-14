@@ -1,0 +1,102 @@
+{
+ "Fix_ChangeLog1": {
+  "runAfter": {},
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"CandidateId\": 1, \"EventType\": \"Stage\", \"FromValue\": \"\", \"ToValue\": \"Letter of Intent\", \"ChangedDate\": \"2026-08-01T12:00:00Z\", \"Automated\": true}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Fix_Folder1": {
+  "runAfter": {
+   "Fix_ChangeLog1": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/folders",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"ServerRelativeUrl\": \"/sites/obgyn/OBGYN-Onboarding/Onboarding Documents/Zztest, Pilot\"}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Fix_Folder2": {
+  "runAfter": {
+   "Fix_Folder1": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/folders",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"ServerRelativeUrl\": \"/sites/obgyn/OBGYN-Onboarding/Onboarding Documents Restricted/Zztest, Pilot\"}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Mk_Cand2": {
+  "runAfter": {
+   "Fix_Folder2": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'ce3de9a9-702d-4707-9f30-a011b3d78264')/items",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata"
+    },
+    "parameters/body": "{\"Title\": \"Zztest, Research\", \"FirstName\": \"Research\", \"LastName\": \"Zztest\", \"Salutation\": \"Dr.\", \"Email\": \"jsteen@uab.edu\", \"CandidateType\": \"Faculty\", \"DepartmentId\": 1, \"DivisionId\": 6, \"FacultyRankId\": 1, \"ManagerId\": 6, \"PrimaryOwnerId\": 6, \"CStatus\": \"Active\", \"LOIDate\": \"2026-08-05\", \"LOOIssued\": \"2026-09-01\", \"LOOAccepted\": \"2026-09-20\", \"TemplateId\": 2}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ }
+}

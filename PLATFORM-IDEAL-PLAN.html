@@ -214,10 +214,10 @@
 <body>
 <h1 id="onboardpro--the-lean-o365-native-alternative">OnBoardPro — The
 Lean O365-Native Alternative</h1>
-<p><strong>Date:</strong> 2026-07-30 · <strong>Rev 2</strong> (reviewed
-alongside parity plan Rev 4; confidence assessment added — §9) ·
-<strong>Status:</strong> Proposed alternative <strong>Companion
-to:</strong> <a
+<p><strong>Date:</strong> 2026-08-02 · <strong>Rev 3</strong> (template
+editor committed — HR usability; responsive layout; exec report
+subscriptions) · <strong>Status:</strong> Proposed alternative
+<strong>Companion to:</strong> <a
 href="PLATFORM-REBUILD-PLAN.md">PLATFORM-REBUILD-PLAN.md</a> (the parity
 rebuild). Same tenant, same licensing, same data backbone — this
 document only describes what differs.</p>
@@ -248,8 +248,8 @@ screens whose jobs O365 already does.</p>
 </tr>
 <tr>
 <td>My Tasks inbox</td>
-<td>email digest + a <code>[Me]</code>-filtered list view (+ optional
-Teams cards)</td>
+<td>the digest is native push; the live view stays custom (§2 — promoted
+after review)</td>
 </tr>
 <tr>
 <td>Admin CRUD (departments, ranks, stages)</td>
@@ -257,7 +257,8 @@ Teams cards)</td>
 </tr>
 <tr>
 <td>Template editor</td>
-<td>Microsoft Lists UI + a validation flow</td>
+<td><em>stays custom — reversed 2026-08-02 for HR usability
+(§2)</em></td>
 </tr>
 <tr>
 <td>Sign-off tasks</td>
@@ -269,51 +270,64 @@ Teams cards)</td>
 <strong>guarded, cross-list orchestration</strong>: creating a candidate
 correctly, and running a candidate's pipeline. Everything else rides
 native surfaces.</p>
-<h2 id="2-what-stays-custom--a-two-screen-canvas-app">2. What stays
-custom — a two-screen canvas app</h2>
+<h2 id="2-what-stays-custom--a-four-screen-canvas-app">2. What stays
+custom — a four-screen canvas app</h2>
 <ol type="1">
-<li><strong>New Candidate wizard.</strong> The creation gates genuinely
-need guarded UI: LOI date + template required, faculty rank required for
-Faculty types, and the P&amp;T check (a rank that requires P&amp;T must
-pair with a template containing a Requires-P&amp;T prerequisite task). A
-native list form can't enforce cross-list rules; the wizard can, and
-it's one screen.</li>
-<li><strong>Candidate cockpit.</strong> The one screen where cross-list
-context matters: header + status transitions (the enforced matrix — e.g.
-Completed blocked while required tasks remain open, with the blockers
-listed), anchor dates (LOO acceptance triggers expansion),
-tasks-by-stage with inline status/assignee edits, watchers, comments,
-timeline, the candidate's document folders (Phase 1), and the HR Notes
-tab (backed by the server-enforced HR-only HRNotes list). This is the
-old app's 1,600-line centerpiece and it stays — it's the part that was
-actually valuable.</li>
+<li><p><strong>New Candidate wizard.</strong> The creation gates
+genuinely need guarded UI: LOI date + template required, faculty rank
+required for Faculty types, and the P&amp;T check (a rank that requires
+P&amp;T must pair with a template containing a Requires-P&amp;T
+prerequisite task). A native list form can't enforce cross-list rules;
+the wizard can, and it's one screen.</p></li>
+<li><p><strong>Candidate cockpit.</strong> With no separate list screen,
+the cockpit doubles as browse + detail: it opens on a candidate picker
+(search by name; filter by status/stage/division, defaulting to the
+user's division when AppPermissions sets one), then shows the one screen
+where cross-list context matters: header + status transitions (the
+enforced matrix — e.g. Completed blocked while required tasks remain
+open, with the blockers listed), anchor dates (LOO acceptance triggers
+expansion), tasks-by-stage with inline status/assignee edits, watchers,
+comments, timeline, the candidate's document folders (Phase 1), and the
+HR Notes tab (backed by the server-enforced HR-only HRNotes list). This
+is the old app's 1,600-line centerpiece and it stays — it's the part
+that was actually valuable.</p></li>
+<li><p><strong>My Tasks.</strong> Committed (decided 2026-08-01,
+previously held back for the pilot): a push digest can't answer <em>did
+my completion register, what's left, what arrived since this
+morning</em> — people want live eyes on their own work, and that's pull,
+not push. It's also the cheapest screen in the design by construction:
+the Tasks list is denormalized precisely so this screen reads one list
+with no joins. Digest links land here.</p></li>
+<li><p><strong>Template editor.</strong> Committed (decided 2026-08-02,
+previously the plan's biggest cut): the HR staff are not tech-savvy, and
+template authoring is their one recurring build-like activity — a raw
+Lists view was the wrong ask for exactly the users who'd do it. Same
+spec as parity §7: ordered, phase-tagged stages; per-task due rules,
+assignees, and flags; <strong>in-app readiness validation</strong> with
+failures named inline; clone-from-existing. It is the most expensive
+screen in the design — accepting that cost is the point of the
+decision.</p></li>
 </ol>
-<p><em>(Optional screen 3: My Tasks. Hold it back — the Teams agenda
-card plus a "My open tasks" list view may make it unnecessary. Let the
-pilot decide; adding it later is cheap because the Tasks list is already
-denormalized for exactly that screen.)</em></p>
 <p>All parity-plan construction rules apply unchanged (IfError on every
 write, FirstN delegation guards, blank-safe variables, UI audit).</p>
 <h2 id="3-what-goes-native">3. What goes native</h2>
-<p><strong>Template authoring → Microsoft Lists.</strong> HR edits
-<code>TemplateTasks</code> in a grouped-by-stage list view with column
-validation and choice pills. A <strong>"Validate Template" flow</strong>
-(button/selected-item trigger) runs the readiness rules — every active
-stage has ≥1 task, every Fixed rule has a date, every role slot has a
-role, offsets sane — and either flips the template to Active or posts a
-Teams card listing what's wrong. Rationale: template authoring is
-HR-only and happens a few times a year, yet the drag-drop editor is the
-single most expensive screen in both the old app and the parity plan. A
-grouped list view plus a validating flow gets 90% of the value for ~5%
-of the build.</p>
+<p><strong>Template authoring — stays custom (reversed
+2026-08-02).</strong> This was originally the plan's biggest cut:
+authoring in a grouped Microsoft Lists view with a validation flow.
+Reversed by decision — the HR staff are not tech-savvy, and a raw list
+view was the wrong ask for the one recurring HR activity that most
+resembles building something. The template editor screen joins the lean
+scope (§2, item 4), with readiness validation in-app.</p>
 <p><strong>Reference data → Microsoft Lists.</strong> Departments,
 divisions, ranks, stages: native forms, version history, done.</p>
 <p><strong>Dashboard → Power BI only.</strong> No canvas KPI screen. The
 report (pipeline, throughput, workload, history — same four pages as the
 parity plan) is pinned as a Teams tab and linked from the app; every
 user can open it, since all users carry A5 licenses (Power BI Pro
-included). Operational numbers ("due this week") also arrive in the
-daily digest, below.</p>
+included). Executives get it pushed: <strong>Power BI email
+subscriptions</strong> send a scheduled snapshot of the Pipeline page to
+leadership inboxes — native, zero build, A5-covered. Operational numbers
+("due this week") also arrive in the daily digest, below.</p>
 <p><strong>Task inbox → your inbox (email-first, Teams opt-in).</strong>
 Email is the primary route — everyone has it; Teams usage varies across
 the team. Each user's <code>NotifyChannel</code> (on AppPermissions:
@@ -326,7 +340,11 @@ title, candidate, due date, deep links to the cockpit
 get a Teams card too.</li>
 <li><strong>Daily agenda email</strong> (weekday mornings, one per
 person with open work): overdue first, then due ≤7 days, grouped by
-candidate, with links. The Teams variant is a card — deliberately
+candidate, linking into the <strong>My Tasks screen</strong> (single
+tasks deep-link to the cockpit). It's a <strong>standing agenda</strong>
+— overdue items keep appearing daily until resolved; the
+<code>DueNotified</code> stamp governs only one-time event alerts, never
+the agenda. The Teams variant is a card — deliberately
 <strong>informational, not interactive</strong>: "wait for a response"
 cards hold a flow run open per card and take one response, a poor fit
 for a digest. Links beat embedded buttons.</li>
@@ -346,26 +364,22 @@ per template, in data — no candidate-facing UI at all.</p>
 the P&amp;T reviewer gets an Approval when that stage arrives. Offer
 accepted → HR sets one date in the cockpit; the checklist materializes;
 every assignee gets an assignment email (Teams card if they opted in).
-People work from morning agenda emails; sign-offs are decided from the
-approval email or the Teams Approvals app; the candidate gets their
-document-request email without anyone sending it. HR watches the cockpit
-and the Power BI tab. <strong>Most participants never open the canvas
-app at all</strong> — only HR and managers do, and only for the two
-screens that earn it.</p>
+People work from morning agenda emails into their My Tasks screen;
+sign-offs are decided from the approval email or the Teams Approvals
+app; the candidate gets their document-request email without anyone
+sending it. HR watches the cockpit and the Power BI tab. <strong>Most
+participants never open the canvas app at all</strong> — only HR and
+managers do, and only for the two screens that earn it.</p>
 <h2 id="5-flow-set">5. Flow set</h2>
 <p>F1–F7 carry over exactly as specified in the parity plan — including
 the <code>UpdatedVia</code> sentinel discipline and each flow's
 ChangeLog duties (expansion, anchor recompute, task-change/advancement,
-comments, approvals, deadline scan, archive sweep). Add:</p>
-<ul>
-<li><strong>F8 — <code>OnBoard - Validate Template</code></strong>
-(selected-item trigger on Templates): the readiness check that replaces
-the in-app editor's validation.</li>
-<li>F6 absorbs the <strong>agenda digest</strong> (email; Teams card for
-opt-ins) and candidate-drip sends (it already scans deadlines
-daily).</li>
-</ul>
-<p>Net: one more flow than parity, several fewer screens.</p>
+comments, approvals, deadline scan, archive sweep). F6 absorbs the
+<strong>agenda digest</strong> (email; Teams card for opt-ins) and
+candidate-drip sends, as in parity. The formerly planned F8
+validate-template flow is gone — the in-app editor (§2) carries the
+readiness check, same as parity.</p>
+<p>Net: identical flow set to parity; two fewer screens.</p>
 <h2 id="6-cost-and-trade-offs">6. Cost and trade-offs</h2>
 <table>
 <thead>
@@ -379,39 +393,40 @@ daily).</li>
 <tr>
 <td>Canvas screens</td>
 <td>6 (dashboard, candidates, cockpit, my tasks, templates, admin)</td>
-<td><strong>2</strong> (wizard, cockpit)</td>
+<td><strong>4</strong> (wizard, cockpit, my tasks, template editor)</td>
 </tr>
 <tr>
 <td>Flows</td>
 <td>7</td>
-<td>8</td>
+<td>7 (F8 dropped with the editor decision)</td>
 </tr>
 <tr>
 <td>Native Lists config</td>
 <td>minimal</td>
-<td>grouped views, validation, formatting</td>
+<td>reference data + AppPermissions only</td>
 </tr>
 <tr>
 <td>Power BI</td>
 <td>4 pages</td>
-<td>same 4 pages, now the <em>only</em> dashboard</td>
+<td>same 4 pages, now the <em>only</em> dashboard (+ exec
+subscriptions)</td>
 </tr>
 <tr>
 <td>Build effort</td>
 <td>the canvas app is the long pole (per MOMPOD/IRB experience)</td>
-<td>roughly <strong>halves</strong> the canvas effort</td>
+<td>cuts roughly a <strong>third</strong> of the canvas effort (the
+dashboard, candidates-list, and admin screens)</td>
 </tr>
 </tbody>
 </table>
 <p>Honest trade-offs:</p>
 <ol type="1">
-<li><strong>Native list editing is less guarded than app forms.</strong>
-Column validation + the validate flow + version history mitigate, but a
-determined editor can enter odd template data that only surfaces at
-validation time. (The parity plan's editor prevents it at entry.)</li>
-<li><strong>Two UIs for HR</strong> — Lists for authoring, the app for
-operating. Acceptable for a few-times-a-year activity, but it is a
-context switch and a training note.</li>
+<li><strong>Reference data still lives in the Lists UI</strong> —
+departments, divisions, ranks, stages, AppPermissions. Rare, admin-level
+edits, realistically the maker's job rather than HR's; if even that
+proves awkward, the parity Admin screen is the add. <em>(The bigger
+version of this trade-off — template authoring in Lists — was retired
+2026-08-02 by committing the template editor.)</em></li>
 <li><strong>Less branded polish</strong> for leadership demos — the
 cockpit and the Power BI report carry the demo instead of a full
 app.</li>
@@ -446,18 +461,18 @@ Identical lists, identical flows F1–F7, identical security model
 server-enforced in both), identical caveats checklist (parity plan §16
 applies to the platform, not the screens). The only real question is how
 much custom UI to build, and when.</p>
-<p>Start lean: wizard + cockpit + flows + Power BI + native Lists. Pilot
-with one real hire. Then let observed friction — not speculation —
-justify each additional screen, in the order the parity plan already
-specifies (My Tasks first if assignees ask for it; the template editor
-last, and probably never).</p>
+<p>Start lean: wizard + cockpit + My Tasks + template editor + flows +
+Power BI + native Lists for reference data. Pilot with one real hire.
+The only parity extras left are the Dashboard and Admin screens — add
+either on demand; neither blocks anything.</p>
 <p>That sequencing also front-loads the approval story: the pilot exists
 weeks earlier, and everything a reviewer would scrutinize (identity,
 mail, storage) is native M365 either way.</p>
 <h2 id="9-confidence-assessment-rev-2-review">9. Confidence assessment
 (Rev 2 review)</h2>
-<p><strong>Overall: 8 / 10</strong> — wider variance than the parity
-plan, and higher expected value if the pilot-first premise holds.</p>
+<p><strong>Overall: 8.3 / 10</strong> — the template-editor decision
+removed the plan's biggest unknown and narrowed the gap to parity; what
+remains lean is a smaller, fully known trade.</p>
 <table>
 <thead>
 <tr>
@@ -474,22 +489,23 @@ plan, and higher expected value if the pilot-first premise holds.</p>
 </tr>
 <tr>
 <td>Execution risk</td>
-<td>9/10</td>
-<td>Two screens instead of six removes the parity plan's biggest
-schedule risk (the canvas app is historically the long pole)</td>
+<td>8/10</td>
+<td>Four screens instead of six still trims the schedule, but the
+template editor's return brings back the single most expensive screen —
+the biggest remaining build risk</td>
 </tr>
 <tr>
-<td>Lists-based template authoring</td>
-<td>6.5/10</td>
-<td>Mechanically sound, but HR acceptance of the Lists UI is the one
-genuinely untested UX bet; the validate-flow safety net bounds the
-damage</td>
+<td>Template authoring</td>
+<td>8.5/10</td>
+<td>The untested Lists-UI bet was removed by decision (2026-08-02) — the
+in-app editor is a known quantity; the cost moved into the build</td>
 </tr>
 <tr>
 <td>Email digest / task-inbox adoption</td>
-<td>7.5/10</td>
-<td>Email-primary matches the team's stated habits; digest fatigue is
-the watch item</td>
+<td>8/10</td>
+<td>Email-primary matches the team's stated habits; the committed My
+Tasks screen supplies the pull surface (the digest is just the prompt),
+leaving digest fatigue as the remaining watch item</td>
 </tr>
 <tr>
 <td>Reversibility</td>
@@ -499,11 +515,12 @@ same data, same flows; screens are additive</td>
 </tr>
 </tbody>
 </table>
-<p>The two plans share ~80% of their risk profile because they share the
-backbone. The lean plan trades a <strong>known cost</strong> (six
-screens of canvas work) for one <strong>unknown</strong> (will HR accept
-Lists-based template authoring?) — an unknown the pilot resolves with
-its first real template. Recommendation unchanged: <strong>start lean,
-let the pilot vote.</strong></p>
+<p>The two plans now share ~90% of their risk profile — the backbone was
+always identical, and the template-editor decision removed the last big
+divergence. What's left of "lean" is a smaller, known trade: three fewer
+screens (dashboard, candidates list, admin), each replaced by a native
+surface, each addable later without rework. Recommendation unchanged:
+<strong>start lean, let the pilot vote on the remaining
+three.</strong></p>
 </body>
 </html>

@@ -1,0 +1,358 @@
+{
+ "Brk_HRNotes": {
+  "runAfter": {},
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'6c5aebbc-60f8-413c-b93a-e0d456633ae0')/breakroleinheritance(copyRoleAssignments=false,clearSubscopes=true)",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "GrantAdm_HRNotes": {
+  "runAfter": {
+   "Brk_HRNotes": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'6c5aebbc-60f8-413c-b93a-e0d456633ae0')/roleassignments/addroleassignment(principalid=74,roledefid=1073741830)",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Brk_CandidatesPrivate": {
+  "runAfter": {
+   "GrantAdm_HRNotes": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'e15697a7-a46b-4a6e-b120-c3a8fbcd18bb')/breakroleinheritance(copyRoleAssignments=false,clearSubscopes=true)",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "GrantAdm_CandidatesPrivate": {
+  "runAfter": {
+   "Brk_CandidatesPrivate": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'e15697a7-a46b-4a6e-b120-c3a8fbcd18bb')/roleassignments/addroleassignment(principalid=74,roledefid=1073741830)",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Brk_OnboardingDocumentsRestricted": {
+  "runAfter": {
+   "GrantAdm_CandidatesPrivate": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'afb134d6-8dda-4122-94eb-ed7866d5cb2a')/breakroleinheritance(copyRoleAssignments=false,clearSubscopes=true)",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "GrantAdm_OnboardingDocumentsRestricted": {
+  "runAfter": {
+   "Brk_OnboardingDocumentsRestricted": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'afb134d6-8dda-4122-94eb-ed7866d5cb2a')/roleassignments/addroleassignment(principalid=74,roledefid=1073741830)",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Brk_Tasks": {
+  "runAfter": {
+   "GrantAdm_OnboardingDocumentsRestricted": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/breakroleinheritance(copyRoleAssignments=true,clearSubscopes=true)",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "GrantPA_Tasks": {
+  "runAfter": {
+   "Brk_Tasks": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/roleassignments/addroleassignment(principalid=75,roledefid=1073741830)",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Brk_Comments": {
+  "runAfter": {
+   "GrantPA_Tasks": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'cd080771-ae0c-4b33-97b4-99c247f48ad9')/breakroleinheritance(copyRoleAssignments=true,clearSubscopes=true)",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "GrantPA_Comments": {
+  "runAfter": {
+   "Brk_Comments": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'cd080771-ae0c-4b33-97b4-99c247f48ad9')/roleassignments/addroleassignment(principalid=75,roledefid=1073741830)",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Chk_HRNotes": {
+  "runAfter": {
+   "GrantPA_Comments": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "GET",
+    "parameters/uri": "_api/web/lists(guid'6c5aebbc-60f8-413c-b93a-e0d456633ae0')/roleassignments?$expand=Member,RoleDefinitionBindings&$select=Member/Title,Member/PrincipalType,RoleDefinitionBindings/Name",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Chk_CandidatesPrivate": {
+  "runAfter": {
+   "Chk_HRNotes": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "GET",
+    "parameters/uri": "_api/web/lists(guid'e15697a7-a46b-4a6e-b120-c3a8fbcd18bb')/roleassignments?$expand=Member,RoleDefinitionBindings&$select=Member/Title,Member/PrincipalType,RoleDefinitionBindings/Name",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Chk_OnboardingDocumentsRestricted": {
+  "runAfter": {
+   "Chk_CandidatesPrivate": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "GET",
+    "parameters/uri": "_api/web/lists(guid'afb134d6-8dda-4122-94eb-ed7866d5cb2a')/roleassignments?$expand=Member,RoleDefinitionBindings&$select=Member/Title,Member/PrincipalType,RoleDefinitionBindings/Name",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Chk_Tasks": {
+  "runAfter": {
+   "Chk_OnboardingDocumentsRestricted": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "GET",
+    "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/roleassignments?$expand=Member,RoleDefinitionBindings&$select=Member/Title,Member/PrincipalType,RoleDefinitionBindings/Name",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "Chk_Comments": {
+  "runAfter": {
+   "Chk_Tasks": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "GET",
+    "parameters/uri": "_api/web/lists(guid'cd080771-ae0c-4b33-97b4-99c247f48ad9')/roleassignments?$expand=Member,RoleDefinitionBindings&$select=Member/Title,Member/PrincipalType,RoleDefinitionBindings/Name",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ }
+}

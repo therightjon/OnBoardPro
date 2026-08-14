@@ -1,0 +1,404 @@
+{
+ "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+ "contentVersion": "1.0.0.0",
+ "parameters": {
+  "$connections": {
+   "defaultValue": {},
+   "type": "Object"
+  },
+  "$authentication": {
+   "defaultValue": {},
+   "type": "SecureObject"
+  }
+ },
+ "triggers": {
+  "Recurrence": {
+   "type": "Recurrence",
+   "recurrence": {
+    "frequency": "Week",
+    "interval": 1,
+    "timeZone": "Central Standard Time",
+    "schedule": {
+     "weekDays": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday"
+     ],
+     "hours": [
+      7
+     ],
+     "minutes": [
+      0
+     ]
+    }
+   }
+  }
+ },
+ "actions": {
+  "Today": {
+   "runAfter": {},
+   "type": "Compose",
+   "inputs": "@utcNow('yyyy-MM-dd')"
+  },
+  "Cutoff": {
+   "runAfter": {
+    "Today": [
+     "Succeeded"
+    ]
+   },
+   "type": "Compose",
+   "inputs": "@formatDateTime(addDays(utcNow(),7),'yyyy-MM-dd')"
+  },
+  "Get_Open": {
+   "runAfter": {
+    "Cutoff": [
+     "Succeeded"
+    ]
+   },
+   "type": "OpenApiConnection",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "HttpRequest"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "parameters/method": "GET",
+     "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items?$select=Id,Title,CandidateId,CandName,DueDate,DueNotified,AssigneeRole,Assignee/EMail&$expand=Assignee&$filter=TStatus ne 'Done' and TStatus ne 'Canceled'&$top=500",
+     "parameters/headers": {
+      "Accept": "application/json;odata=nometadata",
+      "Content-Type": "application/json;odata=nometadata"
+     }
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  },
+  "Get_Cands": {
+   "runAfter": {
+    "Get_Open": [
+     "Succeeded"
+    ]
+   },
+   "type": "OpenApiConnection",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "HttpRequest"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "parameters/method": "GET",
+     "parameters/uri": "_api/web/lists(guid'ce3de9a9-702d-4707-9f30-a011b3d78264')/items?$select=Id,Title,Email,CStatus&$top=200",
+     "parameters/headers": {
+      "Accept": "application/json;odata=nometadata",
+      "Content-Type": "application/json;odata=nometadata"
+     }
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  },
+  "Win": {
+   "runAfter": {
+    "Get_Cands": [
+     "Succeeded"
+    ]
+   },
+   "type": "Query",
+   "inputs": {
+    "from": "@body('Get_Open')?['value']",
+    "where": "@and(not(empty(coalesce(item()?['DueDate'],''))), lessOrEquals(substring(coalesce(item()?['DueDate'],''),0,10), outputs('Cutoff')))"
+   }
+  },
+  "A_Mails": {
+   "runAfter": {
+    "Win": [
+     "Succeeded"
+    ]
+   },
+   "type": "Select",
+   "inputs": {
+    "from": "@body('Win')",
+    "select": "@coalesce(item()?['Assignee']?['EMail'],'')"
+   }
+  },
+  "People": {
+   "runAfter": {
+    "A_Mails": [
+     "Succeeded"
+    ]
+   },
+   "type": "Query",
+   "inputs": {
+    "from": "@union(body('A_Mails'), body('A_Mails'))",
+    "where": "@not(equals(item(),''))"
+   }
+  },
+  "Each_Person": {
+   "runAfter": {
+    "People": [
+     "Succeeded"
+    ]
+   },
+   "type": "Foreach",
+   "foreach": "@body('People')",
+   "runtimeConfiguration": {
+    "concurrency": {
+     "repetitions": 4
+    }
+   },
+   "actions": {
+    "Mine": {
+     "runAfter": {},
+     "type": "Query",
+     "inputs": {
+      "from": "@body('Win')",
+      "where": "@equals(coalesce(item()?['Assignee']?['EMail'],''), items('Each_Person'))"
+     }
+    },
+    "Late": {
+     "runAfter": {
+      "Mine": [
+       "Succeeded"
+      ]
+     },
+     "type": "Query",
+     "inputs": {
+      "from": "@body('Mine')",
+      "where": "@less(substring(coalesce(item()?['DueDate'],''),0,10), outputs('Today'))"
+     }
+    },
+    "Soon": {
+     "runAfter": {
+      "Late": [
+       "Succeeded"
+      ]
+     },
+     "type": "Query",
+     "inputs": {
+      "from": "@body('Mine')",
+      "where": "@greaterOrEquals(substring(coalesce(item()?['DueDate'],''),0,10), outputs('Today'))"
+     }
+    },
+    "LateRows": {
+     "runAfter": {
+      "Soon": [
+       "Succeeded"
+      ]
+     },
+     "type": "Select",
+     "inputs": {
+      "from": "@body('Late')",
+      "select": "@concat('<tr><td>', item()?['Title'], '</td><td>', coalesce(item()?['CandName'],''), '</td><td>', substring(coalesce(item()?['DueDate'],''),0,10), '</td></tr>')"
+     }
+    },
+    "SoonRows": {
+     "runAfter": {
+      "LateRows": [
+       "Succeeded"
+      ]
+     },
+     "type": "Select",
+     "inputs": {
+      "from": "@body('Soon')",
+      "select": "@concat('<tr><td>', item()?['Title'], '</td><td>', coalesce(item()?['CandName'],''), '</td><td>', substring(coalesce(item()?['DueDate'],''),0,10), '</td></tr>')"
+     }
+    },
+    "Mail_Digest": {
+     "runAfter": {
+      "SoonRows": [
+       "Succeeded"
+      ]
+     },
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+       "connectionName": "shared_office365",
+       "operationId": "SendEmailV2"
+      },
+      "parameters": {
+       "emailMessage/To": "@items('Each_Person')",
+       "emailMessage/Subject": "@concat('[OnBoardPro] Your onboarding tasks: ', string(length(body('Late'))), ' overdue, ', string(length(body('Soon'))), ' due this week')",
+       "emailMessage/Body": "@concat(if(greater(length(body('Late')),0), concat('<p><b>Overdue</b></p><table border=1 cellpadding=4 cellspacing=0><tr><th>Task</th><th>Candidate</th><th>Due</th></tr>', join(body('LateRows'),''), '</table>'), ''), if(greater(length(body('Soon')),0), concat('<p><b>Due in the next 7 days</b></p><table border=1 cellpadding=4 cellspacing=0><tr><th>Task</th><th>Candidate</th><th>Due</th></tr>', join(body('SoonRows'),''), '</table>'), ''), '<p>This is your daily agenda; items repeat until resolved.</p>')",
+       "emailMessage/Importance": "Normal"
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    }
+   }
+  },
+  "Touch": {
+   "runAfter": {
+    "Each_Person": [
+     "Succeeded"
+    ]
+   },
+   "type": "Query",
+   "inputs": {
+    "from": "@body('Win')",
+    "where": "@and(equals(coalesce(item()?['AssigneeRole'],''),'Candidate'), not(equals(substring(coalesce(item()?['DueDate'],''),0,10), substring(coalesce(item()?['DueNotified'],'x'),0,10))))"
+   }
+  },
+  "Each_Touch": {
+   "runAfter": {
+    "Touch": [
+     "Succeeded"
+    ]
+   },
+   "type": "Foreach",
+   "foreach": "@body('Touch')",
+   "runtimeConfiguration": {
+    "concurrency": {
+     "repetitions": 1
+    }
+   },
+   "actions": {
+    "CandRow": {
+     "runAfter": {},
+     "type": "Query",
+     "inputs": {
+      "from": "@body('Get_Cands')?['value']",
+      "where": "@equals(item()?['Id'], items('Each_Touch')?['CandidateId'])"
+     }
+    },
+    "If_Mail": {
+     "runAfter": {
+      "CandRow": [
+       "Succeeded"
+      ]
+     },
+     "type": "If",
+     "expression": {
+      "and": [
+       {
+        "not": {
+         "equals": [
+          "@coalesce(first(body('CandRow'))?['Email'],'')",
+          ""
+         ]
+        }
+       }
+      ]
+     },
+     "actions": {
+      "Mail_Touch": {
+       "runAfter": {},
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+         "connectionName": "shared_office365",
+         "operationId": "SendEmailV2"
+        },
+        "parameters": {
+         "emailMessage/To": "@first(body('CandRow'))?['Email']",
+         "emailMessage/Subject": "@concat('A reminder from UAB OBGYN onboarding: ', items('Each_Touch')?['Title'])",
+         "emailMessage/Body": "@concat('<p>Hello ', first(body('CandRow'))?['Title'], ',</p><p>A quick reminder about: <b>', items('Each_Touch')?['Title'], '</b> (due ', substring(coalesce(items('Each_Touch')?['DueDate'],''),0,10), ').</p><p>\u2014 UAB Department of Obstetrics and Gynecology</p>')",
+         "emailMessage/Importance": "Normal"
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      },
+      "Stamp_Touch": {
+       "runAfter": {
+        "Mail_Touch": [
+         "Succeeded"
+        ]
+       },
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "POST",
+         "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items(@{items('Each_Touch')?['Id']})",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata",
+          "X-HTTP-Method": "MERGE",
+          "IF-MATCH": "*"
+         },
+         "parameters/body": "@concat('{\"DueNotified\":\"', substring(coalesce(items('Each_Touch')?['DueDate'],''),0,10), '\",\"UpdatedVia\":\"Flow\"}')"
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      }
+     },
+     "else": {
+      "actions": {}
+     }
+    }
+   }
+  },
+  "ActiveC": {
+   "runAfter": {
+    "Each_Touch": [
+     "Succeeded"
+    ]
+   },
+   "type": "Query",
+   "inputs": {
+    "from": "@body('Get_Cands')?['value']",
+    "where": "@equals(coalesce(item()?['CStatus'],''),'Active')"
+   }
+  },
+  "DoneC": {
+   "runAfter": {
+    "ActiveC": [
+     "Succeeded"
+    ]
+   },
+   "type": "Query",
+   "inputs": {
+    "from": "@body('Get_Cands')?['value']",
+    "where": "@equals(coalesce(item()?['CStatus'],''),'Completed')"
+   }
+  },
+  "LateAll": {
+   "runAfter": {
+    "DoneC": [
+     "Succeeded"
+    ]
+   },
+   "type": "Query",
+   "inputs": {
+    "from": "@body('Win')",
+    "where": "@less(substring(coalesce(item()?['DueDate'],''),0,10), outputs('Today'))"
+   }
+  },
+  "Snap": {
+   "runAfter": {
+    "LateAll": [
+     "Succeeded"
+    ]
+   },
+   "type": "OpenApiConnection",
+   "inputs": {
+    "host": {
+     "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+     "connectionName": "shared_sharepointonline",
+     "operationId": "HttpRequest"
+    },
+    "parameters": {
+     "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+     "parameters/method": "POST",
+     "parameters/uri": "_api/web/lists(guid'f6506f5e-a3bb-4c2f-a9d1-9102c82609e4')/items",
+     "parameters/headers": {
+      "Accept": "application/json;odata=nometadata",
+      "Content-Type": "application/json;odata=nometadata"
+     },
+     "parameters/body": "@concat('{\"SnapDate\":\"', outputs('Today'), '\",\"ActiveCount\":', string(length(body('ActiveC'))), ',\"DueCount\":', string(sub(length(body('Win')), length(body('LateAll')))), ',\"OverdueCount\":', string(length(body('LateAll'))), ',\"CompletionRate\":', string(if(equals(length(body('Get_Cands')?['value']),0), 0, div(mul(100, length(body('DoneC'))), length(body('Get_Cands')?['value'])))), '}')"
+    },
+    "authentication": "@parameters('$authentication')"
+   }
+  }
+ }
+}

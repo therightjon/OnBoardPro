@@ -1,0 +1,26 @@
+{
+ "BadCancel": {
+  "runAfter": {},
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items(51)",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=nometadata",
+     "X-HTTP-Method": "MERGE",
+     "IF-MATCH": "*"
+    },
+    "parameters/body": "{\"TStatus\": \"Canceled\", \"UpdatedVia\": \"App\"}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ }
+}
