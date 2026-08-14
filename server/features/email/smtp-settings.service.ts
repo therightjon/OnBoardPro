@@ -96,6 +96,25 @@ type CachedTransport = {
 
 let cachedTransport: CachedTransport | undefined;
 
+function rejectSmtpControlChars(value: string, label: string): string {
+  if (/[\r\n]/.test(value)) {
+    throw new Error(`${label} contains invalid control characters`);
+  }
+  return value;
+}
+
+export function buildMailboxAddress(address: string, name?: string | null): string | { address: string; name: string } {
+  const normalizedAddress = rejectSmtpControlChars(address.trim(), "Email address");
+  if (!normalizedAddress) {
+    throw new Error("Email address is required");
+  }
+
+  const normalizedName = name ? rejectSmtpControlChars(name.trim(), "Display name") : "";
+  return normalizedName
+    ? { address: normalizedAddress, name: normalizedName }
+    : normalizedAddress;
+}
+
 function parseBooleanEnv(value: string | undefined, defaultValue = false): boolean {
   if (value === undefined) return defaultValue;
   const normalized = value.trim().toLowerCase();
@@ -557,7 +576,7 @@ export function mapNodemailerError(error: any): { code: string; message: string 
     return { code: "connect_timeout", message: "Unable to connect to SMTP server" };
   }
 
-  if (code === "EAUTH") {
+  if (code === "EAUTH" || code === "ENOAUTH" || code === "NoAuth") {
     return { code: "auth_failure", message: "SMTP authentication failed" };
   }
 
@@ -581,12 +600,13 @@ export async function sendTestEmail(
   try {
     const { transport, settings } = await getOrCreateTransport();
     const displayName = settings.fromName ?? "OnBoardPro";
+    const fromAddress = settings.fromEmail ?? settings.username ?? undefined;
 
     await transport.verify();
 
     await transport.sendMail({
-      from: settings.fromEmail ? `${displayName} <${settings.fromEmail}>` : settings.username ?? settings.fromEmail ?? undefined,
-      to: recipientName ? `"${recipientName}" <${recipientEmail}>` : recipientEmail,
+      from: fromAddress ? buildMailboxAddress(fromAddress, settings.fromEmail ? displayName : undefined) : undefined,
+      to: buildMailboxAddress(recipientEmail, recipientName),
       subject: customSubject ?? "[OnBoardPro] SMTP Test Email",
       text: customHtml ? customHtml.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim() : "SMTP configuration is working correctly.",
       html: customHtml ?? `<p>SMTP configuration is working correctly.</p>`,

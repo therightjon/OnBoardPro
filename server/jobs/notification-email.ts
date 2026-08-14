@@ -20,7 +20,7 @@ import {
   rescheduleDigest
 } from "../features/email/outbox.service";
 import type { DigestCapableFrequency } from "../features/email/outbox.service";
-import { getOrCreateTransport } from "../features/email/smtp-settings.service";
+import { buildMailboxAddress, getOrCreateTransport } from "../features/email/smtp-settings.service";
 import type { MaterializedSmtpSettings } from "../features/email/smtp-settings.service";
 import { renderImmediateEmail, renderDigestEmail, summarizeNotification } from "../features/email/templates";
 import { evaluateRateLimit, incrementRateLimit } from "../services/rate-limit.service";
@@ -327,8 +327,8 @@ async function processImmediateBatch(entries: NotificationOutboxEntry[]) {
       }
 
       await transport.sendMail({
-        from: settings.fromName ? `${settings.fromName} <${fromEmail}>` : fromEmail,
-        to: user.name ? `${user.name} <${user.email}>` : user.email,
+        from: buildMailboxAddress(fromEmail, settings.fromName),
+        to: buildMailboxAddress(user.email, user.name),
         subject: content.subject,
         text: content.text,
         html: content.html,
@@ -509,8 +509,8 @@ async function processDigest(frequency: DigestCapableFrequency) {
       }
 
       await transport.sendMail({
-        from: settings.fromName ? `${settings.fromName} <${fromEmail}>` : fromEmail,
-        to: user.email,
+        from: buildMailboxAddress(fromEmail, settings.fromName),
+        to: buildMailboxAddress(user.email),
         subject: content.subject,
         text: content.text,
         html: content.html,
