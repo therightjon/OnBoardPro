@@ -137,7 +137,7 @@
     "tsx": "^4.19.1",
     "typescript": "5.6.3",
     "vite": "^7.3.2",
-    "vitest": "^4.0.10"
+    "vitest": "^4.1.0"
   },
   "overrides": {
     "@esbuild-kit/core-utils": {
