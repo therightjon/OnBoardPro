@@ -81,6 +81,7 @@
     "drizzle-zod": "^0.7.1",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
+    "flatted": "^3.4.2",
     "framer-motion": "^11.13.1",
     "helmet": "^8.1.0",
     "ldapjs": "^3.0.7",
