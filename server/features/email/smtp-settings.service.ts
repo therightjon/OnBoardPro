@@ -1,3 +1,4 @@
+import sanitizeHtml from "sanitize-html";
 import { eq } from "drizzle-orm";
 import nodemailer, { type Transporter } from "nodemailer";
 import SMTPTransport from "nodemailer/lib/smtp-transport";
@@ -608,7 +609,7 @@ export async function sendTestEmail(
       from: fromAddress ? buildMailboxAddress(fromAddress, settings.fromEmail ? displayName : undefined) : undefined,
       to: buildMailboxAddress(recipientEmail, recipientName),
       subject: customSubject ?? "[OnBoardPro] SMTP Test Email",
-      text: customHtml ? customHtml.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim() : "SMTP configuration is working correctly.",
+      text: customHtml ? sanitizeHtml(customHtml, { allowedTags: [], allowedAttributes: {} }).replace(/\s+/g, " ").trim() : "SMTP configuration is working correctly.",
       html: customHtml ?? `<p>SMTP configuration is working correctly.</p>`,
     });
 
