@@ -363,7 +363,7 @@ export class EmailTemplateService {
     const html = wrapEmailHtml(bodyHtml, layout);
 
     // Generate plain text by stripping HTML tags
-    const text = bodyHtml.replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
+    const text = sanitizeHtml(bodyHtml, { allowedTags: [], allowedAttributes: {} }).replace(/\s+/g, " ").trim();
 
     return { subject, text, html };
   }
