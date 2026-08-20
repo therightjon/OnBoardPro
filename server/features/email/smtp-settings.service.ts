@@ -608,7 +608,7 @@ export async function sendTestEmail(
       from: fromAddress ? buildMailboxAddress(fromAddress, settings.fromEmail ? displayName : undefined) : undefined,
       to: buildMailboxAddress(recipientEmail, recipientName),
       subject: customSubject ?? "[OnBoardPro] SMTP Test Email",
-      text: customHtml ? customHtml.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim() : "SMTP configuration is working correctly.",
+      text: customHtml ? customHtml.replace(/[<>]/g, "").replace(/\s+/g, " ").trim() : "SMTP configuration is working correctly.",
       html: customHtml ?? `<p>SMTP configuration is working correctly.</p>`,
     });
 
