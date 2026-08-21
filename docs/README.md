@@ -1,15 +1,18 @@
 # Documentation Index
 
-Last Updated: 2026-02-18
+Last Updated: 2026-03-20
 
 This folder contains both actively maintained docs and historical snapshots.
 
 ## Actively Maintained
 
 - `ARCHITECTURE.md` - System architecture and runtime design
+- `AUTHORIZATION_VISIBILITY_FIX_PLAN.md` - Implementation plan for current authorization and visibility fixes
 - `BOUNDED_CONTEXTS.md` - Current domain boundary map
 - `DOMAIN_GLOSSARY.md` - Shared terminology
 - `MIGRATIONS.md` - Migration workflow and scripts
+- `RLS_IMPLEMENTATION_PLAN.md` - PostgreSQL row-level security rollout plan and tradeoffs
+- `SECURITY_PRIORITIES_CHECKLIST.md` - Practical security baseline and hardening priorities for the current app
 - `TEMPLATE_SYSTEM.md` - Template lifecycle and expansion behavior
 - `template-prerequisites-implementation.md` - Prerequisite task implementation
 - `email-system.md` - Notification email + SMTP/outbox flow
