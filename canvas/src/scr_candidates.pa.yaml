@@ -80,14 +80,17 @@ Screens:
                   - icoNavNewCand_Candidates:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="New Candidate"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.Add
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_new_candidate)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavNewCand_Candidates:
                       Control: Label
@@ -95,6 +98,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_new_candidate, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -105,6 +110,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="New Candidate"
                         Visible: =scr_candidates.Size <> ScreenSize.Small
                         Wrap: =false
@@ -136,14 +142,17 @@ Screens:
                   - icoNavCandidates_Candidates:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="Candidates"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_candidates, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.People
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_candidates)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavCandidates_Candidates:
                       Control: Label
@@ -151,6 +160,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_candidates, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_candidates, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -161,6 +172,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="Candidates"
                         Visible: =scr_candidates.Size <> ScreenSize.Small
                         Wrap: =false
@@ -191,14 +203,17 @@ Screens:
                   - icoNavMyTasks_Candidates:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="My Tasks"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.Check
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_mytasks)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavMyTasks_Candidates:
                       Control: Label
@@ -206,6 +221,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_mytasks, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -216,6 +233,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="My Tasks"
                         Visible: =scr_candidates.Size <> ScreenSize.Small
                         Wrap: =false
@@ -247,14 +265,17 @@ Screens:
                   - icoNavTemplates_Candidates:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="Templates"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_templates, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.DocumentWithContent
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_templates)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavTemplates_Candidates:
                       Control: Label
@@ -262,6 +283,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_templates, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_templates, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -272,6 +295,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="Templates"
                         Visible: =scr_candidates.Size <> ScreenSize.Small
                         Wrap: =false
@@ -303,14 +327,17 @@ Screens:
                   - icoNavTaskLib_Candidates:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="Task Library"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.Notebook
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_tasklibrary)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavTaskLib_Candidates:
                       Control: Label
@@ -318,6 +345,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_tasklibrary, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -328,6 +357,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="Task Library"
                         Visible: =scr_candidates.Size <> ScreenSize.Small
                         Wrap: =false
@@ -424,6 +454,7 @@ Screens:
                               - txtCKSearch:
                                   Control: ModernTextInput
                                   Properties:
+                                    AccessibleLabel: ="Search candidates by name or email"
                                     Height: =36
                                     LayoutMinHeight: =36
                                     LayoutMinWidth: =0
@@ -442,6 +473,7 @@ Screens:
                               - cmbCKStatus:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Status filter"
                                     DefaultSelectedItems: |-
                                       =Table({Value: "Active"})
                                     Height: =36
@@ -463,6 +495,7 @@ Screens:
                               - cmbCKDivision:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Division filter"
                                     DefaultSelectedItems: =Filter(Divisions, ID = MyDivisionId)
                                     Height: =36
                                     ItemDisplayText: =ThisItem.Title
@@ -484,6 +517,7 @@ Screens:
                             Control: Gallery
                             Variant: Vertical
                             Properties:
+                              AccessibleLabel: ="Candidate list"
                               Fill: =UAB.White
                               Items: |-
                                 =SortByColumns(
@@ -503,6 +537,7 @@ Screens:
                                 Set(varDtClearLOOIss, false);
                                 Set(varDtClearLOOAcc, false);
                                 Set(varDtClearStart, false)
+                              TabIndex: =0
                               TemplatePadding: =0
                               TemplateSize: =56
                             Children:
@@ -550,6 +585,8 @@ Screens:
                                                     Control: Label
                                                     Properties:
                                                       Color: =UAB.TextPrimary
+                                                      FocusedBorderColor: =UAB.Gold
+                                                      FocusedBorderThickness: =2
                                                       Font: =Font.Arial
                                                       FontWeight: =FontWeight.Semibold
                                                       Height: =25
@@ -566,12 +603,15 @@ Screens:
                                                       PaddingRight: =0
                                                       PaddingTop: =0
                                                       Size: =UABSize.Body
+                                                      TabIndex: =0
                                                       Text: =Coalesce(ThisItem.Title, "(unnamed)")
                                                       Wrap: =false
                                                 - lblCKPickSub:
                                                     Control: Label
                                                     Properties:
                                                       Color: =UAB.Gray500
+                                                      FocusedBorderColor: =UAB.Gold
+                                                      FocusedBorderThickness: =2
                                                       Font: =Font.Arial
                                                       Height: =22
                                                       LayoutMinHeight: =0
@@ -587,12 +627,15 @@ Screens:
                                                       PaddingRight: =0
                                                       PaddingTop: =0
                                                       Size: =UABSize.Secondary
+                                                      TabIndex: =0
                                                       Text: =Coalesce(ThisItem.CurrentStage.Value, "No stage") & "  ·  " & Coalesce(ThisItem.CStatus.Value, "")
                                                       Wrap: =false
                                           - icoCKPickGo:
                                               Control: Classic/Icon
                                               Properties:
+                                                AccessibleLabel: ="Open this candidate"
                                                 Color: =UAB.Gray300
+                                                FocusedBorderColor: =UAB.Gold
                                                 Height: =20
                                                 Icon: =Icon.ChevronRight
                                                 LayoutMinHeight: =0
@@ -603,6 +646,7 @@ Screens:
                                                   Set(varDtClearLOOIss, false);
                                                   Set(varDtClearLOOAcc, false);
                                                   Set(varDtClearStart, false)
+                                                TabIndex: =0
                                                 Width: =20
                                     - conCKPickRowDivider:
                                         Control: GroupContainer
@@ -1137,7 +1181,9 @@ Screens:
                                                 - icoDtClearLOI:
                                                     Control: Classic/Icon
                                                     Properties:
+                                                      AccessibleLabel: ="Clear the Letter of Intent date"
                                                       Color: =UAB.Gray500
+                                                      FocusedBorderColor: =UAB.Gold
                                                       Height: =20
                                                       Icon: =Icon.Cancel
                                                       LayoutMinHeight: =0
@@ -1145,11 +1191,13 @@ Screens:
                                                       OnSelect: |-
                                                         =Set(varDtClearLOI, true);
                                                         Reset(dpDtLOI)
+                                                      TabIndex: =0
                                                       Tooltip: ="Clear this date"
                                                       Width: =20
                                           - dpDtLOI:
                                               Control: ModernDatePicker
                                               Properties:
+                                                AccessibleLabel: ="Letter of Intent date"
                                                 DefaultDate: =If(Coalesce(varDtClearLOI, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOIDate)
                                                 Format: =DatePickerFormat.Short
                                                 Height: =40
@@ -1198,7 +1246,9 @@ Screens:
                                                 - icoDtClearLOOIss:
                                                     Control: Classic/Icon
                                                     Properties:
+                                                      AccessibleLabel: ="Clear the LOO Issued date"
                                                       Color: =UAB.Gray500
+                                                      FocusedBorderColor: =UAB.Gold
                                                       Height: =20
                                                       Icon: =Icon.Cancel
                                                       LayoutMinHeight: =0
@@ -1206,11 +1256,13 @@ Screens:
                                                       OnSelect: |-
                                                         =Set(varDtClearLOOIss, true);
                                                         Reset(dpDtLOOIss)
+                                                      TabIndex: =0
                                                       Tooltip: ="Clear this date"
                                                       Width: =20
                                           - dpDtLOOIss:
                                               Control: ModernDatePicker
                                               Properties:
+                                                AccessibleLabel: ="LOO Issued date"
                                                 DefaultDate: =If(Coalesce(varDtClearLOOIss, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOIssued)
                                                 Format: =DatePickerFormat.Short
                                                 Height: =40
@@ -1259,7 +1311,9 @@ Screens:
                                                 - icoDtClearLOOAcc:
                                                     Control: Classic/Icon
                                                     Properties:
+                                                      AccessibleLabel: ="Clear the LOO Accepted date"
                                                       Color: =UAB.Gray500
+                                                      FocusedBorderColor: =UAB.Gold
                                                       Height: =20
                                                       Icon: =Icon.Cancel
                                                       LayoutMinHeight: =0
@@ -1267,11 +1321,13 @@ Screens:
                                                       OnSelect: |-
                                                         =Set(varDtClearLOOAcc, true);
                                                         Reset(dpDtLOOAcc)
+                                                      TabIndex: =0
                                                       Tooltip: ="Clear this date"
                                                       Width: =20
                                           - dpDtLOOAcc:
                                               Control: ModernDatePicker
                                               Properties:
+                                                AccessibleLabel: ="LOO Accepted date"
                                                 DefaultDate: =If(Coalesce(varDtClearLOOAcc, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted)
                                                 Format: =DatePickerFormat.Short
                                                 Height: =40
@@ -1320,7 +1376,9 @@ Screens:
                                                 - icoDtClearStart:
                                                     Control: Classic/Icon
                                                     Properties:
+                                                      AccessibleLabel: ="Clear the Start Date"
                                                       Color: =UAB.Gray500
+                                                      FocusedBorderColor: =UAB.Gold
                                                       Height: =20
                                                       Icon: =Icon.Cancel
                                                       LayoutMinHeight: =0
@@ -1328,11 +1386,13 @@ Screens:
                                                       OnSelect: |-
                                                         =Set(varDtClearStart, true);
                                                         Reset(dpDtStart)
+                                                      TabIndex: =0
                                                       Tooltip: ="Clear this date"
                                                       Width: =20
                                           - dpDtStart:
                                               Control: ModernDatePicker
                                               Properties:
+                                                AccessibleLabel: ="Start Date"
                                                 DefaultDate: =If(Coalesce(varDtClearStart, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).StartDate)
                                                 Format: =DatePickerFormat.Short
                                                 Height: =40
@@ -1367,6 +1427,7 @@ Screens:
                                     - cmbDtTemplate:
                                         Control: ModernCombobox
                                         Properties:
+                                          AccessibleLabel: ="Template"
                                           DefaultSelectedItems: =Filter(Templates, ID = Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Template.Id, 0))
                                           Height: =40
                                           ItemDisplayText: =ThisItem.Title
@@ -1397,6 +1458,7 @@ Screens:
                                     - btnDtSave:
                                         Control: ModernButton
                                         Properties:
+                                          AccessibleLabel: ="Save Dates for this candidate"
                                           Align: =Align.Center
                                           BasePaletteColor: =UAB.Green
                                           DisplayMode: |-
@@ -1438,6 +1500,7 @@ Screens:
                                     - btnDtPreview:
                                         Control: ModernButton
                                         Properties:
+                                          AccessibleLabel: ="Preview Due Dates for this candidate"
                                           Align: =Align.Center
                                           Appearance: =ButtonAppearance.Secondary
                                           BasePaletteColor: =UAB.Green
@@ -1629,6 +1692,7 @@ Screens:
                                     - btnTkAdd:
                                         Control: ModernButton
                                         Properties:
+                                          AccessibleLabel: ="Add Task to this candidate's checklist"
                                           Align: =Align.Center
                                           Appearance: =ButtonAppearance.Secondary
                                           BasePaletteColor: =UAB.Green
@@ -1690,6 +1754,7 @@ Screens:
                                     - cmbTkStageFilter:
                                         Control: ModernCombobox
                                         Properties:
+                                          AccessibleLabel: ="Filter checklist by stage"
                                           FillPortions: =1
                                           Height: =40
                                           ItemDisplayText: =ThisItem.Title
@@ -1854,6 +1919,7 @@ Screens:
                                   Control: Gallery
                                   Variant: Vertical
                                   Properties:
+                                    AccessibleLabel: ="Checklist tasks"
                                     Fill: =UAB.White
                                     Items: |-
                                       =With({t: Filter(FirstN(Tasks, 500),
@@ -1872,6 +1938,7 @@ Screens:
                                                       "DueDate", SortOrder.Ascending))))
                                     LayoutMinHeight: =0
                                     LayoutMinWidth: =0
+                                    TabIndex: =0
                                     TemplatePadding: =0
                                     TemplateSize: =If(scr_candidates.Size = ScreenSize.Small, 72, 56)
                                   Children:
@@ -2067,8 +2134,10 @@ Screens:
                                                       - icoTkDone:
                                                           Control: Classic/Icon
                                                           Properties:
+                                                            AccessibleLabel: ="Mark this task done"
                                                             Color: =If(Coalesce(ThisItem.TStatus.Value, "To Do") = "Done" || Coalesce(ThisItem.TStatus.Value, "") = "Canceled", UAB.Gray300, UAB.Green)
                                                             DisplayMode: =If(Coalesce(ThisItem.TStatus.Value, "To Do") = "Done" || Coalesce(ThisItem.TStatus.Value, "") = "Canceled", DisplayMode.Disabled, DisplayMode.Edit)
+                                                            FocusedBorderColor: =UAB.Gold
                                                             Height: =28
                                                             Icon: =Icon.Check
                                                             LayoutMinHeight: =0
@@ -2080,6 +2149,7 @@ Screens:
                                                                   Notify("Couldn't update the task - " & FirstError.Message
                                                                       & " Nothing was changed. Try again.", NotificationType.Error),
                                                                   Notify("Task marked done.", NotificationType.Success))
+                                                            TabIndex: =0
                                                             Tooltip: ="Mark this task done"
                                                             Width: =28
                                           - conTkRowDivider:
@@ -2189,6 +2259,7 @@ Screens:
                                     - txtCmBody:
                                         Control: ModernTextInput
                                         Properties:
+                                          AccessibleLabel: ="Add a comment for the team"
                                           Height: =76
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
@@ -2220,6 +2291,7 @@ Screens:
                                           - cmbCmNotify:
                                               Control: ModernCombobox
                                               Properties:
+                                                AccessibleLabel: ="Notify people about this comment"
                                                 FillPortions: =1
                                                 Height: =36
                                                 InputTextPlaceholder: ="Notify people…"
@@ -2234,6 +2306,7 @@ Screens:
                                           - btnCmPost:
                                               Control: ModernButton
                                               Properties:
+                                                AccessibleLabel: ="Post Comment on this candidate"
                                                 Align: =Align.Center
                                                 BasePaletteColor: =UAB.Green
                                                 DisplayMode: =If(And(Coalesce(varSelCandId, 0) > 0, !IsBlank(Trim(txtCmBody.Text))), DisplayMode.Edit, DisplayMode.Disabled)
@@ -2284,6 +2357,7 @@ Screens:
                                   Control: Gallery
                                   Variant: Vertical
                                   Properties:
+                                    AccessibleLabel: ="Comments"
                                     Fill: =UAB.White
                                     Items: |-
                                       =SortByColumns(
@@ -2291,6 +2365,7 @@ Screens:
                                           "Created", SortOrder.Descending)
                                     LayoutMinHeight: =0
                                     LayoutMinWidth: =0
+                                    TabIndex: =0
                                     TemplatePadding: =0
                                     TemplateSize: =88
                                   Children:
@@ -2440,6 +2515,7 @@ Screens:
                                   Control: Gallery
                                   Variant: Vertical
                                   Properties:
+                                    AccessibleLabel: ="Activity timeline"
                                     Fill: =UAB.White
                                     Items: |-
                                       =SortByColumns(
@@ -2447,6 +2523,7 @@ Screens:
                                           "ChangedDate", SortOrder.Descending)
                                     LayoutMinHeight: =0
                                     LayoutMinWidth: =0
+                                    TabIndex: =0
                                     TemplatePadding: =0
                                     TemplateSize: =64
                                   Children:
@@ -2582,6 +2659,7 @@ Screens:
           Control: Gallery
           Variant: Vertical
           Properties:
+            AccessibleLabel: ="Stage data, not shown on screen"
             Height: =400
             Items: =Filter(TemplateStages, Template.Id = Coalesce(cmbDtTemplate.Selected.ID, LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Template.Id, 0))
             TemplatePadding: =0
@@ -2761,6 +2839,7 @@ Screens:
                       Control: Gallery
                       Variant: Vertical
                       Properties:
+                        AccessibleLabel: ="Due date preview"
                         Fill: =UAB.White
                         Items: |-
                           =SortByColumns(
@@ -2775,6 +2854,7 @@ Screens:
                               "OrderIndex", SortOrder.Ascending)
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
+                        TabIndex: =0
                         TemplatePadding: =0
                         TemplateSize: =If(scr_candidates.Size = ScreenSize.Small, 88, 64)
                       Children:
@@ -2938,6 +3018,7 @@ Screens:
                         - btnPvClose:
                             Control: ModernButton
                             Properties:
+                              AccessibleLabel: ="Close the due date preview"
                               Align: =Align.Center
                               BasePaletteColor: =UAB.Green
                               FontWeight: =""
@@ -3019,6 +3100,7 @@ Screens:
                   - btnTkStToDo:
                       Control: ModernButton
                       Properties:
+                        AccessibleLabel: ="Set this task to To Do"
                         Align: =Align.Center
                         Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
@@ -3056,6 +3138,7 @@ Screens:
                   - btnTkStInProgress:
                       Control: ModernButton
                       Properties:
+                        AccessibleLabel: ="Set this task to In Progress"
                         Align: =Align.Center
                         Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
@@ -3093,6 +3176,7 @@ Screens:
                   - btnTkStBlocked:
                       Control: ModernButton
                       Properties:
+                        AccessibleLabel: ="Set this task to Blocked"
                         Align: =Align.Center
                         Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
@@ -3130,6 +3214,7 @@ Screens:
                   - btnTkStDone:
                       Control: ModernButton
                       Properties:
+                        AccessibleLabel: ="Set this task to Done"
                         Align: =Align.Center
                         Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
@@ -3167,6 +3252,7 @@ Screens:
                   - btnTkStCanceled:
                       Control: ModernButton
                       Properties:
+                        AccessibleLabel: ="Set this task to Canceled"
                         Align: =Align.Center
                         Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
@@ -3217,6 +3303,7 @@ Screens:
                   - txtTkCancelReason:
                       Control: ModernTextInput
                       Properties:
+                        AccessibleLabel: ="Reason, required to cancel"
                         Height: =36
                         LayoutMinHeight: =36
                         LayoutMinWidth: =0
@@ -3224,6 +3311,7 @@ Screens:
                   - btnTkStClose:
                       Control: ModernButton
                       Properties:
+                        AccessibleLabel: ="Close the status picker"
                         Align: =Align.Center
                         Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
@@ -3319,6 +3407,7 @@ Screens:
                   - txtTaTitle:
                       Control: ModernTextInput
                       Properties:
+                        AccessibleLabel: ="Task name"
                         Height: =36
                         LayoutMinHeight: =36
                         LayoutMinWidth: =0
@@ -3364,6 +3453,7 @@ Screens:
                               - cmbTaStage:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Stage"
                                     Height: =36
                                     ItemDisplayText: =ThisItem.Title
                                     Items: =SortByColumns(Filter(Stages, IsActive), "OrderIndex", SortOrder.Ascending)
@@ -3397,6 +3487,7 @@ Screens:
                               - cmbTaRole:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Assigned to"
                                     Height: =36
                                     ItemDisplayText: =ThisItem.Value
                                     Items: =Choices(Tasks.AssigneeRole)
@@ -3444,6 +3535,7 @@ Screens:
                               - dpTaDue:
                                   Control: ModernDatePicker
                                   Properties:
+                                    AccessibleLabel: ="Due date"
                                     Height: =36
                                     LayoutMinHeight: =0
                                     LayoutMinWidth: =0
@@ -3474,6 +3566,7 @@ Screens:
                               - cmbTaPriority:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Priority"
                                     DefaultSelectedItems: =Filter(Choices(Tasks.Priority), Value = "Medium")
                                     Height: =36
                                     ItemDisplayText: =ThisItem.Value
@@ -3507,6 +3600,7 @@ Screens:
                         - btnTaSave:
                             Control: ModernButton
                             Properties:
+                              AccessibleLabel: ="Add Task to the checklist"
                               Align: =Align.Center
                               BasePaletteColor: =UAB.Green
                               DisplayMode: |-
@@ -3558,6 +3652,7 @@ Screens:
                         - btnTaCancel:
                             Control: ModernButton
                             Properties:
+                              AccessibleLabel: ="Cancel and close the new task form"
                               Align: =Align.Center
                               Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green

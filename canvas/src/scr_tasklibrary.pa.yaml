@@ -81,14 +81,17 @@ Screens:
                   - icoNavNewCand_TaskLib:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="New Candidate"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.Add
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_new_candidate)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavNewCand_TaskLib:
                       Control: Label
@@ -96,6 +99,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_new_candidate, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -106,6 +111,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="New Candidate"
                         Visible: =scr_tasklibrary.Size <> ScreenSize.Small
                         Wrap: =false
@@ -137,14 +143,17 @@ Screens:
                   - icoNavCandidates_TaskLib:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="Candidates"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_candidates, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.People
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_candidates)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavCandidates_TaskLib:
                       Control: Label
@@ -152,6 +161,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_candidates, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_candidates, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -162,6 +173,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="Candidates"
                         Visible: =scr_tasklibrary.Size <> ScreenSize.Small
                         Wrap: =false
@@ -192,14 +204,17 @@ Screens:
                   - icoNavMyTasks_TaskLib:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="My Tasks"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.Check
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_mytasks)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavMyTasks_TaskLib:
                       Control: Label
@@ -207,6 +222,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_mytasks, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -217,6 +234,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="My Tasks"
                         Visible: =scr_tasklibrary.Size <> ScreenSize.Small
                         Wrap: =false
@@ -248,14 +266,17 @@ Screens:
                   - icoNavTemplates_TaskLib:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="Templates"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_templates, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.DocumentWithContent
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_templates)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavTemplates_TaskLib:
                       Control: Label
@@ -263,6 +284,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_templates, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_templates, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -273,6 +296,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="Templates"
                         Visible: =scr_tasklibrary.Size <> ScreenSize.Small
                         Wrap: =false
@@ -304,14 +328,17 @@ Screens:
                   - icoNavTaskLib_TaskLib:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="Task Library"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.Notebook
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_tasklibrary)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavTaskLib_TaskLib:
                       Control: Label
@@ -319,6 +346,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_tasklibrary, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -329,6 +358,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="Task Library"
                         Visible: =scr_tasklibrary.Size <> ScreenSize.Small
                         Wrap: =false
@@ -445,6 +475,7 @@ Screens:
                   - txtTlSearch:
                       Control: ModernTextInput
                       Properties:
+                        AccessibleLabel: ="Search library tasks"
                         FillPortions: =2
                         Height: =40
                         LayoutMinHeight: =0
@@ -453,6 +484,7 @@ Screens:
                   - cmbTlCat:
                       Control: ModernCombobox
                       Properties:
+                        AccessibleLabel: ="Filter by category"
                         FillPortions: =1
                         Height: =40
                         ItemDisplayText: =ThisItem.Value
@@ -472,6 +504,7 @@ Screens:
                   - btnTlClear:
                       Control: ModernButton
                       Properties:
+                        AccessibleLabel: ="Clear the library filters"
                         Align: =Align.Center
                         Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
@@ -681,6 +714,7 @@ Screens:
                       Control: Gallery
                       Variant: Vertical
                       Properties:
+                        AccessibleLabel: ="Library task data, not shown on screen"
                         FillPortions: =0
                         Height: =56
                         Items: |-
@@ -709,6 +743,7 @@ Screens:
                       Control: Gallery
                       Variant: Vertical
                       Properties:
+                        AccessibleLabel: ="Library tasks"
                         Fill: =UAB.White
                         FillPortions: =0
                         Height: =Max(If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56), Min(galTlAll.AllItemsCount, 8) * If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56))
@@ -718,6 +753,7 @@ Screens:
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         ShowScrollbar: =false
+                        TabIndex: =0
                         TemplatePadding: =0
                         TemplateSize: =If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56)
                       Children:
@@ -765,6 +801,8 @@ Screens:
                                               Control: Label
                                               Properties:
                                                 Color: =UAB.TextPrimary
+                                                FocusedBorderColor: =UAB.Gold
+                                                FocusedBorderThickness: =2
                                                 Font: =Font.Arial
                                                 FontWeight: =FontWeight.Semibold
                                                 Height: =25
@@ -782,6 +820,7 @@ Screens:
                                                 PaddingRight: =0
                                                 PaddingTop: =0
                                                 Size: =UABSize.Body
+                                                TabIndex: =0
                                                 Text: |-
                                                   =With({t: Trim(Coalesce(ThisItem.Title, ""))},
                                                       If(Len(t) > 70, Trim(Left(t, 69)) & "…", t))
@@ -790,6 +829,8 @@ Screens:
                                               Control: Label
                                               Properties:
                                                 Color: =UAB.Gray500
+                                                FocusedBorderColor: =UAB.Gold
+                                                FocusedBorderThickness: =2
                                                 Font: =Font.Arial
                                                 Height: =22
                                                 LayoutMinHeight: =0
@@ -806,6 +847,7 @@ Screens:
                                                 PaddingRight: =0
                                                 PaddingTop: =0
                                                 Size: =UABSize.Secondary
+                                                TabIndex: =0
                                                 Text: |-
                                                   =If(scr_tasklibrary.Size = ScreenSize.Small,
                                                       Coalesce(ThisItem.Category.Value, "Other")
@@ -986,7 +1028,9 @@ Screens:
                                     - icoTlRowGo:
                                         Control: Classic/Icon
                                         Properties:
+                                          AccessibleLabel: ="Edit this library task"
                                           Color: =UAB.Gray300
+                                          FocusedBorderColor: =UAB.Gold
                                           Height: =20
                                           Icon: =Icon.ChevronRight
                                           LayoutMinHeight: =0
@@ -998,6 +1042,7 @@ Screens:
                                             Reset(cmbTlAnchor); Reset(cmbTlWhen); Reset(numTlOffset); Reset(cmbTlPriority);
                                             Reset(tglTlRequired); Reset(tglTlPrereq); Reset(cmbTlPrereqCond);
                                             Reset(tglTlApproval); Reset(tglTlActive)
+                                          TabIndex: =0
                                           Width: =20
                               - conTlListDivider:
                                   Control: GroupContainer
@@ -1058,13 +1103,16 @@ Screens:
                         - icoTlPagerPrev:
                             Control: Classic/Icon
                             Properties:
+                              AccessibleLabel: ="Previous page of library tasks"
                               Color: =If(Coalesce(varTlPage, 1) <= 1, UAB.Gray300, UAB.Green)
                               DisplayMode: =If(Coalesce(varTlPage, 1) <= 1, DisplayMode.Disabled, DisplayMode.Edit)
+                              FocusedBorderColor: =UAB.Gold
                               Height: =24
                               Icon: =Icon.ChevronLeft
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Set(varTlPage, Max(1, Min(Coalesce(varTlPage, 1), Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0))) - 1))
+                              TabIndex: =0
                               Width: =24
                         - lblTlPager:
                             Control: ModernText
@@ -1081,13 +1129,16 @@ Screens:
                         - icoTlPagerNext:
                             Control: Classic/Icon
                             Properties:
+                              AccessibleLabel: ="Next page of library tasks"
                               Color: =If(Coalesce(varTlPage, 1) >= Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0)), UAB.Gray300, UAB.Green)
                               DisplayMode: =If(Coalesce(varTlPage, 1) >= Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0)), DisplayMode.Disabled, DisplayMode.Edit)
+                              FocusedBorderColor: =UAB.Gold
                               Height: =24
                               Icon: =Icon.ChevronRight
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Set(varTlPage, Min(Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0)), Coalesce(varTlPage, 1) + 1))
+                              TabIndex: =0
                               Width: =24
             - lblTlBottomSpacer:
                 Control: ModernText
@@ -1170,14 +1221,17 @@ Screens:
                         - icoTlClose:
                             Control: Classic/Icon
                             Properties:
+                              AccessibleLabel: ="Close the library task editor"
                               BorderColor: =UAB.Line
                               BorderThickness: =1
                               Color: =UAB.Gray500
+                              FocusedBorderColor: =UAB.Gold
                               Height: =28
                               Icon: =Icon.Cancel
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Set(varTlShow, false)
+                              TabIndex: =0
                               Width: =28
                   - conTlRowTitle:
                       Control: GroupContainer
@@ -1208,6 +1262,7 @@ Screens:
                         - txtTlTitle:
                             Control: ModernTextInput
                             Properties:
+                              AccessibleLabel: ="Task name"
                               Default: =Coalesce(varTlItem.Title, "")
                               FillPortions: =1
                               Height: =40
@@ -1243,6 +1298,7 @@ Screens:
                         - txtTlDesc:
                             Control: ModernTextInput
                             Properties:
+                              AccessibleLabel: ="Description"
                               Default: =Coalesce(varTlItem.Description, "")
                               FillPortions: =1
                               Height: =68
@@ -1292,6 +1348,7 @@ Screens:
                               - cmbTlCategory:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Category"
                                     DefaultSelectedItems: =Filter(Choices(TaskLibrary.Category), Value = Coalesce(varTlItem.Category.Value, "Other"))
                                     FillPortions: =1
                                     Height: =40
@@ -1328,6 +1385,7 @@ Screens:
                               - cmbTlRole:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Assigned to"
                                     DefaultSelectedItems: =Filter(Choices(TaskLibrary.AssigneeRole), Value = Coalesce(varTlItem.AssigneeRole.Value, "Person"))
                                     FillPortions: =1
                                     Height: =40
@@ -1379,6 +1437,7 @@ Screens:
                               - cmbTlAnchor:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Due date anchor"
                                     DefaultSelectedItems: |-
                                       =Filter(Table(
                                           {Value: "LOI", Label: "LOI Date"},
@@ -1443,6 +1502,7 @@ Screens:
                                     - cmbTlWhen:
                                         Control: ModernCombobox
                                         Properties:
+                                          AccessibleLabel: ="When, relative to the anchor"
                                           DefaultSelectedItems: |-
                                             =Table({Value: If(Coalesce(varTlItem.OffsetDays, 0) < 0, "Before",
                                                 Coalesce(varTlItem.OffsetDays, 0) > 0, "After", "On")})
@@ -1457,6 +1517,7 @@ Screens:
                                     - numTlOffset:
                                         Control: ModernNumberInput
                                         Properties:
+                                          AccessibleLabel: ="Number of days from the anchor"
                                           Default: =Abs(Coalesce(varTlItem.OffsetDays, 0))
                                           DisplayMode: =If(Coalesce(cmbTlWhen.Selected.Value, "On") = "On", DisplayMode.Disabled, DisplayMode.Edit)
                                           FillPortions: =1
@@ -1505,6 +1566,7 @@ Screens:
                               - cmbTlPriority:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Priority"
                                     DefaultSelectedItems: =Filter(Choices(TaskLibrary.Priority), Value = Coalesce(varTlItem.Priority.Value, "Medium"))
                                     FillPortions: =1
                                     Height: =40
@@ -1610,6 +1672,7 @@ Screens:
                         - cmbTlPrereqCond:
                             Control: ModernCombobox
                             Properties:
+                              AccessibleLabel: ="Prereq applies"
                               DefaultSelectedItems: =Filter(Choices(TaskLibrary.PrereqCondition), Value = Coalesce(varTlItem.PrereqCondition.Value, "Always"))
                               FillPortions: =1
                               Height: =40
@@ -1635,6 +1698,7 @@ Screens:
                         - btnTlSave:
                             Control: ModernButton
                             Properties:
+                              AccessibleLabel: ="Save Task to the library"
                               Align: =Align.Center
                               BasePaletteColor: =UAB.Green
                               DisplayMode: =If(!IsBlank(Trim(txtTlTitle.Text)), DisplayMode.Edit, DisplayMode.Disabled)
@@ -1695,6 +1759,7 @@ Screens:
                         - btnTlCancel:
                             Control: ModernButton
                             Properties:
+                              AccessibleLabel: ="Cancel and close the library task editor"
                               Align: =Align.Center
                               Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
@@ -1718,6 +1783,7 @@ Screens:
                         - btnTlDelete:
                             Control: ModernButton
                             Properties:
+                              AccessibleLabel: ="Delete this library task"
                               Align: =Align.Center
                               Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Danger
@@ -1826,6 +1892,7 @@ Screens:
                         - btnTlConfirmDelete:
                             Control: ModernButton
                             Properties:
+                              AccessibleLabel: ="Delete Task from the library permanently"
                               Align: =Align.Center
                               BasePaletteColor: =UAB.Danger
                               FontWeight: =""
@@ -1854,6 +1921,7 @@ Screens:
                         - btnTlConfirmCancel:
                             Control: ModernButton
                             Properties:
+                              AccessibleLabel: ="Keep It and close this dialog"
                               Align: =Align.Center
                               Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green

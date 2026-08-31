@@ -85,14 +85,17 @@ Screens:
                   - icoNavNewCand_NewCand:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="New Candidate"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.Add
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_new_candidate)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavNewCand_NewCand:
                       Control: Label
@@ -100,6 +103,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_new_candidate, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -110,6 +115,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="New Candidate"
                         Visible: =scr_new_candidate.Size <> ScreenSize.Small
                         Wrap: =false
@@ -141,14 +147,17 @@ Screens:
                   - icoNavCandidates_NewCand:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="Candidates"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_candidates, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.People
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_candidates)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavCandidates_NewCand:
                       Control: Label
@@ -156,6 +165,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_candidates, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_candidates, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -166,6 +177,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="Candidates"
                         Visible: =scr_new_candidate.Size <> ScreenSize.Small
                         Wrap: =false
@@ -196,14 +208,17 @@ Screens:
                   - icoNavMyTasks_NewCand:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="My Tasks"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.Check
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_mytasks)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavMyTasks_NewCand:
                       Control: Label
@@ -211,6 +226,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_mytasks, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -221,6 +238,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="My Tasks"
                         Visible: =scr_new_candidate.Size <> ScreenSize.Small
                         Wrap: =false
@@ -252,14 +270,17 @@ Screens:
                   - icoNavTemplates_NewCand:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="Templates"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_templates, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.DocumentWithContent
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_templates)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavTemplates_NewCand:
                       Control: Label
@@ -267,6 +288,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_templates, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_templates, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -277,6 +300,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="Templates"
                         Visible: =scr_new_candidate.Size <> ScreenSize.Small
                         Wrap: =false
@@ -308,14 +332,17 @@ Screens:
                   - icoNavTaskLib_NewCand:
                       Control: Classic/Icon
                       Properties:
+                        AccessibleLabel: ="Task Library"
                         AlignInContainer: =AlignInContainer.Center
                         Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
                         Height: =44
                         Icon: =Icon.Notebook
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Navigate(scr_tasklibrary)
                         PaddingLeft: =12
+                        TabIndex: =0
                         Width: =44
                   - lblNavTaskLib_NewCand:
                       Control: Label
@@ -323,6 +350,8 @@ Screens:
                         AlignInContainer: =AlignInContainer.Stretch
                         Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
                         FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
                         Font: =Font.Arial
                         FontWeight: =If(App.ActiveScreen = scr_tasklibrary, FontWeight.Semibold, FontWeight.Normal)
                         LayoutMinHeight: =0
@@ -333,6 +362,7 @@ Screens:
                         PaddingRight: =0
                         PaddingTop: =0
                         Size: =UABSize.Body
+                        TabIndex: =0
                         Text: ="Task Library"
                         Visible: =scr_new_candidate.Size <> ScreenSize.Small
                         Wrap: =false
@@ -465,6 +495,7 @@ Screens:
                               - cmbNcSalutation:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Title"
                                     FillPortions: =1
                                     Height: =40
                                     ItemDisplayText: =ThisItem.Value
@@ -501,6 +532,7 @@ Screens:
                               - txtNcFirst:
                                   Control: ModernTextInput
                                   Properties:
+                                    AccessibleLabel: ="First name"
                                     FillPortions: =1
                                     Height: =40
                                     LayoutMinHeight: =0
@@ -535,6 +567,7 @@ Screens:
                               - txtNcLast:
                                   Control: ModernTextInput
                                   Properties:
+                                    AccessibleLabel: ="Last name"
                                     FillPortions: =1
                                     Height: =40
                                     LayoutMinHeight: =0
@@ -583,6 +616,7 @@ Screens:
                               - txtNcEmail:
                                   Control: ModernTextInput
                                   Properties:
+                                    AccessibleLabel: ="Email address"
                                     FillPortions: =1
                                     Height: =40
                                     LayoutMinHeight: =0
@@ -663,6 +697,7 @@ Screens:
                               - cmbNcType:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Candidate type"
                                     FillPortions: =1
                                     Height: =40
                                     ItemDisplayText: =ThisItem.Value
@@ -700,6 +735,7 @@ Screens:
                               - cmbNcDivision:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Division"
                                     FillPortions: =1
                                     Height: =40
                                     ItemDisplayText: =ThisItem.Title
@@ -736,6 +772,7 @@ Screens:
                               - cmbNcRank:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Faculty rank"
                                     FillPortions: =1
                                     Height: =40
                                     ItemDisplayText: =ThisItem.Title
@@ -772,6 +809,7 @@ Screens:
                               - cmbNcTemplate:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Template"
                                     FillPortions: =1
                                     Height: =40
                                     ItemDisplayText: =ThisItem.Title
@@ -860,6 +898,7 @@ Screens:
                               - cmbNcManager:
                                   Control: ModernCombobox
                                   Properties:
+                                    AccessibleLabel: ="Hiring manager"
                                     FillPortions: =1
                                     Height: =40
                                     InputTextPlaceholder: ="Type at least 2 letters of a name"
@@ -907,6 +946,7 @@ Screens:
                               - dpNcLOI:
                                   Control: ModernDatePicker
                                   Properties:
+                                    AccessibleLabel: ="Letter of Intent date"
                                     DefaultDate: =Blank()
                                     FillPortions: =1
                                     Height: =40
@@ -944,6 +984,7 @@ Screens:
                         - btnNcCreate:
                             Control: ModernButton
                             Properties:
+                              AccessibleLabel: ="Create Candidate record"
                               Align: =Align.Center
                               BasePaletteColor: =UAB.Green
                               DisplayMode: |-
@@ -1010,6 +1051,7 @@ Screens:
                         - btnNcCancel:
                             Control: ModernButton
                             Properties:
+                              AccessibleLabel: ="Cancel and clear the new candidate form"
                               Align: =Align.Center
                               Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
