@@ -549,7 +549,7 @@ Screens:
                   DropShadow: =DropShadow.None
                   Fill: =UAB.White
                   FillPortions: =0
-                  Height: =40 + Max(If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56), Min(galTlAll.AllItemsCount, 8) * If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56)) + If(galTlAll.AllItemsCount > 8, 48, 0) + If(galTlAll.AllItemsCount = 0, 44, 0)
+                  Height: =40 + Max(If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56), Min(galTlAll.AllItemsCount, 7) * If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56)) + If(galTlAll.AllItemsCount > 7, 48, 0) + If(galTlAll.AllItemsCount = 0, 44, 0)
                   LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutMinHeight: =0
@@ -748,10 +748,10 @@ Screens:
                         AccessibleLabel: ="Library tasks"
                         Fill: =UAB.White
                         FillPortions: =0
-                        Height: =Max(If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56), Min(galTlAll.AllItemsCount, 8) * If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56))
+                        Height: =Max(If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56), Min(galTlAll.AllItemsCount, 7) * If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56))
                         Items: |-
                           =With({t: galTlAll.AllItems, n: galTlAll.AllItemsCount},
-                              FirstN(LastN(t, n - (Min(Coalesce(varTlPage, 1), Max(1, RoundUp(n / 8, 0))) - 1) * 8), 8))
+                              FirstN(LastN(t, n - (Min(Coalesce(varTlPage, 1), Max(1, RoundUp(n / 7, 0))) - 1) * 7), 7))
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         ShowScrollbar: =false
@@ -1100,7 +1100,7 @@ Screens:
                         LayoutJustifyContent: =LayoutJustifyContent.Center
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
-                        Visible: =galTlAll.AllItemsCount > 8
+                        Visible: =galTlAll.AllItemsCount > 7
                       Children:
                         - icoTlPagerPrev:
                             Control: Classic/Icon
@@ -1113,7 +1113,7 @@ Screens:
                               Icon: =Icon.ChevronLeft
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
-                              OnSelect: =Set(varTlPage, Max(1, Min(Coalesce(varTlPage, 1), Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0))) - 1))
+                              OnSelect: =Set(varTlPage, Max(1, Min(Coalesce(varTlPage, 1), Max(1, RoundUp(galTlAll.AllItemsCount / 7, 0))) - 1))
                               TabIndex: =0
                               Width: =24
                         - lblTlPager:
@@ -1126,20 +1126,20 @@ Screens:
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               Size: =UABSize.Secondary
-                              Text: ="Page " & Min(Coalesce(varTlPage, 1), Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0))) & " of " & Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0))
+                              Text: ="Page " & Min(Coalesce(varTlPage, 1), Max(1, RoundUp(galTlAll.AllItemsCount / 7, 0))) & " of " & Max(1, RoundUp(galTlAll.AllItemsCount / 7, 0))
                               Width: =110
                         - icoTlPagerNext:
                             Control: Classic/Icon
                             Properties:
                               AccessibleLabel: ="Next page of library tasks"
-                              Color: =If(Coalesce(varTlPage, 1) >= Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0)), UAB.Gray300, UAB.Green)
-                              DisplayMode: =If(Coalesce(varTlPage, 1) >= Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0)), DisplayMode.Disabled, DisplayMode.Edit)
+                              Color: =If(Coalesce(varTlPage, 1) >= Max(1, RoundUp(galTlAll.AllItemsCount / 7, 0)), UAB.Gray300, UAB.Green)
+                              DisplayMode: =If(Coalesce(varTlPage, 1) >= Max(1, RoundUp(galTlAll.AllItemsCount / 7, 0)), DisplayMode.Disabled, DisplayMode.Edit)
                               FocusedBorderColor: =UAB.Gold
                               Height: =24
                               Icon: =Icon.ChevronRight
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
-                              OnSelect: =Set(varTlPage, Min(Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0)), Coalesce(varTlPage, 1) + 1))
+                              OnSelect: =Set(varTlPage, Min(Max(1, RoundUp(galTlAll.AllItemsCount / 7, 0)), Coalesce(varTlPage, 1) + 1))
                               TabIndex: =0
                               Width: =24
             - lblTlBottomSpacer:
