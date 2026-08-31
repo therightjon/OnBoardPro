@@ -390,10 +390,11 @@ Screens:
                               Size: =UABSize.ScreenTitle
                               Text: ="Templates"
                         - btnTpNewTemplate:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Primary
+                              Align: =Align.Center
                               BasePaletteColor: =UAB.Green
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
@@ -401,7 +402,16 @@ Screens:
                                 =Set(varTmTemplate, Blank());
                                 Set(varTmShow, true);
                                 Reset(txtTmName); Reset(cmbTmType); Reset(txtTmDesc)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="New Template"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =160
                   - lblTpSub:
                       Control: ModernText
@@ -461,7 +471,7 @@ Screens:
                               PaddingRight: =12
                             Children:
                               - tglTpShowArchived:
-                                  Control: Toggle
+                                  Control: ModernToggle
                                   Properties:
                                     BasePaletteColor: =UAB.Green
                                     FillPortions: =1
@@ -714,11 +724,13 @@ Screens:
                                           Text: ="TEMPLATE"
                                           Wrap: =false
                                     - btnTpEditDetails:
-                                        Control: Button
+                                        Control: ModernButton
                                         Properties:
-                                          Appearance: ='ButtonCanvas.Appearance'.Secondary
+                                          Align: =Align.Center
+                                          Appearance: =ButtonAppearance.Secondary
                                           BasePaletteColor: =UAB.Green
                                           DisplayMode: =If(Coalesce(varSelTemplateId, 0) > 0, DisplayMode.Edit, DisplayMode.Disabled)
+                                          FontWeight: =""
                                           Height: =36
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
@@ -726,14 +738,25 @@ Screens:
                                             =Set(varTmTemplate, LookUp(Templates, ID = Coalesce(varSelTemplateId, 0)));
                                             Set(varTmShow, true);
                                             Reset(txtTmName); Reset(cmbTmType); Reset(txtTmDesc)
+                                          PaddingBottom: =5
+                                          PaddingLeft: =12
+                                          PaddingRight: =12
+                                          PaddingTop: =5
+                                          RadiusBottomLeft: =4
+                                          RadiusBottomRight: =4
+                                          RadiusTopLeft: =4
+                                          RadiusTopRight: =4
                                           Text: ="Edit Details"
+                                          VerticalAlign: =VerticalAlign.Middle
                                           Width: =140
                                     - btnTpNew:
-                                        Control: Button
+                                        Control: ModernButton
                                         Properties:
-                                          Appearance: ='ButtonCanvas.Appearance'.Secondary
+                                          Align: =Align.Center
+                                          Appearance: =ButtonAppearance.Secondary
                                           BasePaletteColor: =UAB.Green
                                           DisplayMode: =If(Coalesce(varSelTemplateId, 0) > 0, DisplayMode.Edit, DisplayMode.Disabled)
+                                          FontWeight: =""
                                           Height: =36
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
@@ -798,21 +821,41 @@ Screens:
                                                          approvals: CountRows(Filter(t, NeedsApproval))}));
                                                 Notify("Copied. The duplicate is a draft you can edit freely.",
                                                     NotificationType.Success))
+                                          PaddingBottom: =5
+                                          PaddingLeft: =12
+                                          PaddingRight: =12
+                                          PaddingTop: =5
+                                          RadiusBottomLeft: =4
+                                          RadiusBottomRight: =4
+                                          RadiusTopLeft: =4
+                                          RadiusTopRight: =4
                                           Text: ="Duplicate"
+                                          VerticalAlign: =VerticalAlign.Middle
                                           Width: =130
                                     - btnTpDelete:
-                                        Control: Button
+                                        Control: ModernButton
                                         Properties:
-                                          Appearance: ='ButtonCanvas.Appearance'.Secondary
+                                          Align: =Align.Center
+                                          Appearance: =ButtonAppearance.Secondary
                                           BasePaletteColor: =UAB.Danger
                                           DisplayMode: |-
                                             =If(Coalesce(varSelTemplateId, 0) > 0 && Coalesce(LookUp(Templates, ID = Coalesce(varSelTemplateId, 0)).TStatus.Value, "Draft") <> "Archived",
                                                 DisplayMode.Edit, DisplayMode.Disabled)
+                                          FontWeight: =""
                                           Height: =36
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
                                           OnSelect: =Set(varTdConfirm, true)
+                                          PaddingBottom: =5
+                                          PaddingLeft: =12
+                                          PaddingRight: =12
+                                          PaddingTop: =5
+                                          RadiusBottomLeft: =4
+                                          RadiusBottomRight: =4
+                                          RadiusTopLeft: =4
+                                          RadiusTopRight: =4
                                           Text: ="Delete"
+                                          VerticalAlign: =VerticalAlign.Middle
                                           Width: =110
                               - lblTpName:
                                   Control: ModernText
@@ -1222,9 +1265,9 @@ Screens:
                                     LayoutMinWidth: =0
                                   Children:
                                     - btnTpActivate:
-                                        Control: Button
+                                        Control: ModernButton
                                         Properties:
-                                          Appearance: ='ButtonCanvas.Appearance'.Primary
+                                          Align: =Align.Center
                                           BasePaletteColor: =UAB.Green
                                           DisplayMode: |-
                                             =If(Coalesce(LookUp(Templates, ID = Coalesce(varSelTemplateId, 0)).TStatus.Value, "Draft") = "Archived" || Coalesce(LookUp(Templates, ID = Coalesce(varSelTemplateId, 0)).TStatus.Value, "Draft") = "Active",
@@ -1236,6 +1279,7 @@ Screens:
                                                         Coalesce(varTpStats.fixedNoDate, 0) = 0),
                                                     DisplayMode.Edit, DisplayMode.Disabled))
                                           FillPortions: =If(scr_templates.Size = ScreenSize.Small, 1, 0)
+                                          FontWeight: =""
                                           Height: =40
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
@@ -1249,10 +1293,19 @@ Screens:
                                                     "Template set back to draft.",
                                                     "Template activated. It can now be used for new candidates."),
                                                     NotificationType.Success))
+                                          PaddingBottom: =5
+                                          PaddingLeft: =12
+                                          PaddingRight: =12
+                                          PaddingTop: =5
+                                          RadiusBottomLeft: =4
+                                          RadiusBottomRight: =4
+                                          RadiusTopLeft: =4
+                                          RadiusTopRight: =4
                                           Text: |-
                                             =If(Coalesce(LookUp(Templates, ID = Coalesce(varSelTemplateId, 0)).TStatus.Value, "Draft") = "Archived", "Restore to Draft",
                                                 Coalesce(LookUp(Templates, ID = Coalesce(varSelTemplateId, 0)).TStatus.Value, "Draft") = "Active", "Set Back to Draft",
                                                 "Activate Template")
+                                          VerticalAlign: =VerticalAlign.Middle
                                           Width: =If(scr_templates.Size = ScreenSize.Small, 180, 190)
                                     - lblTpActionHint:
                                         Control: ModernText
@@ -1328,11 +1381,13 @@ Screens:
                                           Text: ="STAGES"
                                           Wrap: =false
                                     - btnSgAdd:
-                                        Control: Button
+                                        Control: ModernButton
                                         Properties:
-                                          Appearance: ='ButtonCanvas.Appearance'.Secondary
+                                          Align: =Align.Center
+                                          Appearance: =ButtonAppearance.Secondary
                                           BasePaletteColor: =UAB.Green
                                           DisplayMode: =If(Coalesce(varSelTemplateId, 0) > 0, DisplayMode.Edit, DisplayMode.Disabled)
+                                          FontWeight: =""
                                           Height: =36
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
@@ -1340,7 +1395,16 @@ Screens:
                                             =Set(varSgStage, Blank());
                                             Set(varSgShow, true);
                                             Reset(cmbSgStage); Reset(cmbSgPhase); Reset(numSgOrder)
+                                          PaddingBottom: =5
+                                          PaddingLeft: =12
+                                          PaddingRight: =12
+                                          PaddingTop: =5
+                                          RadiusBottomLeft: =4
+                                          RadiusBottomRight: =4
+                                          RadiusTopLeft: =4
+                                          RadiusTopRight: =4
                                           Text: ="Add Stage"
+                                          VerticalAlign: =VerticalAlign.Middle
                                           Width: =120
                               - galSgStages:
                                   Control: Gallery
@@ -1517,11 +1581,13 @@ Screens:
                                           LayoutMinWidth: =0
                                           Placeholder: ="Search tasks"
                                     - btnTpAddTask:
-                                        Control: Button
+                                        Control: ModernButton
                                         Properties:
-                                          Appearance: ='ButtonCanvas.Appearance'.Secondary
+                                          Align: =Align.Center
+                                          Appearance: =ButtonAppearance.Secondary
                                           BasePaletteColor: =UAB.Green
                                           DisplayMode: =If(Coalesce(varSelTemplateId, 0) > 0, DisplayMode.Edit, DisplayMode.Disabled)
+                                          FontWeight: =""
                                           Height: =36
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
@@ -1532,21 +1598,41 @@ Screens:
                                             Reset(cmbTeAnchor); Reset(numTeOffset); Reset(dpTeFixed);
                                             Reset(numTeOrder); Reset(cmbTePriority); Reset(cmbTeCategory);
                                             Reset(tglTeRequired); Reset(tglTePrereq); Reset(tglTeApproval)
+                                          PaddingBottom: =5
+                                          PaddingLeft: =12
+                                          PaddingRight: =12
+                                          PaddingTop: =5
+                                          RadiusBottomLeft: =4
+                                          RadiusBottomRight: =4
+                                          RadiusTopLeft: =4
+                                          RadiusTopRight: =4
                                           Text: ="Add Task"
+                                          VerticalAlign: =VerticalAlign.Middle
                                           Width: =120
                                     - btnTpFromLibrary:
-                                        Control: Button
+                                        Control: ModernButton
                                         Properties:
-                                          Appearance: ='ButtonCanvas.Appearance'.Secondary
+                                          Align: =Align.Center
+                                          Appearance: =ButtonAppearance.Secondary
                                           BasePaletteColor: =UAB.Green
                                           DisplayMode: =If(Coalesce(varSelTemplateId, 0) > 0, DisplayMode.Edit, DisplayMode.Disabled)
+                                          FontWeight: =""
                                           Height: =36
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
                                           OnSelect: |-
                                             =Set(varLpShow, true);
                                             Reset(txtLpSearch); Reset(cmbLpStage)
+                                          PaddingBottom: =5
+                                          PaddingLeft: =12
+                                          PaddingRight: =12
+                                          PaddingTop: =5
+                                          RadiusBottomLeft: =4
+                                          RadiusBottomRight: =4
+                                          RadiusTopLeft: =4
+                                          RadiusTopRight: =4
                                           Text: ="From Library"
+                                          VerticalAlign: =VerticalAlign.Middle
                                           Width: =130
                               - galTpTasks:
                                   Control: Gallery
@@ -1795,7 +1881,7 @@ Screens:
                                     RadiusTopRight: =6
                                   Children:
                                     - tglTpUnstaged:
-                                        Control: Toggle
+                                        Control: ModernToggle
                                         Properties:
                                           BasePaletteColor: =UAB.Green
                                           Height: =32
@@ -1818,21 +1904,32 @@ Screens:
                                           LayoutMinWidth: =0
                                           SelectMultiple: =false
                                     - btnTpBulkApply:
-                                        Control: Button
+                                        Control: ModernButton
                                         Properties:
-                                          Appearance: ='ButtonCanvas.Appearance'.Secondary
+                                          Align: =Align.Center
+                                          Appearance: =ButtonAppearance.Secondary
                                           BasePaletteColor: =UAB.Green
                                           DisplayMode: |-
                                             =If(And(!IsBlank(cmbTpBulkStage.Selected), galTpTasks.AllItemsCount > 0),
                                                 DisplayMode.Edit, DisplayMode.Disabled)
+                                          FontWeight: =""
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
                                           OnSelect: |-
                                             =ClearCollect(colTpBulk, galTpTasks.AllItems);
                                             Set(varTpBulkConfirm, true)
+                                          PaddingBottom: =5
+                                          PaddingLeft: =12
+                                          PaddingRight: =12
+                                          PaddingTop: =5
+                                          RadiusBottomLeft: =4
+                                          RadiusBottomRight: =4
+                                          RadiusTopLeft: =4
+                                          RadiusTopRight: =4
                                           Text: |-
                                             =If(galTpTasks.AllItemsCount = 1, "Assign 1 Task",
                                                 "Assign " & galTpTasks.AllItemsCount & " Tasks")
+                                          VerticalAlign: =VerticalAlign.Middle
                                           Width: =If(scr_templates.Size = ScreenSize.Small, Parent.Width - 16, 150)
             - lblTpSpacer:
                 Control: ModernText
@@ -2375,30 +2472,30 @@ Screens:
                         LayoutMinWidth: =0
                       Children:
                         - tglTeRequired:
-                            Control: Toggle
+                            Control: ModernToggle
                             Properties:
                               BasePaletteColor: =UAB.Green
-                              Checked: =Coalesce(varTeTask.IsRequired, true)
+                              Default: =Coalesce(varTeTask.IsRequired, true)
                               FillPortions: =1
                               Height: =40
                               Label: ="Required"
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                         - tglTePrereq:
-                            Control: Toggle
+                            Control: ModernToggle
                             Properties:
                               BasePaletteColor: =UAB.Green
-                              Checked: =Coalesce(varTeTask.IsPrereq, false)
+                              Default: =Coalesce(varTeTask.IsPrereq, false)
                               FillPortions: =1
                               Height: =40
                               Label: ="Prerequisite"
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                         - tglTeApproval:
-                            Control: Toggle
+                            Control: ModernToggle
                             Properties:
                               BasePaletteColor: =UAB.Green
-                              Checked: =Coalesce(varTeTask.NeedsApproval, false)
+                              Default: =Coalesce(varTeTask.NeedsApproval, false)
                               FillPortions: =1
                               Height: =40
                               Label: ="Needs Approval"
@@ -2483,14 +2580,15 @@ Screens:
                         LayoutMinWidth: =0
                       Children:
                         - btnTeSave:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Primary
+                              Align: =Align.Center
                               BasePaletteColor: =UAB.Green
                               DisplayMode: |-
                                 =If(And(!IsBlank(Trim(txtTeTitle.Text)),
                                         !IsBlank(cmbTeStage.Selected)),
                                     DisplayMode.Edit, DisplayMode.Disabled)
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
@@ -2563,30 +2661,61 @@ Screens:
                                          prereqs: CountRows(Filter(t, IsPrereq)),
                                          approvals: CountRows(Filter(t, NeedsApproval))}));
                                     Notify("Task saved.", NotificationType.Success))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Save Task"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =140
                         - btnTeCancel:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Secondary
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
                               FillPortions: =1
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Set(varTeShow, false)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Cancel"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =120
                         - btnTeDelete:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Secondary
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Danger
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Set(varTeConfirmDelete, true)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Delete"
+                              VerticalAlign: =VerticalAlign.Middle
                               Visible: =!IsBlank(varTeTask)
                               Width: =110
                   - lblTeSpacer:
@@ -2675,10 +2804,11 @@ Screens:
                         LayoutMinWidth: =0
                       Children:
                         - btnTeConfirmDelete:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Primary
+                              Align: =Align.Center
                               BasePaletteColor: =UAB.Danger
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
@@ -2699,19 +2829,39 @@ Screens:
                                          prereqs: CountRows(Filter(t, IsPrereq)),
                                          approvals: CountRows(Filter(t, NeedsApproval))}));
                                     Notify("Task deleted.", NotificationType.Success))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Delete Task"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =150
                         - btnTeConfirmCancel:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Secondary
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
                               FillPortions: =1
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Set(varTeConfirmDelete, false)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Keep It"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =120
       - conTmModal:
           Control: GroupContainer
@@ -2884,14 +3034,15 @@ Screens:
                         LayoutMinWidth: =0
                       Children:
                         - btnTmSave:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Primary
+                              Align: =Align.Center
                               BasePaletteColor: =UAB.Green
                               DisplayMode: |-
                                 =If(And(!IsBlank(Trim(txtTmName.Text)),
                                         !IsBlank(cmbTmType.Selected)),
                                     DisplayMode.Edit, DisplayMode.Disabled)
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
@@ -2924,19 +3075,39 @@ Screens:
                                          prereqs: CountRows(Filter(t, IsPrereq)),
                                          approvals: CountRows(Filter(t, NeedsApproval))}));
                                     Notify("Template saved.", NotificationType.Success))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Save Template"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =170
                         - btnTmCancel:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Secondary
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
                               FillPortions: =1
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Set(varTmShow, false)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Cancel"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =120
                   - lblTmHint:
                       Control: ModernText
@@ -3137,13 +3308,14 @@ Screens:
                         LayoutMinWidth: =0
                       Children:
                         - btnSgSave:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Primary
+                              Align: =Align.Center
                               BasePaletteColor: =UAB.Green
                               DisplayMode: |-
                                 =If(!IsBlank(cmbSgStage.Selected),
                                     DisplayMode.Edit, DisplayMode.Disabled)
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
@@ -3175,26 +3347,48 @@ Screens:
                                          prereqs: CountRows(Filter(t, IsPrereq)),
                                          approvals: CountRows(Filter(t, NeedsApproval))}));
                                     Notify("Stage saved.", NotificationType.Success))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Save Stage"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =140
                         - btnSgCancel:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Secondary
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
                               FillPortions: =1
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Set(varSgShow, false)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Cancel"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =110
                         - btnSgDelete:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Secondary
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Danger
                               DisplayMode: =If(CountRows(Filter(TemplateTasks, TemplateStage.Id = Coalesce(varSgStage.ID, 0))) = 0, DisplayMode.Edit, DisplayMode.Disabled)
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
@@ -3214,7 +3408,16 @@ Screens:
                                          prereqs: CountRows(Filter(t, IsPrereq)),
                                          approvals: CountRows(Filter(t, NeedsApproval))}));
                                     Notify("Stage removed.", NotificationType.Success))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Remove"
+                              VerticalAlign: =VerticalAlign.Middle
                               Visible: =!IsBlank(varSgStage)
                               Width: =110
       - conTdConfirm:
@@ -3306,10 +3509,11 @@ Screens:
                         LayoutMinWidth: =0
                       Children:
                         - btnTdConfirm:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Primary
+                              Align: =Align.Center
                               BasePaletteColor: =UAB.Danger
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
@@ -3322,19 +3526,39 @@ Screens:
                                     Set(varSelTemplateId, 0);
                                     Notify("Template deleted. It is kept for the record and can be restored.",
                                         NotificationType.Success))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Delete Template"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =170
                         - btnTdCancel:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Secondary
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
                               FillPortions: =1
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Set(varTdConfirm, false)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Keep It"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =120
       - conTpBulkConfirm:
           Control: GroupContainer
@@ -3423,10 +3647,11 @@ Screens:
                         LayoutMinWidth: =0
                       Children:
                         - btnTpBulkConfirm:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Primary
+                              Align: =Align.Center
                               BasePaletteColor: =UAB.Green
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
@@ -3455,18 +3680,38 @@ Screens:
                                          fixedNoDate: CountRows(Filter(t, Anchor.Value = "Fixed", IsBlank(FixedDate))),
                                          prereqs: CountRows(Filter(t, IsPrereq)),
                                          approvals: CountRows(Filter(t, NeedsApproval))}))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Assign Stage"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =150
                         - btnTpBulkCancel:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Secondary
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Set(varTpBulkConfirm, false); Clear(colTpBulk)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Cancel"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =120
       - conLpModal:
           Control: GroupContainer

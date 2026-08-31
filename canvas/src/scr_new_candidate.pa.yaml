@@ -942,9 +942,9 @@ Screens:
                         LayoutMinWidth: =0
                       Children:
                         - btnNcCreate:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Primary
+                              Align: =Align.Center
                               BasePaletteColor: =UAB.Green
                               DisplayMode: |-
                                 =If(And(!IsBlank(Trim(txtNcFirst.Text)),
@@ -953,6 +953,7 @@ Screens:
                                     !IsBlank(cmbNcType.Selected),
                                     !IsBlank(cmbNcTemplate.Selected)), DisplayMode.Edit, DisplayMode.Disabled)
                               FillPortions: =If(scr_new_candidate.Size = ScreenSize.Small, 1, 0)
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
@@ -995,19 +996,39 @@ Screens:
                                         Navigate(scr_candidates)),
                                     Notify("Couldn't create the candidate - " & FirstError.Message
                                         & " Nothing was saved. Try again.", NotificationType.Error))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Create Candidate"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =If(scr_new_candidate.Size = ScreenSize.Small, 160, 190)
                         - btnNcCancel:
-                            Control: Button
+                            Control: ModernButton
                             Properties:
-                              Appearance: ='ButtonCanvas.Appearance'.Secondary
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
                               FillPortions: =If(scr_new_candidate.Size = ScreenSize.Small, 1, 0)
+                              FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Navigate(scr_candidates)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
                               Text: ="Cancel"
+                              VerticalAlign: =VerticalAlign.Middle
                               Width: =If(scr_new_candidate.Size = ScreenSize.Small, 110, 120)
             - lblNcSpacer:
                 Control: ModernText

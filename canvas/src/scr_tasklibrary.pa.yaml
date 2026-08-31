@@ -461,7 +461,7 @@ Screens:
                         LayoutMinWidth: =0
                         SelectMultiple: =false
                   - tglTlRetired:
-                      Control: Toggle
+                      Control: ModernToggle
                       Properties:
                         BasePaletteColor: =UAB.Green
                         Height: =40
@@ -1097,7 +1097,7 @@ Screens:
                   Height: =5
                   LayoutMinHeight: =0
                   LayoutMinWidth: =0
-                  Size: =3
+                  Size: =2
                   Text: =""
                   Wrap: =false
       - conTlModal:
@@ -1528,10 +1528,10 @@ Screens:
                               LayoutMinWidth: =0
                             Children:
                               - tglTlActive:
-                                  Control: Toggle
+                                  Control: ModernToggle
                                   Properties:
                                     BasePaletteColor: =UAB.Green
-                                    Checked: =Coalesce(varTlItem.IsActive, true)
+                                    Default: =Coalesce(varTlItem.IsActive, true)
                                     Height: =40
                                     Label: ="Active — offered in pickers"
                                     LayoutMinHeight: =0
@@ -1551,30 +1551,30 @@ Screens:
                         LayoutMinWidth: =0
                       Children:
                         - tglTlRequired:
-                            Control: Toggle
+                            Control: ModernToggle
                             Properties:
                               BasePaletteColor: =UAB.Green
-                              Checked: =Coalesce(varTlItem.IsRequired, true)
+                              Default: =Coalesce(varTlItem.IsRequired, true)
                               FillPortions: =1
                               Height: =40
                               Label: ="Required"
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                         - tglTlPrereq:
-                            Control: Toggle
+                            Control: ModernToggle
                             Properties:
                               BasePaletteColor: =UAB.Green
-                              Checked: =Coalesce(varTlItem.IsPrereq, false)
+                              Default: =Coalesce(varTlItem.IsPrereq, false)
                               FillPortions: =1
                               Height: =40
                               Label: ="Prereq"
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                         - tglTlApproval:
-                            Control: Toggle
+                            Control: ModernToggle
                             Properties:
                               BasePaletteColor: =UAB.Green
-                              Checked: =Coalesce(varTlItem.NeedsApproval, false)
+                              Default: =Coalesce(varTlItem.NeedsApproval, false)
                               FillPortions: =1
                               Height: =40
                               Label: ="Needs approval"
