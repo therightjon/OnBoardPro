@@ -30,7 +30,7 @@ driven by [flowdriver.py](flowdriver.py) with payloads from [genpayloads.py](gen
 | Templates | `d6a11fea-81ae-4de9-8f9d-4b1abe100024` | |
 | TemplateStages | `4b2a8192-4607-4634-b8d6-7ad25e35689b` | Title optional |
 | TemplateTasks | `80bde969-759f-4fb8-9b1d-8425b61ab2b5` | |
-| TaskLibrary | `b1f68f43-a78e-4690-99ff-ac786aea171e` | Reusable task definitions (added 2026-08-31, `gen_tasklibrary.py`); inherits site permissions |
+| TaskLibrary | `b1f68f43-a78e-4690-99ff-ac786aea171e` | Reusable task definitions (added 2026-08-31, `gen_tasklibrary.py`); inherits site permissions. Seeded 2026-08-31 from the live base templates via `seed_tasklibrary.py` — 52 unique tasks (75 template rows deduped by title; 3 merged descriptions); backfill pass confirmed templates already match on all standardizable fields |
 | Candidates | `ce3de9a9-702d-4707-9f30-a011b3d78264` | |
 | Tasks | `c5ee2e83-46d9-4233-a660-b05286a98d11` | **PA direct Edit grant**; Candidate/Assignee/DueDate indexed |
 | TasksArchive | `26ec003f-71dd-465e-a1ab-1facb1cdb188` | same shape as Tasks |
