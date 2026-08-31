@@ -275,6 +275,62 @@ Screens:
                         Text: ="Templates"
                         Visible: =scr_templates.Size <> ScreenSize.Small
                         Wrap: =false
+            - conNavTaskLib_Templates:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsHR
+                Children:
+                  - conNavBarTaskLib_Templates:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_tasklibrary, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavTaskLib_Templates:
+                      Control: Classic/Icon
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        Height: =44
+                        Icon: =Icon.Notebook
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_tasklibrary)
+                        PaddingLeft: =12
+                        Width: =44
+                  - lblNavTaskLib_Templates:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_tasklibrary, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_tasklibrary)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        Text: ="Task Library"
+                        Visible: =scr_templates.Size <> ScreenSize.Small
+                        Wrap: =false
       - cntTemplatesRoot:
           Control: GroupContainer
           Variant: AutoLayout
@@ -1478,6 +1534,20 @@ Screens:
                                             Reset(tglTeRequired); Reset(tglTePrereq); Reset(tglTeApproval)
                                           Text: ="Add Task"
                                           Width: =120
+                                    - btnTpFromLibrary:
+                                        Control: Button
+                                        Properties:
+                                          Appearance: ='ButtonCanvas.Appearance'.Secondary
+                                          BasePaletteColor: =UAB.Green
+                                          DisplayMode: =If(Coalesce(varSelTemplateId, 0) > 0, DisplayMode.Edit, DisplayMode.Disabled)
+                                          Height: =36
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          OnSelect: |-
+                                            =Set(varLpShow, true);
+                                            Reset(txtLpSearch); Reset(cmbLpStage)
+                                          Text: ="From Library"
+                                          Width: =130
                               - galTpTasks:
                                   Control: Gallery
                                   Variant: Vertical
@@ -3398,3 +3468,340 @@ Screens:
                               OnSelect: =Set(varTpBulkConfirm, false); Clear(colTpBulk)
                               Text: ="Cancel"
                               Width: =120
+      - conLpModal:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =RGBA(32, 38, 45, 0.4)
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutJustifyContent: =LayoutJustifyContent.Center
+            Visible: =Coalesce(varLpShow, false)
+            Width: =Parent.Width
+          Children:
+            - conLpPanel:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  AlignInContainer: =AlignInContainer.Center
+                  DropShadow: =DropShadow.Regular
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  Height: =Min(620, Parent.Height - 32)
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =24
+                  PaddingLeft: =24
+                  PaddingRight: =24
+                  PaddingTop: =24
+                  RadiusBottomLeft: =8
+                  RadiusBottomRight: =8
+                  RadiusTopLeft: =8
+                  RadiusTopRight: =8
+                  Width: =Min(640, Parent.Width - 32)
+                Children:
+                  - conLpHead:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =34
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        PaddingLeft: =2
+                        PaddingRight: =2
+                      Children:
+                        - lblLpTitle:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.TextPrimary
+                              FillPortions: =1
+                              FontWeight: =FontWeight.Semibold
+                              Height: =31
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =20
+                              Text: ="Add From Library"
+                              Wrap: =false
+                        - icoLpClose:
+                            Control: Classic/Icon
+                            Properties:
+                              BorderColor: =UAB.Line
+                              BorderThickness: =1
+                              Color: =UAB.Gray500
+                              Height: =28
+                              Icon: =Icon.Cancel
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varLpShow, false)
+                              Width: =28
+                  - lblLpHint:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray500
+                        Height: =20
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: ="Pick a stage, then tap + to copy a library task into this template. Add as many as you need."
+                        Wrap: =false
+                  - conLpStageRow:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =66
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =4
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - lblLpStageCap:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.Gray700
+                              FontWeight: =FontWeight.Semibold
+                              Height: =22
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Secondary
+                              Text: ="Add to stage"
+                              Wrap: =false
+                        - cmbLpStage:
+                            Control: ModernCombobox
+                            Properties:
+                              FillPortions: =1
+                              Height: =40
+                              ItemDisplayText: =ThisItem.PickerLabel
+                              Items: |-
+                                =AddColumns(
+                                    SortByColumns(Filter(TemplateStages, Template.Id = Coalesce(varSelTemplateId, 0)),
+                                        "OrderIndex", SortOrder.Ascending),
+                                    PickerLabel, Coalesce(Stage.Value, Title))
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              SelectMultiple: =false
+                  - txtLpSearch:
+                      Control: ModernTextInput
+                      Properties:
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Placeholder: ="Search the library"
+                  - galLpList:
+                      Control: Gallery
+                      Variant: Vertical
+                      Properties:
+                        BorderColor: =UAB.Line
+                        BorderThickness: =1
+                        Fill: =UAB.White
+                        Items: |-
+                          =SortByColumns(
+                              Filter(FirstN(TaskLibrary, 500),
+                                  IsActive = true,
+                                  (IsBlank(Trim(txtLpSearch.Text))
+                                      || StartsWith(Title, Trim(txtLpSearch.Text))
+                                      || Trim(txtLpSearch.Text) in Title)),
+                              "Title", SortOrder.Ascending)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        TemplatePadding: =0
+                        TemplateSize: =56
+                      Children:
+                        - conLpRow:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              Height: =Parent.TemplateHeight
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              Width: =Parent.TemplateWidth
+                            Children:
+                              - conLpRowContent:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =55
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutGap: =8
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    PaddingLeft: =12
+                                    PaddingRight: =12
+                                  Children:
+                                    - conLpRowMain:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutGap: =2
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - lblLpRowTitle:
+                                              Control: Label
+                                              Properties:
+                                                Color: =UAB.TextPrimary
+                                                Font: =Font.Arial
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =25
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                PaddingBottom: =0
+                                                PaddingLeft: =0
+                                                PaddingRight: =0
+                                                PaddingTop: =0
+                                                Size: =UABSize.Body
+                                                Text: |-
+                                                  =With({t: Trim(Coalesce(ThisItem.Title, ""))},
+                                                      If(Len(t) > 60, Trim(Left(t, 59)) & "…", t))
+                                                Wrap: =false
+                                          - lblLpRowSub:
+                                              Control: Label
+                                              Properties:
+                                                Color: =UAB.Gray500
+                                                Font: =Font.Arial
+                                                Height: =22
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                PaddingBottom: =0
+                                                PaddingLeft: =0
+                                                PaddingRight: =0
+                                                PaddingTop: =0
+                                                Size: =UABSize.Secondary
+                                                Text: |-
+                                                  =Coalesce(ThisItem.Category.Value, "Other")
+                                                      & "  ·  " & If(Coalesce(ThisItem.Anchor.Value, "None") = "None", "No due date",
+                                                          ThisItem.Anchor.Value
+                                                              & If(Coalesce(ThisItem.OffsetDays, 0) = 0, "",
+                                                                  " " & If(ThisItem.OffsetDays > 0, "+", "") & ThisItem.OffsetDays & "d"))
+                                                      & "  ·  " & Coalesce(ThisItem.AssigneeRole.Value, "Person")
+                                                Wrap: =false
+                                    - icoLpRowAdd:
+                                        Control: Classic/Icon
+                                        Properties:
+                                          Color: =UAB.Green
+                                          Height: =28
+                                          Icon: =Icon.Add
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          OnSelect: |-
+                                            =IfError(
+                                                Patch(TemplateTasks, Defaults(TemplateTasks),
+                                                    {Template: {Id: Coalesce(varSelTemplateId, 0), Value: LookUp(Templates, ID = Coalesce(varSelTemplateId, 0)).Title},
+                                                     Title: ThisItem.Title,
+                                                     Description: ThisItem.Description,
+                                                     TemplateStage: If(IsBlank(cmbLpStage.Selected), Blank(),
+                                                         {Id: cmbLpStage.Selected.ID,
+                                                          Value: Coalesce(cmbLpStage.Selected.Title, cmbLpStage.Selected.Stage.Value)}),
+                                                     AssigneeRole: If(IsBlank(ThisItem.AssigneeRole), Blank(), {Value: ThisItem.AssigneeRole.Value}),
+                                                     Anchor: If(IsBlank(ThisItem.Anchor), Blank(), {Value: ThisItem.Anchor.Value}),
+                                                     OffsetDays: Coalesce(ThisItem.OffsetDays, 0),
+                                                     OrderIndex: With({m: Max(Filter(TemplateTasks, Template.Id = Coalesce(varSelTemplateId, 0)), OrderIndex)},
+                                                         Coalesce(m, 0) + 10),
+                                                     Priority: If(IsBlank(ThisItem.Priority), Blank(), {Value: ThisItem.Priority.Value}),
+                                                     Category: If(IsBlank(ThisItem.Category), Blank(), {Value: ThisItem.Category.Value}),
+                                                     IsRequired: !(ThisItem.IsRequired = false),
+                                                     IsPrereq: (ThisItem.IsPrereq = true),
+                                                     NeedsApproval: (ThisItem.NeedsApproval = true),
+                                                     PrereqCondition: If(!(ThisItem.IsPrereq = true), Blank(),
+                                                         If(IsBlank(ThisItem.PrereqCondition), Blank(), {Value: ThisItem.PrereqCondition.Value}))}),
+                                                Notify("Couldn't add the task - " & FirstError.Message
+                                                    & " Nothing was added. Try again.", NotificationType.Error),
+                                                Set(varTpStats,
+                                                With({t: Filter(TemplateTasks, Template.Id = Coalesce(varSelTemplateId, 0))},
+                                                    {stages: CountRows(Filter(TemplateStages, Template.Id = Coalesce(varSelTemplateId, 0))),
+                                                     tasks: CountRows(t),
+                                                     unnamed: CountRows(Filter(t, IsBlank(Trim(Title)))),
+                                                     stageless: CountRows(Filter(t, IsBlank(TemplateStage.Id))),
+                                                     fixedNoDate: CountRows(Filter(t, Anchor.Value = "Fixed", IsBlank(FixedDate))),
+                                                     prereqs: CountRows(Filter(t, IsPrereq)),
+                                                     approvals: CountRows(Filter(t, NeedsApproval))}));
+                                                Notify(ThisItem.Title & " added to the template.", NotificationType.Success))
+                                          Width: =28
+                              - conLpRowDivider:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.Line
+                                    FillPortions: =0
+                                    Height: =1
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                  - conLpFoot:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =48
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutJustifyContent: =LayoutJustifyContent.End
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - lblLpFootCount:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.Gray500
+                              FillPortions: =1
+                              Height: =18
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Secondary
+                              Text: =galLpList.AllItemsCount & If(galLpList.AllItemsCount = 1, " library task", " library tasks")
+                              Wrap: =false
+                        - btnLpDone:
+                            Control: ModernButton
+                            Properties:
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
+                              BasePaletteColor: =UAB.Green
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varLpShow, false)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Done"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =110

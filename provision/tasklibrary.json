@@ -1,0 +1,360 @@
+{
+ "Mk_TaskLibrary": {
+  "runAfter": {},
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"__metadata\": {\"type\": \"SP.List\"}, \"BaseTemplate\": 100, \"Title\": \"TaskLibrary\", \"ContentTypesEnabled\": false}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "F_TaskLibrary_Description": {
+  "runAfter": {
+   "Mk_TaskLibrary": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields/createfieldasxml",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"parameters\": {\"SchemaXml\": \"<Field Type='Note' Name='Description' DisplayName='Description' NumLines='6'></Field>\", \"Options\": 10}}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "F_TaskLibrary_Category": {
+  "runAfter": {
+   "F_TaskLibrary_Description": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields/createfieldasxml",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"parameters\": {\"SchemaXml\": \"<Field Type='Choice' Name='Category' DisplayName='Category'><CHOICES><CHOICE>Documents</CHOICE><CHOICE>Meetings</CHOICE><CHOICE>Admin</CHOICE><CHOICE>Processing</CHOICE><CHOICE>Other</CHOICE></CHOICES><Default>Other</Default></Field>\", \"Options\": 10}}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "F_TaskLibrary_Anchor": {
+  "runAfter": {
+   "F_TaskLibrary_Category": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields/createfieldasxml",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"parameters\": {\"SchemaXml\": \"<Field Type='Choice' Name='Anchor' DisplayName='Anchor'><CHOICES><CHOICE>LOI</CHOICE><CHOICE>LOO</CHOICE></CHOICES><Default>None</Default></Field>\", \"Options\": 10}}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "F_TaskLibrary_OffsetDays": {
+  "runAfter": {
+   "F_TaskLibrary_Anchor": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields/createfieldasxml",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"parameters\": {\"SchemaXml\": \"<Field Type='Number' Name='OffsetDays' DisplayName='OffsetDays'></Field>\", \"Options\": 10}}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "F_TaskLibrary_AssigneeRole": {
+  "runAfter": {
+   "F_TaskLibrary_OffsetDays": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields/createfieldasxml",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"parameters\": {\"SchemaXml\": \"<Field Type='Choice' Name='AssigneeRole' DisplayName='AssigneeRole'><CHOICES><CHOICE>Person</CHOICE><CHOICE>Manager</CHOICE><CHOICE>HR</CHOICE><CHOICE>Candidate</CHOICE></CHOICES><Default>Person</Default></Field>\", \"Options\": 10}}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "F_TaskLibrary_DefaultAssignee": {
+  "runAfter": {
+   "F_TaskLibrary_AssigneeRole": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields/createfieldasxml",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"parameters\": {\"SchemaXml\": \"<Field Type='User' Name='DefaultAssignee' DisplayName='DefaultAssignee' UserSelectionMode='PeopleOnly'></Field>\", \"Options\": 10}}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "F_TaskLibrary_Priority": {
+  "runAfter": {
+   "F_TaskLibrary_DefaultAssignee": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields/createfieldasxml",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"parameters\": {\"SchemaXml\": \"<Field Type='Choice' Name='Priority' DisplayName='Priority'><CHOICES><CHOICE>Low</CHOICE><CHOICE>Medium</CHOICE><CHOICE>High</CHOICE><CHOICE>Critical</CHOICE></CHOICES><Default>Medium</Default></Field>\", \"Options\": 10}}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "F_TaskLibrary_IsRequired": {
+  "runAfter": {
+   "F_TaskLibrary_Priority": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields/createfieldasxml",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"parameters\": {\"SchemaXml\": \"<Field Type='Boolean' Name='IsRequired' DisplayName='IsRequired'><Default>1</Default></Field>\", \"Options\": 10}}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "F_TaskLibrary_IsPrereq": {
+  "runAfter": {
+   "F_TaskLibrary_IsRequired": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields/createfieldasxml",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"parameters\": {\"SchemaXml\": \"<Field Type='Boolean' Name='IsPrereq' DisplayName='IsPrereq'><Default>0</Default></Field>\", \"Options\": 10}}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "F_TaskLibrary_PrereqCondition": {
+  "runAfter": {
+   "F_TaskLibrary_IsPrereq": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields/createfieldasxml",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"parameters\": {\"SchemaXml\": \"<Field Type='Choice' Name='PrereqCondition' DisplayName='PrereqCondition'><CHOICES><CHOICE>Always</CHOICE><CHOICE>Requires</CHOICE></CHOICES></Field>\", \"Options\": 10}}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "F_TaskLibrary_NeedsApproval": {
+  "runAfter": {
+   "F_TaskLibrary_PrereqCondition": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields/createfieldasxml",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"parameters\": {\"SchemaXml\": \"<Field Type='Boolean' Name='NeedsApproval' DisplayName='NeedsApproval'><Default>0</Default></Field>\", \"Options\": 10}}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "F_TaskLibrary_IsActive": {
+  "runAfter": {
+   "F_TaskLibrary_NeedsApproval": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "POST",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields/createfieldasxml",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata",
+     "Content-Type": "application/json;odata=verbose"
+    },
+    "parameters/body": "{\"parameters\": {\"SchemaXml\": \"<Field Type='Boolean' Name='IsActive' DisplayName='IsActive'><Default>1</Default></Field>\", \"Options\": 10}}"
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ },
+ "V_TaskLibrary_fields": {
+  "runAfter": {
+   "F_TaskLibrary_IsActive": [
+    "Succeeded"
+   ]
+  },
+  "type": "OpenApiConnection",
+  "inputs": {
+   "host": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+    "connectionName": "shared_sharepointonline",
+    "operationId": "HttpRequest"
+   },
+   "parameters": {
+    "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+    "parameters/method": "GET",
+    "parameters/uri": "_api/web/lists/getbytitle('TaskLibrary')/fields?$select=InternalName,Title,TypeAsString,Hidden&$filter=Hidden eq false",
+    "parameters/headers": {
+     "Accept": "application/json;odata=nometadata"
+    }
+   },
+   "authentication": "@parameters('$authentication')"
+  }
+ }
+}

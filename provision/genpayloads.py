@@ -69,6 +69,17 @@ SCHEMA = {  # creation order matters: lookups reference earlier lists
         "Category": f"choice:{'|'.join(CATS)} default=Other", "OrderIndex": "num",
         "IsRequired": "bool default=1", "IsPrereq": "bool default=0",
         "PrereqCondition": "choice:Always|Requires P&T", "NeedsApproval": "bool default=0"}},
+    # Reusable task definitions shared across templates (added 2026-08-31 via
+    # gen_tasklibrary.py; template-agnostic, so no Template/TemplateStage/OrderIndex/FixedDate)
+    "TaskLibrary": {"cols": {
+        "Description": "note",
+        "Category": f"choice:{'|'.join(CATS)} default=Other",
+        "Anchor": f"choice:{'|'.join(ANCHORS)} default=None", "OffsetDays": "num",
+        "AssigneeRole": f"choice:{'|'.join(ROLES)} default=Person",
+        "DefaultAssignee": "user", "Priority": f"choice:{'|'.join(PRIOS)} default=Medium",
+        "IsRequired": "bool default=1", "IsPrereq": "bool default=0",
+        "PrereqCondition": "choice:Always|Requires P&T", "NeedsApproval": "bool default=0",
+        "IsActive": "bool default=1"}},
     "Candidates": {"cols": {
         "FirstName": "text", "LastName": "text",
         "Salutation": "choice:Mr.|Ms.|Mrs.|Dr.|Prof.|Mx.|Other",

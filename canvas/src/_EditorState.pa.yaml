@@ -4,3 +4,4 @@ EditorState:
     - scr_mytasks
     - scr_new_candidate
     - scr_templates
+    - scr_tasklibrary

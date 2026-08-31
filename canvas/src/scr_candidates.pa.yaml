@@ -275,6 +275,62 @@ Screens:
                         Text: ="Templates"
                         Visible: =scr_candidates.Size <> ScreenSize.Small
                         Wrap: =false
+            - conNavTaskLib_Candidates:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsHR
+                Children:
+                  - conNavBarTaskLib_Candidates:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_tasklibrary, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavTaskLib_Candidates:
+                      Control: Classic/Icon
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        Height: =44
+                        Icon: =Icon.Notebook
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_tasklibrary)
+                        PaddingLeft: =12
+                        Width: =44
+                  - lblNavTaskLib_Candidates:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_tasklibrary, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_tasklibrary)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        Text: ="Task Library"
+                        Visible: =scr_candidates.Size <> ScreenSize.Small
+                        Wrap: =false
       - cntCandidatesRoot:
           Control: GroupContainer
           Variant: AutoLayout
@@ -2691,8 +2747,8 @@ Screens:
                                     LayoutGap: =8
                                     LayoutMinHeight: =0
                                     LayoutMinWidth: =0
-                                    PaddingLeft: =8
-                                    PaddingRight: =8
+                                    PaddingLeft: =10
+                                    PaddingRight: =10
                                   Children:
                                     - conPvRowMain:
                                         Control: GroupContainer

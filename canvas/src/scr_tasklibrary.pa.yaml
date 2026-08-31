@@ -1,0 +1,1876 @@
+Screens:
+  scr_tasklibrary:
+    Properties:
+      Fill: =UAB.OffWhite
+      OnVisible: =Set(varTlPage, 1)
+    Children:
+      - NavRail_TaskLib:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =UAB.Green
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutGap: =4
+            PaddingBottom: =32
+            PaddingTop: =32
+            Width: =If(scr_tasklibrary.Size = ScreenSize.Small, UABLayout.NavRailWidthCollapsed, UABLayout.NavRailWidth)
+          Children:
+            - lblAppName_TaskLib:
+                Control: Label
+                Properties:
+                  AlignInContainer: =AlignInContainer.Stretch
+                  Color: =UAB.White
+                  Font: =Font.Arial
+                  FontWeight: =FontWeight.Bold
+                  Height: =56
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =20
+                  PaddingRight: =0
+                  PaddingTop: =0
+                  Size: =20
+                  Text: ="OnBoardPro"
+                  Visible: =scr_tasklibrary.Size <> ScreenSize.Small
+                  Wrap: =false
+            - lblAppSub_TaskLib:
+                Control: Label
+                Properties:
+                  AlignInContainer: =AlignInContainer.Stretch
+                  Color: =UAB.Gold
+                  Font: =Font.Arial
+                  Height: =24
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =20
+                  PaddingRight: =0
+                  PaddingTop: =0
+                  Size: =11
+                  Text: ="OBGYN Onboarding"
+                  Visible: =scr_tasklibrary.Size <> ScreenSize.Small
+                  Wrap: =false
+            - conNavNewCand_TaskLib:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsHR
+                Children:
+                  - conNavBarNewCand_TaskLib:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_new_candidate, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavNewCand_TaskLib:
+                      Control: Classic/Icon
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        Height: =44
+                        Icon: =Icon.Add
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_new_candidate)
+                        PaddingLeft: =12
+                        Width: =44
+                  - lblNavNewCand_TaskLib:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_new_candidate, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_new_candidate)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        Text: ="New Candidate"
+                        Visible: =scr_tasklibrary.Size <> ScreenSize.Small
+                        Wrap: =false
+            - conNavCandidates_TaskLib:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsManagerOrHR
+                Children:
+                  - conNavBarCandidates_TaskLib:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_candidates, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavCandidates_TaskLib:
+                      Control: Classic/Icon
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_candidates, UAB.White, UAB.NavInactive)
+                        Height: =44
+                        Icon: =Icon.People
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_candidates)
+                        PaddingLeft: =12
+                        Width: =44
+                  - lblNavCandidates_TaskLib:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_candidates, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_candidates, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_candidates)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        Text: ="Candidates"
+                        Visible: =scr_tasklibrary.Size <> ScreenSize.Small
+                        Wrap: =false
+            - conNavMyTasks_TaskLib:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - conNavBarMyTasks_TaskLib:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_mytasks, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavMyTasks_TaskLib:
+                      Control: Classic/Icon
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        Height: =44
+                        Icon: =Icon.Check
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_mytasks)
+                        PaddingLeft: =12
+                        Width: =44
+                  - lblNavMyTasks_TaskLib:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_mytasks, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_mytasks)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        Text: ="My Tasks"
+                        Visible: =scr_tasklibrary.Size <> ScreenSize.Small
+                        Wrap: =false
+            - conNavTemplates_TaskLib:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsHR
+                Children:
+                  - conNavBarTemplates_TaskLib:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_templates, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavTemplates_TaskLib:
+                      Control: Classic/Icon
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_templates, UAB.White, UAB.NavInactive)
+                        Height: =44
+                        Icon: =Icon.DocumentWithContent
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_templates)
+                        PaddingLeft: =12
+                        Width: =44
+                  - lblNavTemplates_TaskLib:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_templates, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_templates, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_templates)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        Text: ="Templates"
+                        Visible: =scr_tasklibrary.Size <> ScreenSize.Small
+                        Wrap: =false
+            - conNavTaskLib_TaskLib:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsHR
+                Children:
+                  - conNavBarTaskLib_TaskLib:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_tasklibrary, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavTaskLib_TaskLib:
+                      Control: Classic/Icon
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        Height: =44
+                        Icon: =Icon.Notebook
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_tasklibrary)
+                        PaddingLeft: =12
+                        Width: =44
+                  - lblNavTaskLib_TaskLib:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_tasklibrary, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_tasklibrary)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        Text: ="Task Library"
+                        Visible: =scr_tasklibrary.Size <> ScreenSize.Small
+                        Wrap: =false
+      - cntTaskLibRoot:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =UAB.OffWhite
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutGap: =16
+            LayoutOverflowY: =LayoutOverflow.Scroll
+            PaddingBottom: =24
+            PaddingLeft: =If(scr_tasklibrary.Size = ScreenSize.Small, 12, 24)
+            PaddingRight: =If(scr_tasklibrary.Size = ScreenSize.Small, 12, 24)
+            PaddingTop: =24
+            Width: =Parent.Width - If(scr_tasklibrary.Size = ScreenSize.Small, UABLayout.NavRailWidthCollapsed, UABLayout.NavRailWidth)
+            X: =If(scr_tasklibrary.Size = ScreenSize.Small, UABLayout.NavRailWidthCollapsed, UABLayout.NavRailWidth)
+          Children:
+            - cntTlHeader:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.OffWhite
+                  FillPortions: =0
+                  Height: =92
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =4
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - conTlTitleRow:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.OffWhite
+                        FillPortions: =0
+                        Height: =54
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - lblTlTitle:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.TextPrimary
+                              FillPortions: =1
+                              FontWeight: =FontWeight.Semibold
+                              Height: =44
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.ScreenTitle
+                              Text: ="Task Library"
+                        - btnTlNew:
+                            Control: ModernButton
+                            Properties:
+                              Align: =Align.Center
+                              BasePaletteColor: =UAB.Green
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: |-
+                                =Set(varTlItem, Blank());
+                                Set(varTlShow, true);
+                                Reset(txtTlTitle); Reset(txtTlDesc); Reset(cmbTlCategory); Reset(cmbTlRole);
+                                Reset(cmbTlAnchor); Reset(cmbTlWhen); Reset(numTlOffset); Reset(cmbTlPriority);
+                                Reset(tglTlRequired); Reset(tglTlPrereq); Reset(cmbTlPrereqCond);
+                                Reset(tglTlApproval); Reset(tglTlActive)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: =If(scr_tasklibrary.Size = ScreenSize.Small, "New Task", "New Library Task")
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 120, 180)
+                  - lblTlSub:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray500
+                        Height: =23
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: ="Standard task definitions to reuse in any template. Retiring a task hides it from pickers without touching templates that already use it."
+                        Wrap: =false
+            - conTlFilterRow:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.OffWhite
+                  FillPortions: =0
+                  Height: =If(scr_tasklibrary.Size = ScreenSize.Small, 184, 40)
+                  LayoutAlignItems: =If(scr_tasklibrary.Size = ScreenSize.Small, LayoutAlignItems.Stretch, LayoutAlignItems.Center)
+                  LayoutDirection: =If(scr_tasklibrary.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                  LayoutGap: =8
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - txtTlSearch:
+                      Control: ModernTextInput
+                      Properties:
+                        FillPortions: =2
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Placeholder: ="Search library tasks"
+                  - cmbTlCat:
+                      Control: ModernCombobox
+                      Properties:
+                        FillPortions: =1
+                        Height: =40
+                        ItemDisplayText: =ThisItem.Value
+                        Items: =Choices(TaskLibrary.Category)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        SelectMultiple: =false
+                  - tglTlRetired:
+                      Control: Toggle
+                      Properties:
+                        BasePaletteColor: =UAB.Green
+                        Height: =40
+                        Label: ="Show retired"
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 160, 150)
+                  - btnTlClear:
+                      Control: ModernButton
+                      Properties:
+                        Align: =Align.Center
+                        Appearance: =ButtonAppearance.Secondary
+                        BasePaletteColor: =UAB.Green
+                        FontWeight: =""
+                        Height: =40
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =Reset(txtTlSearch); Reset(cmbTlCat); Reset(tglTlRetired);
+                          Set(varTlPage, 1)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
+                        Text: ="Clear"
+                        VerticalAlign: =VerticalAlign.Middle
+                        Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 90, 90)
+            - lblTlCount:
+                Control: ModernText
+                Properties:
+                  Align: =Align.Right
+                  AutoHeight: =true
+                  Color: =UAB.Gray500
+                  Height: =18
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Size: =UABSize.Secondary
+                  Text: =galTlAll.AllItemsCount & If(galTlAll.AllItemsCount = 1, " task", " tasks")
+                  Wrap: =false
+            - conTlTableCard:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  BorderColor: =UAB.Line
+                  BorderThickness: =1
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  Height: =40 + Max(If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56), Min(galTlAll.AllItemsCount, 8) * If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56)) + If(galTlAll.AllItemsCount > 8, 48, 0) + If(galTlAll.AllItemsCount = 0, 44, 0)
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - conTlHeaderRow:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.Paper
+                        FillPortions: =0
+                        Height: =40
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =If(scr_tasklibrary.Size = ScreenSize.Small, 8, 12)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        PaddingLeft: =If(scr_tasklibrary.Size = ScreenSize.Small, 12, 16)
+                        PaddingRight: =If(scr_tasklibrary.Size = ScreenSize.Small, 12, 16)
+                      Children:
+                        - lblTlColTask:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.Gray700
+                              FillPortions: =1
+                              FontWeight: =FontWeight.Semibold
+                              Height: =18
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Secondary
+                              Text: ="Task"
+                        - conTlColCat:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.Paper
+                              FillPortions: =0
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Visible: =!(scr_tasklibrary.Size = ScreenSize.Small)
+                              Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 0, 120)
+                            Children:
+                              - lblTlColCat:
+                                  Control: ModernText
+                                  Properties:
+                                    Align: =Align.Center
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FillPortions: =1
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =18
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Category"
+                        - conTlColTiming:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.Paper
+                              FillPortions: =0
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Visible: =!(scr_tasklibrary.Size = ScreenSize.Small)
+                              Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 0, 150)
+                            Children:
+                              - lblTlColTiming:
+                                  Control: ModernText
+                                  Properties:
+                                    Align: =Align.Center
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FillPortions: =1
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =18
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Timing"
+                        - conTlColRole:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.Paper
+                              FillPortions: =0
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Visible: =!(scr_tasklibrary.Size = ScreenSize.Small)
+                              Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 0, 110)
+                            Children:
+                              - lblTlColRole:
+                                  Control: ModernText
+                                  Properties:
+                                    Align: =Align.Center
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FillPortions: =1
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =18
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Assigned to"
+                        - conTlColFlags:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.Paper
+                              FillPortions: =0
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Visible: =!(scr_tasklibrary.Size = ScreenSize.Small)
+                              Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 0, 150)
+                            Children:
+                              - lblTlColFlags:
+                                  Control: ModernText
+                                  Properties:
+                                    Align: =Align.Center
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FillPortions: =1
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =18
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Flags"
+                        - conTlColActive:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.Paper
+                              FillPortions: =0
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 70, 90)
+                            Children:
+                              - lblTlColActive:
+                                  Control: ModernText
+                                  Properties:
+                                    Align: =Align.Center
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FillPortions: =1
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =18
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Status"
+                  - galTlAll:
+                      Control: Gallery
+                      Variant: Vertical
+                      Properties:
+                        FillPortions: =0
+                        Height: =56
+                        Items: |-
+                          =SortByColumns(
+                              Filter(FirstN(TaskLibrary, 500),
+                                  (IsBlank(Trim(txtTlSearch.Text))
+                                      || StartsWith(Title, Trim(txtTlSearch.Text))
+                                      || Trim(txtTlSearch.Text) in Title),
+                                  (IsBlank(cmbTlCat.Selected) || Category.Value = cmbTlCat.Selected.Value),
+                                  (tglTlRetired.Checked || IsActive = true)),
+                              "Title", SortOrder.Ascending)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        ShowScrollbar: =false
+                        TemplatePadding: =0
+                        TemplateSize: =56
+                        Visible: =false
+                      Children:
+                        - lblTlAllStub:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Height: =18
+                              Text: =""
+                  - galTlList:
+                      Control: Gallery
+                      Variant: Vertical
+                      Properties:
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =Max(If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56), Min(galTlAll.AllItemsCount, 8) * If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56))
+                        Items: |-
+                          =With({t: galTlAll.AllItems, n: galTlAll.AllItemsCount},
+                              FirstN(LastN(t, n - (Min(Coalesce(varTlPage, 1), Max(1, RoundUp(n / 8, 0))) - 1) * 8), 8))
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        ShowScrollbar: =false
+                        TemplatePadding: =0
+                        TemplateSize: =If(scr_tasklibrary.Size = ScreenSize.Small, 72, 56)
+                      Children:
+                        - conTlListRow:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              Height: =Parent.TemplateHeight
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              Width: =Parent.TemplateWidth
+                            Children:
+                              - conTlRowContent:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =If(scr_tasklibrary.Size = ScreenSize.Small, 71, 55)
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutGap: =If(scr_tasklibrary.Size = ScreenSize.Small, 8, 12)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    PaddingLeft: =If(scr_tasklibrary.Size = ScreenSize.Small, 12, 16)
+                                    PaddingRight: =If(scr_tasklibrary.Size = ScreenSize.Small, 12, 16)
+                                  Children:
+                                    - conTlCellMain:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutGap: =If(scr_tasklibrary.Size = ScreenSize.Small, 4, 2)
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - lblTlRowTitle:
+                                              Control: Label
+                                              Properties:
+                                                Color: =UAB.TextPrimary
+                                                Font: =Font.Arial
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =25
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                OnSelect: |-
+                                                  =Set(varTlItem, ThisItem);
+                                                  Set(varTlShow, true);
+                                                  Reset(txtTlTitle); Reset(txtTlDesc); Reset(cmbTlCategory); Reset(cmbTlRole);
+                                                  Reset(cmbTlAnchor); Reset(cmbTlWhen); Reset(numTlOffset); Reset(cmbTlPriority);
+                                                  Reset(tglTlRequired); Reset(tglTlPrereq); Reset(cmbTlPrereqCond);
+                                                  Reset(tglTlApproval); Reset(tglTlActive)
+                                                PaddingBottom: =0
+                                                PaddingLeft: =0
+                                                PaddingRight: =0
+                                                PaddingTop: =0
+                                                Size: =UABSize.Body
+                                                Text: |-
+                                                  =With({t: Trim(Coalesce(ThisItem.Title, ""))},
+                                                      If(Len(t) > 70, Trim(Left(t, 69)) & "…", t))
+                                                Wrap: =false
+                                          - lblTlRowSub:
+                                              Control: Label
+                                              Properties:
+                                                Color: =UAB.Gray500
+                                                Font: =Font.Arial
+                                                Height: =22
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                OnSelect: |-
+                                                  =Set(varTlItem, ThisItem);
+                                                  Set(varTlShow, true);
+                                                  Reset(txtTlTitle); Reset(txtTlDesc); Reset(cmbTlCategory); Reset(cmbTlRole);
+                                                  Reset(cmbTlAnchor); Reset(cmbTlWhen); Reset(numTlOffset); Reset(cmbTlPriority);
+                                                  Reset(tglTlRequired); Reset(tglTlPrereq); Reset(cmbTlPrereqCond);
+                                                  Reset(tglTlApproval); Reset(tglTlActive)
+                                                PaddingBottom: =0
+                                                PaddingLeft: =0
+                                                PaddingRight: =0
+                                                PaddingTop: =0
+                                                Size: =UABSize.Secondary
+                                                Text: |-
+                                                  =If(scr_tasklibrary.Size = ScreenSize.Small,
+                                                      Coalesce(ThisItem.Category.Value, "Other")
+                                                          & "  ·  " & If(Coalesce(ThisItem.Anchor.Value, "None") = "None", "No due date",
+                                                              ThisItem.Anchor.Value
+                                                                  & If(Coalesce(ThisItem.OffsetDays, 0) = 0, "",
+                                                                      " " & If(ThisItem.OffsetDays > 0, "+", "") & ThisItem.OffsetDays & "d"))
+                                                          & "  ·  " & Coalesce(ThisItem.AssigneeRole.Value, "Person"),
+                                                      With({d: Trim(Coalesce(ThisItem.Description, ""))},
+                                                          If(Len(d) > 90, Trim(Left(d, 89)) & "…", d)))
+                                                Wrap: =false
+                                    - conTlCellCat:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          FillPortions: =0
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Visible: =!(scr_tasklibrary.Size = ScreenSize.Small)
+                                          Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 0, 120)
+                                        Children:
+                                          - lblTlCellCat:
+                                              Control: ModernText
+                                              Properties:
+                                                Align: =Align.Center
+                                                AutoHeight: =true
+                                                Color: =UAB.Gray700
+                                                Height: =18
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Secondary
+                                                Text: =Coalesce(ThisItem.Category.Value, "Other")
+                                                Wrap: =false
+                                    - conTlCellTiming:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          FillPortions: =0
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Visible: =!(scr_tasklibrary.Size = ScreenSize.Small)
+                                          Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 0, 150)
+                                        Children:
+                                          - lblTlCellTiming:
+                                              Control: ModernText
+                                              Properties:
+                                                Align: =Align.Center
+                                                AutoHeight: =true
+                                                Color: =UAB.Gray700
+                                                Height: =18
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Secondary
+                                                Text: |-
+                                                  =If(Coalesce(ThisItem.Anchor.Value, "None") = "None", "—",
+                                                      ThisItem.Anchor.Value
+                                                          & If(Coalesce(ThisItem.OffsetDays, 0) = 0, "",
+                                                              " " & If(ThisItem.OffsetDays > 0, "+", "") & ThisItem.OffsetDays & "d"))
+                                                Wrap: =false
+                                    - conTlCellRole:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          FillPortions: =0
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Visible: =!(scr_tasklibrary.Size = ScreenSize.Small)
+                                          Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 0, 110)
+                                        Children:
+                                          - lblTlCellRole:
+                                              Control: ModernText
+                                              Properties:
+                                                Align: =Align.Center
+                                                AutoHeight: =true
+                                                Color: =UAB.Gray700
+                                                Height: =18
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Secondary
+                                                Text: =Coalesce(ThisItem.AssigneeRole.Value, "Person")
+                                                Wrap: =false
+                                    - conTlCellFlags:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          FillPortions: =0
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Visible: =!(scr_tasklibrary.Size = ScreenSize.Small)
+                                          Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 0, 150)
+                                        Children:
+                                          - lblTlCellFlags:
+                                              Control: ModernText
+                                              Properties:
+                                                Align: =Align.Center
+                                                AutoHeight: =true
+                                                Color: =UAB.Gray500
+                                                Height: =18
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Secondary
+                                                Text: |-
+                                                  =With({f: Filter(Table(
+                                                      {v: If(ThisItem.IsRequired = false, "Optional", "")},
+                                                      {v: If(ThisItem.IsPrereq = true, "Prereq", "")},
+                                                      {v: If(ThisItem.NeedsApproval = true, "Approval", "")}), !IsBlank(v))},
+                                                      If(CountRows(f) = 0, "—", Concat(f, v, " · ")))
+                                                Wrap: =false
+                                    - conTlCellActive:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          FillPortions: =0
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 70, 90)
+                                        Children:
+                                          - conTlPillActive:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                AlignInContainer: =AlignInContainer.Center
+                                                DropShadow: =DropShadow.None
+                                                Fill: =If(ThisItem.IsActive = true, UAB.SuccessTint, UAB.Paper)
+                                                FillPortions: =0
+                                                Height: =24
+                                                LayoutAlignItems: =LayoutAlignItems.Center
+                                                LayoutDirection: =LayoutDirection.Horizontal
+                                                LayoutJustifyContent: =LayoutJustifyContent.Center
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                PaddingLeft: =10
+                                                PaddingRight: =10
+                                                RadiusBottomLeft: =999
+                                                RadiusBottomRight: =999
+                                                RadiusTopLeft: =999
+                                                RadiusTopRight: =999
+                                                Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 70, 80)
+                                              Children:
+                                                - lblTlPillActive:
+                                                    Control: ModernText
+                                                    Properties:
+                                                      Align: =Align.Center
+                                                      AlignInContainer: =AlignInContainer.Stretch
+                                                      AutoHeight: =true
+                                                      Color: =If(ThisItem.IsActive = true, UAB.SuccessText, UAB.Gray500)
+                                                      FontWeight: =FontWeight.Semibold
+                                                      Height: =16
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Size: =12
+                                                      Text: =If(ThisItem.IsActive = true, "Active", "Retired")
+                                                      Wrap: =false
+                                    - icoTlRowGo:
+                                        Control: Classic/Icon
+                                        Properties:
+                                          Color: =UAB.Gray300
+                                          Height: =20
+                                          Icon: =Icon.ChevronRight
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          OnSelect: |-
+                                            =Set(varTlItem, ThisItem);
+                                            Set(varTlShow, true);
+                                            Reset(txtTlTitle); Reset(txtTlDesc); Reset(cmbTlCategory); Reset(cmbTlRole);
+                                            Reset(cmbTlAnchor); Reset(cmbTlWhen); Reset(numTlOffset); Reset(cmbTlPriority);
+                                            Reset(tglTlRequired); Reset(tglTlPrereq); Reset(cmbTlPrereqCond);
+                                            Reset(tglTlApproval); Reset(tglTlActive)
+                                          Width: =20
+                              - conTlListDivider:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.Line
+                                    FillPortions: =0
+                                    Height: =1
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                  - conTlListEmpty:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =If(galTlAll.AllItemsCount = 0, 44, 0)
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutJustifyContent: =LayoutJustifyContent.Center
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Visible: =galTlAll.AllItemsCount = 0
+                      Children:
+                        - lblTlListEmpty:
+                            Control: ModernText
+                            Properties:
+                              Align: =Align.Center
+                              AutoHeight: =true
+                              Color: =UAB.Gray500
+                              Height: =20
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Body
+                              Text: |-
+                                =If(IsBlank(Trim(txtTlSearch.Text)) && IsBlank(cmbTlCat.Selected) && !tglTlRetired.Checked && CountRows(FirstN(TaskLibrary, 1)) = 0,
+                                    "No library tasks yet — add the first one.",
+                                    "No library tasks match the current filters.")
+                  - conTlPager:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =48
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =12
+                        LayoutJustifyContent: =LayoutJustifyContent.Center
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Visible: =galTlAll.AllItemsCount > 8
+                      Children:
+                        - icoTlPagerPrev:
+                            Control: Classic/Icon
+                            Properties:
+                              Color: =If(Coalesce(varTlPage, 1) <= 1, UAB.Gray300, UAB.Green)
+                              DisplayMode: =If(Coalesce(varTlPage, 1) <= 1, DisplayMode.Disabled, DisplayMode.Edit)
+                              Height: =24
+                              Icon: =Icon.ChevronLeft
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varTlPage, Max(1, Min(Coalesce(varTlPage, 1), Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0))) - 1))
+                              Width: =24
+                        - lblTlPager:
+                            Control: ModernText
+                            Properties:
+                              Align: =Align.Center
+                              AutoHeight: =true
+                              Color: =UAB.Gray700
+                              Height: =18
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Secondary
+                              Text: ="Page " & Min(Coalesce(varTlPage, 1), Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0))) & " of " & Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0))
+                              Width: =110
+                        - icoTlPagerNext:
+                            Control: Classic/Icon
+                            Properties:
+                              Color: =If(Coalesce(varTlPage, 1) >= Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0)), UAB.Gray300, UAB.Green)
+                              DisplayMode: =If(Coalesce(varTlPage, 1) >= Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0)), DisplayMode.Disabled, DisplayMode.Edit)
+                              Height: =24
+                              Icon: =Icon.ChevronRight
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varTlPage, Min(Max(1, RoundUp(galTlAll.AllItemsCount / 8, 0)), Coalesce(varTlPage, 1) + 1))
+                              Width: =24
+            - lblTlBottomSpacer:
+                Control: ModernText
+                Properties:
+                  Align: =Align.Center
+                  Color: =UAB.OffWhite
+                  Height: =5
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Size: =3
+                  Text: =""
+                  Wrap: =false
+      - conTlModal:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =RGBA(32, 38, 45, 0.4)
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutJustifyContent: =LayoutJustifyContent.Center
+            Visible: =Coalesce(varTlShow, false)
+            Width: =Parent.Width
+          Children:
+            - conTlPanel:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  AlignInContainer: =AlignInContainer.Center
+                  DropShadow: =DropShadow.Regular
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  Height: =If(scr_tasklibrary.Size = ScreenSize.Small, Min(760, Parent.Height - 32), Min(660, Parent.Height - 32))
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  LayoutOverflowY: =LayoutOverflow.Scroll
+                  PaddingBottom: =24
+                  PaddingLeft: =24
+                  PaddingRight: =24
+                  PaddingTop: =24
+                  RadiusBottomLeft: =8
+                  RadiusBottomRight: =8
+                  RadiusTopLeft: =8
+                  RadiusTopRight: =8
+                  Width: =Min(640, Parent.Width - 32)
+                Children:
+                  - conTlModalHead:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =34
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        PaddingLeft: =2
+                        PaddingRight: =2
+                      Children:
+                        - lblTlModalTitle:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.TextPrimary
+                              FillPortions: =1
+                              FontWeight: =FontWeight.Semibold
+                              Height: =31
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =20
+                              Text: =If(IsBlank(varTlItem), "Add Library Task", "Edit Library Task")
+                              Wrap: =false
+                        - icoTlClose:
+                            Control: Classic/Icon
+                            Properties:
+                              BorderColor: =UAB.Line
+                              BorderThickness: =1
+                              Color: =UAB.Gray500
+                              Height: =28
+                              Icon: =Icon.Cancel
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varTlShow, false)
+                              Width: =28
+                  - conTlRowTitle:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =66
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =4
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - lblTlTitleCap:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.Gray700
+                              FontWeight: =FontWeight.Semibold
+                              Height: =22
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Secondary
+                              Text: ="Task name"
+                              Wrap: =false
+                        - txtTlTitle:
+                            Control: ModernTextInput
+                            Properties:
+                              Default: =Coalesce(varTlItem.Title, "")
+                              FillPortions: =1
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Placeholder: ="Required"
+                  - conTlRowDesc:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =94
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =4
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - lblTlDescCap:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.Gray700
+                              FontWeight: =FontWeight.Semibold
+                              Height: =22
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Secondary
+                              Text: ="Description"
+                              Wrap: =false
+                        - txtTlDesc:
+                            Control: ModernTextInput
+                            Properties:
+                              Default: =Coalesce(varTlItem.Description, "")
+                              FillPortions: =1
+                              Height: =68
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Placeholder: ="What the assignee needs to do (optional)"
+                              Type: =TextInputType.Multiline
+                  - conTlRowCatRole:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =If(scr_tasklibrary.Size = ScreenSize.Small, 144, 66)
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =If(scr_tasklibrary.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                        LayoutGap: =12
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - conTlFCat:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              Height: =66
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =4
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                            Children:
+                              - lblTlCatCap:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =22
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Category"
+                                    Wrap: =false
+                              - cmbTlCategory:
+                                  Control: ModernCombobox
+                                  Properties:
+                                    DefaultSelectedItems: =Filter(Choices(TaskLibrary.Category), Value = Coalesce(varTlItem.Category.Value, "Other"))
+                                    FillPortions: =1
+                                    Height: =40
+                                    ItemDisplayText: =ThisItem.Value
+                                    Items: =Choices(TaskLibrary.Category)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    SelectMultiple: =false
+                        - conTlFRole:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              Height: =66
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =4
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                            Children:
+                              - lblTlRoleCap:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =22
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Assigned to"
+                                    Wrap: =false
+                              - cmbTlRole:
+                                  Control: ModernCombobox
+                                  Properties:
+                                    DefaultSelectedItems: =Filter(Choices(TaskLibrary.AssigneeRole), Value = Coalesce(varTlItem.AssigneeRole.Value, "Person"))
+                                    FillPortions: =1
+                                    Height: =40
+                                    ItemDisplayText: =ThisItem.Value
+                                    Items: =Choices(TaskLibrary.AssigneeRole)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    SelectMultiple: =false
+                  - conTlRowAnchor:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =If(scr_tasklibrary.Size = ScreenSize.Small, 144, 66)
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =If(scr_tasklibrary.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                        LayoutGap: =12
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - conTlFAnchor:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              Height: =66
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =4
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                            Children:
+                              - lblTlAnchorCap:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FillPortions: =1
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =22
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Due date anchor"
+                                    Wrap: =false
+                              - cmbTlAnchor:
+                                  Control: ModernCombobox
+                                  Properties:
+                                    DefaultSelectedItems: |-
+                                      =Filter(Table(
+                                          {Value: "LOI", Label: "LOI Date"},
+                                          {Value: "LOO Issued", Label: "LOO Issued Date"},
+                                          {Value: "LOO Accepted", Label: "LOO Accepted Date"},
+                                          {Value: "Start", Label: "Start Date"},
+                                          {Value: "None", Label: "No Due Date"}),
+                                          Value = Coalesce(varTlItem.Anchor.Value, "None"))
+                                    FillPortions: =2
+                                    Height: =40
+                                    ItemDisplayText: =ThisItem.Label
+                                    Items: |-
+                                      =Table(
+                                          {Value: "LOI", Label: "LOI Date"},
+                                          {Value: "LOO Issued", Label: "LOO Issued Date"},
+                                          {Value: "LOO Accepted", Label: "LOO Accepted Date"},
+                                          {Value: "Start", Label: "Start Date"},
+                                          {Value: "None", Label: "No Due Date"})
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    SelectMultiple: =false
+                        - conTlFWhen:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              Height: =66
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =4
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                            Children:
+                              - lblTlWhenCap:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FillPortions: =1
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =22
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="When"
+                                    Wrap: =false
+                              - conTlWhenRow:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =2
+                                    Height: =40
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutGap: =8
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                  Children:
+                                    - cmbTlWhen:
+                                        Control: ModernCombobox
+                                        Properties:
+                                          DefaultSelectedItems: |-
+                                            =Table({Value: If(Coalesce(varTlItem.OffsetDays, 0) < 0, "Before",
+                                                Coalesce(varTlItem.OffsetDays, 0) > 0, "After", "On")})
+                                          FillPortions: =1
+                                          Height: =40
+                                          ItemDisplayText: =ThisItem.Value
+                                          Items: |-
+                                            =Table({Value: "On"}, {Value: "Before"}, {Value: "After"})
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          SelectMultiple: =false
+                                    - numTlOffset:
+                                        Control: ModernNumberInput
+                                        Properties:
+                                          Default: =Abs(Coalesce(varTlItem.OffsetDays, 0))
+                                          DisplayMode: =If(Coalesce(cmbTlWhen.Selected.Value, "On") = "On", DisplayMode.Disabled, DisplayMode.Edit)
+                                          FillPortions: =1
+                                          Height: =40
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                  - conTlRowPriority:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =If(scr_tasklibrary.Size = ScreenSize.Small, 144, 66)
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =If(scr_tasklibrary.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                        LayoutGap: =12
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - conTlFPriority:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              Height: =66
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =4
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                            Children:
+                              - lblTlPriorityCap:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =22
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Priority"
+                                    Wrap: =false
+                              - cmbTlPriority:
+                                  Control: ModernCombobox
+                                  Properties:
+                                    DefaultSelectedItems: =Filter(Choices(TaskLibrary.Priority), Value = Coalesce(varTlItem.Priority.Value, "Medium"))
+                                    FillPortions: =1
+                                    Height: =40
+                                    ItemDisplayText: =ThisItem.Value
+                                    Items: =Choices(TaskLibrary.Priority)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    SelectMultiple: =false
+                        - conTlFActive:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              Height: =66
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              LayoutGap: =4
+                              LayoutJustifyContent: =LayoutJustifyContent.End
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                            Children:
+                              - tglTlActive:
+                                  Control: Toggle
+                                  Properties:
+                                    BasePaletteColor: =UAB.Green
+                                    Checked: =Coalesce(varTlItem.IsActive, true)
+                                    Height: =40
+                                    Label: ="Active — offered in pickers"
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                  - conTlRowFlags:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =If(scr_tasklibrary.Size = ScreenSize.Small, 132, 44)
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =If(scr_tasklibrary.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                        LayoutGap: =If(scr_tasklibrary.Size = ScreenSize.Small, 4, 12)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - tglTlRequired:
+                            Control: Toggle
+                            Properties:
+                              BasePaletteColor: =UAB.Green
+                              Checked: =Coalesce(varTlItem.IsRequired, true)
+                              FillPortions: =1
+                              Height: =40
+                              Label: ="Required"
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                        - tglTlPrereq:
+                            Control: Toggle
+                            Properties:
+                              BasePaletteColor: =UAB.Green
+                              Checked: =Coalesce(varTlItem.IsPrereq, false)
+                              FillPortions: =1
+                              Height: =40
+                              Label: ="Prereq"
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                        - tglTlApproval:
+                            Control: Toggle
+                            Properties:
+                              BasePaletteColor: =UAB.Green
+                              Checked: =Coalesce(varTlItem.NeedsApproval, false)
+                              FillPortions: =1
+                              Height: =40
+                              Label: ="Needs approval"
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                  - conTlRowPrereqCond:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =If(tglTlPrereq.Checked, 66, 0)
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =4
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Visible: =tglTlPrereq.Checked
+                      Children:
+                        - lblTlPrereqCondCap:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.Gray700
+                              FontWeight: =FontWeight.Semibold
+                              Height: =22
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Secondary
+                              Text: ="Prereq applies"
+                              Wrap: =false
+                        - cmbTlPrereqCond:
+                            Control: ModernCombobox
+                            Properties:
+                              DefaultSelectedItems: =Filter(Choices(TaskLibrary.PrereqCondition), Value = Coalesce(varTlItem.PrereqCondition.Value, "Always"))
+                              FillPortions: =1
+                              Height: =40
+                              ItemDisplayText: =ThisItem.Value
+                              Items: =Choices(TaskLibrary.PrereqCondition)
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              SelectMultiple: =false
+                  - conTlActions:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =48
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - btnTlSave:
+                            Control: ModernButton
+                            Properties:
+                              Align: =Align.Center
+                              BasePaletteColor: =UAB.Green
+                              DisplayMode: =If(!IsBlank(Trim(txtTlTitle.Text)), DisplayMode.Edit, DisplayMode.Disabled)
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: |-
+                                =IfError(
+                                    If(IsBlank(varTlItem),
+                                        Patch(TaskLibrary, Defaults(TaskLibrary),
+                                            {Title: Trim(txtTlTitle.Text),
+                                             Description: txtTlDesc.Text,
+                                             Category: If(IsBlank(cmbTlCategory.Selected), Blank(), {Value: cmbTlCategory.Selected.Value}),
+                                             AssigneeRole: If(IsBlank(cmbTlRole.Selected), Blank(), {Value: cmbTlRole.Selected.Value}),
+                                             Anchor: If(IsBlank(cmbTlAnchor.Selected), Blank(), {Value: cmbTlAnchor.Selected.Value}),
+                                             OffsetDays: If(Coalesce(cmbTlWhen.Selected.Value, "On") = "On", 0,
+                                                 Coalesce(cmbTlWhen.Selected.Value, "") = "Before", -Abs(numTlOffset.Value),
+                                                 Abs(numTlOffset.Value)),
+                                             Priority: If(IsBlank(cmbTlPriority.Selected), Blank(), {Value: cmbTlPriority.Selected.Value}),
+                                             IsRequired: tglTlRequired.Checked,
+                                             IsPrereq: tglTlPrereq.Checked,
+                                             NeedsApproval: tglTlApproval.Checked,
+                                             PrereqCondition: If(!tglTlPrereq.Checked, Blank(),
+                                                 If(IsBlank(cmbTlPrereqCond.Selected), {Value: "Always"}, {Value: cmbTlPrereqCond.Selected.Value})),
+                                             IsActive: tglTlActive.Checked}),
+                                        Patch(TaskLibrary, varTlItem,
+                                            {Title: Trim(txtTlTitle.Text),
+                                             Description: txtTlDesc.Text,
+                                             Category: If(IsBlank(cmbTlCategory.Selected), Blank(), {Value: cmbTlCategory.Selected.Value}),
+                                             AssigneeRole: If(IsBlank(cmbTlRole.Selected), Blank(), {Value: cmbTlRole.Selected.Value}),
+                                             Anchor: If(IsBlank(cmbTlAnchor.Selected), Blank(), {Value: cmbTlAnchor.Selected.Value}),
+                                             OffsetDays: If(Coalesce(cmbTlWhen.Selected.Value, "On") = "On", 0,
+                                                 Coalesce(cmbTlWhen.Selected.Value, "") = "Before", -Abs(numTlOffset.Value),
+                                                 Abs(numTlOffset.Value)),
+                                             Priority: If(IsBlank(cmbTlPriority.Selected), Blank(), {Value: cmbTlPriority.Selected.Value}),
+                                             IsRequired: tglTlRequired.Checked,
+                                             IsPrereq: tglTlPrereq.Checked,
+                                             NeedsApproval: tglTlApproval.Checked,
+                                             PrereqCondition: If(!tglTlPrereq.Checked, Blank(),
+                                                 If(IsBlank(cmbTlPrereqCond.Selected), {Value: "Always"}, {Value: cmbTlPrereqCond.Selected.Value})),
+                                             IsActive: tglTlActive.Checked})),
+                                    Notify("Couldn't save the library task - " & FirstError.Message
+                                        & " Nothing was changed. Try again.", NotificationType.Error),
+                                    Set(varTlShow, false);
+                                    Notify("Library task saved.", NotificationType.Success))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Save Task"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =140
+                        - btnTlCancel:
+                            Control: ModernButton
+                            Properties:
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
+                              BasePaletteColor: =UAB.Green
+                              FillPortions: =1
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varTlShow, false)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Cancel"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =120
+                        - btnTlDelete:
+                            Control: ModernButton
+                            Properties:
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
+                              BasePaletteColor: =UAB.Danger
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varTlConfirmDelete, true)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Delete"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Visible: =!IsBlank(varTlItem)
+                              Width: =110
+                  - lblTlModalSpacer:
+                      Control: ModernText
+                      Properties:
+                        Align: =Align.Center
+                        Color: =UAB.White
+                        Height: =5
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =2
+                        Text: =""
+                        Wrap: =false
+      - conTlConfirm:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =RGBA(32, 38, 45, 0.4)
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutJustifyContent: =LayoutJustifyContent.Center
+            Visible: =Coalesce(varTlConfirmDelete, false)
+            Width: =Parent.Width
+          Children:
+            - conTlConfirmPanel:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  AlignInContainer: =AlignInContainer.Center
+                  DropShadow: =DropShadow.Regular
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =24
+                  PaddingLeft: =24
+                  PaddingRight: =24
+                  PaddingTop: =24
+                  RadiusBottomLeft: =8
+                  RadiusBottomRight: =8
+                  RadiusTopLeft: =8
+                  RadiusTopRight: =8
+                  Width: =Min(440, Parent.Width - 32)
+                Children:
+                  - lblTlConfirmTitle:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.TextPrimary
+                        FontWeight: =FontWeight.Semibold
+                        Height: =30
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =20
+                        Text: ="Delete This Library Task?"
+                        Wrap: =false
+                  - lblTlConfirmBody:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray700
+                        Height: =66
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Body
+                        Text: |-
+                          ="Remove " & Coalesce(varTlItem.Title, "this task")
+                              & " from the library? Templates that already copied it are not affected. To just hide it from pickers, mark it Retired instead."
+                  - conTlConfirmActions:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =44
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - btnTlConfirmDelete:
+                            Control: ModernButton
+                            Properties:
+                              Align: =Align.Center
+                              BasePaletteColor: =UAB.Danger
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: |-
+                                =IfError(
+                                    RemoveIf(TaskLibrary, ID = varTlItem.ID),
+                                    Notify("Couldn't delete the library task - " & FirstError.Message
+                                        & " Nothing was deleted. Try again.", NotificationType.Error),
+                                    Set(varTlConfirmDelete, false);
+                                    Set(varTlShow, false);
+                                    Notify("Library task deleted.", NotificationType.Success))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Delete Task"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =150
+                        - btnTlConfirmCancel:
+                            Control: ModernButton
+                            Properties:
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
+                              BasePaletteColor: =UAB.Green
+                              FillPortions: =1
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varTlConfirmDelete, false)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Keep It"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =120

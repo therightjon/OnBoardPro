@@ -276,6 +276,62 @@ Screens:
                         Text: ="Templates"
                         Visible: =scr_mytasks.Size <> ScreenSize.Small
                         Wrap: =false
+            - conNavTaskLib_MyTasks:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsHR
+                Children:
+                  - conNavBarTaskLib_MyTasks:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_tasklibrary, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavTaskLib_MyTasks:
+                      Control: Classic/Icon
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        Height: =44
+                        Icon: =Icon.Notebook
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_tasklibrary)
+                        PaddingLeft: =12
+                        Width: =44
+                  - lblNavTaskLib_MyTasks:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_tasklibrary, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_tasklibrary)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        Text: ="Task Library"
+                        Visible: =scr_mytasks.Size <> ScreenSize.Small
+                        Wrap: =false
       - cntMyTasksRoot:
           Control: GroupContainer
           Variant: AutoLayout
@@ -351,43 +407,76 @@ Screens:
                   LayoutMinWidth: =0
                 Children:
                   - btnMTFilterAll:
-                      Control: Button
+                      Control: ModernButton
                       Properties:
-                        Appearance: =If(Coalesce(varMyTasksFilter, "All") = "All", 'ButtonCanvas.Appearance'.Primary, 'ButtonCanvas.Appearance'.Secondary)
+                        Align: =Align.Center
+                        Appearance: =If(Coalesce(varMyTasksFilter, "All") = "All", ButtonAppearance.Primary, ButtonAppearance.Secondary)
                         BasePaletteColor: =UAB.Green
+                        FontWeight: =""
                         Height: =36
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: |-
                           =Set(varMyTasksFilter, "All");
                           Set(varMyTasksPage, 1)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
                         Text: =If(scr_mytasks.Size = ScreenSize.Small, "All", "All Open")
+                        VerticalAlign: =VerticalAlign.Middle
                         Width: =If(scr_mytasks.Size = ScreenSize.Small, 64, 130)
                   - btnMTFilterOverdue:
-                      Control: Button
+                      Control: ModernButton
                       Properties:
-                        Appearance: =If(Coalesce(varMyTasksFilter, "All") = "Overdue", 'ButtonCanvas.Appearance'.Primary, 'ButtonCanvas.Appearance'.Secondary)
+                        Align: =Align.Center
+                        Appearance: =If(Coalesce(varMyTasksFilter, "All") = "Overdue", ButtonAppearance.Primary, ButtonAppearance.Secondary)
                         BasePaletteColor: =UAB.Green
+                        FontWeight: =""
                         Height: =36
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: |-
                           =Set(varMyTasksFilter, "Overdue");
                           Set(varMyTasksPage, 1)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
                         Text: ="Overdue"
+                        VerticalAlign: =VerticalAlign.Middle
                         Width: =If(scr_mytasks.Size = ScreenSize.Small, 92, 130)
                   - btnMTFilterWeek:
-                      Control: Button
+                      Control: ModernButton
                       Properties:
-                        Appearance: =If(Coalesce(varMyTasksFilter, "All") = "Week", 'ButtonCanvas.Appearance'.Primary, 'ButtonCanvas.Appearance'.Secondary)
+                        Align: =Align.Center
+                        Appearance: =If(Coalesce(varMyTasksFilter, "All") = "Week", ButtonAppearance.Primary, ButtonAppearance.Secondary)
                         BasePaletteColor: =UAB.Green
+                        FontWeight: =""
                         Height: =36
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: |-
                           =Set(varMyTasksFilter, "Week");
                           Set(varMyTasksPage, 1)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
                         Text: =If(scr_mytasks.Size = ScreenSize.Small, "7 Days", "Due in 7 Days")
+                        VerticalAlign: =VerticalAlign.Middle
                         Width: =If(scr_mytasks.Size = ScreenSize.Small, 84, 130)
             - conMTTableCard:
                 Control: GroupContainer
@@ -924,13 +1013,15 @@ Screens:
                               & Coalesce(varMtStatusTask.TStatus.Value, "To Do")
                         Wrap: =false
                   - btnMtStToDo:
-                      Control: Button
+                      Control: ModernButton
                       Properties:
-                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        Align: =Align.Center
+                        Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
                         DisplayMode: |-
                           =If(Coalesce(varMtStatusTask.TStatus.Value, "To Do") = "To Do",
                               DisplayMode.Disabled, DisplayMode.Edit)
+                        FontWeight: =""
                         Height: =40
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
@@ -947,16 +1038,27 @@ Screens:
                               Notify(varMtStatusTask.Title & " is now To Do.",
                                   NotificationType.Success));
                           Set(varMtStatusShow, false)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
                         Text: ="To Do"
+                        VerticalAlign: =VerticalAlign.Middle
                         Width: =Parent.Width - 48
                   - btnMtStInProgress:
-                      Control: Button
+                      Control: ModernButton
                       Properties:
-                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        Align: =Align.Center
+                        Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
                         DisplayMode: |-
                           =If(Coalesce(varMtStatusTask.TStatus.Value, "To Do") = "In Progress",
                               DisplayMode.Disabled, DisplayMode.Edit)
+                        FontWeight: =""
                         Height: =40
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
@@ -973,16 +1075,27 @@ Screens:
                               Notify(varMtStatusTask.Title & " is now In Progress.",
                                   NotificationType.Success));
                           Set(varMtStatusShow, false)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
                         Text: ="In Progress"
+                        VerticalAlign: =VerticalAlign.Middle
                         Width: =Parent.Width - 48
                   - btnMtStBlocked:
-                      Control: Button
+                      Control: ModernButton
                       Properties:
-                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        Align: =Align.Center
+                        Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
                         DisplayMode: |-
                           =If(Coalesce(varMtStatusTask.TStatus.Value, "To Do") = "Blocked",
                               DisplayMode.Disabled, DisplayMode.Edit)
+                        FontWeight: =""
                         Height: =40
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
@@ -999,16 +1112,27 @@ Screens:
                               Notify(varMtStatusTask.Title & " is now Blocked.",
                                   NotificationType.Success));
                           Set(varMtStatusShow, false)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
                         Text: ="Blocked"
+                        VerticalAlign: =VerticalAlign.Middle
                         Width: =Parent.Width - 48
                   - btnMtStDone:
-                      Control: Button
+                      Control: ModernButton
                       Properties:
-                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        Align: =Align.Center
+                        Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
                         DisplayMode: |-
                           =If(Coalesce(varMtStatusTask.TStatus.Value, "To Do") = "Done",
                               DisplayMode.Disabled, DisplayMode.Edit)
+                        FontWeight: =""
                         Height: =40
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
@@ -1025,17 +1149,28 @@ Screens:
                               Notify(varMtStatusTask.Title & " is now Done.",
                                   NotificationType.Success));
                           Set(varMtStatusShow, false)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
                         Text: ="Done"
+                        VerticalAlign: =VerticalAlign.Middle
                         Width: =Parent.Width - 48
                   - btnMtStCanceled:
-                      Control: Button
+                      Control: ModernButton
                       Properties:
-                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        Align: =Align.Center
+                        Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
                         DisplayMode: |-
                           =If(Or(Coalesce(varMtStatusTask.TStatus.Value, "To Do") = "Canceled",
                                  IsBlank(Trim(txtMtCancelReason.Text))),
                               DisplayMode.Disabled, DisplayMode.Edit)
+                        FontWeight: =""
                         Height: =40
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
@@ -1052,7 +1187,16 @@ Screens:
                               Notify(varMtStatusTask.Title & " is now Canceled.",
                                   NotificationType.Success));
                           Set(varMtStatusShow, false)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
                         Text: ="Canceled"
+                        VerticalAlign: =VerticalAlign.Middle
                         Width: =Parent.Width - 48
                   - lblMtStReasonCap:
                       Control: ModernText
@@ -1074,13 +1218,24 @@ Screens:
                         LayoutMinWidth: =0
                         Placeholder: ="Why is this being canceled?"
                   - btnMtStClose:
-                      Control: Button
+                      Control: ModernButton
                       Properties:
-                        Appearance: ='ButtonCanvas.Appearance'.Secondary
+                        Align: =Align.Center
+                        Appearance: =ButtonAppearance.Secondary
                         BasePaletteColor: =UAB.Green
+                        FontWeight: =""
                         Height: =40
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnSelect: =Set(varMtStatusShow, false)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
                         Text: ="Close"
+                        VerticalAlign: =VerticalAlign.Middle
                         Width: =120
