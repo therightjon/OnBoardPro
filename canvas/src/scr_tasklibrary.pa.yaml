@@ -2,7 +2,9 @@ Screens:
   scr_tasklibrary:
     Properties:
       Fill: =UAB.OffWhite
-      OnVisible: =Set(varTlPage, 1)
+      OnVisible: |-
+        =Refresh(TaskLibrary);
+        Set(varTlPage, 1)
     Children:
       - NavRail_TaskLib:
           Control: GroupContainer
