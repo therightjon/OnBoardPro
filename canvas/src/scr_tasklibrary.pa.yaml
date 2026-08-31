@@ -468,7 +468,7 @@ Screens:
                         Label: ="Show retired"
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
-                        Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 160, 150)
+                        Width: =If(scr_tasklibrary.Size = ScreenSize.Small, 160, 175)
                   - btnTlClear:
                       Control: ModernButton
                       Properties:
