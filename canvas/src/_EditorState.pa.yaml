@@ -5,3 +5,5 @@ EditorState:
     - scr_new_candidate
     - scr_templates
     - scr_tasklibrary
+  ComponentDefinitionsOrder:
+    - cmpNavRail
