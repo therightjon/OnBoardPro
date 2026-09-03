@@ -79,7 +79,7 @@
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.7.1",
-    "express": "^4.22.2",
+    "express": "^5.2.1",
     "express-session": "^1.18.1",
     "framer-motion": "^11.13.1",
     "helmet": "^8.1.0",
