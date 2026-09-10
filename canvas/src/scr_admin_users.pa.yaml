@@ -802,7 +802,7 @@ Screens:
                       Properties:
                         AccessibleLabel: ="App permission data, not shown on screen"
                         FillPortions: =0
-                        Height: =1
+                        Height: =56
                         Items: |-
                           =SortByColumns(
                               FirstN(Filter(AppPermissions,
@@ -818,7 +818,6 @@ Screens:
                         TemplatePadding: =0
                         TemplateSize: =56
                         Visible: =false
-                        Width: =1
                       Children:
                         - lblAuAllStub:
                             Control: ModernText

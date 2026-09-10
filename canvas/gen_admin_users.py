@@ -313,11 +313,13 @@ def header_row():
 
 
 def twin():
+    # Same shape as galTlAll on scr_tasklibrary: hidden but a real row height,
+    # and no Width at all. A 1px twin has never been run in this app.
     return ("galAuAll", ctl("Gallery", {**AUTOZ,
         "AccessibleLabel": '="App permission data, not shown on screen"',
-        "FillPortions": "=0", "Height": "=1", "Items": AU_FILTER,
+        "FillPortions": "=0", "Height": "=56", "Items": AU_FILTER,
         "ShowScrollbar": "=false", "TemplatePadding": "=0", "TemplateSize": "=56",
-        "Visible": "=false", "Width": "=1"}, [
+        "Visible": "=false"}, [
         mtext("lblAuAllStub", '=""'),
     ], variant="Vertical"))
 
