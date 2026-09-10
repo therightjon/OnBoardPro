@@ -142,29 +142,9 @@ def nav_item(screen, suffix, key, label, icon, target, extra, visible):
 
 
 def nav_rail(screen):
-    suffix = SCREENS[screen]
-    children = [
-        (f"lblAppName_{suffix}", ctl("Label", {**AUTOZ,
-            "AlignInContainer": "=AlignInContainer.Stretch", "Color": "=UAB.White",
-            "Font": "=Font.Arial", "FontWeight": "=FontWeight.Bold", "Height": "=56",
-            "PaddingBottom": "=0", "PaddingLeft": "=20", "PaddingRight": "=0",
-            "PaddingTop": "=0", "Size": "=20", "Text": '="OnBoardPro"',
-            "Visible": f"={screen}.Size <> ScreenSize.Small", "Wrap": "=false"})),
-        (f"lblAppSub_{suffix}", ctl("Label", {**AUTOZ,
-            "AlignInContainer": "=AlignInContainer.Stretch", "Color": "=UAB.Gold",
-            "Font": "=Font.Arial", "Height": "=24",
-            "PaddingBottom": "=0", "PaddingLeft": "=20", "PaddingRight": "=0",
-            "PaddingTop": "=0", "Size": "=11", "Text": '="OBGYN Onboarding"',
-            "Visible": f"={screen}.Size <> ScreenSize.Small", "Wrap": "=false"})),
-    ]
-    for key, label, icon, target, extra, visible in NAV_ITEMS:
-        children.append(nav_item(screen, suffix, key, label, icon, target, extra, visible))
-    return (f"NavRail_{suffix}", con({**NOSHADOW,
-        "Fill": "=UAB.Green", "Height": "=Parent.Height",
-        "LayoutAlignItems": "=LayoutAlignItems.Stretch",
-        "LayoutDirection": "=LayoutDirection.Vertical", "LayoutGap": "=4",
-        "PaddingBottom": "=32", "PaddingTop": "=32",
-        "Width": rail_width(screen)}, children))
+    raise RuntimeError("Stale: emits the pre-Settings five-item rail. Screens take "
+                       "their rail from rail_stamp.rail_text(screen, sfx); run "
+                       "`python3 canvas/rail_stamp.py verify` after any rail change.")
 
 
 def content_root(screen, name, children):
@@ -564,6 +544,10 @@ def write(path, text):
 
 
 if __name__ == "__main__":
+    if "--i-mean-it" not in sys.argv:
+        sys.exit("gen_app.py regenerates App.pa.yaml and stub screens from a stale "
+                 "template and would revert canvas/src. Pass --i-mean-it only if you "
+                 "really want that.")
     OUT.mkdir(parents=True, exist_ok=True)
     write(OUT / "App.pa.yaml", app_yaml())
     write(OUT / "scr_mytasks.pa.yaml", mytasks_screen())

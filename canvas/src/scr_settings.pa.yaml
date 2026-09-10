@@ -692,7 +692,7 @@ Screens:
                   DropShadow: =DropShadow.None
                   Fill: =UAB.OffWhite
                   FillPortions: =0
-                  Height: =If(scr_settings.Size = ScreenSize.Small, 368, 176)
+                  Height: =If(IsHR, If(scr_settings.Size = ScreenSize.Small, 368, 176), 0)
                   LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =If(scr_settings.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
                   LayoutGap: =16
@@ -864,3 +864,15 @@ Screens:
                               Text: ="Manage"
                               VerticalAlign: =VerticalAlign.Middle
                               Width: =100
+            - lblStBottomSpacer:
+                Control: ModernText
+                Properties:
+                  Align: =Align.Center
+                  AutoHeight: =true
+                  Color: =UAB.OffWhite
+                  Height: =6
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Size: =2
+                  Text: =""
+                  Wrap: =false

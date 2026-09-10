@@ -43,12 +43,12 @@ ONVISIBLE = (
 
 AU_FILTER = (
     "=SortByColumns(\n"
-    "    FirstN(Filter(AppPermissions,\n"
+    "    Filter(FirstN(AppPermissions, 500),\n"
     "        (IsBlank(Trim(txtAuSearch.Text))\n"
     "           || Trim(txtAuSearch.Text) in AppUser.DisplayName\n"
     "           || Trim(txtAuSearch.Text) in AppUser.Email)\n"
     "        && (Coalesce(CountRows(cmbAuRole.SelectedItems), 0) = 0\n"
-    "           || Role.Value in ShowColumns(cmbAuRole.SelectedItems, Value))), 500),\n"
+    "           || Role.Value in ShowColumns(cmbAuRole.SelectedItems, Value))),\n"
     "    \"Title\")")
 
 # A dumb one-page view of the twin - never put filter logic here. `n` is the
@@ -312,7 +312,8 @@ def header_row():
                    f"=If({SM}, 0, 140)"),
         ("conAuColActs", con({**NOSHADOW, **AUTOZ,
             "Fill": "=UAB.Paper", "FillPortions": "=0",
-            "LayoutDirection": "=LayoutDirection.Horizontal", "Width": "=88"})),
+            "LayoutDirection": "=LayoutDirection.Horizontal",
+            "Width": f"=If({SM}, 56, 60)"})),
     ]))
 
 

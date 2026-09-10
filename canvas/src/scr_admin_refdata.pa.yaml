@@ -544,7 +544,7 @@ Screens:
                                     RadiusBottomRight: =4
                                     RadiusTopLeft: =4
                                     RadiusTopRight: =4
-                                    Text: =If(varArEntity = "FacultyRanks", "Add rank", "Add division")
+                                    Text: =If(Coalesce(varArEntity, "Divisions") = "FacultyRanks", "Add rank", "Add division")
                                     VerticalAlign: =VerticalAlign.Middle
                                     Visible: =Coalesce(varArEntity, "Divisions") <> "Stages"
                                     Width: =If(scr_admin_refdata.Size = ScreenSize.Small, 110, 140)
@@ -1053,9 +1053,9 @@ Screens:
                                             =Set(varArDelId, ThisItem.ID); Set(varArDelTitle, ThisItem.Title);
                                             Set(varArInUse,
                                                 Switch(Coalesce(varArEntity, "Divisions"),
-                                                    "Divisions", CountRows(Filter(Candidates, Division.Id = ThisItem.ID))
-                                                                 + CountRows(Filter(AppPermissions, Division.Id = ThisItem.ID)),
-                                                    "FacultyRanks", CountRows(Filter(Candidates, FacultyRank.Id = ThisItem.ID)),
+                                                    "Divisions", CountRows(Filter(FirstN(Candidates, 500), Division.Id = ThisItem.ID))
+                                                                 + CountRows(Filter(FirstN(AppPermissions, 500), Division.Id = ThisItem.ID)),
+                                                    "FacultyRanks", CountRows(Filter(FirstN(Candidates, 500), FacultyRank.Id = ThisItem.ID)),
                                                     0));
                                             Set(varArShowConfirm, true)
                                           TabIndex: =0

@@ -65,7 +65,9 @@ SUB_TEXT = ('=If(IsHR, "Your notification preference and app administration.",'
 # audit-responsive-heights both measure it, so the tile is 176 and the strip
 # holding two of them is 2 * 176 + 16 on the phone.
 TILE_H = 176
-TILES_H = f"=If({SM}, {TILE_H * 2 + 16}, {TILE_H})"
+# Collapsed to 0 when the strip is hidden: a Visible: =false AutoLayout child
+# still reserves its height, which left a Viewer 368px of dead scroll on a phone.
+TILES_H = f"=If(IsHR, If({SM}, {TILE_H * 2 + 16}, {TILE_H}), 0)"
 
 
 # ---------------------------------------------------------------- header
@@ -199,8 +201,9 @@ def tile(key, icon, title, sub, accessible, target):
 
 
 def tiles():
-    # LAST child of the content root on purpose: a hidden AutoLayout child still
-    # reserves its space, so a Visible-gated block is only safe at the tail.
+    # Last real block of the content root on purpose (only the 6px spacer follows):
+    # a hidden AutoLayout child still reserves its space, so a Visible-gated block
+    # is only safe at the tail - and its Height collapses to 0 for non-HR anyway.
     return ("conStTiles", con({**NOSHADOW, **AUTOZ,
         "Fill": "=UAB.OffWhite", "FillPortions": "=0", "Height": TILES_H,
         # The tiles are FillPortions 1 along the main axis; Stretch is what makes
@@ -222,8 +225,16 @@ def tiles():
 # ---------------------------------------------------------------- assembly
 
 
+def bottom_spacer():
+    # Property-for-property copy of lblAuBottomSpacer on scr_admin_users: a 6px
+    # tail so the last block clears the content root's bottom padding on scroll.
+    return ("lblStBottomSpacer", ctl("ModernText", {**AUTOZ,
+        "Align": "=Align.Center", "AutoHeight": "=true", "Color": "=UAB.OffWhite",
+        "Height": "=6", "Size": "=2", "Text": '=""', "Wrap": "=false"}))
+
+
 def root_children():
-    return [header(), me_card(), tiles()]
+    return [header(), me_card(), tiles(), bottom_spacer()]
 
 
 def build():

@@ -11,6 +11,7 @@ The SCHEMA dict below is the source of truth for every list and column
   python3 genpayloads.py verify              -> diff out-phase3/* against SCHEMA
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -147,9 +148,12 @@ def chain(pairs):
 
 
 def field_xml(name, spec, guids):
-    parts = spec.split()
-    kind = parts[0]
-    extras = parts[1:]
+    # The kind token is everything up to the first whitespace-delimited extra, so
+    # choice values keep their internal spaces - a plain spec.split() turned
+    # "choice:Email|Teams|Email + Teams" into a mangled column on the live list.
+    m = re.search(r"\s+(?=default=|indexed\b)", spec)
+    kind = spec[:m.start()] if m else spec
+    extras = spec[m.start():].split() if m else []
     attrs = f"Name='{name}' DisplayName='{name}'"
     if "indexed" in extras:
         attrs += " Indexed='TRUE'"
@@ -305,6 +309,26 @@ def cmd_verify():
     print(f"VERIFIED: all {sum(len(m['cols']) for m in SCHEMA.values()) + len(LIBRARIES)*len(LIB_COLS)} columns present across {len(guids)} lists/libraries")
 
 
+def _selftest():
+    """Guard the spec parser - a choice value with spaces must survive intact."""
+    x = field_xml("NotifyChannel", "choice:Email|Teams|Email + Teams default=Email", {})
+    assert "<CHOICE>Email + Teams</CHOICE>" in x, x
+    assert x.count("<CHOICE>") == 3, x
+    assert "<Default>Email</Default>" in x, x
+
+    x = field_xml("TStatus", "choice:To Do|In Progress|Blocked|Done|Canceled default=To Do", {})
+    assert x.count("<CHOICE>") == 5, x
+    assert "<Default>To Do</Default>" in x, x
+
+    x = field_xml("X", "text indexed", {})
+    assert "Indexed='TRUE'" in x, x
+
+    x = field_xml("Y", "bool default=1", {})
+    assert "<Default>1</Default>" in x, x
+
+    print("selftest OK: 4 specs parsed correctly")
+
+
 if __name__ == "__main__":
     {"phase1": cmd_phase1, "guids": cmd_guids, "phase2": cmd_phase2,
-     "phase3": cmd_phase3, "verify": cmd_verify}[sys.argv[1]]()
+     "phase3": cmd_phase3, "verify": cmd_verify, "selftest": _selftest}[sys.argv[1]]()

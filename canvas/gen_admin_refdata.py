@@ -52,7 +52,7 @@ RELOAD = """=Switch(Coalesce(varArEntity, "Divisions"),
             {ID: ID, Title: Title, Detail: Coalesce(Description, ""), Flag: Coalesce(IsActive, true),
              FlagText: If(Coalesce(IsActive, true), "Active", "Inactive"), Order: Coalesce(OrderIndex, 0)})))"""
 
-NEW_TASK = """=Set(varArEditId, 0); Set(varArEditTitle, ""); Set(varArEditFlag, false); Set(varArEditDetail, ""); Set(varArEditOrder, 0);
+NEW_RECORD = """=Set(varArEditId, 0); Set(varArEditTitle, ""); Set(varArEditFlag, false); Set(varArEditDetail, ""); Set(varArEditOrder, 0);
 Reset(txtArDivTitle); Reset(txtArRankTitle); Reset(tglArRankPT);
 If(Coalesce(varArEntity, "Divisions") = "FacultyRanks", Set(varArShowRank, true), Set(varArShowDiv, true))"""
 
@@ -64,6 +64,8 @@ Switch(Coalesce(varArEntity, "Divisions"),
     "FacultyRanks", Set(varArShowRank, true),
     "Stages", Set(varArShowStage, true))"""
 
+# The Department: {Id: 1, ...} literal below is spec decision D6 - one department
+# by decision; gen_new_candidate.py hardcodes the same row.
 DIV_SAVE = """=With({t: Trim(txtArDivTitle.Text)},
     If(IsBlank(t), Notify("Enter a name.", NotificationType.Warning),
        Coalesce(varArEditId, 0) = 0 && !IsBlank(LookUp(Divisions, Lower(Title) = Lower(t))),
@@ -101,9 +103,9 @@ STAGE_SAVE = """=With({t: Trim(txtArStageTitle.Text)},
 ROW_DELETE = """=Set(varArDelId, ThisItem.ID); Set(varArDelTitle, ThisItem.Title);
 Set(varArInUse,
     Switch(Coalesce(varArEntity, "Divisions"),
-        "Divisions", CountRows(Filter(Candidates, Division.Id = ThisItem.ID))
-                     + CountRows(Filter(AppPermissions, Division.Id = ThisItem.ID)),
-        "FacultyRanks", CountRows(Filter(Candidates, FacultyRank.Id = ThisItem.ID)),
+        "Divisions", CountRows(Filter(FirstN(Candidates, 500), Division.Id = ThisItem.ID))
+                     + CountRows(Filter(FirstN(AppPermissions, 500), Division.Id = ThisItem.ID)),
+        "FacultyRanks", CountRows(Filter(FirstN(Candidates, 500), FacultyRank.Id = ThisItem.ID)),
         0));
 Set(varArShowConfirm, true)"""
 
@@ -284,8 +286,8 @@ def header():
         ("btnArNew", ctl("ModernButton", {**AUTOZ, **BTN_CHROME,
             "AccessibleLabel": '="Add a reference record"',
             "BasePaletteColor": "=UAB.Green", "Height": "=40",
-            "OnSelect": NEW_TASK,
-            "Text": '=If(varArEntity = "FacultyRanks", "Add rank", "Add division")',
+            "OnSelect": NEW_RECORD,
+            "Text": f'=If({ENTITY} = "FacultyRanks", "Add rank", "Add division")',
             "Visible": f'={ENTITY} <> "Stages"',
             "Width": f"=If({SM}, 110, 140)"})),
     ]))

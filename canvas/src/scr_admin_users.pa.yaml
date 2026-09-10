@@ -795,7 +795,7 @@ Screens:
                               LayoutDirection: =LayoutDirection.Horizontal
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
-                              Width: =88
+                              Width: =If(scr_admin_users.Size = ScreenSize.Small, 56, 60)
                   - galAuAll:
                       Control: Gallery
                       Variant: Vertical
@@ -805,12 +805,12 @@ Screens:
                         Height: =56
                         Items: |-
                           =SortByColumns(
-                              FirstN(Filter(AppPermissions,
+                              Filter(FirstN(AppPermissions, 500),
                                   (IsBlank(Trim(txtAuSearch.Text))
                                      || Trim(txtAuSearch.Text) in AppUser.DisplayName
                                      || Trim(txtAuSearch.Text) in AppUser.Email)
                                   && (Coalesce(CountRows(cmbAuRole.SelectedItems), 0) = 0
-                                     || Role.Value in ShowColumns(cmbAuRole.SelectedItems, Value))), 500),
+                                     || Role.Value in ShowColumns(cmbAuRole.SelectedItems, Value))),
                               "Title")
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
