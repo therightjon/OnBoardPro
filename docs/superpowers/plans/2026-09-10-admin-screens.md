@@ -267,9 +267,9 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: flow ID of the portal-born shell (Jon supplies; see Task 7 prerequisites). The script reads it from `provision/f8-id.txt`, matching the `f2-id.txt … f7-id.txt` convention.
-- Produces: Power Fx call `'OnBoard-SetNotifyChannel'.Run(<email text>, <channel text>)` returning `{ok: Boolean, message: Text}`. Task 4's `btnStSave` consumes this exact shape.
+- Produces: Power Fx call `'OnBoard-SetNotifyChannel'.Run(<channel text>)` returning `{ok: Boolean, message: Text}`. Task 4's `btnStSave` consumes this exact shape. The flow identifies the caller from its trigger header — it never accepts an email argument (security ruling, ledger Ruling 8).
 
-**Facts:** F1's generator `provision/gen_f1_real.py` is the template — copy its `token()`, `req()`, `sp()` helpers and `CONNREFS` verbatim (lines 15–59). Trigger property keys map to Power Fx positional args: key `text` = first arg (email), key `text_1` = second (channel). The list GUID is `4832685a-06e1-4daf-8f2e-e1bf2fec9b83` (`provision/guids.json["AppPermissions"]`). Group object IDs: PA `5f9e259c-eaba-449d-9964-46a0066ad722`, Admins `8127ddb5-5c46-45d0-805e-c8026ee2a414`.
+**Facts:** F1's generator `provision/gen_f1_real.py` is the template — copy its `token()`, `req()`, `sp()` helpers and `CONNREFS` verbatim (lines 15–59). The trigger has one property, key `text` (title `channel`) = the single Power Fx arg. The caller's identity is the PowerApps V2 trigger header `x-ms-user-email-encoded` (base64), read via `triggerOutputs()?['headers']`. The list GUID is `4832685a-06e1-4daf-8f2e-e1bf2fec9b83` (`provision/guids.json["AppPermissions"]`). Group object IDs: PA `5f9e259c-eaba-449d-9964-46a0066ad722`, Admins `8127ddb5-5c46-45d0-805e-c8026ee2a414`.
 
 - [ ] **Step 1: Write `provision/gen_f8.py`**
 
@@ -277,9 +277,11 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 #!/usr/bin/env python3
 """Author + drive F8 (OnBoard - Set Notify Channel).
 
-Called from the canvas app's Settings hub: 'OnBoard-SetNotifyChannel'.Run(email, channel).
+Called from the canvas app's Settings hub: 'OnBoard-SetNotifyChannel'.Run(channel).
 Runs on the flow owner's SharePoint connection so a Viewer (Read on AppPermissions) can
-still change their own NotifyChannel. Trusts `email` from the app's User().Email.
+still change their own NotifyChannel. The caller is identified from the trigger's
+x-ms-user-email-encoded header, never from an argument, so a run-only user cannot
+target anyone else's row.
 
   python3 gen_f8.py dump      # write flows-f8.json, no network
   python3 gen_f8.py patch     # PATCH definition + connectionReferences onto the shell flow
@@ -358,22 +360,24 @@ def setvar(name, value, run_after):
 def build_defn():
     trig = {"manual": {"type": "Request", "kind": "PowerAppV2", "inputs": {"schema": {
         "type": "object", "properties": {
-            "text": {"title": "email", "type": "string", "x-ms-dynamically-added": True},
-            "text_1": {"title": "channel", "type": "string", "x-ms-dynamically-added": True}},
-        "required": ["text", "text_1"]}}}}
+            "text": {"title": "channel", "type": "string", "x-ms-dynamically-added": True}},
+        "required": ["text"]}}}}
     a = {}
+    hdr = "triggerOutputs()?['headers']?['x-ms-user-email-encoded']"
     a["Inputs"] = {"runAfter": {}, "type": "Compose", "inputs": {
-        "email": "@toLower(coalesce(triggerBody()?['text'], ''))",
-        "channel": "@coalesce(triggerBody()?['text_1'], '')"}}
+        "caller": f"@toLower(if(empty({hdr}), '', base64ToString({hdr})))",
+        "channel": "@coalesce(triggerBody()?['text'], '')"}}
     a["Init_Ok"] = {"runAfter": {"Inputs": ["Succeeded"]}, "type": "InitializeVariable",
                     "inputs": {"variables": [{"name": "ok", "type": "boolean", "value": False}]}}
     a["Init_Msg"] = {"runAfter": {"Init_Ok": ["Succeeded"]}, "type": "InitializeVariable",
                      "inputs": {"variables": [{"name": "msg", "type": "string", "value": "Save failed."}]}}
     a["Valid"] = {"runAfter": {"Init_Msg": ["Succeeded"]}, "type": "Compose",
-                  "inputs": "@contains(createArray('Email','Teams','Email + Teams'), outputs('Inputs')?['channel'])"}
+                  "inputs": ("@and(contains(createArray('Email','Teams','Email + Teams'), outputs('Inputs')?['channel']),"
+                             " not(empty(outputs('Inputs')?['caller'])),"
+                             " not(contains(outputs('Inputs')?['caller'], '''')))")}
 
     find = sp(f"_api/web/lists(guid'{LIST}')/items?$select=Id,AppUser/EMail&$expand=AppUser"
-              "&$filter=AppUser/EMail eq '@{outputs('Inputs')?['email']}'&$top=1")
+              "&$filter=AppUser/EMail eq '@{outputs('Inputs')?['caller']}'&$top=1")
     update = sp(f"_api/web/lists(guid'{LIST}')/items(@{{first(body('Find_Row')?['value'])?['Id']}})",
                 "POST",
                 "@string(json(concat('{\"NotifyChannel\":\"', outputs('Inputs')?['channel'], '\"}')))",
@@ -383,18 +387,22 @@ def build_defn():
         "Set_Ok": setvar("ok", True, {"Update_Row": ["Succeeded"]}),
         "Set_Msg_Saved": setvar("msg", "Notification preference saved.", {"Set_Ok": ["Succeeded"]})}
     not_found = {"Set_Msg_NoRow": setvar(
-        "msg", "@concat('No app profile for ', outputs('Inputs')?['email'], ' — ask HR to add you.')", {})}
+        "msg", "@concat('No app profile for ', outputs('Inputs')?['caller'], ' - ask HR to add you.')", {})}
     valid_branch = {
         "Find_Row": find,
         "If_Found": {"runAfter": {"Find_Row": ["Succeeded"]}, "type": "If",
-                     "expression": {"and": [{"greaterOrEquals": [
-                         "@length(body('Find_Row')?['value'])", 1]}]},
+                     "expression": {"and": [
+                         {"greaterOrEquals": ["@length(body('Find_Row')?['value'])", 1]},
+                         {"equals": ["@toLower(coalesce(first(body('Find_Row')?['value'])?['AppUser']?['EMail'], ''))",
+                                     "@outputs('Inputs')?['caller']"]}]},
                      "actions": found_branch, "else": {"actions": not_found}}}
     a["If_Valid"] = {"runAfter": {"Valid": ["Succeeded"]}, "type": "If",
                      "expression": {"and": [{"equals": ["@outputs('Valid')", True]}]},
                      "actions": valid_branch,
                      "else": {"actions": {"Set_Msg_Bad": setvar(
-                         "msg", "@concat('Unknown channel: ', outputs('Inputs')?['channel'])", {})}}}
+                         "msg", ("@if(contains(createArray('Email','Teams','Email + Teams'), outputs('Inputs')?['channel']),"
+                                 " 'Could not identify you - open Settings from the OnBoardPro app and try again.',"
+                                 " concat('Unknown channel: ', outputs('Inputs')?['channel']))"), {})}}}
     a["Respond"] = {"runAfter": {"If_Valid": ["Succeeded", "Failed", "Skipped", "TimedOut"]},
                     "type": "Response", "kind": "PowerApp",
                     "inputs": {"statusCode": 200,
@@ -477,7 +485,7 @@ if __name__ == "__main__":
 - [ ] **Step 2: Dump and inspect (no network)**
 
 Run: `cd provision && python3 gen_f8.py dump && python3 -c "import json; d=json.load(open('flows-f8.json')); print(d['triggers']['manual']['inputs']['schema']['properties']); print(d['actions']['If_Valid']['actions']['Find_Row']['inputs']['parameters']['parameters/uri'])"`
-Expected: `wrote flows-f8.json; actions=['Inputs', 'Init_Ok', 'Init_Msg', 'Valid', 'If_Valid', 'Respond']; connections=['shared_sharepointonline']`, then the two trigger properties (`text`, `text_1`) and a URI containing `$filter=AppUser/EMail eq '@{outputs('Inputs')?['email']}'&$top=1`.
+Expected: `wrote flows-f8.json; actions=['Inputs', 'Init_Ok', 'Init_Msg', 'Valid', 'If_Valid', 'Respond']; connections=['shared_sharepointonline']`, then the single trigger property (`text`) and a URI containing `$filter=AppUser/EMail eq '@{outputs('Inputs')?['caller']}'&$top=1`.
 
 - [ ] **Step 3: Commit**
 
@@ -495,7 +503,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Orchestrator, after Jon supplies the flow ID** (Task 7 prerequisites):
 - `az account show --query user.name -o tsv` must print `jsteen@uab.edu`; if not, `az account set --subscription d8999fe4-76af-40b3-b435-1d8977abc08c`.
 - `echo <FLOW_ID> > provision/f8-id.txt && cd provision && python3 gen_f8.py patch && python3 gen_f8.py start && python3 gen_f8.py share && python3 gen_f8.py verify`
-- Expected `verify`: `state : Started`, trigger `PowerAppV2 ['text', 'text_1']`, both group IDs listed with `CanView`.
+- Expected `verify`: `state : Started`, trigger `PowerAppV2 ['text']`, both group IDs listed with `CanView`.
 - Commit `provision/f8-id.txt`.
 
 ---
@@ -507,7 +515,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Generated: `canvas/src/scr_settings.pa.yaml`
 
 **Interfaces:**
-- Consumes: `rail_stamp.rail_text("scr_settings", "Settings")`; `gen_app.{con, ctl, emit_screen, content_root, pill, write, AUTOZ, NOSHADOW}`; App formulas `MyPermRow`, `MyNotifyChannel`, `MyRole`, `RoleColor`, `RoleFill`, `FriendlyName`, `IsHR`; flow `'OnBoard-SetNotifyChannel'.Run(email, channel)` → `{ok, message}`.
+- Consumes: `rail_stamp.rail_text("scr_settings", "Settings")`; `gen_app.{con, ctl, emit_screen, content_root, pill, write, AUTOZ, NOSHADOW}`; App formulas `MyPermRow`, `MyNotifyChannel`, `MyRole`, `RoleColor`, `RoleFill`, `FriendlyName`, `IsHR`; flow `'OnBoard-SetNotifyChannel'.Run(channel)` → `{ok, message}` (the flow identifies the caller itself — never pass an email).
 - Produces: screen `scr_settings`; buttons `btnStOpenUsers` → `Navigate(scr_admin_users)`, `btnStOpenRef` → `Navigate(scr_admin_refdata)`.
 
 **How to build the file.** `gen_app.emit_screen(name, props, children)` returns YAML text for the whole screen where `children` is a list of `(name, node)` and nodes come from `con(props, children)` / `ctl(control, props, children)`. `nav_rail()` in gen_app is **stale** (four items, no accessibility props) — do not call it. Instead emit the screen with only the content root and modals, then prepend the rail text:
@@ -565,7 +573,7 @@ cntSettingsRoot (content_root)
 `btnStSave.OnSelect` (emit through `emit_control`; it contains `": "` so it must be a block scalar — `needs_block` does that):
 ```
 =IfError(
-    With({r: 'OnBoard-SetNotifyChannel'.Run(Lower(User().Email), cmbStChannel.Selected.Value)},
+    With({r: 'OnBoard-SetNotifyChannel'.Run(cmbStChannel.Selected.Value)},
         If(r.ok,
            Refresh(AppPermissions); Notify(r.message, NotificationType.Success),
            Notify("Couldn't save: " & r.message, NotificationType.Error))),
@@ -1020,7 +1028,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 **Prerequisites (Jon):**
 1. In the Power Automate portal, open `OnBoard - Apply Template` → **Save As** → name exactly `OnBoard - Set Notify Channel` → send me the new flow's ID from its URL.
-2. After I run the patch (Task 3 orchestrator block): in the portal, **Test → Manually**, inputs `email` = your `@uab.edu` address, `channel` = `Teams` → expect `ok: true`; check the AppPermissions list shows `Teams`; run again with `Email` to restore.
+2. After I run the patch (Task 3 orchestrator block): in the portal, **Test → Manually**, input `channel` = `Teams` → expect `ok: true` (the flow identifies you from the trigger); check your AppPermissions row shows `Teams`; run again with `Email` to restore. If the portal test returns "Could not identify you", the user header is only set by the Power Apps player — test from the app in step 4 instead.
 3. In Studio: Power Automate pane → **Add flow** → `OnBoard - Set Notify Channel`; then **reload the tab**. Tell me when done.
 
 - [ ] **Step 1: Confirm F8 is registered in the session**
@@ -1084,7 +1092,7 @@ In the step-5 row, append a paragraph beginning `**Settings hub + Admin screens 
 
 - [ ] **Step 2: provision/INVENTORY.md**
 
-Flows table: add `| OnBoard - Set Notify Channel (F8) | <id> | **Live** — PowerAppV2 (text=email, text_1=channel); updates the caller's AppPermissions.NotifyChannel; run-only to both groups; generator gen_f8.py |`. Under "Permission state", add a line: `AppPermissions — inherits the site (PA = Read); self-service NotifyChannel writes go through F8.`
+Flows table: add `| OnBoard - Set Notify Channel (F8) | <id> | **Live** — PowerAppV2 (text=channel); caller identified from the x-ms-user-email-encoded trigger header; updates only the caller's AppPermissions.NotifyChannel; run-only to both groups; generator gen_f8.py |`. Under "Permission state", add a line: `AppPermissions — inherits the site (PA = Read); self-service NotifyChannel writes go through F8.`
 
 - [ ] **Step 3: PLATFORM-REBUILD-PLAN.md**
 

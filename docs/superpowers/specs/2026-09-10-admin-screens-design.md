@@ -71,7 +71,7 @@ scr_settings                     OnVisible: Refresh(AppPermissions)
 - **Save:**
   ```
   IfError(
-      With({r: 'OnBoard-SetNotifyChannel'.Run(Lower(User().Email), cmbStChannel.Selected.Value)},
+      With({r: 'OnBoard-SetNotifyChannel'.Run(cmbStChannel.Selected.Value)},
           If(r.ok,
              Refresh(AppPermissions); Notify("Notification preference saved.", NotificationType.Success),
              Notify("Couldn't save: " & r.message, NotificationType.Error))),
@@ -209,13 +209,13 @@ Generator-scripted as `provision/gen_f8.py`, created via classic REST with expli
 
 | Step | Action |
 |---|---|
-| Trigger | PowerApps V2, named text inputs `email`, `channel` |
-| Validate | `channel` ∈ `Email` / `Teams` / `Email + Teams` — else `ok=false`, "Unknown channel" |
-| Find | SP HttpRequest `GET …/lists(guid'4832685a-06e1-4daf-8f2e-e1bf2fec9b83')/items?$select=Id,AppUser/EMail&$expand=AppUser&$filter=AppUser/EMail eq '<email>'&$top=1` |
-| Update | found → `POST …/items(<id>)` MERGE, `If-Match: *`, body `{"NotifyChannel": "<channel>"}`; not found → `ok=false`, "No app profile for <email>" |
+| Trigger | PowerApps V2, one text input `channel`. The **caller** is read in-flow from the trigger header `x-ms-user-email-encoded` (base64), lowercased — never from an argument |
+| Validate | `channel` ∈ `Email` / `Teams` / `Email + Teams` — else `ok=false`, "Unknown channel"; caller non-empty and containing no `'` — else `ok=false`, "Could not identify you" |
+| Find | SP HttpRequest `GET …/lists(guid'4832685a-06e1-4daf-8f2e-e1bf2fec9b83')/items?$select=Id,AppUser/EMail&$expand=AppUser&$filter=AppUser/EMail eq '<caller>'&$top=1` |
+| Update | found **and** the row's `AppUser/EMail` equals the caller (case-insensitive) → `POST …/items(<id>)` MERGE, `If-Match: *`, body `{"NotifyChannel": "<channel>"}`; otherwise `ok=false`, "No app profile for <caller>" |
 | Respond | single `Response` (kind PowerApp) at the end: `{ok: boolean, message: string}` from variables |
 
-Sub-second, so no respond-first split. **Trust model:** the flow trusts `email` from the app's `User().Email`; canvas users cannot alter that argument, and the flow's run-only share is the only way to invoke it. The channel whitelist stops a bad value reaching the choice column.
+Sub-second, so no respond-first split. **Trust model (revised 2026-09-10 after the commit security review):** the flow does **not** accept the target email as an input — a run-only user could otherwise invoke it from an app of their own with someone else's address. Identity comes from the trigger's user header, the caller value is rejected if it contains a quote (closing the OData injection), and the found row is re-checked against the caller before the write. The channel whitelist stops a bad value reaching the choice column. App call: `'OnBoard-SetNotifyChannel'.Run(cmbStChannel.Selected.Value)`.
 
 **Sharing:** run-only to `OBGYN-OnBoardPro-PA` and `OBGYN-OnBoardPro-Admins-PA` (group-based, never per user). Jon adds it to the app from Studio's flow pane; the stale-registration reload rule applies after.
 
