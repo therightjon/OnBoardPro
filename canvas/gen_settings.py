@@ -147,7 +147,10 @@ def me_card():
             "OnSelect": SAVE_CHANNEL, "Text": '="Save"', "Width": "=120"})),
     ]))
 
-    return ("conStMeCard", con({**CARD, **START,
+    return ("conStMeCard", con({
+        # explicit Height: a hug container gets the ~200px default and clips its children (seen live 2026-09-10)
+        # eyebrow 18 + name 30 + meta 24 + row 66/132 + note 40/60 + 4 gaps x 12 + padding 40
+        "Height": f"=If({SM}, 352, 266)",**CARD, **START,
         "FillPortions": "=0",
         "LayoutAlignItems": "=LayoutAlignItems.Stretch",
         "LayoutDirection": "=LayoutDirection.Vertical", "LayoutGap": "=12",

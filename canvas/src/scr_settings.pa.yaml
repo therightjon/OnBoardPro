@@ -487,6 +487,7 @@ Screens:
                   DropShadow: =DropShadow.None
                   Fill: =UAB.White
                   FillPortions: =0
+                  Height: =If(scr_settings.Size = ScreenSize.Small, 352, 266)
                   LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutGap: =12
