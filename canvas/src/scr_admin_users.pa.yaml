@@ -577,7 +577,6 @@ Screens:
                       Control: ModernTextInput
                       Properties:
                         AccessibleLabel: ="Search name or email"
-                        FillPortions: =0
                         Height: =40
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
@@ -588,7 +587,6 @@ Screens:
                       Control: ModernCombobox
                       Properties:
                         AccessibleLabel: ="Filter by role"
-                        FillPortions: =0
                         Height: =40
                         InputTextPlaceholder: ="Role"
                         ItemDisplayText: =ThisItem.Value
@@ -596,7 +594,6 @@ Screens:
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         OnChange: =Set(varAuPage, 1)
-                        SelectMultiple: =true
                         Width: =If(scr_admin_users.Size = ScreenSize.Small, 120, 180)
                   - btnAuClear:
                       Control: ModernButton
@@ -825,8 +822,6 @@ Screens:
                               AutoHeight: =true
                               Color: =UAB.Gray700
                               Height: =18
-                              LayoutMinHeight: =0
-                              LayoutMinWidth: =0
                               Size: =UABSize.Secondary
                               Text: =""
                   - galAuList:
@@ -856,8 +851,6 @@ Screens:
                               Height: =Parent.TemplateHeight
                               LayoutAlignItems: =LayoutAlignItems.Stretch
                               LayoutDirection: =LayoutDirection.Vertical
-                              LayoutMinHeight: =0
-                              LayoutMinWidth: =0
                               Width: =Parent.TemplateWidth
                             Children:
                               - conAuRowContent:
@@ -882,7 +875,6 @@ Screens:
                                         Properties:
                                           DropShadow: =DropShadow.None
                                           Fill: =UAB.White
-                                          FillPortions: =1
                                           LayoutAlignItems: =LayoutAlignItems.Stretch
                                           LayoutDirection: =LayoutDirection.Vertical
                                           LayoutGap: =If(scr_admin_users.Size = ScreenSize.Small, 4, 2)
@@ -1220,14 +1212,10 @@ Screens:
           Properties:
             AccessibleLabel: ="HR guard"
             Height: =1
-            LayoutMinHeight: =0
-            LayoutMinWidth: =0
             OnSelect: =If(!IsHR, Navigate(scr_settings))
             Text: ="guard"
             Visible: =false
             Width: =1
-            X: =0
-            Y: =0
       - conAuModal:
           Control: GroupContainer
           Variant: AutoLayout
@@ -1299,7 +1287,6 @@ Screens:
                             Properties:
                               AccessibleLabel: ="Close the user editor"
                               BorderColor: =UAB.Line
-                              BorderStyle: =BorderStyle.Solid
                               BorderThickness: =1
                               Color: =UAB.Gray500
                               FocusedBorderColor: =UAB.Gold
@@ -1391,7 +1378,6 @@ Screens:
                             Properties:
                               DropShadow: =DropShadow.None
                               Fill: =UAB.White
-                              FillPortions: =1
                               Height: =66
                               LayoutAlignItems: =LayoutAlignItems.Stretch
                               LayoutDirection: =LayoutDirection.Vertical
@@ -1429,7 +1415,6 @@ Screens:
                             Properties:
                               DropShadow: =DropShadow.None
                               Fill: =UAB.White
-                              FillPortions: =1
                               Height: =66
                               LayoutAlignItems: =LayoutAlignItems.Stretch
                               LayoutDirection: =LayoutDirection.Vertical

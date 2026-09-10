@@ -608,7 +608,6 @@ Screens:
                             Properties:
                               DropShadow: =DropShadow.None
                               Fill: =UAB.White
-                              FillPortions: =1
                               Height: =66
                               LayoutAlignItems: =LayoutAlignItems.Stretch
                               LayoutDirection: =LayoutDirection.Vertical
@@ -685,7 +684,6 @@ Screens:
                           =If(IsBlank(MyPermRow),
                               "No app profile yet - ask HR to add you.",
                               "Assignment, digest, and approval emails always go by email. This setting adds Teams for everything else.")
-                        Wrap: =true
             - conStTiles:
                 Control: GroupContainer
                 Variant: AutoLayout
@@ -709,7 +707,6 @@ Screens:
                         BorderThickness: =1
                         DropShadow: =DropShadow.None
                         Fill: =UAB.White
-                        FillPortions: =1
                         Height: =176
                         LayoutAlignItems: =LayoutAlignItems.Stretch
                         LayoutDirection: =LayoutDirection.Vertical
@@ -768,7 +765,6 @@ Screens:
                               Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
                               FontWeight: =""
-                              Height: =32
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Navigate(scr_admin_users)
@@ -791,7 +787,6 @@ Screens:
                         BorderThickness: =1
                         DropShadow: =DropShadow.None
                         Fill: =UAB.White
-                        FillPortions: =1
                         Height: =176
                         LayoutAlignItems: =LayoutAlignItems.Stretch
                         LayoutDirection: =LayoutDirection.Vertical
@@ -850,7 +845,6 @@ Screens:
                               Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
                               FontWeight: =""
-                              Height: =32
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Navigate(scr_admin_refdata)

@@ -580,7 +580,6 @@ Screens:
                         Align: =Align.Center
                         Appearance: =If(Coalesce(varArEntity, "Divisions") = "Divisions", ButtonAppearance.Primary, ButtonAppearance.Secondary)
                         BasePaletteColor: =UAB.Green
-                        FillPortions: =0
                         FontWeight: =""
                         Height: =36
                         LayoutMinHeight: =0
@@ -606,7 +605,6 @@ Screens:
                         Align: =Align.Center
                         Appearance: =If(Coalesce(varArEntity, "Divisions") = "FacultyRanks", ButtonAppearance.Primary, ButtonAppearance.Secondary)
                         BasePaletteColor: =UAB.Green
-                        FillPortions: =0
                         FontWeight: =""
                         Height: =36
                         LayoutMinHeight: =0
@@ -632,7 +630,6 @@ Screens:
                         Align: =Align.Center
                         Appearance: =If(Coalesce(varArEntity, "Divisions") = "Stages", ButtonAppearance.Primary, ButtonAppearance.Secondary)
                         BasePaletteColor: =UAB.Green
-                        FillPortions: =0
                         FontWeight: =""
                         Height: =36
                         LayoutMinHeight: =0
@@ -940,7 +937,6 @@ Screens:
                                                 Text: |-
                                                   =With({d: ThisItem.Detail},
                                                       If(Len(d) > 110, Left(d, 107) & "...", d))
-                                                Wrap: =true
                                     - conArCellFlag:
                                         Control: GroupContainer
                                         Variant: AutoLayout
@@ -1121,8 +1117,6 @@ Screens:
             Text: ="guard"
             Visible: =false
             Width: =1
-            X: =0
-            Y: =0
       - btnArReload:
           Control: ModernButton
           Properties:
@@ -1143,8 +1137,6 @@ Screens:
             Text: ="reload"
             Visible: =false
             Width: =1
-            X: =0
-            Y: =0
       - conArModalDiv:
           Control: GroupContainer
           Variant: AutoLayout
@@ -1216,7 +1208,6 @@ Screens:
                             Properties:
                               AccessibleLabel: ="Close the division editor"
                               BorderColor: =UAB.Line
-                              BorderStyle: =BorderStyle.Solid
                               BorderThickness: =1
                               Color: =UAB.Gray500
                               FocusedBorderColor: =UAB.Gold
@@ -1406,7 +1397,6 @@ Screens:
                             Properties:
                               AccessibleLabel: ="Close the rank editor"
                               BorderColor: =UAB.Line
-                              BorderStyle: =BorderStyle.Solid
                               BorderThickness: =1
                               Color: =UAB.Gray500
                               FocusedBorderColor: =UAB.Gold
@@ -1618,7 +1608,6 @@ Screens:
                             Properties:
                               AccessibleLabel: ="Close the stage editor"
                               BorderColor: =UAB.Line
-                              BorderStyle: =BorderStyle.Solid
                               BorderThickness: =1
                               Color: =UAB.Gray500
                               FocusedBorderColor: =UAB.Gold
@@ -1866,7 +1855,6 @@ Screens:
                           =If(Coalesce(varArInUse, 0) > 0,
                               "In use by " & Text(varArInUse) & If(varArInUse = 1, " record", " records") & " - reassign them first.",
                               "This can't be undone.")
-                        Wrap: =true
                   - conArConfirmActions:
                       Control: GroupContainer
                       Variant: AutoLayout
