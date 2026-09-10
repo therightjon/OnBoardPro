@@ -135,8 +135,12 @@ def me_card():
                             " LayoutDirection.Horizontal)"),
         "LayoutGap": "=12"}, [
         field,
+        # conStMeRow stretches its children on the phone, which would blow the
+        # 120px Save button out to full width; End keeps it right-aligned under
+        # the field on the phone and bottom-aligned beside it on the desktop.
         ("btnStSave", ctl("ModernButton", {**BTN,
             "AccessibleLabel": '="Save notification preference"',
+            "AlignInContainer": "=AlignInContainer.End",
             "DisplayMode": PERM_GATE, "Height": "=40",
             "OnSelect": SAVE_CHANNEL, "Text": '="Save"', "Width": "=120"})),
     ]))
@@ -150,7 +154,8 @@ def me_card():
         ("lblStEyebrow", ctl("ModernText", {**AUTOZ,
             "AutoHeight": "=true", "Color": "=UAB.Green",
             "FontWeight": "=FontWeight.Bold", "Height": "=18",
-            "Size": "=UABSize.Eyebrow", "Text": '="MY NOTIFICATIONS"'})),
+            "Size": "=UABSize.Eyebrow", "Text": '="MY NOTIFICATIONS"',
+            "Wrap": "=false"})),
         ("lblStMeName", ctl("ModernText", {**AUTOZ,
             "AutoHeight": "=true", "Color": "=UAB.TextPrimary",
             "FontWeight": "=FontWeight.Semibold", "Height": "=30",
@@ -198,6 +203,9 @@ def tiles():
     # reserves its space, so a Visible-gated block is only safe at the tail.
     return ("conStTiles", con({**NOSHADOW, **AUTOZ,
         "Fill": "=UAB.OffWhite", "FillPortions": "=0", "Height": TILES_H,
+        # The tiles are FillPortions 1 along the main axis; Stretch is what makes
+        # them fill the width on the cross axis once the strip stacks vertically.
+        "LayoutAlignItems": "=LayoutAlignItems.Stretch",
         "LayoutDirection": (f"=If({SM}, LayoutDirection.Vertical,"
                             " LayoutDirection.Horizontal)"),
         "LayoutGap": "=16", "Visible": "=IsHR"}, [

@@ -513,6 +513,7 @@ Screens:
                         LayoutMinWidth: =0
                         Size: =UABSize.Eyebrow
                         Text: ="MY NOTIFICATIONS"
+                        Wrap: =false
                   - lblStMeName:
                       Control: ModernText
                       Properties:
@@ -645,6 +646,7 @@ Screens:
                             Properties:
                               AccessibleLabel: ="Save notification preference"
                               Align: =Align.Center
+                              AlignInContainer: =AlignInContainer.End
                               BasePaletteColor: =UAB.Green
                               DisplayMode: =If(IsBlank(MyPermRow), DisplayMode.Disabled, DisplayMode.Edit)
                               FontWeight: =""
@@ -691,6 +693,7 @@ Screens:
                   Fill: =UAB.OffWhite
                   FillPortions: =0
                   Height: =If(scr_settings.Size = ScreenSize.Small, 368, 176)
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =If(scr_settings.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
                   LayoutGap: =16
                   LayoutMinHeight: =0
