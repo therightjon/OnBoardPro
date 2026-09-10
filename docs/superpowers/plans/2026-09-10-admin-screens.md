@@ -551,7 +551,7 @@ cntSettingsRoot (content_root)
     lblStTitle       ModernText: Text ="Settings", Size UABSize.ScreenTitle, Semibold, TextPrimary, Height 44, AutoHeight true, Wrap false
     lblStSub         ModernText: Text =If(IsHR, "Your notification preference and app administration.", "Your notification preference."), Gray500, Body, Height 20, AutoHeight
   conStMeCard        con: white hairline card, FillPortions 0, vertical, gap 12, padding 20, Width =Min(640, Parent.Width)
-    lblStEyebrow     ModernText: Text ="MY NOTIFICATIONS", Color UAB.Green, Bold, Size UABSize.Eyebrow, Height 18
+    lblStEyebrow     ModernText: Text ="MY NOTIFICATIONS", Color UAB.Green, Bold, Size UABSize.Eyebrow, Height 18, Wrap false
     lblStMeName      ModernText: Text =FriendlyName(User().FullName), Size UABSize.SectionHeading, Semibold, TextPrimary, Height 30, Wrap false
     conStMeMeta      con: Fill White, FillPortions 0, horizontal, gap 12, Height 24, LayoutAlignItems Center
       conPillStRole  pill("StRole", 90, "=RoleFill(MyRole)", "=RoleColor(MyRole)", "=MyRole")   ← gen_app.pill
@@ -560,7 +560,7 @@ cntSettingsRoot (content_root)
       conStMeField   con: Fill White, FillPortions 1, vertical, gap 4, Height 66, LayoutAlignItems Stretch
         lblStChanCap ModernText: Text ="Send my notifications by", Gray700, Semibold, Secondary, Height 22, FillPortions 1, AutoHeight, Wrap false
         cmbStChannel ModernCombobox: Items =["Email", "Teams", "Email + Teams"], ItemDisplayText =ThisItem.Value, SelectMultiple =false, DefaultSelectedItems =[MyNotifyChannel], Height 40, FillPortions 1, AccessibleLabel ="Send my notifications by", DisplayMode =If(IsBlank(MyPermRow), DisplayMode.Disabled, DisplayMode.Edit)
-      btnStSave      ModernButton: Text ="Save", BasePaletteColor UAB.Green, Height 40, Width 120, AccessibleLabel ="Save notification preference", DisplayMode =If(IsBlank(MyPermRow), DisplayMode.Disabled, DisplayMode.Edit), OnSelect (below)
+      btnStSave      ModernButton: Text ="Save", BasePaletteColor UAB.Green, Height 40, Width 120, AlignInContainer =AlignInContainer.End, AccessibleLabel ="Save notification preference", DisplayMode =If(IsBlank(MyPermRow), DisplayMode.Disabled, DisplayMode.Edit), OnSelect (below)
     lblStMeNote      ModernText: Text (below), Gray500, Secondary, AutoHeight, Height 40, Wrap true
   conStTiles         con: Fill OffWhite, FillPortions 0, Visible =IsHR, LayoutDirection =If(SM, Vertical, Horizontal), gap 16, Height =If(SM, 296, 140)   ← LAST child of the root
     conStTileUsers   con: white hairline card, FillPortions 1, vertical, gap 8, padding 20, Height 140
@@ -675,7 +675,7 @@ btnAuGuard         screen-level ModernButton AFTER the root (rail_stamp rule): V
           conAuCellDiv   Width =If(SM, 0, 200), Visible =!(SM): lblAuCellDiv ModernText =Coalesce(ThisItem.Division.Value, "All divisions")
           conAuCellChan  Width =If(SM, 0, 140), Visible =!(SM): lblAuCellChan ModernText =Coalesce(ThisItem.NotifyChannel.Value, "Email")
           icoAuRowEdit   Classic/Icon: Icon =Icon.Edit, Color UAB.Green, 24×24, TabIndex 0, AccessibleLabel ="Edit " & Coalesce(ThisItem.AppUser.DisplayName, ""), OnSelect (open edit)
-          icoAuRowDelete Classic/Icon: Icon =Icon.Trash, Color =If(Lower(Coalesce(ThisItem.AppUser.Email, "")) = Lower(User().Email), UAB.Gray300, UAB.Danger), 24×24, TabIndex 0, AccessibleLabel ="Remove " & …, OnSelect (open confirm)
+          icoAuRowDelete Classic/Icon: Icon =Icon.Trash, Color =If(Lower(Coalesce(ThisItem.AppUser.Email, "")) = Lower(User().Email), UAB.Gray300, UAB.Danger), DisplayMode =If(Lower(Coalesce(ThisItem.AppUser.Email, "")) = Lower(User().Email), DisplayMode.Disabled, DisplayMode.Edit), 24×24, TabIndex 0, AccessibleLabel ="Remove " & …, OnSelect (open confirm)
         conAuListDivider 1px Line
     conAuListEmpty   Text =If(IsBlank(Trim(txtAuSearch.Text)) && Coalesce(CountRows(cmbAuRole.SelectedItems), 0) = 0, "No users yet - add the first one.", "No users match the current filters."), Visible =galAuAll.AllItemsCount = 0
     conAuPager       as conTlPager with varAuPage / galAuAll / page size 7
