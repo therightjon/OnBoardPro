@@ -306,6 +306,7 @@ LIST = G["AppPermissions"]
 GROUPS = {"OBGYN-OnBoardPro-PA": "5f9e259c-eaba-449d-9964-46a0066ad722",
           "OBGYN-OnBoardPro-Admins-PA": "8127ddb5-5c46-45d0-805e-c8026ee2a414"}
 CHANNELS = ["Email", "Teams", "Email + Teams"]
+ARR = "createArray(" + ", ".join(f"'{c}'" for c in CHANNELS) + ")"   # single source for the whitelist
 
 CONNREFS = {"shared_sharepointonline": {
     "connectionName": "288fd46092664885aa75c25c64f03c89",
@@ -372,7 +373,7 @@ def build_defn():
     a["Init_Msg"] = {"runAfter": {"Init_Ok": ["Succeeded"]}, "type": "InitializeVariable",
                      "inputs": {"variables": [{"name": "msg", "type": "string", "value": "Save failed."}]}}
     a["Valid"] = {"runAfter": {"Init_Msg": ["Succeeded"]}, "type": "Compose",
-                  "inputs": ("@and(contains(createArray('Email','Teams','Email + Teams'), outputs('Inputs')?['channel']),"
+                  "inputs": (f"@and(contains({ARR}, outputs('Inputs')?['channel']),"
                              " not(empty(outputs('Inputs')?['caller'])),"
                              " not(contains(outputs('Inputs')?['caller'], '''')))")}
 
@@ -400,7 +401,7 @@ def build_defn():
                      "expression": {"and": [{"equals": ["@outputs('Valid')", True]}]},
                      "actions": valid_branch,
                      "else": {"actions": {"Set_Msg_Bad": setvar(
-                         "msg", ("@if(contains(createArray('Email','Teams','Email + Teams'), outputs('Inputs')?['channel']),"
+                         "msg", (f"@if(contains({ARR}, outputs('Inputs')?['channel']),"
                                  " 'Could not identify you - open Settings from the OnBoardPro app and try again.',"
                                  " concat('Unknown channel: ', outputs('Inputs')?['channel']))"), {})}}}
     a["Respond"] = {"runAfter": {"If_Valid": ["Succeeded", "Failed", "Skipped", "TimedOut"]},
