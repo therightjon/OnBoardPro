@@ -30,7 +30,12 @@ ENTITY = 'Coalesce(varArEntity, "Divisions")'
 
 # ---------------------------------------------------------------- formulas
 
-ONVISIBLE = f"""=If(!IsHR, Navigate(scr_settings));
+# The compiler refuses Navigate() inside OnVisible ("it would automatically
+# always navigate away from this screen"), so the HR guard rides in a hidden
+# screen-level button and OnVisible Selects it - the btnArReload idiom.
+GUARD = "=If(!IsHR, Navigate(scr_settings))"
+
+ONVISIBLE = """=Select(btnArGuard);
 Set(varArEntity, Coalesce(varArEntity, "Divisions"));
 Select(btnArReload)"""
 
@@ -247,10 +252,10 @@ def toggle_row(row_name, tgl_name, label, default):
 
 # ---------------------------------------------------------------- header
 
-def reload_button():
-    """Hidden screen-level rebuild of colArRows. Every write ends by Selecting it."""
+def hidden_button(text, on_select):
+    """A 1x1 invisible screen-level button, run with Select() from a formula."""
     return ctl("ModernButton", {
-        "Height": "=1", "OnSelect": RELOAD, "Text": '="reload"',
+        "Height": "=1", "OnSelect": on_select, "Text": f'="{text}"',
         "Visible": "=false", "Width": "=1", "X": "=0", "Y": "=0"})
 
 
@@ -335,6 +340,10 @@ FLAG_W = '=If(varArEntity = "Divisions", 0, 110)'
 FLAG_VIS = '=varArEntity <> "Divisions"'
 ORDER_W = '=If(varArEntity = "Stages", 72, 0)'
 ORDER_VIS = '=varArEntity = "Stages"'
+# The trailing icons in a row measure edit 24 + gap 12 + delete 24 = 60, and on
+# Stages icoArRowDelete collapses to 0 while its gap stays, leaving 36. Anything
+# wider here pushes the Status and Order captions right of the cells they label.
+ACTS_W = f'=If({ENTITY} = "Stages", 36, 60)'
 
 
 def header_row():
@@ -352,7 +361,7 @@ def header_row():
                  head_label("lblArColFlag", '="Status"'), FLAG_VIS, centered=True),
         head_col("conArColOrder", ORDER_W,
                  head_label("lblArColOrder", '="Order"'), ORDER_VIS, centered=True),
-        head_col("conArColActs", "=88", head_label("lblArColActs", '=""')),
+        head_col("conArColActs", ACTS_W, head_label("lblArColActs", '=""')),
     ]))
 
 
@@ -637,14 +646,15 @@ def root_children():
 
 
 def build():
-    # btnArReload sits AFTER the content root, not between the rail and it:
-    # rail_stamp._rail_span() reads the rail as every line from "- NavRail_" up to
-    # the "- cnt…Root:" line, so anything in that gap is counted as part of the rail
-    # and `rail_stamp.py verify` reports MISMATCH. The button is invisible and 1x1,
-    # so its z-order among the screen's children is immaterial.
+    # btnArGuard and btnArReload sit AFTER the content root, not between the rail
+    # and it: rail_stamp._rail_span() reads the rail as every line from "- NavRail_"
+    # up to the "- cnt…Root:" line, so anything in that gap is counted as part of
+    # the rail and `rail_stamp.py verify` reports MISMATCH. Both buttons are
+    # invisible and 1x1, so their z-order among the screen's children is immaterial.
     body = emit_screen(SCREEN, {"Fill": "=UAB.OffWhite", "OnVisible": ONVISIBLE},
                        [content_root(SCREEN, "cntAdmRefRoot", root_children()),
-                        ("btnArReload", reload_button()),
+                        ("btnArGuard", hidden_button("guard", GUARD)),
+                        ("btnArReload", hidden_button("reload", RELOAD)),
                         ("conArModalDiv", modal_div()[1]),
                         ("conArModalRank", modal_rank()[1]),
                         ("conArModalStage", modal_stage()[1]),

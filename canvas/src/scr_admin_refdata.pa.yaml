@@ -3,7 +3,7 @@ Screens:
     Properties:
       Fill: =UAB.OffWhite
       OnVisible: |-
-        =If(!IsHR, Navigate(scr_settings));
+        =Select(btnArGuard);
         Set(varArEntity, Coalesce(varArEntity, "Divisions"));
         Select(btnArReload)
     Children:
@@ -799,7 +799,7 @@ Screens:
                               LayoutDirection: =LayoutDirection.Horizontal
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
-                              Width: =88
+                              Width: =If(Coalesce(varArEntity, "Divisions") = "Stages", 36, 60)
                             Children:
                               - lblArColActs:
                                   Control: ModernText
@@ -1113,6 +1113,16 @@ Screens:
                   Size: =2
                   Text: =""
                   Wrap: =false
+      - btnArGuard:
+          Control: ModernButton
+          Properties:
+            Height: =1
+            OnSelect: =If(!IsHR, Navigate(scr_settings))
+            Text: ="guard"
+            Visible: =false
+            Width: =1
+            X: =0
+            Y: =0
       - btnArReload:
           Control: ModernButton
           Properties:
