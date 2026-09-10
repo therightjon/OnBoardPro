@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Author + drive F8 (OnBoard - Set Notify Channel).
 
-Called from the canvas app's Settings hub: 'OnBoard-SetNotifyChannel'.Run(email, channel).
+Called from the canvas app's Settings hub: 'OnBoard-SetNotifyChannel'.Run(channel).
 Runs on the flow owner's SharePoint connection so a Viewer (Read on AppPermissions) can
-still change their own NotifyChannel. Trusts `email` from the app's User().Email.
+still change their own NotifyChannel. The caller is identified from the trigger's
+x-ms-user-email-encoded header, never from an argument, so a run-only user cannot
+target anyone else's row.
 
   python3 gen_f8.py dump      # write flows-f8.json, no network
   python3 gen_f8.py patch     # PATCH definition + connectionReferences onto the shell flow
@@ -28,6 +30,7 @@ LIST = G["AppPermissions"]
 GROUPS = {"OBGYN-OnBoardPro-PA": "5f9e259c-eaba-449d-9964-46a0066ad722",
           "OBGYN-OnBoardPro-Admins-PA": "8127ddb5-5c46-45d0-805e-c8026ee2a414"}
 CHANNELS = ["Email", "Teams", "Email + Teams"]
+ARR = "createArray(" + ", ".join(f"'{c}'" for c in CHANNELS) + ")"   # single source for the whitelist
 
 CONNREFS = {"shared_sharepointonline": {
     "connectionName": "288fd46092664885aa75c25c64f03c89",
@@ -82,22 +85,24 @@ def setvar(name, value, run_after):
 def build_defn():
     trig = {"manual": {"type": "Request", "kind": "PowerAppV2", "inputs": {"schema": {
         "type": "object", "properties": {
-            "text": {"title": "email", "type": "string", "x-ms-dynamically-added": True},
-            "text_1": {"title": "channel", "type": "string", "x-ms-dynamically-added": True}},
-        "required": ["text", "text_1"]}}}}
+            "text": {"title": "channel", "type": "string", "x-ms-dynamically-added": True}},
+        "required": ["text"]}}}}
     a = {}
+    hdr = "triggerOutputs()?['headers']?['x-ms-user-email-encoded']"
     a["Inputs"] = {"runAfter": {}, "type": "Compose", "inputs": {
-        "email": "@toLower(coalesce(triggerBody()?['text'], ''))",
-        "channel": "@coalesce(triggerBody()?['text_1'], '')"}}
+        "caller": f"@toLower(if(empty({hdr}), '', base64ToString({hdr})))",
+        "channel": "@coalesce(triggerBody()?['text'], '')"}}
     a["Init_Ok"] = {"runAfter": {"Inputs": ["Succeeded"]}, "type": "InitializeVariable",
                     "inputs": {"variables": [{"name": "ok", "type": "boolean", "value": False}]}}
     a["Init_Msg"] = {"runAfter": {"Init_Ok": ["Succeeded"]}, "type": "InitializeVariable",
                      "inputs": {"variables": [{"name": "msg", "type": "string", "value": "Save failed."}]}}
     a["Valid"] = {"runAfter": {"Init_Msg": ["Succeeded"]}, "type": "Compose",
-                  "inputs": "@contains(createArray('Email','Teams','Email + Teams'), outputs('Inputs')?['channel'])"}
+                  "inputs": (f"@and(contains({ARR}, outputs('Inputs')?['channel']),"
+                             " not(empty(outputs('Inputs')?['caller'])),"
+                             " not(contains(outputs('Inputs')?['caller'], '''')))")}
 
     find = sp(f"_api/web/lists(guid'{LIST}')/items?$select=Id,AppUser/EMail&$expand=AppUser"
-              "&$filter=AppUser/EMail eq '@{outputs('Inputs')?['email']}'&$top=1")
+              "&$filter=AppUser/EMail eq '@{outputs('Inputs')?['caller']}'&$top=1")
     update = sp(f"_api/web/lists(guid'{LIST}')/items(@{{first(body('Find_Row')?['value'])?['Id']}})",
                 "POST",
                 "@string(json(concat('{\"NotifyChannel\":\"', outputs('Inputs')?['channel'], '\"}')))",
@@ -107,18 +112,22 @@ def build_defn():
         "Set_Ok": setvar("ok", True, {"Update_Row": ["Succeeded"]}),
         "Set_Msg_Saved": setvar("msg", "Notification preference saved.", {"Set_Ok": ["Succeeded"]})}
     not_found = {"Set_Msg_NoRow": setvar(
-        "msg", "@concat('No app profile for ', outputs('Inputs')?['email'], ' — ask HR to add you.')", {})}
+        "msg", "@concat('No app profile for ', outputs('Inputs')?['caller'], ' - ask HR to add you.')", {})}
     valid_branch = {
         "Find_Row": find,
         "If_Found": {"runAfter": {"Find_Row": ["Succeeded"]}, "type": "If",
-                     "expression": {"and": [{"greaterOrEquals": [
-                         "@length(body('Find_Row')?['value'])", 1]}]},
+                     "expression": {"and": [
+                         {"greaterOrEquals": ["@length(body('Find_Row')?['value'])", 1]},
+                         {"equals": ["@toLower(coalesce(first(body('Find_Row')?['value'])?['AppUser']?['EMail'], ''))",
+                                     "@outputs('Inputs')?['caller']"]}]},
                      "actions": found_branch, "else": {"actions": not_found}}}
     a["If_Valid"] = {"runAfter": {"Valid": ["Succeeded"]}, "type": "If",
                      "expression": {"and": [{"equals": ["@outputs('Valid')", True]}]},
                      "actions": valid_branch,
                      "else": {"actions": {"Set_Msg_Bad": setvar(
-                         "msg", "@concat('Unknown channel: ', outputs('Inputs')?['channel'])", {})}}}
+                         "msg", (f"@if(contains({ARR}, outputs('Inputs')?['channel']),"
+                                 " 'Could not identify you - open Settings from the OnBoardPro app and try again.',"
+                                 " concat('Unknown channel: ', outputs('Inputs')?['channel']))"), {})}}}
     a["Respond"] = {"runAfter": {"If_Valid": ["Succeeded", "Failed", "Skipped", "TimedOut"]},
                     "type": "Response", "kind": "PowerApp",
                     "inputs": {"statusCode": 200,

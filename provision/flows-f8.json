@@ -20,19 +20,13 @@
      "type": "object",
      "properties": {
       "text": {
-       "title": "email",
-       "type": "string",
-       "x-ms-dynamically-added": true
-      },
-      "text_1": {
        "title": "channel",
        "type": "string",
        "x-ms-dynamically-added": true
       }
      },
      "required": [
-      "text",
-      "text_1"
+      "text"
      ]
     }
    }
@@ -43,8 +37,8 @@
    "runAfter": {},
    "type": "Compose",
    "inputs": {
-    "email": "@toLower(coalesce(triggerBody()?['text'], ''))",
-    "channel": "@coalesce(triggerBody()?['text_1'], '')"
+    "caller": "@toLower(if(empty(triggerOutputs()?['headers']?['x-ms-user-email-encoded']), '', base64ToString(triggerOutputs()?['headers']?['x-ms-user-email-encoded'])))",
+    "channel": "@coalesce(triggerBody()?['text'], '')"
    }
   },
   "Init_Ok": {
@@ -88,7 +82,7 @@
     ]
    },
    "type": "Compose",
-   "inputs": "@contains(createArray('Email','Teams','Email + Teams'), outputs('Inputs')?['channel'])"
+   "inputs": "@and(contains(createArray('Email', 'Teams', 'Email + Teams'), outputs('Inputs')?['channel']), not(empty(outputs('Inputs')?['caller'])), not(contains(outputs('Inputs')?['caller'], '''')))"
   },
   "If_Valid": {
    "runAfter": {
@@ -120,7 +114,7 @@
       "parameters": {
        "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
        "parameters/method": "GET",
-       "parameters/uri": "_api/web/lists(guid'4832685a-06e1-4daf-8f2e-e1bf2fec9b83')/items?$select=Id,AppUser/EMail&$expand=AppUser&$filter=AppUser/EMail eq '@{outputs('Inputs')?['email']}'&$top=1",
+       "parameters/uri": "_api/web/lists(guid'4832685a-06e1-4daf-8f2e-e1bf2fec9b83')/items?$select=Id,AppUser/EMail&$expand=AppUser&$filter=AppUser/EMail eq '@{outputs('Inputs')?['caller']}'&$top=1",
        "parameters/headers": {
         "Accept": "application/json;odata=nometadata",
         "Content-Type": "application/json;odata=nometadata"
@@ -142,6 +136,12 @@
         "greaterOrEquals": [
          "@length(body('Find_Row')?['value'])",
          1
+        ]
+       },
+       {
+        "equals": [
+         "@toLower(coalesce(first(body('Find_Row')?['value'])?['AppUser']?['EMail'], ''))",
+         "@outputs('Inputs')?['caller']"
         ]
        }
       ]
@@ -203,7 +203,7 @@
         "type": "SetVariable",
         "inputs": {
          "name": "msg",
-         "value": "@concat('No app profile for ', outputs('Inputs')?['email'], ' \u2014 ask HR to add you.')"
+         "value": "@concat('No app profile for ', outputs('Inputs')?['caller'], ' - ask HR to add you.')"
         }
        }
       }
@@ -217,7 +217,7 @@
       "type": "SetVariable",
       "inputs": {
        "name": "msg",
-       "value": "@concat('Unknown channel: ', outputs('Inputs')?['channel'])"
+       "value": "@if(contains(createArray('Email', 'Teams', 'Email + Teams'), outputs('Inputs')?['channel']), 'Could not identify you - open Settings from the OnBoardPro app and try again.', concat('Unknown channel: ', outputs('Inputs')?['channel']))"
       }
      }
     }
