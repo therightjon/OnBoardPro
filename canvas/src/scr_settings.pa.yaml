@@ -653,7 +653,7 @@ Screens:
                               LayoutMinWidth: =0
                               OnSelect: |-
                                 =IfError(
-                                    With({r: 'OnBoard-SetNotifyChannel'.Run(Lower(User().Email), cmbStChannel.Selected.Value)},
+                                    With({r: 'OnBoard-SetNotifyChannel'.Run(cmbStChannel.Selected.Value)},
                                         If(r.ok,
                                            Refresh(AppPermissions); Notify(r.message, NotificationType.Success),
                                            Notify("Couldn't save: " & r.message, NotificationType.Error))),

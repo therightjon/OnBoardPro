@@ -45,7 +45,7 @@ PERM_GATE = "=If(IsBlank(MyPermRow), DisplayMode.Disabled, DisplayMode.Edit)"
 
 SAVE_CHANNEL = (
     "=IfError(\n"
-    "    With({r: 'OnBoard-SetNotifyChannel'.Run(Lower(User().Email), cmbStChannel.Selected.Value)},\n"
+    "    With({r: 'OnBoard-SetNotifyChannel'.Run(cmbStChannel.Selected.Value)},\n"
     "        If(r.ok,\n"
     "           Refresh(AppPermissions); Notify(r.message, NotificationType.Success),\n"
     "           Notify(\"Couldn't save: \" & r.message, NotificationType.Error))),\n"
