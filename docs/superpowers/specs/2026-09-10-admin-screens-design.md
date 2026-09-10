@@ -112,12 +112,12 @@ scr_admin_users                  OnVisible: Select(btnAuGuard); Refresh(AppPermi
 **Filter** (twin `Items`):
 ```
 =SortByColumns(
-    FirstN(Filter(AppPermissions,
+    Filter(FirstN(AppPermissions, 500),
         (IsBlank(Trim(txtAuSearch.Text))
            || Trim(txtAuSearch.Text) in AppUser.DisplayName
            || Trim(txtAuSearch.Text) in AppUser.Email)
         && (Coalesce(CountRows(cmbAuRole.SelectedItems), 0) = 0
-           || Role.Value in ShowColumns(cmbAuRole.SelectedItems, Value))), 500),
+           || Role.Value in ShowColumns(cmbAuRole.SelectedItems, Value))),
     "Title")
 ```
 `Title` is written as the display name on every save so the list sorts by name without touching the person record.
@@ -252,6 +252,8 @@ Each numbered step: `compile_canvas` → push → **push again with a real value
 - `$filter=AppUser/EMail eq '…'` matches the stored case of the UPN; if not, F8 falls back to `siteusers` resolution.
 - A `Height: =0` + `Visible: =false` row inside a content-bounded modal really contributes nothing (the app's own column-collapse trick, applied vertically).
 - `Select(btnArReload)` from `OnVisible` fires before the gallery first paints; if it flashes empty, move the collect into `OnVisible` directly.
+- **`Select()` on a `Visible: =false` button has no precedent in this app** and now drives the reload and both HR guards. Check 0 of the push: Reference data shows rows on first open. If not, keep the buttons visible, 1×1, off-canvas (`X: =-40`).
+- The in-use counts evaluate over the first 500 Candidates only (non-delegable lookup `.Id`); past that a referenced Division could be deleted. Acceptable at department scale; recorded here so nobody assumes it is exact.
 
 ## 10. Out of scope
 

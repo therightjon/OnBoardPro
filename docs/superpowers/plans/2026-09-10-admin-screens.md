@@ -562,7 +562,8 @@ cntSettingsRoot (content_root)
         cmbStChannel ModernCombobox: Items =["Email", "Teams", "Email + Teams"], ItemDisplayText =ThisItem.Value, SelectMultiple =false, DefaultSelectedItems =[MyNotifyChannel], Height 40, FillPortions 1, AccessibleLabel ="Send my notifications by", DisplayMode =If(IsBlank(MyPermRow), DisplayMode.Disabled, DisplayMode.Edit)
       btnStSave      ModernButton: Text ="Save", BasePaletteColor UAB.Green, Height 40, Width 120, AlignInContainer =AlignInContainer.End, AccessibleLabel ="Save notification preference", DisplayMode =If(IsBlank(MyPermRow), DisplayMode.Disabled, DisplayMode.Edit), OnSelect (below)
     lblStMeNote      ModernText: Text (below), Gray500, Secondary, AutoHeight, Height 40, Wrap true
-  conStTiles         con: Fill OffWhite, FillPortions 0, Visible =IsHR, LayoutDirection =If(SM, Vertical, Horizontal), LayoutAlignItems =LayoutAlignItems.Stretch, gap 16, Height =If(SM, 368, 176)   ← LAST child of the root
+  conStTiles         con: Fill OffWhite, FillPortions 0, Visible =IsHR, Height =If(IsHR, If(SM, 368, 176), 0) (collapses for non-HR — a hidden child still reserves space), LayoutDirection =If(SM, Vertical, Horizontal), LayoutAlignItems =LayoutAlignItems.Stretch, gap 16
+  lblStBottomSpacer  ModernText spacer as on the spokes (6px) — LAST child of the root
     conStTileUsers   con: white hairline card, FillPortions 1, vertical, gap 8, padding 20, Height 140
       icoStTileUsers Classic/Icon: Icon =Icon.People, Color UAB.Green, Height 28, Width 28, AccessibleLabel ="Users and roles"
       lblStTileUsersT ModernText: Text ="Users & roles", TextPrimary, Semibold, Size UABSize.FieldLabel, Height 24, Wrap false
@@ -662,7 +663,7 @@ btnAuGuard         screen-level ModernButton AFTER the root (rail_stamp rule): V
     btnAuClear       ModernButton secondary "Clear": OnSelect =Reset(txtAuSearch); Reset(cmbAuRole); Set(varAuPage, 1)
   lblAuCount         Text =galAuAll.AllItemsCount & If(galAuAll.AllItemsCount = 1, " user", " users"), right-aligned Gray500 Secondary
   conAuTableCard     white hairline card
-    conAuHeaderRow   Paper 40px: lblAuColUser ("User", FillPortions 1) · conAuColEmail/lblAuColEmail ("Email", Width =If(SM, 0, 260), Visible =!(SM)) · conAuColRole/lblAuColRole ("Role", Width 110, centered) · conAuColDiv/lblAuColDiv ("Division", Width =If(SM, 0, 200), Visible =!(SM)) · conAuColChan/lblAuColChan ("Notifications", Width =If(SM, 0, 140), Visible =!(SM)) · conAuColActs (Width 88, empty)
+    conAuHeaderRow   Paper 40px: lblAuColUser ("User", FillPortions 1) · conAuColEmail/lblAuColEmail ("Email", Width =If(SM, 0, 260), Visible =!(SM)) · conAuColRole/lblAuColRole ("Role", Width 110, centered) · conAuColDiv/lblAuColDiv ("Division", Width =If(SM, 0, 200), Visible =!(SM)) · conAuColChan/lblAuColChan ("Notifications", Width =If(SM, 0, 140), Visible =!(SM)) · conAuColActs (Width =If(SM, 56, 60) — matches the row's edit 24 + gap 12 + delete 24, empty)
     galAuAll         invisible twin, Items (below); shape as src galTlAll: Visible =false, Height =56, no Width
     galAuList        7/page, Fill White, ShowScrollbar false, TemplatePadding 0, TemplateSize =If(SM, 72, 56), Height =Max(If(SM, 72, 56), Min(galAuAll.AllItemsCount, 7) * If(SM, 72, 56)), Items =With({t: galAuAll.AllItems, n: galAuAll.AllItemsCount}, FirstN(LastN(t, n - (Min(Coalesce(varAuPage, 1), Max(1, RoundUp(n / 7, 0))) - 1) * 7), 7))
       conAuListRow   wrapper (TemplateHeight/TemplateWidth)
@@ -702,12 +703,12 @@ conAuConfirm (screen-level scrim, Visible =Coalesce(varAuShowConfirm, false))
 `galAuAll.Items`:
 ```
 =SortByColumns(
-    FirstN(Filter(AppPermissions,
+    Filter(FirstN(AppPermissions, 500),
         (IsBlank(Trim(txtAuSearch.Text))
            || Trim(txtAuSearch.Text) in AppUser.DisplayName
            || Trim(txtAuSearch.Text) in AppUser.Email)
         && (Coalesce(CountRows(cmbAuRole.SelectedItems), 0) = 0
-           || Role.Value in ShowColumns(cmbAuRole.SelectedItems, Value))), 500),
+           || Role.Value in ShowColumns(cmbAuRole.SelectedItems, Value))),
     "Title")
 ```
 
@@ -849,7 +850,7 @@ cntAdmRefRoot (content_root)          ← btnArReload must come AFTER this: rail
 btnArGuard         screen-level ModernButton: Visible =false, Text ="guard", X 0, Y 0, Width 1, Height 1, OnSelect =If(!IsHR, Navigate(scr_settings))
 btnArReload        screen-level ModernButton: Visible =false, Text ="reload", X 0, Y 0, Width 1, Height 1, OnSelect (below)
   cntArHeader
-    conArTitleRow  lblArTitle "Reference data" · conArTitleBtns: btnArBack ("Settings", secondary) · btnArNew (primary, Text =If(varArEntity = "FacultyRanks", "Add rank", "Add division"), Visible =Coalesce(varArEntity, "Divisions") <> "Stages", OnSelect (below))
+    conArTitleRow  lblArTitle "Reference data" · conArTitleBtns: btnArBack ("Settings", secondary) · btnArNew (primary, Text =If(Coalesce(varArEntity, "Divisions") = "FacultyRanks", "Add rank", "Add division"), Visible =Coalesce(varArEntity, "Divisions") <> "Stages", OnSelect (below))
     lblArSub       "Divisions, faculty ranks, and pipeline stages. Stage order is fixed by the flows."
   conArTabs        con: Fill OffWhite, FillPortions 0, horizontal, gap 8, Height 40
     btnArTabDiv    ModernButton: Text ="Divisions", Appearance =If(Coalesce(varArEntity, "Divisions") = "Divisions", ButtonAppearance.Primary, ButtonAppearance.Secondary), BasePaletteColor UAB.Green, Width =If(SM, 90, 120), OnSelect =Set(varArEntity, "Divisions"); Select(btnArReload)
@@ -973,9 +974,9 @@ Switch(Coalesce(varArEntity, "Divisions"),
 =Set(varArDelId, ThisItem.ID); Set(varArDelTitle, ThisItem.Title);
 Set(varArInUse,
     Switch(Coalesce(varArEntity, "Divisions"),
-        "Divisions", CountRows(Filter(Candidates, Division.Id = ThisItem.ID))
-                     + CountRows(Filter(AppPermissions, Division.Id = ThisItem.ID)),
-        "FacultyRanks", CountRows(Filter(Candidates, FacultyRank.Id = ThisItem.ID)),
+        "Divisions", CountRows(Filter(FirstN(Candidates, 500), Division.Id = ThisItem.ID))
+                     + CountRows(Filter(FirstN(AppPermissions, 500), Division.Id = ThisItem.ID)),
+        "FacultyRanks", CountRows(Filter(FirstN(Candidates, 500), FacultyRank.Id = ThisItem.ID)),
         0));
 Set(varArShowConfirm, true)
 ```
