@@ -143,19 +143,19 @@ def me_card():
         ("btnStSave", ctl("ModernButton", {**BTN,
             "AccessibleLabel": '="Save notification preference"',
             "AlignInContainer": "=AlignInContainer.End",
-            "DisplayMode": PERM_GATE, "Height": "=40",
+            "DisplayMode": PERM_GATE,
             "OnSelect": SAVE_CHANNEL, "Text": '="Save"', "Width": "=120"})),
     ]))
 
     return ("conStMeCard", con({
         # explicit Height: a hug container gets the ~200px default and clips its children (seen live 2026-09-10)
         # eyebrow 18 + name 30 + meta 24 + row 66/132 + note 40/60 + 4 gaps x 12 + padding 40
-        "Height": f"=If({SM}, 352, 266)",**CARD, **START,
+        "Height": f"=If({SM}, 352, 280)",**CARD, **START,
         "FillPortions": "=0",
         "LayoutAlignItems": "=LayoutAlignItems.Stretch",
         "LayoutDirection": "=LayoutDirection.Vertical", "LayoutGap": "=12",
         "PaddingBottom": "=20", "PaddingLeft": "=20", "PaddingRight": "=20",
-        "PaddingTop": "=20", "Width": "=Min(640, Parent.Width)"}, [
+        "PaddingTop": "=20", "Width": "=Min(conStTileUsers.Width, Parent.Width)"}, [
         ("lblStEyebrow", ctl("ModernText", {**AUTOZ,
             "AutoHeight": "=true", "Color": "=UAB.Green",
             "FontWeight": "=FontWeight.Bold", "Height": "=18",
@@ -207,7 +207,8 @@ def tiles():
     # Last real block of the content root on purpose (only the 6px spacer follows):
     # a hidden AutoLayout child still reserves its space, so a Visible-gated block
     # is only safe at the tail - and its Height collapses to 0 for non-HR anyway.
-    return ("conStTiles", con({**NOSHADOW, **AUTOZ,
+    return ("conStTiles", con({
+        "PaddingBottom": "=2", "PaddingLeft": "=2", "PaddingRight": "=2", "PaddingTop": "=2",**NOSHADOW, **AUTOZ,
         "Fill": "=UAB.OffWhite", "FillPortions": "=0", "Height": TILES_H,
         # The tiles are FillPortions 1 along the main axis; Stretch is what makes
         # them fill the width on the cross axis once the strip stacks vertically.

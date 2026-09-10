@@ -487,7 +487,7 @@ Screens:
                   DropShadow: =DropShadow.None
                   Fill: =UAB.White
                   FillPortions: =0
-                  Height: =If(scr_settings.Size = ScreenSize.Small, 352, 266)
+                  Height: =If(scr_settings.Size = ScreenSize.Small, 352, 280)
                   LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutGap: =12
@@ -501,7 +501,9 @@ Screens:
                   RadiusBottomRight: =8
                   RadiusTopLeft: =8
                   RadiusTopRight: =8
-                  Width: =Min(640, Parent.Width)
+                  Width: |+
+                    =Min(conStTileUsers.Width, Parent.Width)
+
                 Children:
                   - lblStEyebrow:
                       Control: ModernText
@@ -650,7 +652,6 @@ Screens:
                               BasePaletteColor: =UAB.Green
                               DisplayMode: =If(IsBlank(MyPermRow), DisplayMode.Disabled, DisplayMode.Edit)
                               FontWeight: =""
-                              Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: |-
@@ -697,6 +698,10 @@ Screens:
                   LayoutGap: =16
                   LayoutMinHeight: =0
                   LayoutMinWidth: =0
+                  PaddingBottom: =2
+                  PaddingLeft: =2
+                  PaddingRight: =2
+                  PaddingTop: =2
                   Visible: =IsHR
                 Children:
                   - conStTileUsers:
