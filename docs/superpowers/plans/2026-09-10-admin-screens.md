@@ -639,15 +639,16 @@ Page size is **7**, not the spec's 8: Task Library went 8 → 7 in September bec
 
 - [ ] **Step 1: Write `canvas/gen_admin_users.py` producing this tree**
 
-Screen props: `Fill: =UAB.OffWhite`, `OnVisible` (block scalar):
+Screen props: `Fill: =UAB.OffWhite`, `OnVisible` (block scalar) (Navigate is rejected inside OnVisible by the compiler — it lives in a hidden guard button, the btnArReload idiom):
 ```
-=If(!IsHR, Navigate(scr_settings));
+=Select(btnAuGuard);
 Refresh(AppPermissions);
 Set(varAuPage, 1)
 ```
 
 ```
 cntAdmUsersRoot (content_root)
+btnAuGuard         screen-level ModernButton AFTER the root (rail_stamp rule): Visible =false, Text ="guard", X 0, Y 0, Width 1, Height 1, OnSelect =If(!IsHR, Navigate(scr_settings))
   cntAuHeader        as cntTlHeader
     conAuTitleRow    horizontal, SpaceBetween
       lblAuTitle     "Users & roles" (ScreenTitle)
@@ -801,7 +802,7 @@ grep -n "^      - " src/scr_admin_users.pa.yaml
 grep -c "IfError(" src/scr_admin_users.pa.yaml; grep -c "Patch(\|Remove(" src/scr_admin_users.pa.yaml
 grep -n "SearchUser" src/scr_admin_users.pa.yaml; grep -c "cmbNcManager" src/scr_admin_users.pa.yaml
 ```
-Expected: screen-level children in order `NavRail_AdmUsers`, `cntAdmUsersRoot`, `conAuModal`, `conAuConfirm`; `IfError(` count 2, `Patch(|Remove(` count 3 (two Patch, one Remove), every write inside an IfError; one `SearchUser`; zero `cmbNcManager`.
+Expected: screen-level children in order `NavRail_AdmUsers`, `cntAdmUsersRoot`, `btnAuGuard`, `conAuModal`, `conAuConfirm`; `IfError(` count 2, `Patch(|Remove(` count 3 (two Patch, one Remove), every write inside an IfError; one `SearchUser`; zero `cmbNcManager`.
 
 - [ ] **Step 3: Layout audits**
 
@@ -835,9 +836,9 @@ Template blocks: same Task Library ranges as Task 5. Toggle example: `scr_taskli
 
 - [ ] **Step 1: Write `canvas/gen_admin_refdata.py` producing this tree**
 
-Screen props: `Fill: =UAB.OffWhite`, `OnVisible`:
+Screen props: `Fill: =UAB.OffWhite`, `OnVisible` (Navigate is rejected inside OnVisible by the compiler — it lives in a hidden guard button, the btnArReload idiom):
 ```
-=If(!IsHR, Navigate(scr_settings));
+=Select(btnArGuard);
 Set(varArEntity, Coalesce(varArEntity, "Divisions"));
 Select(btnArReload)
 ```
@@ -845,6 +846,7 @@ Select(btnArReload)
 ```
 NavRail_AdmRef
 cntAdmRefRoot (content_root)          ← btnArReload must come AFTER this: rail_stamp treats everything before `cnt*Root` as rail
+btnArGuard         screen-level ModernButton: Visible =false, Text ="guard", X 0, Y 0, Width 1, Height 1, OnSelect =If(!IsHR, Navigate(scr_settings))
 btnArReload        screen-level ModernButton: Visible =false, Text ="reload", X 0, Y 0, Width 1, Height 1, OnSelect (below)
   cntArHeader
     conArTitleRow  lblArTitle "Reference data" · conArTitleBtns: btnArBack ("Settings", secondary) · btnArNew (primary, Text =If(varArEntity = "FacultyRanks", "Add rank", "Add division"), Visible =Coalesce(varArEntity, "Divisions") <> "Stages", OnSelect (below))
@@ -1005,7 +1007,7 @@ grep -n "^      - " src/scr_admin_refdata.pa.yaml
 grep -c "IfError(" src/scr_admin_refdata.pa.yaml; grep -c "Patch(\|Remove(" src/scr_admin_refdata.pa.yaml
 grep -c "OrderIndex" src/scr_admin_refdata.pa.yaml
 ```
-Expected: screen-level children `NavRail_AdmRef`, `cntAdmRefRoot`, `btnArReload`, `conArModalDiv`, `conArModalRank`, `conArModalStage`, `conArConfirm`; `IfError(` = 4; `Patch(|Remove(` = 7 (5 Patch, 2 Remove); `OrderIndex` appears exactly twice, both in the reload formula (`SortByColumns` and `Order: Coalesce(OrderIndex, 0)`) — never inside a `Patch`.
+Expected: screen-level children `NavRail_AdmRef`, `cntAdmRefRoot`, `btnArGuard`, `btnArReload`, `conArModalDiv`, `conArModalRank`, `conArModalStage`, `conArConfirm`; `IfError(` = 4; `Patch(|Remove(` = 7 (5 Patch, 2 Remove); `OrderIndex` appears exactly twice, both in the reload formula (`SortByColumns` and `Order: Coalesce(OrderIndex, 0)`) — never inside a `Patch`.
 
 - [ ] **Step 3: Layout audits** — as Task 4 Step 3, against `scr_admin_refdata.pa.yaml`.
 

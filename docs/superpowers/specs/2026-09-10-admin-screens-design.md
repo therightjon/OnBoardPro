@@ -86,7 +86,7 @@ Estimated controls: ~55 incl. rail.
 **Purpose:** HR adds users, sets role / division / channel, offboards.
 
 ```
-scr_admin_users                  OnVisible: If(!IsHR, Navigate(scr_settings)); Refresh(AppPermissions); Set(varAuPage, 1)
+scr_admin_users                  OnVisible: Select(btnAuGuard); Refresh(AppPermissions); Set(varAuPage, 1)   ← btnAuGuard: hidden button, OnSelect If(!IsHR, Navigate(scr_settings)); the compiler rejects Navigate directly in OnVisible
   NavRail_AdmUsers
   cntAuRoot
     cntAuHeader                  title row: "Users & roles" · btnAuBack ("Settings", subtle) · btnAuNew ("Add user")
@@ -154,7 +154,7 @@ Estimated controls: ~130 incl. rail.
 **Purpose:** HR maintains the three editable reference lists.
 
 ```
-scr_admin_refdata                OnVisible: If(!IsHR, Navigate(scr_settings)); Set(varArEntity, Coalesce(varArEntity, "Divisions")); Select(btnArReload)
+scr_admin_refdata                OnVisible: Select(btnArGuard); Set(varArEntity, Coalesce(varArEntity, "Divisions")); Select(btnArReload)   ← btnArGuard as on the Users screen
   NavRail_AdmRef
   btnArReload                    screen-level, Visible: =false — rebuilds colArRows (below)
   cntArRoot
