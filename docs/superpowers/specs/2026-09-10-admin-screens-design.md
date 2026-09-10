@@ -194,9 +194,9 @@ Every successful save/delete ends with `Select(btnArReload)`. Order column and t
 ```
 Set(varArInUse,
     Switch(varArEntity,
-      "Divisions",    CountRows(Filter(Candidates, Division.Id = ThisItem.ID))
-                      + CountRows(Filter(AppPermissions, Division.Id = ThisItem.ID)),
-      "FacultyRanks", CountRows(Filter(Candidates, FacultyRank.Id = ThisItem.ID)),
+      "Divisions",    CountRows(Filter(FirstN(Candidates, 500), Division.Id = ThisItem.ID))
+                      + CountRows(Filter(FirstN(AppPermissions, 500), Division.Id = ThisItem.ID)),
+      "FacultyRanks", CountRows(Filter(FirstN(Candidates, 500), FacultyRank.Id = ThisItem.ID)),
       0))
 ```
 Body: in use → "In use by N candidate(s)/user(s) — reassign them first." and Delete disabled; else "This can't be undone." Confirm → `IfError(Remove(<list>, LookUp(<list>, ID = varArDelId)), …)`.
