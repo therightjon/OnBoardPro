@@ -5,3 +5,6 @@ EditorState:
     - scr_new_candidate
     - scr_templates
     - scr_tasklibrary
+    - scr_settings
+    - scr_admin_users
+    - scr_admin_refdata
