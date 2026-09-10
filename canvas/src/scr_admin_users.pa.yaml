@@ -3,7 +3,7 @@ Screens:
     Properties:
       Fill: =UAB.OffWhite
       OnVisible: |-
-        =If(!IsHR, Navigate(scr_settings));
+        =Select(btnAuGuard);
         Refresh(AppPermissions);
         Set(varAuPage, 1)
     Children:
@@ -1094,6 +1094,7 @@ Screens:
                                         Properties:
                                           AccessibleLabel: ="Remove " & Coalesce(ThisItem.AppUser.DisplayName, "")
                                           Color: =If(Lower(Coalesce(ThisItem.AppUser.Email, "")) = Lower(User().Email), UAB.Gray300, UAB.Danger)
+                                          DisplayMode: =If(Lower(Coalesce(ThisItem.AppUser.Email, "")) = Lower(User().Email), DisplayMode.Disabled, DisplayMode.Edit)
                                           FocusedBorderColor: =UAB.Gold
                                           Height: =24
                                           Icon: =Icon.Trash
@@ -1214,6 +1215,19 @@ Screens:
                   Size: =2
                   Text: =""
                   Wrap: =false
+      - btnAuGuard:
+          Control: ModernButton
+          Properties:
+            AccessibleLabel: ="HR guard"
+            Height: =1
+            LayoutMinHeight: =0
+            LayoutMinWidth: =0
+            OnSelect: =If(!IsHR, Navigate(scr_settings))
+            Text: ="guard"
+            Visible: =false
+            Width: =1
+            X: =0
+            Y: =0
       - conAuModal:
           Control: GroupContainer
           Variant: AutoLayout
@@ -1350,7 +1364,7 @@ Screens:
                       Properties:
                         AutoHeight: =true
                         Color: =UAB.Gray700
-                        Height: ==If(Coalesce(varAuMode, "add") = "edit", 20, 0)
+                        Height: =If(Coalesce(varAuMode, "add") = "edit", 20, 0)
                         LayoutMinHeight: =0
                         LayoutMinWidth: =0
                         Size: =UABSize.Secondary

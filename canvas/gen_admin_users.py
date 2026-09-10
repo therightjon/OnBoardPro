@@ -33,8 +33,11 @@ PAGES = f"Max(1, RoundUp(galAuAll.AllItemsCount / {SIZE}, 0))"
 
 # ---------------------------------------------------------------- formulas
 
+# Navigate() is rejected inside OnVisible ("it would automatically always navigate
+# away from this screen"), so the HR guard runs through Select() of a hidden
+# screen-level button - the same idiom btnArReload uses on the Reference data screen.
 ONVISIBLE = (
-    "=If(!IsHR, Navigate(scr_settings));\n"
+    "=Select(btnAuGuard);\n"
     "Refresh(AppPermissions);\n"
     "Set(varAuPage, 1)")
 
@@ -166,7 +169,8 @@ def mtext(name, text, color="=UAB.Gray700", size="=UABSize.Secondary",
           height=18, extra=None):
     """A ModernText. AutoHeight is never optional - unset, it clips and scrolls."""
     props = {**AUTOZ, "AutoHeight": "=true", "Color": color,
-             "Height": f"={height}", "Size": size, "Text": text}
+             "Height": f"={height}" if isinstance(height, int) else height,
+             "Size": size, "Text": text}
     if extra:
         props.update(extra)
     return (name, ctl("ModernText", props))
@@ -403,6 +407,8 @@ def list_gallery():
             "AccessibleLabel": '="Remove " & Coalesce(ThisItem.AppUser.DisplayName, "")',
             "Color": ('=If(Lower(Coalesce(ThisItem.AppUser.Email, "")) = Lower(User().Email),'
                       " UAB.Gray300, UAB.Danger)"),
+            "DisplayMode": ('=If(Lower(Coalesce(ThisItem.AppUser.Email, "")) = Lower(User().Email),'
+                            " DisplayMode.Disabled, DisplayMode.Edit)"),
             "FocusedBorderColor": "=UAB.Gold",
             "Height": "=24", "Icon": "=Icon.Trash", "OnSelect": OPEN_CONFIRM,
             "TabIndex": "=0", "Width": "=24"})),
@@ -654,9 +660,23 @@ def confirm():
 # ---------------------------------------------------------------- main
 
 
+def guard_button():
+    """Hidden screen-level HR guard. OnVisible Selects it instead of Navigating."""
+    return ctl("ModernButton", {
+        "AccessibleLabel": '="HR guard"', "Height": "=1",
+        "LayoutMinHeight": "=0", "LayoutMinWidth": "=0",
+        "OnSelect": "=If(!IsHR, Navigate(scr_settings))", "Text": '="guard"',
+        "Visible": "=false", "Width": "=1", "X": "=0", "Y": "=0"})
+
+
 def build():
+    # btnAuGuard sits after cntAdmUsersRoot, never before it: rail_stamp._rail_span()
+    # reads the rail as every line from "- NavRail_" up to the "- cnt…Root:" line, so
+    # anything in that gap is counted as rail and `rail_stamp.py verify` reports
+    # MISMATCH. The button is invisible and 1x1, so its z-order is immaterial.
     body = emit_screen(SCREEN, {"Fill": "=UAB.OffWhite", "OnVisible": ONVISIBLE},
                        [content_root(SCREEN, "cntAdmUsersRoot", root_children()),
+                        ("btnAuGuard", guard_button()),
                         ("conAuModal", modal()), ("conAuConfirm", confirm())])
     head, _, tail = body.partition("    Children:\n")
     return head + "    Children:\n" + rail_text(SCREEN, SFX) + tail
