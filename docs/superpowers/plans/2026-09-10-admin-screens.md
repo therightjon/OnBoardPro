@@ -662,7 +662,7 @@ cntAdmUsersRoot (content_root)
   lblAuCount         Text =galAuAll.AllItemsCount & If(galAuAll.AllItemsCount = 1, " user", " users"), right-aligned Gray500 Secondary
   conAuTableCard     white hairline card
     conAuHeaderRow   Paper 40px: lblAuColUser ("User", FillPortions 1) · conAuColEmail/lblAuColEmail ("Email", Width =If(SM, 0, 260), Visible =!(SM)) · conAuColRole/lblAuColRole ("Role", Width 110, centered) · conAuColDiv/lblAuColDiv ("Division", Width =If(SM, 0, 200), Visible =!(SM)) · conAuColChan/lblAuColChan ("Notifications", Width =If(SM, 0, 140), Visible =!(SM)) · conAuColActs (Width 88, empty)
-    galAuAll         invisible twin, Items (below)
+    galAuAll         invisible twin, Items (below); shape as src galTlAll: Visible =false, Height =56, no Width
     galAuList        7/page, Fill White, ShowScrollbar false, TemplatePadding 0, TemplateSize =If(SM, 72, 56), Height =Max(If(SM, 72, 56), Min(galAuAll.AllItemsCount, 7) * If(SM, 72, 56)), Items =With({t: galAuAll.AllItems, n: galAuAll.AllItemsCount}, FirstN(LastN(t, n - (Min(Coalesce(varAuPage, 1), Max(1, RoundUp(n / 7, 0))) - 1) * 7), 7))
       conAuListRow   wrapper (TemplateHeight/TemplateWidth)
         conAuRowContent horizontal, gap 12, padding 12/16
