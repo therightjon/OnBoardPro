@@ -600,6 +600,7 @@ Screens:
                                   Control: ModernText
                                   Properties:
                                     Align: =Align.Center
+                                    AlignInContainer: =AlignInContainer.Center
                                     AutoHeight: =true
                                     Color: =UAB.Gray700
                                     FillPortions: =1
@@ -626,6 +627,7 @@ Screens:
                                   Control: ModernText
                                   Properties:
                                     Align: =Align.Center
+                                    AlignInContainer: =AlignInContainer.Center
                                     AutoHeight: =true
                                     Color: =UAB.Gray700
                                     FillPortions: =1
@@ -652,6 +654,7 @@ Screens:
                                   Control: ModernText
                                   Properties:
                                     Align: =Align.Center
+                                    AlignInContainer: =AlignInContainer.Center
                                     AutoHeight: =true
                                     Color: =UAB.Gray700
                                     FillPortions: =1
@@ -678,6 +681,7 @@ Screens:
                                   Control: ModernText
                                   Properties:
                                     Align: =Align.Center
+                                    AlignInContainer: =AlignInContainer.Center
                                     AutoHeight: =true
                                     Color: =UAB.Gray700
                                     FillPortions: =1
@@ -703,6 +707,7 @@ Screens:
                                   Control: ModernText
                                   Properties:
                                     Align: =Align.Center
+                                    AlignInContainer: =AlignInContainer.Center
                                     AutoHeight: =true
                                     Color: =UAB.Gray700
                                     FillPortions: =1
