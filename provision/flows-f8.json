@@ -1,0 +1,257 @@
+{
+ "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+ "contentVersion": "1.0.0.0",
+ "parameters": {
+  "$connections": {
+   "defaultValue": {},
+   "type": "Object"
+  },
+  "$authentication": {
+   "defaultValue": {},
+   "type": "SecureObject"
+  }
+ },
+ "triggers": {
+  "manual": {
+   "type": "Request",
+   "kind": "PowerAppV2",
+   "inputs": {
+    "schema": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "title": "email",
+       "type": "string",
+       "x-ms-dynamically-added": true
+      },
+      "text_1": {
+       "title": "channel",
+       "type": "string",
+       "x-ms-dynamically-added": true
+      }
+     },
+     "required": [
+      "text",
+      "text_1"
+     ]
+    }
+   }
+  }
+ },
+ "actions": {
+  "Inputs": {
+   "runAfter": {},
+   "type": "Compose",
+   "inputs": {
+    "email": "@toLower(coalesce(triggerBody()?['text'], ''))",
+    "channel": "@coalesce(triggerBody()?['text_1'], '')"
+   }
+  },
+  "Init_Ok": {
+   "runAfter": {
+    "Inputs": [
+     "Succeeded"
+    ]
+   },
+   "type": "InitializeVariable",
+   "inputs": {
+    "variables": [
+     {
+      "name": "ok",
+      "type": "boolean",
+      "value": false
+     }
+    ]
+   }
+  },
+  "Init_Msg": {
+   "runAfter": {
+    "Init_Ok": [
+     "Succeeded"
+    ]
+   },
+   "type": "InitializeVariable",
+   "inputs": {
+    "variables": [
+     {
+      "name": "msg",
+      "type": "string",
+      "value": "Save failed."
+     }
+    ]
+   }
+  },
+  "Valid": {
+   "runAfter": {
+    "Init_Msg": [
+     "Succeeded"
+    ]
+   },
+   "type": "Compose",
+   "inputs": "@contains(createArray('Email','Teams','Email + Teams'), outputs('Inputs')?['channel'])"
+  },
+  "If_Valid": {
+   "runAfter": {
+    "Valid": [
+     "Succeeded"
+    ]
+   },
+   "type": "If",
+   "expression": {
+    "and": [
+     {
+      "equals": [
+       "@outputs('Valid')",
+       true
+      ]
+     }
+    ]
+   },
+   "actions": {
+    "Find_Row": {
+     "runAfter": {},
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+       "connectionName": "shared_sharepointonline",
+       "operationId": "HttpRequest"
+      },
+      "parameters": {
+       "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+       "parameters/method": "GET",
+       "parameters/uri": "_api/web/lists(guid'4832685a-06e1-4daf-8f2e-e1bf2fec9b83')/items?$select=Id,AppUser/EMail&$expand=AppUser&$filter=AppUser/EMail eq '@{outputs('Inputs')?['email']}'&$top=1",
+       "parameters/headers": {
+        "Accept": "application/json;odata=nometadata",
+        "Content-Type": "application/json;odata=nometadata"
+       }
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    },
+    "If_Found": {
+     "runAfter": {
+      "Find_Row": [
+       "Succeeded"
+      ]
+     },
+     "type": "If",
+     "expression": {
+      "and": [
+       {
+        "greaterOrEquals": [
+         "@length(body('Find_Row')?['value'])",
+         1
+        ]
+       }
+      ]
+     },
+     "actions": {
+      "Update_Row": {
+       "runAfter": {},
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "POST",
+         "parameters/uri": "_api/web/lists(guid'4832685a-06e1-4daf-8f2e-e1bf2fec9b83')/items(@{first(body('Find_Row')?['value'])?['Id']})",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata",
+          "X-HTTP-Method": "MERGE",
+          "IF-MATCH": "*"
+         },
+         "parameters/body": "@string(json(concat('{\"NotifyChannel\":\"', outputs('Inputs')?['channel'], '\"}')))"
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      },
+      "Set_Ok": {
+       "runAfter": {
+        "Update_Row": [
+         "Succeeded"
+        ]
+       },
+       "type": "SetVariable",
+       "inputs": {
+        "name": "ok",
+        "value": true
+       }
+      },
+      "Set_Msg_Saved": {
+       "runAfter": {
+        "Set_Ok": [
+         "Succeeded"
+        ]
+       },
+       "type": "SetVariable",
+       "inputs": {
+        "name": "msg",
+        "value": "Notification preference saved."
+       }
+      }
+     },
+     "else": {
+      "actions": {
+       "Set_Msg_NoRow": {
+        "runAfter": {},
+        "type": "SetVariable",
+        "inputs": {
+         "name": "msg",
+         "value": "@concat('No app profile for ', outputs('Inputs')?['email'], ' \u2014 ask HR to add you.')"
+        }
+       }
+      }
+     }
+    }
+   },
+   "else": {
+    "actions": {
+     "Set_Msg_Bad": {
+      "runAfter": {},
+      "type": "SetVariable",
+      "inputs": {
+       "name": "msg",
+       "value": "@concat('Unknown channel: ', outputs('Inputs')?['channel'])"
+      }
+     }
+    }
+   }
+  },
+  "Respond": {
+   "runAfter": {
+    "If_Valid": [
+     "Succeeded",
+     "Failed",
+     "Skipped",
+     "TimedOut"
+    ]
+   },
+   "type": "Response",
+   "kind": "PowerApp",
+   "inputs": {
+    "statusCode": 200,
+    "body": {
+     "ok": "@variables('ok')",
+     "message": "@variables('msg')"
+    },
+    "schema": {
+     "type": "object",
+     "properties": {
+      "ok": {
+       "type": "boolean"
+      },
+      "message": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  }
+ }
+}
