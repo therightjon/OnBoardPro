@@ -844,8 +844,8 @@ Select(btnArReload)
 
 ```
 NavRail_AdmRef
+cntAdmRefRoot (content_root)          ← btnArReload must come AFTER this: rail_stamp treats everything before `cnt*Root` as rail
 btnArReload        screen-level ModernButton: Visible =false, Text ="reload", X 0, Y 0, Width 1, Height 1, OnSelect (below)
-cntAdmRefRoot (content_root)
   cntArHeader
     conArTitleRow  lblArTitle "Reference data" · conArTitleBtns: btnArBack ("Settings", secondary) · btnArNew (primary, Text =If(varArEntity = "FacultyRanks", "Add rank", "Add division"), Visible =Coalesce(varArEntity, "Divisions") <> "Stages", OnSelect (below))
     lblArSub       "Divisions, faculty ranks, and pipeline stages. Stage order is fixed by the flows."
@@ -855,7 +855,7 @@ cntAdmRefRoot (content_root)
     btnArTabStage  same, "Stages", "Stages", Width =If(SM, 80, 110)
   lblArCount       Text =CountRows(colArRows) & Switch(Coalesce(varArEntity, "Divisions"), "Divisions", " divisions", "FacultyRanks", " ranks", " stages")
   conArTableCard
-    conArHeaderRow Paper: lblArColName ("Name", FillPortions 1) · conArColDetail ("Description", Width =If(SM || varArEntity <> "Stages", 0, 320), Visible =!(SM) && varArEntity = "Stages") · conArColFlag ("Status", Width 110, centered, Visible =varArEntity <> "Divisions") · conArColOrder ("Order", Width =If(varArEntity = "Stages", 72, 0), Visible =varArEntity = "Stages", centered) · conArColActs (Width 88)
+    conArHeaderRow Paper: lblArColName ("Name", FillPortions 1) · conArColDetail ("Description", Width =If(SM || varArEntity <> "Stages", 0, 320), Visible =!(SM) && varArEntity = "Stages") · conArColFlag ("Status", Width =If(varArEntity = "Divisions", 0, 110), centered, Visible =varArEntity <> "Divisions") · conArColOrder ("Order", Width =If(varArEntity = "Stages", 72, 0), Visible =varArEntity = "Stages", centered) · conArColActs (Width 88)
     galArList      Items =colArRows, Fill White, ShowScrollbar false, TemplatePadding 0, TemplateSize =If(SM, 72, 56), Height =Max(If(SM, 72, 56), Min(CountRows(colArRows), 10) * If(SM, 72, 56)), no twin (≤ 10 rows)
       conArListRow / conArRowContent
         conArCellMain: lblArRowTitle (Label click target, Text =ThisItem.Title, OnSelect open-edit) · lblArRowSub (Label, Text =If(SM && varArEntity = "Stages", Left(ThisItem.Detail, 60), ""), Visible =SM && varArEntity = "Stages")
@@ -1005,7 +1005,7 @@ grep -n "^      - " src/scr_admin_refdata.pa.yaml
 grep -c "IfError(" src/scr_admin_refdata.pa.yaml; grep -c "Patch(\|Remove(" src/scr_admin_refdata.pa.yaml
 grep -c "OrderIndex" src/scr_admin_refdata.pa.yaml
 ```
-Expected: screen-level children `NavRail_AdmRef`, `btnArReload`, `cntAdmRefRoot`, `conArModalDiv`, `conArModalRank`, `conArModalStage`, `conArConfirm`; `IfError(` = 4; `Patch(|Remove(` = 7 (5 Patch, 2 Remove); `OrderIndex` appears exactly once (the `SortByColumns` in the reload) — never inside a `Patch`.
+Expected: screen-level children `NavRail_AdmRef`, `cntAdmRefRoot`, `btnArReload`, `conArModalDiv`, `conArModalRank`, `conArModalStage`, `conArConfirm`; `IfError(` = 4; `Patch(|Remove(` = 7 (5 Patch, 2 Remove); `OrderIndex` appears exactly twice, both in the reload formula (`SortByColumns` and `Order: Coalesce(OrderIndex, 0)`) — never inside a `Patch`.
 
 - [ ] **Step 3: Layout audits** — as Task 4 Step 3, against `scr_admin_refdata.pa.yaml`.
 
