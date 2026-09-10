@@ -562,7 +562,7 @@ cntSettingsRoot (content_root)
         cmbStChannel ModernCombobox: Items =["Email", "Teams", "Email + Teams"], ItemDisplayText =ThisItem.Value, SelectMultiple =false, DefaultSelectedItems =[MyNotifyChannel], Height 40, FillPortions 1, AccessibleLabel ="Send my notifications by", DisplayMode =If(IsBlank(MyPermRow), DisplayMode.Disabled, DisplayMode.Edit)
       btnStSave      ModernButton: Text ="Save", BasePaletteColor UAB.Green, Height 40, Width 120, AlignInContainer =AlignInContainer.End, AccessibleLabel ="Save notification preference", DisplayMode =If(IsBlank(MyPermRow), DisplayMode.Disabled, DisplayMode.Edit), OnSelect (below)
     lblStMeNote      ModernText: Text (below), Gray500, Secondary, AutoHeight, Height 40, Wrap true
-  conStTiles         con: Fill OffWhite, FillPortions 0, Visible =IsHR, LayoutDirection =If(SM, Vertical, Horizontal), gap 16, Height =If(SM, 296, 140)   ← LAST child of the root
+  conStTiles         con: Fill OffWhite, FillPortions 0, Visible =IsHR, LayoutDirection =If(SM, Vertical, Horizontal), LayoutAlignItems =LayoutAlignItems.Stretch, gap 16, Height =If(SM, 368, 176)   ← LAST child of the root
     conStTileUsers   con: white hairline card, FillPortions 1, vertical, gap 8, padding 20, Height 140
       icoStTileUsers Classic/Icon: Icon =Icon.People, Color UAB.Green, Height 28, Width 28, AccessibleLabel ="Users and roles"
       lblStTileUsersT ModernText: Text ="Users & roles", TextPrimary, Semibold, Size UABSize.FieldLabel, Height 24, Wrap false
