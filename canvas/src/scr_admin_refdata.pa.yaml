@@ -1,0 +1,1927 @@
+Screens:
+  scr_admin_refdata:
+    Properties:
+      Fill: =UAB.OffWhite
+      OnVisible: |-
+        =If(!IsHR, Navigate(scr_settings));
+        Set(varArEntity, Coalesce(varArEntity, "Divisions"));
+        Select(btnArReload)
+    Children:
+      - NavRail_AdmRef:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =UAB.Green
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutGap: =4
+            PaddingBottom: =32
+            PaddingTop: =32
+            Width: =If(scr_admin_refdata.Size = ScreenSize.Small, UABLayout.NavRailWidthCollapsed, UABLayout.NavRailWidth)
+          Children:
+            - lblAppName_AdmRef:
+                Control: Label
+                Properties:
+                  AlignInContainer: =AlignInContainer.Stretch
+                  Color: =UAB.White
+                  Font: =Font.Arial
+                  FontWeight: =FontWeight.Bold
+                  Height: =56
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =20
+                  PaddingRight: =0
+                  PaddingTop: =0
+                  Size: =20
+                  Text: ="OnBoardPro"
+                  Visible: =scr_admin_refdata.Size <> ScreenSize.Small
+                  Wrap: =false
+            - lblAppSub_AdmRef:
+                Control: Label
+                Properties:
+                  AlignInContainer: =AlignInContainer.Stretch
+                  Color: =UAB.Gold
+                  Font: =Font.Arial
+                  Height: =24
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =0
+                  PaddingLeft: =20
+                  PaddingRight: =0
+                  PaddingTop: =0
+                  Size: =11
+                  Text: ="OBGYN Onboarding"
+                  Visible: =scr_admin_refdata.Size <> ScreenSize.Small
+                  Wrap: =false
+            - conNavNewCand_AdmRef:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsHR
+                Children:
+                  - conNavBarNewCand_AdmRef:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_new_candidate, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavNewCand_AdmRef:
+                      Control: Classic/Icon
+                      Properties:
+                        AccessibleLabel: ="New Candidate"
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
+                        Height: =44
+                        Icon: =Icon.Add
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_new_candidate)
+                        PaddingLeft: =12
+                        TabIndex: =0
+                        Width: =44
+                  - lblNavNewCand_AdmRef:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_new_candidate, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_new_candidate, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_new_candidate)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        TabIndex: =0
+                        Text: ="New Candidate"
+                        Visible: =scr_admin_refdata.Size <> ScreenSize.Small
+                        Wrap: =false
+            - conNavCandidates_AdmRef:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsManagerOrHR
+                Children:
+                  - conNavBarCandidates_AdmRef:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_candidates, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavCandidates_AdmRef:
+                      Control: Classic/Icon
+                      Properties:
+                        AccessibleLabel: ="Candidates"
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_candidates, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
+                        Height: =44
+                        Icon: =Icon.People
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_candidates)
+                        PaddingLeft: =12
+                        TabIndex: =0
+                        Width: =44
+                  - lblNavCandidates_AdmRef:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_candidates, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_candidates, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_candidates)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        TabIndex: =0
+                        Text: ="Candidates"
+                        Visible: =scr_admin_refdata.Size <> ScreenSize.Small
+                        Wrap: =false
+            - conNavMyTasks_AdmRef:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - conNavBarMyTasks_AdmRef:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_mytasks, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavMyTasks_AdmRef:
+                      Control: Classic/Icon
+                      Properties:
+                        AccessibleLabel: ="My Tasks"
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
+                        Height: =44
+                        Icon: =Icon.Check
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_mytasks)
+                        PaddingLeft: =12
+                        TabIndex: =0
+                        Width: =44
+                  - lblNavMyTasks_AdmRef:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_mytasks, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_mytasks, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_mytasks)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        TabIndex: =0
+                        Text: ="My Tasks"
+                        Visible: =scr_admin_refdata.Size <> ScreenSize.Small
+                        Wrap: =false
+            - conNavTemplates_AdmRef:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsHR
+                Children:
+                  - conNavBarTemplates_AdmRef:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_templates, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavTemplates_AdmRef:
+                      Control: Classic/Icon
+                      Properties:
+                        AccessibleLabel: ="Templates"
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_templates, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
+                        Height: =44
+                        Icon: =Icon.DocumentWithContent
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_templates)
+                        PaddingLeft: =12
+                        TabIndex: =0
+                        Width: =44
+                  - lblNavTemplates_AdmRef:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_templates, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_templates, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_templates)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        TabIndex: =0
+                        Text: ="Templates"
+                        Visible: =scr_admin_refdata.Size <> ScreenSize.Small
+                        Wrap: =false
+            - conNavTaskLib_AdmRef:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Visible: =IsHR
+                Children:
+                  - conNavBarTaskLib_AdmRef:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_tasklibrary, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavTaskLib_AdmRef:
+                      Control: Classic/Icon
+                      Properties:
+                        AccessibleLabel: ="Task Library"
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
+                        Height: =44
+                        Icon: =Icon.Notebook
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_tasklibrary)
+                        PaddingLeft: =12
+                        TabIndex: =0
+                        Width: =44
+                  - lblNavTaskLib_AdmRef:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_tasklibrary, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_tasklibrary, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_tasklibrary)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        TabIndex: =0
+                        Text: ="Task Library"
+                        Visible: =scr_admin_refdata.Size <> ScreenSize.Small
+                        Wrap: =false
+            - conNavSettings_AdmRef:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - conNavBarSettings_AdmRef:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_settings || App.ActiveScreen = scr_admin_users || App.ActiveScreen = scr_admin_refdata, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavSettings_AdmRef:
+                      Control: Classic/Icon
+                      Properties:
+                        AccessibleLabel: ="Settings"
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_settings || App.ActiveScreen = scr_admin_users || App.ActiveScreen = scr_admin_refdata, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
+                        Height: =44
+                        Icon: =Icon.Settings
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_settings)
+                        PaddingLeft: =12
+                        TabIndex: =0
+                        Width: =44
+                  - lblNavSettings_AdmRef:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_settings || App.ActiveScreen = scr_admin_users || App.ActiveScreen = scr_admin_refdata, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_settings || App.ActiveScreen = scr_admin_users || App.ActiveScreen = scr_admin_refdata, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_settings)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        TabIndex: =0
+                        Text: ="Settings"
+                        Visible: =scr_admin_refdata.Size <> ScreenSize.Small
+                        Wrap: =false
+      - cntAdmRefRoot:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =UAB.OffWhite
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutGap: =16
+            LayoutOverflowY: =LayoutOverflow.Scroll
+            PaddingBottom: =24
+            PaddingLeft: =If(scr_admin_refdata.Size = ScreenSize.Small, 12, 24)
+            PaddingRight: =If(scr_admin_refdata.Size = ScreenSize.Small, 12, 24)
+            PaddingTop: =24
+            Width: =Parent.Width - If(scr_admin_refdata.Size = ScreenSize.Small, UABLayout.NavRailWidthCollapsed, UABLayout.NavRailWidth)
+            X: =If(scr_admin_refdata.Size = ScreenSize.Small, UABLayout.NavRailWidthCollapsed, UABLayout.NavRailWidth)
+          Children:
+            - cntArHeader:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.OffWhite
+                  FillPortions: =0
+                  Height: =If(scr_admin_refdata.Size = ScreenSize.Small, 129, 92)
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =4
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - conArTitleRow:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.OffWhite
+                        FillPortions: =0
+                        Height: =If(scr_admin_refdata.Size = ScreenSize.Small, 102, 54)
+                        LayoutAlignItems: =If(scr_admin_refdata.Size = ScreenSize.Small, LayoutAlignItems.Stretch, LayoutAlignItems.Center)
+                        LayoutDirection: =If(scr_admin_refdata.Size = ScreenSize.Small, LayoutDirection.Vertical, LayoutDirection.Horizontal)
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - lblArTitle:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.TextPrimary
+                              FillPortions: =1
+                              FontWeight: =FontWeight.Semibold
+                              Height: =44
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.ScreenTitle
+                              Text: ="Reference data"
+                        - conArTitleBtns:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.OffWhite
+                              FillPortions: =0
+                              Height: =40
+                              LayoutAlignItems: =LayoutAlignItems.Center
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutGap: =8
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Width: =If(scr_admin_refdata.Size = ScreenSize.Small, 208, 258)
+                            Children:
+                              - btnArBack:
+                                  Control: ModernButton
+                                  Properties:
+                                    AccessibleLabel: ="Back to Settings"
+                                    Align: =Align.Center
+                                    Appearance: =ButtonAppearance.Secondary
+                                    BasePaletteColor: =UAB.Green
+                                    FontWeight: =""
+                                    Height: =40
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    OnSelect: =Navigate(scr_settings)
+                                    PaddingBottom: =5
+                                    PaddingLeft: =12
+                                    PaddingRight: =12
+                                    PaddingTop: =5
+                                    RadiusBottomLeft: =4
+                                    RadiusBottomRight: =4
+                                    RadiusTopLeft: =4
+                                    RadiusTopRight: =4
+                                    Text: ="Settings"
+                                    VerticalAlign: =VerticalAlign.Middle
+                                    Width: =If(scr_admin_refdata.Size = ScreenSize.Small, 90, 110)
+                              - btnArNew:
+                                  Control: ModernButton
+                                  Properties:
+                                    AccessibleLabel: ="Add a reference record"
+                                    Align: =Align.Center
+                                    BasePaletteColor: =UAB.Green
+                                    FontWeight: =""
+                                    Height: =40
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    OnSelect: |-
+                                      =Set(varArEditId, 0); Set(varArEditTitle, ""); Set(varArEditFlag, false); Set(varArEditDetail, ""); Set(varArEditOrder, 0);
+                                      Reset(txtArDivTitle); Reset(txtArRankTitle); Reset(tglArRankPT);
+                                      If(Coalesce(varArEntity, "Divisions") = "FacultyRanks", Set(varArShowRank, true), Set(varArShowDiv, true))
+                                    PaddingBottom: =5
+                                    PaddingLeft: =12
+                                    PaddingRight: =12
+                                    PaddingTop: =5
+                                    RadiusBottomLeft: =4
+                                    RadiusBottomRight: =4
+                                    RadiusTopLeft: =4
+                                    RadiusTopRight: =4
+                                    Text: =If(varArEntity = "FacultyRanks", "Add rank", "Add division")
+                                    VerticalAlign: =VerticalAlign.Middle
+                                    Visible: =Coalesce(varArEntity, "Divisions") <> "Stages"
+                                    Width: =If(scr_admin_refdata.Size = ScreenSize.Small, 110, 140)
+                  - lblArSub:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray500
+                        Height: =23
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: ="Divisions, faculty ranks, and pipeline stages. Stage order is fixed by the flows."
+                        Wrap: =false
+            - conArTabs:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.OffWhite
+                  FillPortions: =0
+                  Height: =40
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutGap: =8
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - btnArTabDiv:
+                      Control: ModernButton
+                      Properties:
+                        AccessibleLabel: ="Show divisions"
+                        Align: =Align.Center
+                        Appearance: =If(Coalesce(varArEntity, "Divisions") = "Divisions", ButtonAppearance.Primary, ButtonAppearance.Secondary)
+                        BasePaletteColor: =UAB.Green
+                        FillPortions: =0
+                        FontWeight: =""
+                        Height: =36
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =Set(varArEntity, "Divisions");
+                          Select(btnArReload)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
+                        Text: ="Divisions"
+                        VerticalAlign: =VerticalAlign.Middle
+                        Width: =If(scr_admin_refdata.Size = ScreenSize.Small, 90, 120)
+                  - btnArTabRank:
+                      Control: ModernButton
+                      Properties:
+                        AccessibleLabel: ="Show faculty ranks"
+                        Align: =Align.Center
+                        Appearance: =If(Coalesce(varArEntity, "Divisions") = "FacultyRanks", ButtonAppearance.Primary, ButtonAppearance.Secondary)
+                        BasePaletteColor: =UAB.Green
+                        FillPortions: =0
+                        FontWeight: =""
+                        Height: =36
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =Set(varArEntity, "FacultyRanks");
+                          Select(btnArReload)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
+                        Text: ="Faculty ranks"
+                        VerticalAlign: =VerticalAlign.Middle
+                        Width: =If(scr_admin_refdata.Size = ScreenSize.Small, 110, 140)
+                  - btnArTabStage:
+                      Control: ModernButton
+                      Properties:
+                        AccessibleLabel: ="Show stages"
+                        Align: =Align.Center
+                        Appearance: =If(Coalesce(varArEntity, "Divisions") = "Stages", ButtonAppearance.Primary, ButtonAppearance.Secondary)
+                        BasePaletteColor: =UAB.Green
+                        FillPortions: =0
+                        FontWeight: =""
+                        Height: =36
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: |-
+                          =Set(varArEntity, "Stages");
+                          Select(btnArReload)
+                        PaddingBottom: =5
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =5
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
+                        Text: ="Stages"
+                        VerticalAlign: =VerticalAlign.Middle
+                        Width: =If(scr_admin_refdata.Size = ScreenSize.Small, 80, 110)
+            - lblArCount:
+                Control: ModernText
+                Properties:
+                  Align: =Align.Right
+                  AutoHeight: =true
+                  Color: =UAB.Gray500
+                  Height: =18
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Size: =UABSize.Secondary
+                  Text: =CountRows(colArRows) & Switch(Coalesce(varArEntity, "Divisions"), "Divisions", " divisions", "FacultyRanks", " ranks", " stages")
+                  Wrap: =false
+            - conArTableCard:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  BorderColor: =UAB.Line
+                  BorderThickness: =1
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  Height: =40 + Max(If(scr_admin_refdata.Size = ScreenSize.Small, 72, 56), Min(CountRows(colArRows), 10) * If(scr_admin_refdata.Size = ScreenSize.Small, 72, 56)) + If(CountRows(colArRows) = 0, 44, 0)
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - conArHeaderRow:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.Paper
+                        FillPortions: =0
+                        Height: =40
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =If(scr_admin_refdata.Size = ScreenSize.Small, 8, 12)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        PaddingLeft: =If(scr_admin_refdata.Size = ScreenSize.Small, 12, 16)
+                        PaddingRight: =If(scr_admin_refdata.Size = ScreenSize.Small, 12, 16)
+                      Children:
+                        - lblArColName:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.Gray700
+                              FillPortions: =1
+                              FontWeight: =FontWeight.Semibold
+                              Height: =18
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Secondary
+                              Text: ="Name"
+                        - conArColDetail:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.Paper
+                              FillPortions: =0
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Visible: =!(scr_admin_refdata.Size = ScreenSize.Small) && varArEntity = "Stages"
+                              Width: =If(scr_admin_refdata.Size = ScreenSize.Small || varArEntity <> "Stages", 0, 320)
+                            Children:
+                              - lblArColDetail:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FillPortions: =1
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =18
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Description"
+                        - conArColFlag:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.Paper
+                              FillPortions: =0
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Visible: =varArEntity <> "Divisions"
+                              Width: =If(varArEntity = "Divisions", 0, 110)
+                            Children:
+                              - lblArColFlag:
+                                  Control: ModernText
+                                  Properties:
+                                    Align: =Align.Center
+                                    AlignInContainer: =AlignInContainer.Center
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FillPortions: =1
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =18
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Status"
+                        - conArColOrder:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.Paper
+                              FillPortions: =0
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Visible: =varArEntity = "Stages"
+                              Width: =If(varArEntity = "Stages", 72, 0)
+                            Children:
+                              - lblArColOrder:
+                                  Control: ModernText
+                                  Properties:
+                                    Align: =Align.Center
+                                    AlignInContainer: =AlignInContainer.Center
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FillPortions: =1
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =18
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: ="Order"
+                        - conArColActs:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.Paper
+                              FillPortions: =0
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Width: =88
+                            Children:
+                              - lblArColActs:
+                                  Control: ModernText
+                                  Properties:
+                                    AutoHeight: =true
+                                    Color: =UAB.Gray700
+                                    FillPortions: =1
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =18
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    Size: =UABSize.Secondary
+                                    Text: =""
+                  - galArList:
+                      Control: Gallery
+                      Variant: Vertical
+                      Properties:
+                        AccessibleLabel: ="Reference records"
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =Max(If(scr_admin_refdata.Size = ScreenSize.Small, 72, 56), Min(CountRows(colArRows), 10) * If(scr_admin_refdata.Size = ScreenSize.Small, 72, 56))
+                        Items: =colArRows
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        ShowScrollbar: =false
+                        TabIndex: =0
+                        TemplatePadding: =0
+                        TemplateSize: =If(scr_admin_refdata.Size = ScreenSize.Small, 72, 56)
+                      Children:
+                        - conArListRow:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.None
+                              Fill: =UAB.White
+                              Height: =Parent.TemplateHeight
+                              LayoutAlignItems: =LayoutAlignItems.Stretch
+                              LayoutDirection: =LayoutDirection.Vertical
+                              Width: =Parent.TemplateWidth
+                            Children:
+                              - conArRowContent:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.White
+                                    FillPortions: =0
+                                    Height: =If(scr_admin_refdata.Size = ScreenSize.Small, 71, 55)
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutGap: =If(scr_admin_refdata.Size = ScreenSize.Small, 8, 12)
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                                    PaddingLeft: =If(scr_admin_refdata.Size = ScreenSize.Small, 12, 16)
+                                    PaddingRight: =If(scr_admin_refdata.Size = ScreenSize.Small, 12, 16)
+                                  Children:
+                                    - conArCellMain:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutGap: =If(scr_admin_refdata.Size = ScreenSize.Small, 4, 2)
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                        Children:
+                                          - lblArRowTitle:
+                                              Control: Label
+                                              Properties:
+                                                Color: =UAB.TextPrimary
+                                                FocusedBorderColor: =UAB.Gold
+                                                FocusedBorderThickness: =2
+                                                Font: =Font.Arial
+                                                FontWeight: =FontWeight.Semibold
+                                                Height: =25
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                OnSelect: |-
+                                                  =Set(varArEditId, ThisItem.ID); Set(varArEditTitle, ThisItem.Title); Set(varArEditFlag, ThisItem.Flag);
+                                                  Set(varArEditDetail, ThisItem.Detail); Set(varArEditOrder, ThisItem.Order);
+                                                  Reset(txtArDivTitle); Reset(txtArRankTitle); Reset(tglArRankPT); Reset(txtArStageTitle); Reset(txtArStageDesc); Reset(tglArStageActive);
+                                                  Switch(Coalesce(varArEntity, "Divisions"),
+                                                      "Divisions", Set(varArShowDiv, true),
+                                                      "FacultyRanks", Set(varArShowRank, true),
+                                                      "Stages", Set(varArShowStage, true))
+                                                PaddingBottom: =0
+                                                PaddingLeft: =0
+                                                PaddingRight: =0
+                                                PaddingTop: =0
+                                                Size: =UABSize.Body
+                                                TabIndex: =0
+                                                Text: =ThisItem.Title
+                                                Wrap: =false
+                                          - lblArRowSub:
+                                              Control: Label
+                                              Properties:
+                                                Color: =UAB.Gray500
+                                                Font: =Font.Arial
+                                                Height: =22
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                PaddingBottom: =0
+                                                PaddingLeft: =0
+                                                PaddingRight: =0
+                                                PaddingTop: =0
+                                                Size: =UABSize.Secondary
+                                                Text: =If(scr_admin_refdata.Size = ScreenSize.Small && varArEntity = "Stages", Left(ThisItem.Detail, 60), "")
+                                                Visible: =scr_admin_refdata.Size = ScreenSize.Small && varArEntity = "Stages"
+                                                Wrap: =false
+                                    - conArCellDetail:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          FillPortions: =0
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Visible: =!(scr_admin_refdata.Size = ScreenSize.Small) && varArEntity = "Stages"
+                                          Width: =If(scr_admin_refdata.Size = ScreenSize.Small || varArEntity <> "Stages", 0, 320)
+                                        Children:
+                                          - lblArCellDetail:
+                                              Control: ModernText
+                                              Properties:
+                                                AutoHeight: =true
+                                                Color: =UAB.Gray700
+                                                Height: =18
+                                                LayoutMaxHeight: =40
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Secondary
+                                                Text: |-
+                                                  =With({d: ThisItem.Detail},
+                                                      If(Len(d) > 110, Left(d, 107) & "...", d))
+                                                Wrap: =true
+                                    - conArCellFlag:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          FillPortions: =0
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Visible: =varArEntity <> "Divisions"
+                                          Width: =If(varArEntity = "Divisions", 0, 110)
+                                        Children:
+                                          - conArPillFlag:
+                                              Control: GroupContainer
+                                              Variant: AutoLayout
+                                              Properties:
+                                                AlignInContainer: =AlignInContainer.Center
+                                                DropShadow: =DropShadow.None
+                                                Fill: =If(ThisItem.Flag, UAB.SuccessTint, UAB.Paper)
+                                                FillPortions: =0
+                                                Height: =24
+                                                LayoutAlignItems: =LayoutAlignItems.Center
+                                                LayoutDirection: =LayoutDirection.Horizontal
+                                                LayoutJustifyContent: =LayoutJustifyContent.Center
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                PaddingLeft: =10
+                                                PaddingRight: =10
+                                                RadiusBottomLeft: =999
+                                                RadiusBottomRight: =999
+                                                RadiusTopLeft: =999
+                                                RadiusTopRight: =999
+                                                Width: =96
+                                              Children:
+                                                - lblArPillFlag:
+                                                    Control: ModernText
+                                                    Properties:
+                                                      Align: =Align.Center
+                                                      AlignInContainer: =AlignInContainer.Stretch
+                                                      AutoHeight: =true
+                                                      Color: =If(ThisItem.Flag, UAB.SuccessText, UAB.Gray500)
+                                                      FontWeight: =FontWeight.Semibold
+                                                      Height: =16
+                                                      LayoutMinHeight: =0
+                                                      LayoutMinWidth: =0
+                                                      Size: =12
+                                                      Text: =ThisItem.FlagText
+                                                      Wrap: =false
+                                    - conArCellOrder:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          DropShadow: =DropShadow.None
+                                          Fill: =UAB.White
+                                          FillPortions: =0
+                                          LayoutAlignItems: =LayoutAlignItems.Stretch
+                                          LayoutDirection: =LayoutDirection.Vertical
+                                          LayoutJustifyContent: =LayoutJustifyContent.Center
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          Visible: =varArEntity = "Stages"
+                                          Width: =If(varArEntity = "Stages", 72, 0)
+                                        Children:
+                                          - lblArCellOrder:
+                                              Control: ModernText
+                                              Properties:
+                                                Align: =Align.Center
+                                                AutoHeight: =true
+                                                Color: =UAB.Gray700
+                                                Height: =18
+                                                LayoutMinHeight: =0
+                                                LayoutMinWidth: =0
+                                                Size: =UABSize.Secondary
+                                                Text: =Text(ThisItem.Order)
+                                                Wrap: =false
+                                    - icoArRowEdit:
+                                        Control: Classic/Icon
+                                        Properties:
+                                          AccessibleLabel: ="Edit this record"
+                                          Color: =UAB.Gray500
+                                          FocusedBorderColor: =UAB.Gold
+                                          Height: =24
+                                          Icon: =Icon.Edit
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          OnSelect: |-
+                                            =Set(varArEditId, ThisItem.ID); Set(varArEditTitle, ThisItem.Title); Set(varArEditFlag, ThisItem.Flag);
+                                            Set(varArEditDetail, ThisItem.Detail); Set(varArEditOrder, ThisItem.Order);
+                                            Reset(txtArDivTitle); Reset(txtArRankTitle); Reset(tglArRankPT); Reset(txtArStageTitle); Reset(txtArStageDesc); Reset(tglArStageActive);
+                                            Switch(Coalesce(varArEntity, "Divisions"),
+                                                "Divisions", Set(varArShowDiv, true),
+                                                "FacultyRanks", Set(varArShowRank, true),
+                                                "Stages", Set(varArShowStage, true))
+                                          TabIndex: =0
+                                          Width: =24
+                                    - icoArRowDelete:
+                                        Control: Classic/Icon
+                                        Properties:
+                                          AccessibleLabel: ="Delete this record"
+                                          Color: =UAB.Danger
+                                          FocusedBorderColor: =UAB.Gold
+                                          Height: =24
+                                          Icon: =Icon.Trash
+                                          LayoutMinHeight: =0
+                                          LayoutMinWidth: =0
+                                          OnSelect: |-
+                                            =Set(varArDelId, ThisItem.ID); Set(varArDelTitle, ThisItem.Title);
+                                            Set(varArInUse,
+                                                Switch(Coalesce(varArEntity, "Divisions"),
+                                                    "Divisions", CountRows(Filter(Candidates, Division.Id = ThisItem.ID))
+                                                                 + CountRows(Filter(AppPermissions, Division.Id = ThisItem.ID)),
+                                                    "FacultyRanks", CountRows(Filter(Candidates, FacultyRank.Id = ThisItem.ID)),
+                                                    0));
+                                            Set(varArShowConfirm, true)
+                                          TabIndex: =0
+                                          Visible: =Coalesce(varArEntity, "Divisions") <> "Stages"
+                                          Width: =If(Coalesce(varArEntity, "Divisions") = "Stages", 0, 24)
+                              - conArListDivider:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    DropShadow: =DropShadow.None
+                                    Fill: =UAB.Line
+                                    FillPortions: =0
+                                    Height: =1
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutMinHeight: =0
+                                    LayoutMinWidth: =0
+                  - conArListEmpty:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =If(CountRows(colArRows) = 0, 44, 0)
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutJustifyContent: =LayoutJustifyContent.Center
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Visible: =CountRows(colArRows) = 0
+                      Children:
+                        - lblArListEmpty:
+                            Control: ModernText
+                            Properties:
+                              Align: =Align.Center
+                              AutoHeight: =true
+                              Color: =UAB.Gray500
+                              Height: =20
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Body
+                              Text: |-
+                                =Switch(Coalesce(varArEntity, "Divisions"),
+                                    "Divisions", "No divisions yet - add the first one.",
+                                    "FacultyRanks", "No ranks yet - add the first one.",
+                                    "No stages found.")
+            - lblArBottomSpacer:
+                Control: ModernText
+                Properties:
+                  Align: =Align.Center
+                  Color: =UAB.OffWhite
+                  Height: =6
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  Size: =2
+                  Text: =""
+                  Wrap: =false
+      - btnArReload:
+          Control: ModernButton
+          Properties:
+            Height: =1
+            OnSelect: |-
+              =Switch(Coalesce(varArEntity, "Divisions"),
+                  "Divisions",
+                      ClearCollect(colArRows, ForAll(SortByColumns(Divisions, "Title"),
+                          {ID: ID, Title: Title, Detail: "", Flag: false, FlagText: "", Order: 0})),
+                  "FacultyRanks",
+                      ClearCollect(colArRows, ForAll(SortByColumns(FacultyRanks, "Title"),
+                          {ID: ID, Title: Title, Detail: "", Flag: Coalesce(RequiresPT, false),
+                           FlagText: If(Coalesce(RequiresPT, false), "Requires P&T", "No P&T"), Order: 0})),
+                  "Stages",
+                      ClearCollect(colArRows, ForAll(SortByColumns(Stages, "OrderIndex"),
+                          {ID: ID, Title: Title, Detail: Coalesce(Description, ""), Flag: Coalesce(IsActive, true),
+                           FlagText: If(Coalesce(IsActive, true), "Active", "Inactive"), Order: Coalesce(OrderIndex, 0)})))
+            Text: ="reload"
+            Visible: =false
+            Width: =1
+            X: =0
+            Y: =0
+      - conArModalDiv:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =RGBA(32, 38, 45, 0.4)
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutJustifyContent: =LayoutJustifyContent.Center
+            Visible: =Coalesce(varArShowDiv, false)
+            Width: =Parent.Width
+          Children:
+            - conArDivPanel:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  AlignInContainer: =AlignInContainer.Center
+                  DropShadow: =DropShadow.Regular
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                  LayoutMaxHeight: =Parent.Height - 32
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =24
+                  PaddingLeft: =24
+                  PaddingRight: =24
+                  PaddingTop: =24
+                  RadiusBottomLeft: =8
+                  RadiusBottomRight: =8
+                  RadiusTopLeft: =8
+                  RadiusTopRight: =8
+                  Width: =Min(480, Parent.Width - 32)
+                Children:
+                  - conArDivHead:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =34
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        PaddingLeft: =2
+                        PaddingRight: =2
+                      Children:
+                        - lblArDivTitle:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.TextPrimary
+                              FillPortions: =1
+                              FontWeight: =FontWeight.Semibold
+                              Height: =31
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =20
+                              Text: =If(Coalesce(varArEditId, 0) = 0, "Add division", "Edit division")
+                              Wrap: =false
+                        - icoArDivClose:
+                            Control: Classic/Icon
+                            Properties:
+                              AccessibleLabel: ="Close the division editor"
+                              BorderColor: =UAB.Line
+                              BorderStyle: =BorderStyle.Solid
+                              BorderThickness: =1
+                              Color: =UAB.Gray500
+                              FocusedBorderColor: =UAB.Gold
+                              Height: =28
+                              Icon: =Icon.Cancel
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varArShowDiv, false)
+                              TabIndex: =0
+                              Width: =28
+                  - conArDivRowTitle:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =66
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =4
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - lblArDivTitleCap:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.Gray700
+                              FontWeight: =FontWeight.Semibold
+                              Height: =22
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Secondary
+                              Text: ="Name"
+                              Wrap: =false
+                        - txtArDivTitle:
+                            Control: ModernTextInput
+                            Properties:
+                              AccessibleLabel: ="Division name"
+                              Default: =Coalesce(varArEditTitle, "")
+                              FillPortions: =1
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Placeholder: ="Required"
+                  - conArDivActions:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =48
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - btnArDivSave:
+                            Control: ModernButton
+                            Properties:
+                              AccessibleLabel: ="Save this division"
+                              Align: =Align.Center
+                              BasePaletteColor: =UAB.Green
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: |-
+                                =With({t: Trim(txtArDivTitle.Text)},
+                                    If(IsBlank(t), Notify("Enter a name.", NotificationType.Warning),
+                                       Coalesce(varArEditId, 0) = 0 && !IsBlank(LookUp(Divisions, Lower(Title) = Lower(t))),
+                                        Notify("A division with that name already exists.", NotificationType.Warning),
+                                       IfError(
+                                           If(Coalesce(varArEditId, 0) = 0,
+                                              Patch(Divisions, Defaults(Divisions),
+                                                  {Title: t, Department: {Id: 1, Value: LookUp(Departments, ID = 1).Title}}),
+                                              Patch(Divisions, LookUp(Divisions, ID = varArEditId), {Title: t})),
+                                           Notify("Couldn't save: " & FirstError.Message & " Your changes are still on screen - try Save again.", NotificationType.Error),
+                                           Set(varArShowDiv, false); Select(btnArReload);
+                                           Notify("Division saved.", NotificationType.Success))))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Save"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =140
+                        - btnArDivCancel:
+                            Control: ModernButton
+                            Properties:
+                              AccessibleLabel: ="Cancel and close the division editor"
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
+                              BasePaletteColor: =UAB.Green
+                              FillPortions: =1
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varArShowDiv, false)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Cancel"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =120
+      - conArModalRank:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =RGBA(32, 38, 45, 0.4)
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutJustifyContent: =LayoutJustifyContent.Center
+            Visible: =Coalesce(varArShowRank, false)
+            Width: =Parent.Width
+          Children:
+            - conArRankPanel:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  AlignInContainer: =AlignInContainer.Center
+                  DropShadow: =DropShadow.Regular
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                  LayoutMaxHeight: =Parent.Height - 32
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =24
+                  PaddingLeft: =24
+                  PaddingRight: =24
+                  PaddingTop: =24
+                  RadiusBottomLeft: =8
+                  RadiusBottomRight: =8
+                  RadiusTopLeft: =8
+                  RadiusTopRight: =8
+                  Width: =Min(480, Parent.Width - 32)
+                Children:
+                  - conArRankHead:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =34
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        PaddingLeft: =2
+                        PaddingRight: =2
+                      Children:
+                        - lblArRankTitle:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.TextPrimary
+                              FillPortions: =1
+                              FontWeight: =FontWeight.Semibold
+                              Height: =31
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =20
+                              Text: =If(Coalesce(varArEditId, 0) = 0, "Add rank", "Edit rank")
+                              Wrap: =false
+                        - icoArRankClose:
+                            Control: Classic/Icon
+                            Properties:
+                              AccessibleLabel: ="Close the rank editor"
+                              BorderColor: =UAB.Line
+                              BorderStyle: =BorderStyle.Solid
+                              BorderThickness: =1
+                              Color: =UAB.Gray500
+                              FocusedBorderColor: =UAB.Gold
+                              Height: =28
+                              Icon: =Icon.Cancel
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varArShowRank, false)
+                              TabIndex: =0
+                              Width: =28
+                  - conArRankRowTitle:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =66
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =4
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - lblArRankTitleCap:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.Gray700
+                              FontWeight: =FontWeight.Semibold
+                              Height: =22
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Secondary
+                              Text: ="Name"
+                              Wrap: =false
+                        - txtArRankTitle:
+                            Control: ModernTextInput
+                            Properties:
+                              AccessibleLabel: ="Rank name"
+                              Default: =Coalesce(varArEditTitle, "")
+                              FillPortions: =1
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Placeholder: ="Required"
+                  - conArRankRowPT:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =44
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - tglArRankPT:
+                            Control: ModernToggle
+                            Properties:
+                              BasePaletteColor: =UAB.Green
+                              Default: =Coalesce(varArEditFlag, false)
+                              FillPortions: =1
+                              Height: =40
+                              Label: ="Requires promotion & tenure review"
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                  - conArRankActions:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =48
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - btnArRankSave:
+                            Control: ModernButton
+                            Properties:
+                              AccessibleLabel: ="Save this rank"
+                              Align: =Align.Center
+                              BasePaletteColor: =UAB.Green
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: |-
+                                =With({t: Trim(txtArRankTitle.Text)},
+                                    If(IsBlank(t), Notify("Enter a name.", NotificationType.Warning),
+                                       Coalesce(varArEditId, 0) = 0 && !IsBlank(LookUp(FacultyRanks, Lower(Title) = Lower(t))),
+                                        Notify("A rank with that name already exists.", NotificationType.Warning),
+                                       IfError(
+                                           If(Coalesce(varArEditId, 0) = 0,
+                                              Patch(FacultyRanks, Defaults(FacultyRanks), {Title: t, RequiresPT: tglArRankPT.Checked}),
+                                              Patch(FacultyRanks, LookUp(FacultyRanks, ID = varArEditId), {Title: t, RequiresPT: tglArRankPT.Checked})),
+                                           Notify("Couldn't save: " & FirstError.Message & " Your changes are still on screen - try Save again.", NotificationType.Error),
+                                           Set(varArShowRank, false); Select(btnArReload);
+                                           Notify("Rank saved.", NotificationType.Success))))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Save"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =140
+                        - btnArRankCancel:
+                            Control: ModernButton
+                            Properties:
+                              AccessibleLabel: ="Cancel and close the rank editor"
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
+                              BasePaletteColor: =UAB.Green
+                              FillPortions: =1
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varArShowRank, false)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Cancel"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =120
+      - conArModalStage:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =RGBA(32, 38, 45, 0.4)
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutJustifyContent: =LayoutJustifyContent.Center
+            Visible: =Coalesce(varArShowStage, false)
+            Width: =Parent.Width
+          Children:
+            - conArStagePanel:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  AlignInContainer: =AlignInContainer.Center
+                  DropShadow: =DropShadow.Regular
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                  LayoutMaxHeight: =Parent.Height - 32
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =24
+                  PaddingLeft: =24
+                  PaddingRight: =24
+                  PaddingTop: =24
+                  RadiusBottomLeft: =8
+                  RadiusBottomRight: =8
+                  RadiusTopLeft: =8
+                  RadiusTopRight: =8
+                  Width: =Min(560, Parent.Width - 32)
+                Children:
+                  - conArStageHead:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =34
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        PaddingLeft: =2
+                        PaddingRight: =2
+                      Children:
+                        - lblArStageTitle:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.TextPrimary
+                              FillPortions: =1
+                              FontWeight: =FontWeight.Semibold
+                              Height: =31
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =20
+                              Text: ="Edit stage"
+                              Wrap: =false
+                        - icoArStageClose:
+                            Control: Classic/Icon
+                            Properties:
+                              AccessibleLabel: ="Close the stage editor"
+                              BorderColor: =UAB.Line
+                              BorderStyle: =BorderStyle.Solid
+                              BorderThickness: =1
+                              Color: =UAB.Gray500
+                              FocusedBorderColor: =UAB.Gold
+                              Height: =28
+                              Icon: =Icon.Cancel
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varArShowStage, false)
+                              TabIndex: =0
+                              Width: =28
+                  - lblArStageOrder:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray500
+                        Height: =22
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Secondary
+                        Text: ="Stage " & Text(Coalesce(varArEditOrder, 0)) & " of " & Text(CountRows(Stages)) & " - order is fixed"
+                        Wrap: =false
+                  - conArStageRowTitle:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =66
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =4
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - lblArStageTitleCap:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.Gray700
+                              FontWeight: =FontWeight.Semibold
+                              Height: =22
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Secondary
+                              Text: ="Name"
+                              Wrap: =false
+                        - txtArStageTitle:
+                            Control: ModernTextInput
+                            Properties:
+                              AccessibleLabel: ="Stage name"
+                              Default: =Coalesce(varArEditTitle, "")
+                              FillPortions: =1
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Placeholder: ="Required"
+                  - conArStageRowDesc:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =122
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =4
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - lblArStageDescCap:
+                            Control: ModernText
+                            Properties:
+                              AutoHeight: =true
+                              Color: =UAB.Gray700
+                              FontWeight: =FontWeight.Semibold
+                              Height: =22
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Size: =UABSize.Secondary
+                              Text: ="Description"
+                              Wrap: =false
+                        - txtArStageDesc:
+                            Control: ModernTextInput
+                            Properties:
+                              AccessibleLabel: ="Stage description"
+                              Default: =Coalesce(varArEditDetail, "")
+                              FillPortions: =1
+                              Height: =96
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              Placeholder: ="What happens in this stage (optional)"
+                              Type: =TextInputType.Multiline
+                  - conArStageRowActive:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =44
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - tglArStageActive:
+                            Control: ModernToggle
+                            Properties:
+                              BasePaletteColor: =UAB.Green
+                              Default: =Coalesce(varArEditFlag, true)
+                              FillPortions: =1
+                              Height: =40
+                              Label: ="Active"
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                  - conArStageActions:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =48
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - btnArStageSave:
+                            Control: ModernButton
+                            Properties:
+                              AccessibleLabel: ="Save this stage"
+                              Align: =Align.Center
+                              BasePaletteColor: =UAB.Green
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: |-
+                                =With({t: Trim(txtArStageTitle.Text)},
+                                    If(IsBlank(t), Notify("Enter a name.", NotificationType.Warning),
+                                       IfError(
+                                           Patch(Stages, LookUp(Stages, ID = varArEditId),
+                                               {Title: t, Description: txtArStageDesc.Text, IsActive: tglArStageActive.Checked}),
+                                           Notify("Couldn't save: " & FirstError.Message & " Your changes are still on screen - try Save again.", NotificationType.Error),
+                                           Set(varArShowStage, false); Select(btnArReload);
+                                           Notify("Stage saved.", NotificationType.Success))))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Save"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =140
+                        - btnArStageCancel:
+                            Control: ModernButton
+                            Properties:
+                              AccessibleLabel: ="Cancel and close the stage editor"
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
+                              BasePaletteColor: =UAB.Green
+                              FillPortions: =1
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varArShowStage, false)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Cancel"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =120
+      - conArConfirm:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.None
+            Fill: =RGBA(32, 38, 45, 0.4)
+            Height: =Parent.Height
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutJustifyContent: =LayoutJustifyContent.Center
+            Visible: =Coalesce(varArShowConfirm, false)
+            Width: =Parent.Width
+          Children:
+            - conArConfirmPanel:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  AlignInContainer: =AlignInContainer.Center
+                  DropShadow: =DropShadow.Regular
+                  Fill: =UAB.White
+                  FillPortions: =0
+                  LayoutAlignItems: =LayoutAlignItems.Stretch
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                  LayoutMaxHeight: =Parent.Height - 32
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  PaddingBottom: =24
+                  PaddingLeft: =24
+                  PaddingRight: =24
+                  PaddingTop: =24
+                  RadiusBottomLeft: =8
+                  RadiusBottomRight: =8
+                  RadiusTopLeft: =8
+                  RadiusTopRight: =8
+                  Width: =Min(440, Parent.Width - 32)
+                Children:
+                  - lblArConfirmTitle:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.TextPrimary
+                        FontWeight: =FontWeight.Semibold
+                        Height: =30
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =20
+                        Text: ="Delete " & Coalesce(varArDelTitle, "") & "?"
+                        Wrap: =false
+                  - lblArConfirmBody:
+                      Control: ModernText
+                      Properties:
+                        AutoHeight: =true
+                        Color: =UAB.Gray700
+                        Height: =44
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Size: =UABSize.Body
+                        Text: |-
+                          =If(Coalesce(varArInUse, 0) > 0,
+                              "In use by " & Text(varArInUse) & If(varArInUse = 1, " record", " records") & " - reassign them first.",
+                              "This can't be undone.")
+                        Wrap: =true
+                  - conArConfirmActions:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =UAB.White
+                        FillPortions: =0
+                        Height: =44
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =8
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                      Children:
+                        - btnArConfirmDelete:
+                            Control: ModernButton
+                            Properties:
+                              AccessibleLabel: ="Delete this record permanently"
+                              Align: =Align.Center
+                              BasePaletteColor: =UAB.Danger
+                              DisplayMode: =If(Coalesce(varArInUse, 0) > 0, DisplayMode.Disabled, DisplayMode.Edit)
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: |-
+                                =IfError(
+                                    If(Coalesce(varArEntity, "Divisions") = "FacultyRanks",
+                                       Remove(FacultyRanks, LookUp(FacultyRanks, ID = varArDelId)),
+                                       Remove(Divisions, LookUp(Divisions, ID = varArDelId))),
+                                    Notify("Couldn't delete: " & FirstError.Message, NotificationType.Error),
+                                    Set(varArShowConfirm, false); Select(btnArReload);
+                                    Notify("Deleted.", NotificationType.Success))
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Delete"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =150
+                        - btnArConfirmCancel:
+                            Control: ModernButton
+                            Properties:
+                              AccessibleLabel: ="Keep it and close this dialog"
+                              Align: =Align.Center
+                              Appearance: =ButtonAppearance.Secondary
+                              BasePaletteColor: =UAB.Green
+                              FillPortions: =1
+                              FontWeight: =""
+                              Height: =40
+                              LayoutMinHeight: =0
+                              LayoutMinWidth: =0
+                              OnSelect: =Set(varArShowConfirm, false)
+                              PaddingBottom: =5
+                              PaddingLeft: =12
+                              PaddingRight: =12
+                              PaddingTop: =5
+                              RadiusBottomLeft: =4
+                              RadiusBottomRight: =4
+                              RadiusTopLeft: =4
+                              RadiusTopRight: =4
+                              Text: ="Keep It"
+                              VerticalAlign: =VerticalAlign.Middle
+                              Width: =120
