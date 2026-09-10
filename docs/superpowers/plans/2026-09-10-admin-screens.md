@@ -133,7 +133,7 @@ def _settings_item(screen, sfx):
     item = item.replace("Navigate(scr_tasklibrary)", "Navigate(scr_settings)")
     item = item.replace("scr_tasklibrary.Size", f"{screen}.Size")
     item = "\n".join(l for l in item.split("\n") if l.strip() != "Visible: =IsHR")
-    assert "TaskLib" not in item and "Task Library" not in item, item
+    assert "NavTaskLib" not in item and "Task Library" not in item, item  # the _TaskLib suffix is legitimate
     return item
 
 
