@@ -10,6 +10,9 @@ target anyone else's row.
   python3 gen_f8.py dump      # write flows-f8.json, no network
   python3 gen_f8.py patch     # PATCH definition + connectionReferences onto the shell flow
   python3 gen_f8.py start     # turn the flow on
+  python3 gen_f8.py install   # flip installationStatus to Installed (what a designer save does);
+                              # Studio registers only Installed flows with their real signature.
+                              # Re-run `patch` afterwards: install can blank the trigger schema.
   python3 gen_f8.py share     # run-only (CanView) to both OnBoardPro groups
   python3 gen_f8.py verify    # re-read definition + permissions and print the essentials
 
@@ -181,6 +184,14 @@ def start():
     print(req("POST", f"{BASE}/flows/{fid()}/start?{API}") or "started")
 
 
+def install():
+    # Verified 2026-09-10: a Save As shell stays installationStatus=Uninstalled after patch/start,
+    # Studio then registers it as Run() with no inputs/outputs. This endpoint flips it to
+    # Installed (200, returns flowTriggerUri) but rewrote the trigger schema to {} - so patch again.
+    r = req("POST", f"{BASE}/flows/{fid()}/install?{API}")
+    print("installed" if "flowTriggerUri" in json.dumps(r) else r)
+
+
 def share():
     put = [{"properties": {"principal": {"id": gid, "type": "Group"}, "roleName": "CanView"}}
            for gid in GROUPS.values()]
@@ -204,4 +215,4 @@ def verify():
 
 
 if __name__ == "__main__":
-    {"dump": dump, "patch": patch, "start": start, "share": share, "verify": verify}[sys.argv[1]]()
+    {"dump": dump, "patch": patch, "start": start, "install": install, "share": share, "verify": verify}[sys.argv[1]]()
