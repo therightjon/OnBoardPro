@@ -76,11 +76,12 @@ HR-only containers.
 | Stages | 5 — 1 Letter of Intent · 2 Offer · 3 HR Processing · 4 Credentialing · 5 Onboarding |
 | AppPermissions | 1 — jsteen@uab.edu (principal 6) · Role HR · NotifyChannel Email |
 
-**Choice-list repair (2026-09-10):** `AppPermissions.NotifyChannel` was created with truncated
-choices (Email · Teams · Email) and repaired to Email · Teams · Email + Teams
-([out-fixnotify](out-fixnotify) has before/after). The same whitespace bug truncated
-CStatus, CandidateType, TStatus, Anchor and PrereqCondition on several lists — **not yet
-repaired**; the audit is in [out-audit](out-audit) and the table is in SESSION-CONTEXT.md.
+**Choice-list repair:** the old whitespace split in `genpayloads.field_xml` truncated every
+choice value containing a space. `AppPermissions.NotifyChannel` was repaired 2026-09-10
+([out-fixnotify](out-fixnotify)); CStatus, CandidateType, TStatus, Anchor and PrereqCondition
+on Candidates, Templates, Tasks, TasksArchive, TemplateTasks and TaskLibrary on 2026-10-05
+with [gen_fixchoices.py](gen_fixchoices.py) — no row held a truncated value, all 27 choice
+columns on those lists now match genpayloads ([out-fixchoices-fix](out-fixchoices-fix)).
 
 Rank titles use full academic names ("Assistant Professor" rather than the old app's bare
 "Assistant"). "Instructor" is not seeded — `Other` covers it unless HR wants it explicit.

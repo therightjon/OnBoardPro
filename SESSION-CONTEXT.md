@@ -21,35 +21,24 @@ working practices, and what's next. Read it with:
 | 7 Power BI | ⏭️ After app; MetricsSnapshots already accumulating (weekdays) |
 | 8 Pilot | Zztest candidates 1–3 are live demo data |
 
-## Open defect — truncated choice lists (fix before HR authors templates)
+## Choice lists — repaired 2026-10-05
 
-`genpayloads.field_xml` used to split choice specs on whitespace, so **every choice value
-containing a space was truncated at list creation** (fixed in the generator 2026-09-10,
-`26223e2`, with a self-test). Only `AppPermissions.NotifyChannel` has been repaired on the
-live site ([provision/out-fixnotify](provision/out-fixnotify)). The audit in
-[provision/out-audit](provision/out-audit) shows these still wrong:
-
-| Column | Live choices | Should be |
-|---|---|---|
-| Candidates.CStatus | Draft · Active · On | Draft · Active · On Hold · Completed · Canceled · Offer Declined · Archived |
-| Candidates.CandidateType, Templates.CandidateType | Staff · Faculty · Clinical · Faculty | Staff · Faculty · Clinical · Faculty Clinical · Other |
-| Tasks.TStatus, TasksArchive.TStatus | To | To Do · In Progress · Blocked · Done · Canceled |
-| Anchor on Tasks, TasksArchive, TemplateTasks, TaskLibrary | LOI · LOO | LOI · LOO Issued · LOO Accepted · Start · Fixed · None |
-| PrereqCondition on TemplateTasks, TaskLibrary | Always · Requires | Always · Requires P&T |
-
-Rows written by flows and seed scripts carry the full values (REST doesn't check them against
-the choice list), so existing data is fine. The damage is wherever something reads the
-**choice metadata**: the app's `Choices()` pickers — New Candidate's type picker, the cockpit's
-status filter, and the Templates / Task Library `PrereqCondition` pickers — and the SharePoint
-list forms. The worst is `PrereqCondition`: a task HR marks "Requires" in the template editor
-is never treated as P&T by F1's prereq expansion or the cockpit's prerequisite filter, both of
-which match `"Requires P&T"` exactly.
-Fix route: a utility-flow `SetChoices` cycle per column, as `out-fixnotify` did, then
-re-audit.
+`genpayloads.field_xml` used to split choice specs on whitespace, so every choice value
+containing a space was truncated at list creation (generator fixed 2026-09-10, `26223e2`).
+NotifyChannel was repaired on 2026-09-10; the remaining 11 columns (CStatus, CandidateType ×2,
+TStatus ×2, Anchor ×4, PrereqCondition ×2) on 2026-10-05 via
+[provision/gen_fixchoices.py](provision/gen_fixchoices.py). Before changing anything, a
+values-in-use read confirmed every row already held full values (flows and seeds write by
+REST, which doesn't check the choice list), so no remap was needed
+([out-fixchoices-read](provision/out-fixchoices-read)). After: all 27 choice columns on
+the six lists match genpayloads ([out-fixchoices-fix](provision/out-fixchoices-fix)).
+**The app's `Choices()` pickers read the schema Studio cached when each source was added** —
+refresh Candidates, Templates, Tasks, TemplateTasks and TaskLibrary in Studio's Data pane,
+then Save + Publish, before trusting the pickers.
 
 ## What's left (as of 2026-10-05)
 
-1. **Fix the truncated choice lists** (above).
+1. **Refresh the five data sources in Studio** so the pickers see the repaired choices (above).
 2. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.
 3. **Screen-complexity decision** (modals → own screens, see the step-5 row) together with **cockpit stage 2**: timeline and anchor-date editing exist; status matrix, HR Notes, documents and watchers do not.
 4. **Email deep links** — F3's emails still link to `Lists/Tasks/DispForm.aspx`; repoint the digest and assignment links to the app (`Param("candidateId")`).
