@@ -38,6 +38,9 @@ What carries over is the domain logic, which is genuinely good: anchor-based due
 12. **Responsive canvas layout** (2026-08-02) — the IRB breakpoint pattern (600/900/1200); clinicians open digest links on phones.
 13. **Executive surface = Power BI email subscriptions** (2026-08-02) — scheduled Pipeline-page snapshots to leadership inboxes; native, A5-covered (§11).
 14. **Template editor committed in the lean plan too** (2026-08-02) — the HR staff are not tech-savvy; Lists-based authoring was the wrong ask for their one recurring build-like activity. The lean plan is a four-screen app; its F8 validate flow is dropped (validation returns in-app).
+15. **Settings hub + two admin spokes; F8 brokers the self-service write** (2026-09-10). Everyone reaches a Settings hub for their own NotifyChannel; HR gets tiles to Users & roles (AppPermissions) and Reference data. Non-HR users hold Read on AppPermissions, so their channel change goes through F8, which identifies the caller from the trigger header and writes only that row — an Edit grant would have exposed `Role`. Spec: [docs/superpowers/specs/2026-09-10-admin-screens-design.md](docs/superpowers/specs/2026-09-10-admin-screens-design.md).
+16. **Stages are edit-only** (2026-09-10) — Title, Description, IsActive. `OrderIndex` is fixed: F3's advancement and every task's `StageOrder` snapshot depend on it, so adding or reordering stages is a migration, not an admin edit.
+17. **Departments stay out of the admin surface** (2026-09-10) — one department by decision (#11); a second is the clone-per-department trigger. Divisions and Faculty Ranks are full CRUD, with delete refused while a value is in use.
 
 ## 3. What the current app does (functional intent, compressed)
 
@@ -194,7 +197,7 @@ UAB design system (`uab-canvas-design`), same construction discipline as MOMPOD/
 | **Candidate detail** | header + status control (enforcing the transition matrix in-app: e.g. Canceled → Active only; Completed blocked while required tasks remain open — with the remaining list shown); anchor-date editing (LOO accepted triggers expansion); progress bar by stage; **Tasks-by-stage** tab; **Comments** tab (flat, visibility flag, NotifyUsers picker); **Timeline** tab (ChangeLog: stage moves + task-level changes); **Documents** tab (the candidate's folders — general and, for HR, Restricted); **HR Notes** tab (HR-only list — hidden for others in the app, and server-enforced regardless); Watchers management |
 | **My Tasks** | counters (To Do / In Progress / Due Soon / Overdue), search, status+priority filters — reads only Tasks (denormalized columns; no joins); the daily digest's links land here |
 | **Templates** | list + editor: stages (ordered, phase-tagged) → tasks (anchor/offset due rules, assignee kind, priority, category, required/prereq/approval flags); activation readiness check (≥1 stage, every stage has a task, every Fixed rule has a date, every role slot has a role); clone-from-existing |
-| **Admin** | Departments/Divisions/Ranks/Stages CRUD; AppPermissions management (role + NotifyChannel; users can change their own channel) |
+| **Settings / Admin** | *Built 2026-09-10 as a hub and two spokes (decisions #15–17).* **Settings hub** (everyone): own NotifyChannel via F8; HR-only tiles. **Users & roles** (HR): AppPermissions add / edit / remove — role, division, channel; HR can't change or remove their own row; changing a row's person = remove and re-add. **Reference data** (HR): Divisions and Faculty Ranks CRUD (delete refused while in use), Stages edit-only; no Departments. |
 
 Construction rules applied from the playbook (non-negotiable, each one a verified failure class):
 - **Every `Patch`/`Remove` wrapped in `IfError`** with the user left in place on failure (the unguarded green-"Saved"-that-lost-data trap).
@@ -368,6 +371,7 @@ Lifetime volume is a non-issue for Candidates (decades to 5,000 rows at this hir
 6. **Notifications + approvals (F4–F6)** — with rendered-preview email sign-off before anything sends to a real person.
 7. **F7 + Power BI** — archival sweep, report over live lists.
 8. **Pilot** — one real candidate end-to-end (create → prereqs → LOO accepted → expansion → advance → complete), then group rollout.
+9. **Settings + Admin screens** — ✅ built and pushed 2026-09-10 (hub, Users & roles, Reference data, flow F8); functional verification still to be recorded in SESSION-CONTEXT.md.
 
 Each phase lands independently; the app is useful from phase 5 even before approvals/BI exist.
 

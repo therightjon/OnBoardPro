@@ -58,6 +58,8 @@ driven by [flowdriver.py](flowdriver.py) with payloads from [genpayloads.py](gen
   **plus a direct Edit grant to `OBGYN-OnBoardPro-PA`**, so assignee edit rights survive any
   future change to the group's site-level role.
 - Everything else inherits the site.
+- **AppPermissions** inherits the site, so PA members have Read only; self-service NotifyChannel
+  writes go through F8 (added 2026-09-10) rather than an Edit grant that would expose `Role`.
 
 **Resolved 2026-08-11:** `OBGYN-OnBoardPro-PA` moved from Members to **Visitors** (site-level
 Read; direct Edit grants on Tasks/Comments carry assignee editing) — the per-list model now
@@ -73,6 +75,12 @@ HR-only containers.
 | FacultyRanks | 4 — Assistant Professor (PT=no) · Associate Professor (**PT=yes**) · Professor (**PT=yes**) · Other (PT=no) |
 | Stages | 5 — 1 Letter of Intent · 2 Offer · 3 HR Processing · 4 Credentialing · 5 Onboarding |
 | AppPermissions | 1 — jsteen@uab.edu (principal 6) · Role HR · NotifyChannel Email |
+
+**Choice-list repair (2026-09-10):** `AppPermissions.NotifyChannel` was created with truncated
+choices (Email · Teams · Email) and repaired to Email · Teams · Email + Teams
+([out-fixnotify](out-fixnotify) has before/after). The same whitespace bug truncated
+CStatus, CandidateType, TStatus, Anchor and PrereqCondition on several lists — **not yet
+repaired**; the audit is in [out-audit](out-audit) and the table is in SESSION-CONTEXT.md.
 
 Rank titles use full academic names ("Assistant Professor" rather than the old app's bare
 "Assistant"). "Instructor" is not seeded — `Other` covers it unless HR wants it explicit.
@@ -93,7 +101,7 @@ Credential documents are one verify-task per document (per 2026-08-11 decision),
 candidate submit-packet touchpoint. Sources: the two HR process docs; review doc generated
 from live data at [TEMPLATE-REVIEW.md](TEMPLATE-REVIEW.md). Seeder: [seed_templates.py](seed_templates.py).
 
-## Flows (as of 2026-08-11)
+## Flows (as of 2026-10-05)
 
 | Flow | ID | Status |
 |---|---|---|
@@ -104,6 +112,7 @@ from live data at [TEMPLATE-REVIEW.md](TEMPLATE-REVIEW.md). Seeder: [seed_templa
 | OnBoard - Archive Sweep (F7) | `3c0393ea-1674-4412-a438-3b5935b43a28` | **Live** — Sundays 22:00 CT; moves Tasks + ChangeLog rows of 30-day-terminal candidates (keyed on StatusChanged) to the archive lists, copy-then-delete with a verify pass that emails on leftovers |
 | OnBoard - Stage Approvals (F5) | `f252f6b9-696d-462e-bd2a-7cec758c40e0` | **Live** — Candidates modified trigger; starts a Basic approval for each open NeedsApproval task in the newly-current stage (ApprovalStarted stamp = idempotency; approver = task assignee, falls back to first HR row); Approve → task Done via `UpdatedVia: App` so F3 runs advancement; Reject → Blocked + HR email with comments; P25D timeout clears the stamp for re-issue. Approvals connection `shared-approvals-bad56a70…` |
 | OnBoard - Task Changed (F3) | `e9c4dda6-c8ae-4345-8129-70293224b75b` | **Live** — SharePoint trigger on Tasks (1-min poll, skips `UpdatedVia: Flow`); ChangeLog diffs for status/assignee/due (baseline = last logged, first touch back-fills); cancel-without-reason guard reverts + emails editor; loop-free stage advancement + Blocked recompute; assignment + stage-change + blocked emails via O365 connection `shared-office365-fbc5363a…` (jsteen@uab.edu, verified by delivery) |
+| OnBoard - Set Notify Channel (F8) | `0e872472-51ad-f111-aaac-3833c5eece6e` | **Live** (2026-09-10) — PowerAppV2 (`text`=channel); caller identified from the trigger's `x-ms-user-email-encoded` header, never an argument; validates the channel against Email / Teams / Email + Teams and updates only the caller's AppPermissions.NotifyChannel; SharePoint connection `288fd460…` (Embedded); run-only (CanView) to both OnBoardPro groups — re-read 2026-10-05; generator [gen_f8.py](gen_f8.py) (`patch` → `start` → `install` → `patch` again → `share`) |
 
 F1 verified end-to-end 2026-08-11: prereq mode on candidate 1 (Associate rank → 1 P&T task,
 approval-flagged); full mode on candidate 2 (research template, Assistant rank → 30 tasks,
