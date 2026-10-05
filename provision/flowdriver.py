@@ -90,7 +90,12 @@ def result(outdir="out"):
         time.sleep(3)
     name = latest["name"]
     print(f"run {name}: {status}")
-    acts = req("GET", f"{BASE}/flows/{FLOW}/runs/{name}/actions?{API}").get("value", [])
+    # a just-finished run can list zero actions for a few seconds - wait for them
+    for _ in range(10):
+        acts = req("GET", f"{BASE}/flows/{FLOW}/runs/{name}/actions?{API}").get("value", [])
+        if acts:
+            break
+        time.sleep(3)
     ok = True
     for a in sorted(acts, key=lambda x: x["properties"].get("startTime", "")):
         an = a["name"]
