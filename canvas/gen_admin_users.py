@@ -332,7 +332,7 @@ def twin():
 def row_name_label(name, text, color, size, height, onselect=None):
     """Classic Label - the only in-gallery click target that does not garble
     the template (ModernText.OnSelect does)."""
-    props = {**AUTOZ, "Color": color, "FocusedBorderColor": "=UAB.Gold",
+    props = {**AUTOZ, "Color": color, "FillPortions": "=1", "FocusedBorderColor": "=UAB.Gold",
              "FocusedBorderThickness": "=2", "Font": "=Font.Arial",
              "Height": f"={height}", "PaddingBottom": "=0", "PaddingLeft": "=0",
              "PaddingRight": "=0", "PaddingTop": "=0", "Size": size,
@@ -389,7 +389,7 @@ def list_gallery():
                       color="=RoleColor(ThisItem.Role.Value)", size="=12",
                       height=16, extra={
                           "Align": "=Align.Center",
-                          "AlignInContainer": "=AlignInContainer.Stretch",
+                          "AlignInContainer": "=AlignInContainer.Center",
                           "FontWeight": "=FontWeight.Semibold", "Wrap": "=false"}),
             ])),
         ])),

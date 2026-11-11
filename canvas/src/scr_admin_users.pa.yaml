@@ -886,6 +886,7 @@ Screens:
                                               Control: Label
                                               Properties:
                                                 Color: =UAB.TextPrimary
+                                                FillPortions: =1
                                                 FocusedBorderColor: =UAB.Gold
                                                 FocusedBorderThickness: =2
                                                 Font: =Font.Arial
@@ -913,6 +914,7 @@ Screens:
                                               Control: Label
                                               Properties:
                                                 Color: =UAB.Gray500
+                                                FillPortions: =1
                                                 FocusedBorderColor: =UAB.Gold
                                                 FocusedBorderThickness: =2
                                                 Font: =Font.Arial
@@ -996,7 +998,7 @@ Screens:
                                                     Control: ModernText
                                                     Properties:
                                                       Align: =Align.Center
-                                                      AlignInContainer: =AlignInContainer.Stretch
+                                                      AlignInContainer: =AlignInContainer.Center
                                                       AutoHeight: =true
                                                       Color: =RoleColor(ThisItem.Role.Value)
                                                       FontWeight: =FontWeight.Semibold
