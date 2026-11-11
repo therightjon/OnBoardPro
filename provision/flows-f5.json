@@ -257,7 +257,7 @@
           "X-HTTP-Method": "MERGE",
           "IF-MATCH": "*"
          },
-         "parameters/body": "@concat('{\"TStatus\":\"Done\",\"CompletedDate\":\"', utcNow('yyyy-MM-dd'), '\",\"UpdatedVia\":\"App\"', if(empty(body('Approver_Id')?['Id']), '', concat(',\"CompletedById\":', string(body('Approver_Id')?['Id']))), '}')"
+         "parameters/body": "@concat('{\"TStatus\":\"Done\",\"CompletedDate\":\"', utcNow('yyyy-MM-dd'), '\",\"UpdatedVia\":\"Approval\"', if(empty(body('Approver_Id')?['Id']), '', concat(',\"CompletedById\":', string(body('Approver_Id')?['Id']))), '}')"
         },
         "authentication": "@parameters('$authentication')"
        }
