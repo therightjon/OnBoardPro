@@ -13,7 +13,6 @@
  },
  "triggers": {
   "Recurrence": {
-   "type": "Recurrence",
    "recurrence": {
     "frequency": "Week",
     "interval": 1,
@@ -29,7 +28,24 @@
       0
      ]
     }
-   }
+   },
+   "evaluatedRecurrence": {
+    "frequency": "Week",
+    "interval": 1,
+    "timeZone": "Central Standard Time",
+    "schedule": {
+     "weekDays": [
+      "Sunday"
+     ],
+     "hours": [
+      22
+     ],
+     "minutes": [
+      0
+     ]
+    }
+   },
+   "type": "Recurrence"
   }
  },
  "actions": {
@@ -64,18 +80,7 @@
    }
   },
   "Each_Cand": {
-   "runAfter": {
-    "Get_Term": [
-     "Succeeded"
-    ]
-   },
-   "type": "Foreach",
    "foreach": "@body('Get_Term')?['value']",
-   "runtimeConfiguration": {
-    "concurrency": {
-     "repetitions": 1
-    }
-   },
    "actions": {
     "Get_T": {
      "runAfter": {},
@@ -89,7 +94,7 @@
       "parameters": {
        "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
        "parameters/method": "GET",
-       "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items?$select=Id,Title,CandidateId,CandName,StageId,StageName,StageOrder,Phase,TStatus,Priority,Category,AssigneeId,AssigneeRole,Anchor,OffsetDays,FixedDate,DueDate,PendingAnchor,IsRequired,IsPrereq,NeedsApproval,CompletedDate,CancelReason,Notes,DueNotified,ApprovalStarted,UpdatedVia&$filter=CandidateId eq @{items('Each_Cand')?['Id']}&$top=500",
+       "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items?$select=Id,Title,CandidateId,CandName,StageId,StageName,StageOrder,Phase,TStatus,Priority,Category,AssigneeId,AssigneeRole,Anchor,OffsetDays,FixedDate,DueDate,PendingAnchor,IsRequired,IsPrereq,NeedsApproval,CompletedDate,CompletedById,CancelReason,Notes,DueNotified,ApprovalStarted,UpdatedVia&$filter=CandidateId eq @{items('Each_Cand')?['Id']}&$top=500",
        "parameters/headers": {
         "Accept": "application/json;odata=nometadata",
         "Content-Type": "application/json;odata=nometadata"
@@ -99,18 +104,7 @@
      }
     },
     "Each_T": {
-     "runAfter": {
-      "Get_T": [
-       "Succeeded"
-      ]
-     },
-     "type": "Foreach",
      "foreach": "@body('Get_T')?['value']",
-     "runtimeConfiguration": {
-      "concurrency": {
-       "repetitions": 4
-      }
-     },
      "actions": {
       "Cp_T": {
        "runAfter": {},
@@ -160,6 +154,17 @@
         "authentication": "@parameters('$authentication')"
        }
       }
+     },
+     "runAfter": {
+      "Get_T": [
+       "Succeeded"
+      ]
+     },
+     "type": "Foreach",
+     "runtimeConfiguration": {
+      "concurrency": {
+       "repetitions": 4
+      }
      }
     },
     "Get_L": {
@@ -188,18 +193,7 @@
      }
     },
     "Each_L": {
-     "runAfter": {
-      "Get_L": [
-       "Succeeded"
-      ]
-     },
-     "type": "Foreach",
      "foreach": "@body('Get_L')?['value']",
-     "runtimeConfiguration": {
-      "concurrency": {
-       "repetitions": 4
-      }
-     },
      "actions": {
       "Cp_L": {
        "runAfter": {},
@@ -249,6 +243,17 @@
         "authentication": "@parameters('$authentication')"
        }
       }
+     },
+     "runAfter": {
+      "Get_L": [
+       "Succeeded"
+      ]
+     },
+     "type": "Foreach",
+     "runtimeConfiguration": {
+      "concurrency": {
+       "repetitions": 4
+      }
      }
     },
     "Verify": {
@@ -277,22 +282,6 @@
      }
     },
     "If_Left": {
-     "runAfter": {
-      "Verify": [
-       "Succeeded"
-      ]
-     },
-     "type": "If",
-     "expression": {
-      "and": [
-       {
-        "greater": [
-         "@length(body('Verify')?['value'])",
-         0
-        ]
-       }
-      ]
-     },
      "actions": {
       "Mail_Warn": {
        "runAfter": {},
@@ -313,9 +302,36 @@
        }
       }
      },
+     "runAfter": {
+      "Verify": [
+       "Succeeded"
+      ]
+     },
      "else": {
       "actions": {}
-     }
+     },
+     "expression": {
+      "and": [
+       {
+        "greater": [
+         "@length(body('Verify')?['value'])",
+         0
+        ]
+       }
+      ]
+     },
+     "type": "If"
+    }
+   },
+   "runAfter": {
+    "Get_Term": [
+     "Succeeded"
+    ]
+   },
+   "type": "Foreach",
+   "runtimeConfiguration": {
+    "concurrency": {
+     "repetitions": 1
     }
    }
   }

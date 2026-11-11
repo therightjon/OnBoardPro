@@ -38,7 +38,7 @@ TASK_COLS = {
     "OffsetDays": "num", "FixedDate": "dateonly", "DueDate": "dateonly indexed",
     "PendingAnchor": "bool default=0", "IsRequired": "bool default=1",
     "IsPrereq": "bool default=0", "NeedsApproval": "bool default=0",
-    "CompletedDate": "dateonly", "CancelReason": "text", "Notes": "note",
+    "CompletedDate": "dateonly", "CompletedBy": "user", "CancelReason": "text", "Notes": "note",
     "DueNotified": "dateonly", "UpdatedVia": "text default=App",
 }
 CHANGELOG_COLS = {
