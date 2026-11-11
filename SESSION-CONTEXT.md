@@ -44,6 +44,20 @@ StartScreen routes to the cockpit with that candidate selected. Patched read-mod
 (only the email body changed; connections untouched) and mirrored in `provision/gen_f3.py`.
 F4, F6 and the other flows send no links today.
 
+**Who completed / changed a task — 2026-11-11.** New `CompletedBy` person column on Tasks and
+TasksArchive (utility flow; [add-completedby.json](provision/add-completedby.json)). The app's 12
+status writes (one-tap Done + both status modals) set `CompletedBy` to the signed-in user on Done,
+clear it otherwise, and **auto-claim**: an unassigned task gets assigned to whoever changes its
+status (`MePerson` named formula). The cockpit subline reads "Done by <name>". **F3** now writes
+`ChangedById` on every task-change ChangeLog row (so the timeline names people, not "Someone"),
+skips the assignment email when someone assigns themselves, and at the end of each run **corrects
+`CompletedBy`** to the real editor (or blank when not Done) — so an edit made straight in the
+SharePoint list can't credit someone else (commit security review). **F5** resolves the approver
+(`ensureuser`), sets them as `CompletedBy` and marks the write `UpdatedVia: "Approval"`, the only
+writes where F3 trusts `CompletedBy` for attribution. **F7** copies `CompletedBy` into the archive.
+No backfill: older ChangeLog rows keep "Someone", and tasks completed before this show the
+assignee. The ChangeLog still only tracks status, assignee and due date.
+
 **Modal panels sized 2026-11-11.** All six admin-screen modal panels had no `Height` and clipped
 (the Add user modal stopped after the Role row). Each now has an explicit
 `Min(<sum of children + gaps + padding>, Parent.Height - 32)`; the Users panel switches between

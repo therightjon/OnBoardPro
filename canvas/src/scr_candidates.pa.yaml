@@ -2224,7 +2224,7 @@ Screens:
                                                                        UpdatedVia: "App"}),
                                                                   Notify("Couldn't update the task - " & FirstError.Message
                                                                       & " Nothing was changed. Try again.", NotificationType.Error),
-                                                                  Notify("Task marked done.", NotificationType.Success))
+                                                                  Notify("Task marked done - recorded as completed by you.", NotificationType.Success))
                                                             TabIndex: =0
                                                             Tooltip: ="Mark this task done"
                                                             Width: =28
