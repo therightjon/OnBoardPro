@@ -1241,7 +1241,7 @@ Screens:
                   DropShadow: =DropShadow.Regular
                   Fill: =UAB.White
                   FillPortions: =0
-                  Height: =If(scr_tasklibrary.Size = ScreenSize.Small, Min(760, Parent.Height - 32), Min(660, Parent.Height - 32))
+                  Height: =If(scr_tasklibrary.Size = ScreenSize.Small, Min(760, Parent.Height - 32), Min(620, Parent.Height - 32))
                   LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutGap: =12
