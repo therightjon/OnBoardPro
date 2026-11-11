@@ -10,7 +10,7 @@ driven by [flowdriver.py](flowdriver.py) with payloads from [genpayloads.py](gen
 |---|---|
 | URL | `https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding` |
 | Kind | Subsite of `/sites/obgyn`, **unique permissions** (inheritance broken at creation) |
-| Site groups | Owners: `OBGYN-SharePoint-IT-Site-Owners` · Members: both OnBoardPro Entra groups · Visitors: empty |
+| Site groups | Owners: `OBGYN-SharePoint-IT-Site-Owners` · Members: `OBGYN-OnBoardPro-Admins-PA` · Visitors: `OBGYN-OnBoardPro-PA` (moved from Members 2026-08-11 — see Permission state) |
 
 ## Entra groups
 
