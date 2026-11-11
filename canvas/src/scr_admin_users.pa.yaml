@@ -1508,6 +1508,7 @@ Screens:
                               AccessibleLabel: ="Save this user"
                               Align: =Align.Center
                               BasePaletteColor: =UAB.Green
+                              FillPortions: =1
                               FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0

@@ -602,7 +602,7 @@ def modal():
             "LayoutDirection": "=LayoutDirection.Horizontal",
             "LayoutGap": "=8"}, [
             button("btnAuSave", '="Save"', SAVE, 140,
-                   label="Save this user"),
+                   label="Save this user", extra={"FillPortions": "=1"}),
             button("btnAuCancel", '="Cancel"', "=Set(varAuShow, false)", 120,
                    secondary=True, label="Cancel and close the user editor",
                    extra={"FillPortions": "=1"}),
