@@ -24,6 +24,8 @@ App:
       IsManagerOrHR = MyRole = "HR" || MyRole = "Manager";
       MyPermRow = LookUp(AppPermissions, Lower(Coalesce(AppUser.Email, "")) = Lower(User().Email));
       MyNotifyChannel = Coalesce(MyPermRow.NotifyChannel.Value, "Email");
+      MePerson = {Claims: "i:0#.f|membership|" & Lower(User().Email), Department: "",
+          DisplayName: User().FullName, Email: User().Email, JobTitle: "", Picture: ""};
       RoleColor(r: Text): Color = Switch(Coalesce(r, ""), "HR", UAB.GoldText, "Manager", UAB.InfoText, UAB.Gray700);
       RoleFill(r: Text): Color = Switch(Coalesce(r, ""), "HR", UAB.GoldTint, "Manager", UAB.InfoTint, UAB.Paper);
       // ---- Task status pills ----
