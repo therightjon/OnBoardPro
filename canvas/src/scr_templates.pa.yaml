@@ -1695,7 +1695,6 @@ Screens:
                                           LayoutMinWidth: =0
                                           Size: =UABSize.Eyebrow
                                           Text: ="TASKS IN THIS TEMPLATE"
-                                          Wrap: =false
                                     - txtTpTaskSearch:
                                         Control: ModernTextInput
                                         Properties:

@@ -640,6 +640,7 @@ Screens:
                               FillPortions: =1
                               FontWeight: =FontWeight.Semibold
                               Height: =18
+                              LayoutMaxWidth: =350
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               Size: =UABSize.Secondary
@@ -1083,7 +1084,7 @@ Screens:
                                                     Control: ModernText
                                                     Properties:
                                                       Align: =Align.Center
-                                                      AlignInContainer: =AlignInContainer.Stretch
+                                                      AlignInContainer: =AlignInContainer.Center
                                                       AutoHeight: =true
                                                       Color: =If(ThisItem.IsActive = true, UAB.SuccessText, UAB.Gray500)
                                                       FontWeight: =FontWeight.Semibold

@@ -1260,6 +1260,7 @@ Screens:
                                               Properties:
                                                 AccessibleLabel: ="Letter of Intent date"
                                                 DefaultDate: =If(Coalesce(varDtClearLOI, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOIDate)
+                                                FillPortions: =1
                                                 Format: =DatePickerFormat.Short
                                                 Height: =40
                                                 LayoutMinHeight: =0
@@ -1325,6 +1326,7 @@ Screens:
                                               Properties:
                                                 AccessibleLabel: ="LOO Issued date"
                                                 DefaultDate: =If(Coalesce(varDtClearLOOIss, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOIssued)
+                                                FillPortions: =1
                                                 Format: =DatePickerFormat.Short
                                                 Height: =40
                                                 LayoutMinHeight: =0
@@ -1390,6 +1392,7 @@ Screens:
                                               Properties:
                                                 AccessibleLabel: ="LOO Accepted date"
                                                 DefaultDate: =If(Coalesce(varDtClearLOOAcc, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).LOOAccepted)
+                                                FillPortions: =1
                                                 Format: =DatePickerFormat.Short
                                                 Height: =40
                                                 LayoutMinHeight: =0
@@ -1455,6 +1458,7 @@ Screens:
                                               Properties:
                                                 AccessibleLabel: ="Start Date"
                                                 DefaultDate: =If(Coalesce(varDtClearStart, false), Blank(), LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).StartDate)
+                                                FillPortions: =1
                                                 Format: =DatePickerFormat.Short
                                                 Height: =40
                                                 LayoutMinHeight: =0
@@ -1490,6 +1494,7 @@ Screens:
                                         Properties:
                                           AccessibleLabel: ="Template"
                                           DefaultSelectedItems: =Filter(Templates, ID = Coalesce(LookUp(Candidates, ID = Coalesce(varSelCandId, 0)).Template.Id, 0))
+                                          FillPortions: =1
                                           Height: =40
                                           ItemDisplayText: =ThisItem.Title
                                           Items: |-
@@ -1832,6 +1837,7 @@ Screens:
                                           LayoutAlignItems: =LayoutAlignItems.Center
                                           LayoutDirection: =LayoutDirection.Horizontal
                                           LayoutGap: =8
+                                          LayoutJustifyContent: =LayoutJustifyContent.End
                                           LayoutMinHeight: =0
                                           LayoutMinWidth: =0
                                           Width: =170
@@ -1844,6 +1850,7 @@ Screens:
                                                 FillPortions: =1
                                                 Height: =32
                                                 Label: ="Open only"
+                                                LayoutMaxWidth: =150
                                                 LayoutMinHeight: =0
                                                 LayoutMinWidth: =0
                               - conTkColHead:
@@ -2048,6 +2055,7 @@ Screens:
                                                           Properties:
                                                             AutoHeight: =true
                                                             Color: =UAB.TextPrimary
+                                                            FillPortions: =1
                                                             FontWeight: =FontWeight.Semibold
                                                             Height: =25
                                                             LayoutMinHeight: =0
@@ -2065,6 +2073,7 @@ Screens:
                                                               =If(scr_candidates.Size = ScreenSize.Small
                                                                       && TaskDueBucket(ThisItem.DueDate, ThisItem.PendingAnchor) = "Overdue",
                                                                   UAB.Danger, UAB.Gray500)
+                                                            FillPortions: =1
                                                             Height: =22
                                                             LayoutMinHeight: =0
                                                             LayoutMinWidth: =0
@@ -3515,6 +3524,7 @@ Screens:
                                   Control: ModernCombobox
                                   Properties:
                                     AccessibleLabel: ="Stage"
+                                    FillPortions: =1
                                     Height: =36
                                     ItemDisplayText: =ThisItem.Title
                                     Items: =SortByColumns(Filter(Stages, IsActive), "OrderIndex", SortOrder.Ascending)
@@ -3549,6 +3559,7 @@ Screens:
                                   Control: ModernCombobox
                                   Properties:
                                     AccessibleLabel: ="Assigned to"
+                                    FillPortions: =1
                                     Height: =36
                                     ItemDisplayText: =ThisItem.Value
                                     Items: =Choices(Tasks.AssigneeRole)
@@ -3597,6 +3608,7 @@ Screens:
                                   Control: ModernDatePicker
                                   Properties:
                                     AccessibleLabel: ="Due date"
+                                    FillPortions: =1
                                     Height: =36
                                     LayoutMinHeight: =0
                                     LayoutMinWidth: =0
@@ -3629,6 +3641,7 @@ Screens:
                                   Properties:
                                     AccessibleLabel: ="Priority"
                                     DefaultSelectedItems: =Filter(Choices(Tasks.Priority), Value = "Medium")
+                                    FillPortions: =1
                                     Height: =36
                                     ItemDisplayText: =ThisItem.Value
                                     Items: =Choices(Tasks.Priority)
