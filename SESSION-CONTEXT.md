@@ -34,15 +34,15 @@ REST, which doesn't check the choice list), so no remap was needed
 the six lists match genpayloads ([out-fixchoices-fix](provision/out-fixchoices-fix)).
 **The app's `Choices()` pickers read the schema Studio cached when each source was added** —
 refresh Candidates, Templates, Tasks, TemplateTasks and TaskLibrary in Studio's Data pane,
-then Save + Publish, before trusting the pickers.
+then Save + Publish, before trusting the pickers. **Done 2026-11-11** — all five refreshed; the
+pickers now show the full values.
 
-## What's left (as of 2026-10-05)
+## What's left (as of 2026-11-11)
 
-1. **Refresh the five data sources in Studio** so the pickers see the repaired choices (above).
-2. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.
-3. **Screen-complexity decision** (modals → own screens, see the step-5 row) together with **cockpit stage 2**: timeline and anchor-date editing exist; status matrix, HR Notes, documents and watchers do not.
-4. **Email deep links** — F3's emails still link to `Lists/Tasks/DispForm.aspx`; repoint the digest and assignment links to the app (`Param("candidateId")`).
-5. **Power BI** (step 7), then the go-live items in the parked list below, then the **pilot** (step 8).
+1. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.
+2. **Screen-complexity decision** (modals → own screens, see the step-5 row) together with **cockpit stage 2**: timeline and anchor-date editing exist; status matrix, HR Notes, documents and watchers do not.
+3. **Email deep links** — F3's emails still link to `Lists/Tasks/DispForm.aspx`; repoint the digest and assignment links to the app (`Param("candidateId")`).
+4. **Power BI** (step 7), then the go-live items in the parked list below, then the **pilot** (step 8).
 
 ## Working practices (hard-won today — follow these)
 
