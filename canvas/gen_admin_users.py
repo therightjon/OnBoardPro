@@ -519,7 +519,11 @@ MODE = 'Coalesce(varAuMode, "add")'
 
 
 def modal():
+    # Explicit Height: a panel with no Height clips instead of hugging (2026-11-11).
+    # add  = 48 pad + 34 head + 66 user + 0 editing + 66 role/div + 66 channel + 48 actions + 5 gaps = 388
+    # edit = 48 pad + 34 head + 0 user + 20 editing + 66 + 66 + 48 + 5 gaps = 342
     panel = ("conAuPanel", con({
+        "Height": '=Min(If(Coalesce(varAuMode, "add") = "edit", 342, 388), Parent.Height - 32)',
         "AlignInContainer": "=AlignInContainer.Center",
         "DropShadow": "=DropShadow.Regular", "Fill": "=UAB.White",
         "FillPortions": "=0",
@@ -615,7 +619,9 @@ def modal():
 
 
 def confirm():
+    # 48 pad + 30 title + 66 body + 44 actions + 2 gaps = 212
     panel = ("conAuConfirmPanel", con({
+        "Height": "=Min(212, Parent.Height - 32)",
         "AlignInContainer": "=AlignInContainer.Center",
         "DropShadow": "=DropShadow.Regular", "Fill": "=UAB.White",
         "FillPortions": "=0",

@@ -60,7 +60,10 @@ def mail(to_expr, subj_expr, body_expr, run_after=None):
 
 T = "body('Get_Task')"
 C = "body('Get_Cand')"
-LINK = f"{SITE}/Lists/Tasks/DispForm.aspx?ID="
+# Deep link into the app: StartScreen routes Param("candidateId") to the cockpit (2026-11-11).
+APP_LINK = ("https://apps.powerapps.com/play/e/default-d8999fe4-76af-40b3-b435-1d8977abc08c"
+            "/a/75df6b41-2049-4423-890c-e7e3e6d506f9"
+            "?tenantId=d8999fe4-76af-40b3-b435-1d8977abc08c&candidateId=")
 
 
 def logrow(evt, from_expr, to_expr, run_after=None):
@@ -157,8 +160,8 @@ def build_defn():
                      f"'</b> for candidate <b>', {C}?['Title'], '</b>', "
                      "if(equals(outputs('Cur')?['due'],''), '', "
                      "concat(', due ', outputs('Cur')?['due'])), "
-                     f"'.</p><p><a href=\"{LINK}', string({T}?['Id']), "
-                     "'\">Open the task</a></p>')"))},
+                     f"'.</p><p><a href=\"{APP_LINK}', string({C}?['Id']), "
+                     "'\">Open in OnBoardPro</a></p>')"))},
                 "else": {"actions": {}}}},
         "else": {"actions": {}}}
     a["If_DuDiff"] = {"runAfter": {"If_AsDiff": ["Succeeded"]}, "type": "If",

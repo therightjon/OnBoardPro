@@ -1239,6 +1239,7 @@ Screens:
                   DropShadow: =DropShadow.Regular
                   Fill: =UAB.White
                   FillPortions: =0
+                  Height: =Min(If(Coalesce(varAuMode, "add") = "edit", 342, 388), Parent.Height - 32)
                   LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutGap: =12
@@ -1602,6 +1603,7 @@ Screens:
                   DropShadow: =DropShadow.Regular
                   Fill: =UAB.White
                   FillPortions: =0
+                  Height: =Min(212, Parent.Height - 32)
                   LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutGap: =12

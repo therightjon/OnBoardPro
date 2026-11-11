@@ -978,7 +978,7 @@ Screens:
                                                     Control: ModernText
                                                     Properties:
                                                       Align: =Align.Center
-                                                      AlignInContainer: =AlignInContainer.Stretch
+                                                      AlignInContainer: =AlignInContainer.Center
                                                       AutoHeight: =true
                                                       Color: =If(ThisItem.Flag, UAB.SuccessText, UAB.Gray500)
                                                       FontWeight: =FontWeight.Semibold
@@ -1158,6 +1158,7 @@ Screens:
                   DropShadow: =DropShadow.Regular
                   Fill: =UAB.White
                   FillPortions: =0
+                  Height: =Min(220, Parent.Height - 32)
                   LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutGap: =12
@@ -1274,6 +1275,7 @@ Screens:
                               AccessibleLabel: ="Save this division"
                               Align: =Align.Center
                               BasePaletteColor: =UAB.Green
+                              FillPortions: =1
                               FontWeight: =""
                               Height: =40
                               LayoutMinHeight: =0
@@ -1347,6 +1349,7 @@ Screens:
                   DropShadow: =DropShadow.Regular
                   Fill: =UAB.White
                   FillPortions: =0
+                  Height: =Min(276, Parent.Height - 32)
                   LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutGap: =12
@@ -1558,6 +1561,7 @@ Screens:
                   DropShadow: =DropShadow.Regular
                   Fill: =UAB.White
                   FillPortions: =0
+                  Height: =Min(448, Parent.Height - 32)
                   LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutGap: =12
@@ -1814,6 +1818,7 @@ Screens:
                   DropShadow: =DropShadow.Regular
                   Fill: =UAB.White
                   FillPortions: =0
+                  Height: =Min(190, Parent.Height - 32)
                   LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutGap: =12

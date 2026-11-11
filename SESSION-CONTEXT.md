@@ -37,12 +37,24 @@ refresh Candidates, Templates, Tasks, TemplateTasks and TaskLibrary in Studio's 
 then Save + Publish, before trusting the pickers. **Done 2026-11-11** — all five refreshed; the
 pickers now show the full values.
 
+**Email deep links — done 2026-11-11.** The only email that carried a link was F3's task
+assignment ("Open the task" → `Lists/Tasks/DispForm.aspx`). It now says "Open in OnBoardPro" and
+links to `apps.powerapps.com/play/…/a/75df6b41…?tenantId=…&candidateId=<id>`, which the app's
+StartScreen routes to the cockpit with that candidate selected. Patched read-modify-write
+(only the email body changed; connections untouched) and mirrored in `provision/gen_f3.py`.
+F4, F6 and the other flows send no links today.
+
+**Modal panels sized 2026-11-11.** All six admin-screen modal panels had no `Height` and clipped
+(the Add user modal stopped after the Role row). Each now has an explicit
+`Min(<sum of children + gaps + padding>, Parent.Height - 32)`; the Users panel switches between
+388 (add) and 342 (edit). The Task Library's confirm panel has the same no-Height shape —
+check it next time that screen is open.
+
 ## What's left (as of 2026-11-11)
 
 1. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.
 2. **Screen-complexity decision** (modals → own screens, see the step-5 row) together with **cockpit stage 2**: timeline and anchor-date editing exist; status matrix, HR Notes, documents and watchers do not.
-3. **Email deep links** — F3's emails still link to `Lists/Tasks/DispForm.aspx`; repoint the digest and assignment links to the app (`Param("candidateId")`).
-4. **Power BI** (step 7), then the go-live items in the parked list below, then the **pilot** (step 8).
+3. **Power BI** (step 7), then the go-live items in the parked list below, then the **pilot** (step 8).
 
 ## Working practices (hard-won today — follow these)
 

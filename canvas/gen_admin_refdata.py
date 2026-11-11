@@ -202,9 +202,12 @@ def scrim(name, visible, panel):
         "Visible": visible, "Width": "=Parent.Width"}, [panel]))
 
 
-def panel(name, cap, children):
-    """Content-bounded modal panel: no Height, no scroll, so it hugs its content."""
+def panel(name, cap, height, children):
+    """Modal panel with an explicit Height. A panel with no Height does NOT hug its content:
+    it takes the container default and clips (Add user modal, 2026-11-11). height =
+    padding 48 + the children's heights + 12 per gap between children."""
     return (name, con({**AUTOZ,
+        "Height": f"=Min({height}, Parent.Height - 32)",
         "AlignInContainer": "=AlignInContainer.Center",
         "DropShadow": "=DropShadow.Regular", "Fill": "=UAB.White",
         "FillPortions": "=0",
@@ -226,11 +229,14 @@ def actions(name, save, cancel):
         [save, cancel]))
 
 
-def save_button(name, label, formula, width=140):
-    return (name, ctl("ModernButton", {**AUTOZ, **BTN_CHROME,
+def save_button(name, label, formula, width=140, fill=False):
+    props = {**AUTOZ, **BTN_CHROME,
         "AccessibleLabel": f'="{label}"', "BasePaletteColor": "=UAB.Green",
         "Height": "=40", "OnSelect": formula, "Text": '="Save"',
-        "Width": f"={width}"}))
+        "Width": f"={width}"}
+    if fill:
+        props["FillPortions"] = "=1"
+    return (name, ctl("ModernButton", props))
 
 
 def cancel_button(name, label, close_var, width=120):
@@ -424,7 +430,7 @@ def row_template():
             "RadiusTopLeft": "=999", "RadiusTopRight": "=999", "Width": "=96"}, [
             ("lblArPillFlag", ctl("ModernText", {**AUTOZ,
                 "Align": "=Align.Center",
-                "AlignInContainer": "=AlignInContainer.Stretch",
+                "AlignInContainer": "=AlignInContainer.Center",
                 "AutoHeight": "=true",
                 "Color": "=If(ThisItem.Flag, UAB.SuccessText, UAB.Gray500)",
                 "FontWeight": "=FontWeight.Semibold", "Height": "=16",
@@ -520,7 +526,7 @@ def table_card():
 
 def modal_div():
     return scrim("conArModalDiv", "=Coalesce(varArShowDiv, false)",
-                 panel("conArDivPanel", 480, [
+                 panel("conArDivPanel", 480, 220, [            # 34 + 66 + 48 + 2 gaps + 48
         modal_head("conArDivHead", "lblArDivTitle", "icoArDivClose",
                    '=If(Coalesce(varArEditId, 0) = 0, "Add division", "Edit division")',
                    "varArShowDiv", "division"),
@@ -531,7 +537,7 @@ def modal_div():
                       "FillPortions": "=1", "Height": "=40",
                       "Placeholder": '="Required"'}))),
         actions("conArDivActions",
-                save_button("btnArDivSave", "Save this division", DIV_SAVE),
+                save_button("btnArDivSave", "Save this division", DIV_SAVE, fill=True),
                 cancel_button("btnArDivCancel",
                               "Cancel and close the division editor",
                               "varArShowDiv")),
@@ -540,7 +546,7 @@ def modal_div():
 
 def modal_rank():
     return scrim("conArModalRank", "=Coalesce(varArShowRank, false)",
-                 panel("conArRankPanel", 480, [
+                 panel("conArRankPanel", 480, 276, [          # 34 + 66 + 44 + 48 + 3 gaps + 48
         modal_head("conArRankHead", "lblArRankTitle", "icoArRankClose",
                    '=If(Coalesce(varArEditId, 0) = 0, "Add rank", "Edit rank")',
                    "varArShowRank", "rank"),
@@ -563,7 +569,7 @@ def modal_rank():
 
 def modal_stage():
     return scrim("conArModalStage", "=Coalesce(varArShowStage, false)",
-                 panel("conArStagePanel", 560, [
+                 panel("conArStagePanel", 560, 448, [        # 34 + 22 + 66 + 122 + 44 + 48 + 5 gaps + 48, +4 breathing room
         modal_head("conArStageHead", "lblArStageTitle", "icoArStageClose",
                    '="Edit stage"', "varArShowStage", "stage"),
         ("lblArStageOrder", ctl("ModernText", {**AUTOZ,
@@ -598,7 +604,7 @@ def modal_stage():
 
 def confirm():
     return scrim("conArConfirm", "=Coalesce(varArShowConfirm, false)",
-                 panel("conArConfirmPanel", 440, [
+                 panel("conArConfirmPanel", 440, 190, [      # 30 + 44 + 44 + 2 gaps + 48
         ("lblArConfirmTitle", ctl("ModernText", {**AUTOZ,
             "AutoHeight": "=true", "Color": "=UAB.TextPrimary",
             "FontWeight": "=FontWeight.Semibold", "Height": "=30", "Size": "=20",
