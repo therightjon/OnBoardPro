@@ -1905,6 +1905,7 @@ Screens:
                   DropShadow: =DropShadow.Regular
                   Fill: =UAB.White
                   FillPortions: =0
+                  Height: =Min(150 + 25 * RoundUp(Len(lblTlConfirmBody.Text) / RoundDown((Min(440, Parent.Width - 32) - 48) / 9, 0), 0), Parent.Height - 32)
                   LayoutAlignItems: =LayoutAlignItems.Stretch
                   LayoutDirection: =LayoutDirection.Vertical
                   LayoutGap: =12

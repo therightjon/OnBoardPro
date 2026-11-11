@@ -47,8 +47,11 @@ F4, F6 and the other flows send no links today.
 **Modal panels sized 2026-11-11.** All six admin-screen modal panels had no `Height` and clipped
 (the Add user modal stopped after the Role row). Each now has an explicit
 `Min(<sum of children + gaps + padding>, Parent.Height - 32)`; the Users panel switches between
-388 (add) and 342 (edit). The Task Library's confirm panel has the same no-Height shape —
-check it next time that screen is open.
+388 (add) and 342 (edit). The Task Library and Templates delete-confirm panels had the same
+shape (the Task Library one cut off its buttons); their bodies wrap a variable-length task
+name, so their Height estimates the body's line count from `Len(<body>.Text)` and the panel's
+current width (~9px per character, 25px per line) on top of a fixed 150. **No modal panel in
+the app is left without an explicit Height.**
 
 ## What's left (as of 2026-11-11)
 
