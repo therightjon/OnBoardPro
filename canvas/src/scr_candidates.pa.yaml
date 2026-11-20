@@ -1861,7 +1861,7 @@ Screens:
                                           Size: =UABSize.Secondary
                                           Text: |-
                                             =With(
-                                                {t: Filter(FirstN(Tasks, 500), Candidate.Id = Coalesce(varSelCandId, 0))},
+                                                {t: With({ct: LookUp(Candidates, ID = varSelCandId).Title}, Filter(FirstN(Filter(Tasks, Candidate.Value = ct), 500), Candidate.Id = varSelCandId))},
                                                 With({open: Filter(t, TStatus.Value <> "Done" && TStatus.Value <> "Canceled")},
                                                     CountRows(t) & " task" & If(CountRows(t) = 1, "", "s")
                                                         & "  ·  " & CountRows(open) & " open"
@@ -2056,8 +2056,7 @@ Screens:
                                     AccessibleLabel: ="Checklist tasks"
                                     Fill: =UAB.White
                                     Items: |-
-                                      =With({t: Filter(FirstN(Tasks, 500),
-                                              Candidate.Id = Coalesce(varSelCandId, 0),
+                                      =With({t: Filter(With({ct: LookUp(Candidates, ID = varSelCandId).Title}, Filter(FirstN(Filter(Tasks, Candidate.Value = ct), 500), Candidate.Id = varSelCandId)),
                                               (Coalesce(CountRows(cmbTkStageFilter.SelectedItems), 0) = 0
                                                   || StageName in ShowColumns(cmbTkStageFilter.SelectedItems, Title)),
                                               (!tglTkOpenTasks.Checked
@@ -2345,7 +2344,7 @@ Screens:
                               Fill: =UAB.White
                               FillPortions: =0
                               Height: |-
-                                =With({n: CountRows(Filter(FirstN(Comments, 500), Candidate.Id = Coalesce(varSelCandId, 0)))},
+                                =With({n: CountRows(With({ct: LookUp(Candidates, ID = varSelCandId).Title}, Filter(FirstN(Filter(Comments, Candidate.Value = ct), 500), Candidate.Id = varSelCandId)))},
                                     If(scr_candidates.Size = ScreenSize.Small, 324, 266) + Min(n, 4) * 88 + If(n = 0, 44, 0))
                               LayoutAlignItems: =LayoutAlignItems.Stretch
                               LayoutDirection: =LayoutDirection.Vertical
@@ -2503,7 +2502,7 @@ Screens:
                                     Fill: =UAB.White
                                     Items: |-
                                       =SortByColumns(
-                                          Filter(FirstN(Comments, 500), Candidate.Id = Coalesce(varSelCandId, 0)),
+                                          With({ct: LookUp(Candidates, ID = varSelCandId).Title}, Filter(FirstN(Filter(Comments, Candidate.Value = ct), 500), Candidate.Id = varSelCandId)),
                                           "Created", SortOrder.Descending)
                                     LayoutMinHeight: =0
                                     LayoutMinWidth: =0
@@ -2614,7 +2613,7 @@ Screens:
                               Fill: =UAB.White
                               FillPortions: =0
                               Height: |-
-                                =With({n: CountRows(Filter(FirstN(ChangeLog, 500), Candidate.Id = Coalesce(varSelCandId, 0)))},
+                                =With({n: CountRows(With({ct: LookUp(Candidates, ID = varSelCandId).Title}, Filter(FirstN(Filter(ChangeLog, Candidate.Value = ct), 500), Candidate.Id = varSelCandId)))},
                                     If(scr_candidates.Size = ScreenSize.Small, 80, 96) + Min(n, 5) * 64 + If(n = 0, 44, 0))
                               LayoutAlignItems: =LayoutAlignItems.Stretch
                               LayoutDirection: =LayoutDirection.Vertical
@@ -2661,7 +2660,7 @@ Screens:
                                     Fill: =UAB.White
                                     Items: |-
                                       =SortByColumns(
-                                          Filter(FirstN(ChangeLog, 500), Candidate.Id = Coalesce(varSelCandId, 0)),
+                                          With({ct: LookUp(Candidates, ID = varSelCandId).Title}, Filter(FirstN(Filter(ChangeLog, Candidate.Value = ct), 500), Candidate.Id = varSelCandId)),
                                           "ChangedDate", SortOrder.Descending)
                                     LayoutMinHeight: =0
                                     LayoutMinWidth: =0

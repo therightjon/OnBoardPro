@@ -2,7 +2,10 @@ Screens:
   scr_mytasks:
     Properties:
       Fill: =UAB.OffWhite
-      OnVisible: =Set(varMyTasksPage, 1)
+      OnVisible: |-
+        =Set(varMyTasksPage, 1);
+        Set(varMtHrRole, If(IsHR, "HR", "-"));  // a plain value, so the Tasks filter can run in SharePoint
+        Refresh(Tasks)
     Children:
       - NavRail_MyTasks:
           Control: GroupContainer
@@ -537,10 +540,10 @@ Screens:
                         LayoutMinWidth: =0
                         Size: =UABSize.Secondary
                         Text: |-
-                          =With({t: Filter(FirstN(Tasks, 500),
-                                  (Assignee.Email = User().Email
-                                      || (IsHR && IsBlank(Assignee) && AssigneeRole.Value = "HR")),
-                                  TStatus.Value <> "Done" && TStatus.Value <> "Canceled")},
+                          =With({t: Filter(FirstN(Filter(Tasks,
+                                      (Assignee.Email = User().Email || AssigneeRole.Value = Coalesce(varMtHrRole, "-"))
+                                      && (TStatus.Value = "To Do" || TStatus.Value = "In Progress" || TStatus.Value = "Blocked")), 500),
+                                  Assignee.Email = User().Email || IsBlank(Assignee))},
                               CountRows(t) & " open task" & If(CountRows(t) = 1, "", "s")
                                   & " · " & CountRows(Filter(t, !IsBlank(DueDate) && DueDate < Today())) & " overdue")
                         Wrap: =false
@@ -761,10 +764,10 @@ Screens:
                         Height: =56
                         Items: |-
                           =SortByColumns(
-                              Filter(FirstN(Tasks, 500),
-                                  (Assignee.Email = User().Email
-                                      || (IsHR && IsBlank(Assignee) && AssigneeRole.Value = "HR")),
-                                  TStatus.Value <> "Done" && TStatus.Value <> "Canceled",
+                              Filter(FirstN(Filter(Tasks,
+                                      (Assignee.Email = User().Email || AssigneeRole.Value = Coalesce(varMtHrRole, "-"))
+                                      && (TStatus.Value = "To Do" || TStatus.Value = "In Progress" || TStatus.Value = "Blocked")), 500),
+                                  Assignee.Email = User().Email || IsBlank(Assignee),
                                   Coalesce(varMyTasksFilter, "All") = "All"
                                       || (varMyTasksFilter = "Overdue" && !IsBlank(DueDate) && DueDate < Today())
                                       || (varMyTasksFilter = "Week" && !IsBlank(DueDate) && DueDate <= Today() + 7)),
