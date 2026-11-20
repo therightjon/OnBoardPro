@@ -1176,8 +1176,6 @@ Screens:
           Properties:
             AccessibleLabel: ="Create the candidate"
             Height: =1
-            LayoutMinHeight: =0
-            LayoutMinWidth: =0
             OnSelect: |-
               =IfError(
                   With({rec: Patch(Candidates, Defaults(Candidates),
@@ -1220,8 +1218,6 @@ Screens:
             Text: ="create"
             Visible: =false
             Width: =1
-            X: =0
-            Y: =0
       - conNcLoiModal:
           Control: GroupContainer
           Variant: AutoLayout
@@ -1320,7 +1316,7 @@ Screens:
                               RadiusTopRight: =4
                               Text: ="Yes, Create"
                               VerticalAlign: =VerticalAlign.Middle
-                              Width: =150
+                              Width: =154
                         - btnNcLoiChange:
                             Control: ModernButton
                             Properties:
@@ -1333,9 +1329,7 @@ Screens:
                               Height: =40
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
-                              OnSelect: |-
-                                =Set(varNcLoiConfirm, false);
-                                SetFocus(dpNcLOI)
+                              OnSelect: =Set(varNcLoiConfirm, false)
                               PaddingBottom: =5
                               PaddingLeft: =12
                               PaddingRight: =12

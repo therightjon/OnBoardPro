@@ -104,6 +104,14 @@ and #10, created before the fix, were backfilled through the utility flow
 ([backfill-candidate9.json](provision/backfill-candidate9.json),
 [backfill-candidate10.json](provision/backfill-candidate10.json)). **Verified end to end on #11** (created after the fix): F1's prereq run set Letter of Intent, wrote the timeline row and both folders with no backfill, and F5 did not fire. Offer acceptance with the new F1 is still untested.
 
+**Future letter-of-intent dates need a confirmation — 2026-11-20.** New Candidate's Create
+checks the LOI date; a date after today opens a "Letter of Intent in the Future?" dialog (Yes,
+Create / Change Date). The create formula lives once, in hidden `btnNcDoCreate`, which both
+paths `Select()`. Future LOI candidates show in the Letter of Intent stage like any other.
+(`SetFocus` can't target a ModernDatePicker — the compiler rejects it; Change Date just closes
+the dialog. The built-in `Confirm()` dialog exists but is preview in canvas apps, so the app uses
+its own confirm-modal pattern.)
+
 ## What's left (as of 2026-11-11)
 
 1. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.
