@@ -157,6 +157,13 @@ F3 now reads the item's version 1.0 (`items(id)/versions(512)`, `Get_V1`); when 
 field exists and version 1.0 was written by a flow (`UpdatedVia: Flow`), its Assignee
 `LookupValue` and DueDate are the baseline. App-created tasks keep logging their creation.
 
+**Automatic completion — 2026-11-20** (plan decision 19). F3's closed-task branch ends with
+`Req_Open` (open required tasks from `Get_Open`) and `If_Complete`: none open + `CStatus`
+Active + `TemplateApplied` set → MERGE `CStatus: Completed, StatusChanged: today`, a
+`CandidateStatus` row dated +10 s (sorts after that run's stage rows), and one email.
+`Get_Cand` now also selects `CStatus,TemplateApplied`. The 1:01 test of Daisy's IT task ran
+on the pre-baseline F3 and logged a phantom due row (207, recycled).
+
 ## What's left (as of 2026-11-11)
 
 1. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.

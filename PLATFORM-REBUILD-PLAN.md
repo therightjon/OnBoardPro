@@ -42,6 +42,7 @@ What carries over is the domain logic, which is genuinely good: anchor-based due
 16. **Stages are edit-only** (2026-09-10) — Title, Description, IsActive. `OrderIndex` is fixed: F3's advancement and every task's `StageOrder` snapshot depend on it, so adding or reordering stages is a migration, not an admin edit.
 17. **Departments stay out of the admin surface** (2026-09-10) — one department by decision (#11); a second is the clone-per-department trigger. Divisions and Faculty Ranks are full CRUD, with delete refused while a value is in use.
 18. **Home screen** (2026-11-20) — reverses the lean plan's "no canvas KPI screen" for the operational slice only: a role-aware landing screen with live counts (HR: department pipeline; managers: their own candidates; viewers: their tasks). Trends and history stay in Power BI (decision 13). Spec: `docs/superpowers/specs/2026-11-20-home-screen-design.md`.
+19. **Candidates complete automatically** (2026-11-20) — when a task closes and no required task is open, F3 sets `CStatus` Completed (with `StatusChanged`, a `CandidateStatus` timeline row and one email to manager, owner and watchers). Only for Active candidates whose full checklist exists (`TemplateApplied` set), so finishing prerequisites before the offer doesn't complete anyone. One-way: reopening a task doesn't revert the status — regressions stay a human decision, as with stages. F7 archives 30 days after `StatusChanged`.
 
 ## 3. What the current app does (functional intent, compressed)
 
