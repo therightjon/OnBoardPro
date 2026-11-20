@@ -39,7 +39,13 @@
     {
      "expression": "@not(equals(coalesce(triggerBody()?['UpdatedVia'],'App'), 'Flow'))"
     }
-   ]
+   ],
+   "runtimeConfiguration": {
+    "concurrency": {
+     "runs": 1,
+     "maximumWaitingRuns": 100
+    }
+   }
   }
  },
  "actions": {

@@ -171,6 +171,17 @@ and Daisy stayed Active. Both checks are idempotent (advance only if the target 
 Blocked written only on change, completion only from Active), so the gate is now just "Cur status
 is Done or Canceled". Cost: two extra GETs when a closed task is edited.
 
+**F3 runs one at a time — 2026-11-20.** The trigger splits each poll into one run per
+changed task, and those ran in parallel: closing two tasks of one candidate inside a minute
+(Matthew Berman, #14) gave two runs that both advanced the stage and both completed him —
+duplicate stage and status rows (219/221/223, recycled) and two of each email. The trigger now
+has `runtimeConfiguration.concurrency.runs: 1` (`maximumWaitingRuns: 100`), so each run sees the
+previous one's writes. Per Microsoft, trigger concurrency can't be turned back off once on, and
+it lowers the split-on limit to 100 items per poll — fine for people editing tasks (F1/F2 writes
+are filtered out by the trigger condition, but a poll that returns over 100 changed items would
+lose split-on). Same test verified the first-change baseline: the pre-assigned LOI task logged
+only its status; the two tasks that started unassigned logged real auto-claim assignee rows.
+
 ## What's left (as of 2026-11-11)
 
 1. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.
