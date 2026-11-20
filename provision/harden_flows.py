@@ -33,12 +33,14 @@ FLOWS = {"f1": ("37c175f5-b395-f111-8076-3833c5eece6e", "flows-f1-final.json")}
 for n in ("f2", "f3", "f4", "f5", "f6", "f7"):
     FLOWS[n] = ((HERE / f"{n}-id.txt").read_text().strip(), f"flows-{n}.json")
 
-FIELDS = "Title|CandName|Body|Comment|CancelReason|Notes|TaskTitle"
+# Person-typed fields. Matched case-insensitively: approval responses use comments/displayName.
+FIELDS = "Title|CandName|Body|Comments?|CancelReason|Notes|TaskTitle|displayName"
 REF = re.compile(
-    r"(?:first\()?(?:body|items|outputs|triggerBody)\((?:'[A-Za-z0-9_]+')?\)\)?(?:\?\['[A-Za-z]+'\])*"
+    r"first\((?:body|items|outputs)\('[A-Za-z0-9_]+'\)(?:\?\['[A-Za-z]+'\])*\)(?:\?\['[A-Za-z]+'\])*"
     rf"\?\['(?:{FIELDS})'\]"
-    rf"|item\(\)\?\['(?:{FIELDS})'\]")
-HTML_DONE = "'&amp;'"
+    r"|(?:body|items|outputs|triggerBody)\((?:'[A-Za-z0-9_]+')?\)(?:\?\['[A-Za-z]+'\])*"
+    rf"\?\['(?:{FIELDS})'\]"
+    rf"|item\(\)(?:\?\['[A-Za-z]+'\])*\?\['(?:{FIELDS})'\]", re.IGNORECASE)
 OLD_STRIP = re.compile(r"replace\((coalesce\((?:[^()]|\([^()]*\))*\)),'\"',''\)")
 STATUSES = "createArray('To Do','In Progress','Blocked','Done','Canceled')"
 
@@ -64,10 +66,12 @@ def req(method, url, body=None):
     return json.loads(subprocess.run(args + [url], capture_output=True, text=True).stdout or "{}")
 
 
-def wrap_refs(s, fn):
-    """Wrap every user-text reference not already inside a coalesce(...) we produced."""
+def wrap_refs(s, fn, done_tail):
+    """Wrap every user-text reference that isn't already wrapped (its coalesce is followed by done_tail)."""
     out, i = [], 0
     for m in REF.finditer(s):
+        if s[max(0, m.start() - 9):m.start()] == "coalesce(" and s[m.end():].startswith(done_tail):
+            continue
         out.append(s[i:m.start()])
         out.append(fn(m.group(0)))
         i = m.end()
@@ -93,16 +97,10 @@ def harden(defn, log):
 
     def fix(path, key, s):
         if key == "emailMessage/Body" or (key == "select" and "<" in s):
-            if HTML_DONE in s or not REF.search(s):
-                return s
-            return wrap_refs(s, html)
+            return wrap_refs(s, html, ",''),'&','&amp;')")
         if key == "parameters/body" and REF.search(s):
-            if "'\\\\'" in s:                      # already escaped
-                return s
-            s2 = OLD_STRIP.sub(lambda m: jsn(m.group(1)), s)
-            if s2 != s:
-                return s2
-            return wrap_refs(s, lambda r: jsn(f"coalesce({r},'')"))
+            s = OLD_STRIP.sub(lambda m: jsn(m.group(1)), s)
+            return wrap_refs(s, lambda r: jsn(f"coalesce({r},'')"), ",''),'\\','\\\\')")
         if path.endswith("/Last/inputs/status") and STATUSES not in s:
             inner = s[1:]
             return f"@if(contains({STATUSES}, {inner}), {inner}, 'To Do')"

@@ -315,7 +315,7 @@
          "parameters": {
           "emailMessage/To": "@join(body('HR_Mails'), ';')",
           "emailMessage/Subject": "@concat('[OnBoardPro] Approval rejected: ', item()?['Title'])",
-          "emailMessage/Body": "@concat('<p>The approval for <b>', replace(replace(replace(coalesce(item()?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), '</b> (', replace(replace(replace(coalesce(body('Get_C')?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), ') was <b>rejected</b> by ', coalesce(first(body('Appr')?['responses'])?['responder']?['displayName'],'the approver'), '.</p><p>Comments: ', coalesce(first(body('Appr')?['responses'])?['comments'],'(none)'), '</p>')",
+          "emailMessage/Body": "@concat('<p>The approval for <b>', replace(replace(replace(coalesce(item()?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), '</b> (', replace(replace(replace(coalesce(body('Get_C')?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), ') was <b>rejected</b> by ', coalesce(replace(replace(replace(coalesce(first(body('Appr')?['responses'])?['responder']?['displayName'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'),'the approver'), '.</p><p>Comments: ', coalesce(replace(replace(replace(coalesce(first(body('Appr')?['responses'])?['comments'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'),'(none)'), '</p>')",
           "emailMessage/Importance": "Normal"
          },
          "authentication": "@parameters('$authentication')"
