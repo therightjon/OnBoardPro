@@ -562,7 +562,13 @@
       "actions": {}
      },
      "expression": {
-      "and": [
+      "or": [
+       {
+        "equals": [
+         "@outputs('Inputs')?['mode']",
+         "prereq"
+        ]
+       },
        {
         "equals": [
          "@string(coalesce(body('Get_Candidate')?['CurrentStageId'],''))",

@@ -6,6 +6,7 @@ Screens:
         =Set(varHmFilter, Coalesce(varHmFilter, "All"));
         Set(varHmPage, 1);
         If(IsManagerOrHR,
+            Refresh(Candidates);  // the app's copy can lag a flow's writes (F1 sets stages after it answers)
             ClearCollect(colHmStages, SortByColumns(Filter(Stages, Coalesce(IsActive, true)), "OrderIndex"));
             ClearCollect(colHmCands,
                 Filter(FirstN(Candidates, 500), CStatus.Value = "Active"

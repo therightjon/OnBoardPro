@@ -38,6 +38,7 @@ ONVISIBLE = (
     f"=Set(varHmFilter, {FILTER});\n"
     "Set(varHmPage, 1);\n"
     f"If({PIPE},\n"
+    "    Refresh(Candidates);  // the app's copy can lag a flow's writes (F1 sets stages after it answers)\n"
     "    ClearCollect(colHmStages, SortByColumns(Filter(Stages, Coalesce(IsActive, true)), \"OrderIndex\"));\n"
     "    ClearCollect(colHmCands,\n"
     "        Filter(FirstN(Candidates, 500), CStatus.Value = \"Active\"\n"

@@ -1193,6 +1193,10 @@ Screens:
                            {Id: cmbNcRank.Selected.ID, Value: cmbNcRank.Selected.Title}),
                        Template: {Id: cmbNcTemplate.Selected.ID,
                            Value: cmbNcTemplate.Selected.Title},
+                       // same rule as F1: the template's first stage, so the cockpit is right before F1 finishes
+                       CurrentStage: With({ts: First(SortByColumns(Filter(FirstN(TemplateStages, 500),
+                               Template.Id = cmbNcTemplate.Selected.ID), "OrderIndex"))},
+                           If(IsBlank(ts), Blank(), {Id: ts.Stage.Id, Value: ts.Stage.Value})),
                        Manager: If(IsBlank(cmbNcManager.Selected), Blank(),
                            {Claims: "i:0#.f|membership|"
                                  & Lower(Coalesce(cmbNcManager.Selected.Mail,

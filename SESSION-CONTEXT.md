@@ -112,6 +112,16 @@ paths `Select()`. Future LOI candidates show in the Letter of Intent stage like 
 the dialog. The built-in `Confirm()` dialog exists but is preview in canvas apps, so the app uses
 its own confirm-modal pattern.)
 
+**Stage right at creation, and Home reloads — 2026-11-20.** F1 answers the app before it works,
+so the cockpit used to show "No stage" for a candidate created seconds earlier (Daisy Brewer:
+stage set 3 s after creation; the app had already reloaded). New Candidate now sets
+`CurrentStage` itself, with F1's rule (the template's first `TemplateStages` row by
+`OrderIndex`, read from `FirstN(TemplateStages, 500)` — control-dependent, so local), and F1's
+prereq run always writes the stage and its timeline row (full mode still only fills a missing
+stage). Home's `OnVisible` now refreshes Candidates before building its numbers. The timeline
+says "Stage will move to …" for a stage row dated after today (date comparison — the row's time
+is a placeholder).
+
 ## What's left (as of 2026-11-11)
 
 1. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.
