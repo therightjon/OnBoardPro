@@ -602,8 +602,6 @@ Screens:
                         - lblHmTileN1:
                             Control: Label
                             Properties:
-                              AccessibleLabel: |-
-                                =If(IsManagerOrHR, "Active candidates", "My overdue tasks") & ": " & If(IsManagerOrHR, CountRows(colHmRows), CountRows(Filter(colHmMine, !IsBlank(DueDate) && DueDate < Today())))
                               Color: =UAB.TextPrimary
                               FocusedBorderColor: =UAB.Gold
                               FocusedBorderThickness: =2
@@ -667,8 +665,6 @@ Screens:
                         - lblHmTileN2:
                             Control: Label
                             Properties:
-                              AccessibleLabel: |-
-                                =If(IsManagerOrHR, "Blocked", "Due this week") & ": " & If(IsManagerOrHR, CountRows(Filter(colHmRows, Coalesce(Blocked, false))), CountRows(Filter(colHmMine, !IsBlank(DueDate) && DueDate >= Today() && DueDate <= Today() + 7)))
                               Color: =UAB.TextPrimary
                               FocusedBorderColor: =UAB.Gold
                               FocusedBorderThickness: =2
@@ -732,8 +728,6 @@ Screens:
                         - lblHmTileN3:
                             Control: Label
                             Properties:
-                              AccessibleLabel: |-
-                                =If(IsManagerOrHR, "Overdue tasks", "My open tasks") & ": " & If(IsManagerOrHR, Sum(colHmRows, OverdueN), CountRows(colHmMine))
                               Color: =UAB.TextPrimary
                               FocusedBorderColor: =UAB.Gold
                               FocusedBorderThickness: =2
@@ -798,8 +792,6 @@ Screens:
                         - lblHmTileN4:
                             Control: Label
                             Properties:
-                              AccessibleLabel: |-
-                                =If(IsManagerOrHR, "Starting in 30 days", "Starting in 30 days") & ": " & If(IsManagerOrHR, CountRows(Filter(colHmRows, !IsBlank(StartDate) && StartDate >= Today() && StartDate <= Today() + 30)), 0)
                               Color: =UAB.TextPrimary
                               FocusedBorderColor: =UAB.Gold
                               FocusedBorderThickness: =2
@@ -834,7 +826,7 @@ Screens:
                               PaddingTop: =0
                               Size: =UABSize.Secondary
                               TabIndex: =0
-                              Text: =If(IsManagerOrHR, "Starting in 30 days", "Starting in 30 days")
+                              Text: =If(IsManagerOrHR, "Starting within 30 days", "Starting within 30 days")
                               Wrap: =false
             - conHmStages:
                 Control: GroupContainer
@@ -1048,7 +1040,6 @@ Screens:
                               Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
                               FontWeight: =""
-                              Height: =32
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Set(varHmFilter, "All"); Set(varHmPage, 1)
@@ -1202,8 +1193,6 @@ Screens:
                               AutoHeight: =true
                               Color: =UAB.Gray700
                               Height: =18
-                              LayoutMinHeight: =0
-                              LayoutMinWidth: =0
                               Size: =UABSize.Secondary
                               Text: =""
                   - galHmList:
@@ -1233,8 +1222,6 @@ Screens:
                               Height: =Parent.TemplateHeight
                               LayoutAlignItems: =LayoutAlignItems.Stretch
                               LayoutDirection: =LayoutDirection.Vertical
-                              LayoutMinHeight: =0
-                              LayoutMinWidth: =0
                               Width: =Parent.TemplateWidth
                             Children:
                               - conHmRowContent:
@@ -1259,7 +1246,6 @@ Screens:
                                         Properties:
                                           DropShadow: =DropShadow.None
                                           Fill: =UAB.White
-                                          FillPortions: =1
                                           LayoutAlignItems: =LayoutAlignItems.Stretch
                                           LayoutDirection: =LayoutDirection.Vertical
                                           LayoutGap: =If(scr_home.Size = ScreenSize.Small, 4, 2)
@@ -1270,7 +1256,6 @@ Screens:
                                           - lblHmRowName:
                                               Control: Label
                                               Properties:
-                                                AccessibleLabel: ="Open " & ThisItem.Title
                                                 Color: =UAB.TextPrimary
                                                 FillPortions: =1
                                                 FocusedBorderColor: =UAB.Gold
@@ -1607,7 +1592,6 @@ Screens:
                               Appearance: =ButtonAppearance.Secondary
                               BasePaletteColor: =UAB.Green
                               FontWeight: =""
-                              Height: =32
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               OnSelect: =Set(varMyTasksFilter, "All"); Navigate(scr_mytasks)
@@ -1647,8 +1631,6 @@ Screens:
                               Height: =Parent.TemplateHeight
                               LayoutAlignItems: =LayoutAlignItems.Stretch
                               LayoutDirection: =LayoutDirection.Vertical
-                              LayoutMinHeight: =0
-                              LayoutMinWidth: =0
                               Width: =Parent.TemplateWidth
                             Children:
                               - conHmTaskContent:
@@ -1673,7 +1655,6 @@ Screens:
                                         Properties:
                                           DropShadow: =DropShadow.None
                                           Fill: =UAB.White
-                                          FillPortions: =1
                                           LayoutAlignItems: =LayoutAlignItems.Stretch
                                           LayoutDirection: =LayoutDirection.Vertical
                                           LayoutGap: =If(scr_home.Size = ScreenSize.Small, 4, 2)
@@ -1684,8 +1665,6 @@ Screens:
                                           - lblHmTaskTitle:
                                               Control: Label
                                               Properties:
-                                                AccessibleLabel: |-
-                                                  ="Open My Tasks: " & ThisItem.Title
                                                 Color: =UAB.TextPrimary
                                                 FillPortions: =1
                                                 FocusedBorderColor: =UAB.Gold

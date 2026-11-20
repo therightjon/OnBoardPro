@@ -76,6 +76,22 @@ Candidates, verify pass: every list reads back empty). Items are in the **site r
 ~2027-02-18**. Templates, the task library, reference data, AppPermissions and the flows are
 untouched, and no flow fired on the deletes. **Item IDs are not reused** — the next candidate is #9.
 
+**Home screen — 2026-11-20** ([spec](docs/superpowers/specs/2026-11-20-home-screen-design.md)).
+`scr_home` (generator [canvas/gen_home.py](canvas/gen_home.py)) is the new landing screen:
+`StartScreen` opens it unless a link carries `candidateId` (F3's email link still opens the
+cockpit). **HR and managers** get four live tiles (Active, Blocked, Overdue tasks, Starting
+within 30 days), a stage strip (5 fixed chips that wrap on a phone — stages are fixed by D4) and
+a candidate list the tiles and chips filter; a row opens the cockpit. Managers see only
+candidates where they are Manager, PrimaryOwner or a Watcher. **Viewers** get three task tiles
+that open My Tasks on the matching filter, and their next five tasks. Every number is live:
+Tasks is filtered on the SharePoint side with open statuses spelled out (`<>` never
+delegates), and the compiler raised no delegation warning on either Tasks filter. Home is the
+first rail item on all nine screens; `rail_stamp.py` now derives rail items generically and has
+a `splice-home` step. Delegation warnings 173 → 226 (all on Home, all the role named
+formulas plus the 5-row Stages filter). Complexity: Home ~107 controls; Candidates 433,
+Templates 393 (+4 each for the rail item). **Classic `Label` has no `AccessibleLabel` property**
+— the compiler rejects it; the label's Text is its accessible name.
+
 ## What's left (as of 2026-11-11)
 
 1. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.

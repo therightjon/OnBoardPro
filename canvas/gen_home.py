@@ -87,7 +87,7 @@ TILES = [
      "Due this week", "Week"),
     ("Overdue", "Sum(colHmRows, OverdueN)", "Overdue tasks",
      "CountRows(colHmMine)", "My open tasks", "All"),
-    ("Soon", f"CountRows(Filter(colHmRows, {SOON}))", "Starting in 30 days",
+    ("Soon", f"CountRows(Filter(colHmRows, {SOON}))", "Starting within 30 days",
      None, None, None),
 ]
 
@@ -198,8 +198,7 @@ def tile(i, key, pv, pc, vv, vc, vf):
         props["Width"] = f"=If({PIPE}, {width[1:]}, 0)"
     return (f"conHmTile{i}", con(props, [
         label(f"lblHmTileN{i}", value, "=UAB.TextPrimary", "=28", 48, onselect=act,
-              extra={"FontWeight": "=FontWeight.Bold",
-                     "AccessibleLabel": f'={caption[1:]} & ": " & {value[1:]}'}),
+              extra={"FontWeight": "=FontWeight.Bold"}),
         label(f"lblHmTileC{i}", caption, "=UAB.Gray700", "=UABSize.Secondary", 22, onselect=act),
     ]))
 
@@ -296,8 +295,7 @@ def cand_card():
             "LayoutDirection": "=LayoutDirection.Vertical", "LayoutGap": f"=If({SM}, 4, 2)",
             "LayoutJustifyContent": "=LayoutJustifyContent.Center"}, [
             label("lblHmRowName", "=ThisItem.Title", "=UAB.TextPrimary", "=UABSize.Body", 25,
-                  onselect=OPEN_CAND, extra={"FillPortions": "=1",
-                                             "AccessibleLabel": '="Open " & ThisItem.Title'}),
+                  onselect=OPEN_CAND, extra={"FillPortions": "=1"}),
             label("lblHmRowSub",
                   (f'=Coalesce(ThisItem.CurrentStage.Value, "No stage")\n'
                    f'    & If({SM} && ThisItem.OverdueN > 0, "  ·  " & ThisItem.OverdueN & " overdue", "")\n'
@@ -417,8 +415,7 @@ def task_card():
             "LayoutDirection": "=LayoutDirection.Vertical", "LayoutGap": f"=If({SM}, 4, 2)",
             "LayoutJustifyContent": "=LayoutJustifyContent.Center"}, [
             label("lblHmTaskTitle", "=ThisItem.Title", "=UAB.TextPrimary", "=UABSize.Body", 25,
-                  onselect=to_mytasks, extra={"FillPortions": "=1",
-                                              "AccessibleLabel": '="Open My Tasks: " & ThisItem.Title'}),
+                  onselect=to_mytasks, extra={"FillPortions": "=1"}),
             label("lblHmTaskSub", '=Coalesce(ThisItem.CandName, "")', "=UAB.Gray500",
                   "=UABSize.Secondary", 22, onselect=to_mytasks, extra={"FillPortions": "=1"}),
         ])),
