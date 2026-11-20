@@ -2,6 +2,7 @@ Screens:
   scr_candidates:
     Properties:
       Fill: =UAB.OffWhite
+      OnVisible: =Refresh(Candidates); Refresh(Tasks); Refresh(ChangeLog)
     Children:
       - NavRail_Candidates:
           Control: GroupContainer
@@ -655,6 +656,7 @@ Screens:
                               LayoutMinWidth: =0
                               OnSelect: |-
                                 =Set(varSelCandId, ThisItem.ID);
+                                Refresh(Candidates); Refresh(Tasks); Refresh(ChangeLog);  // pick up flow writes (stage moves, timeline)
                                 Set(varDtClearLOI, false);
                                 Set(varDtClearLOOIss, false);
                                 Set(varDtClearLOOAcc, false);
@@ -716,6 +718,7 @@ Screens:
                                                       LayoutMinWidth: =0
                                                       OnSelect: |-
                                                         =Set(varSelCandId, ThisItem.ID);
+                                                        Refresh(Candidates); Refresh(Tasks); Refresh(ChangeLog);  // pick up flow writes (stage moves, timeline)
                                                         Set(varDtClearLOI, false);
                                                         Set(varDtClearLOOIss, false);
                                                         Set(varDtClearLOOAcc, false);
@@ -740,6 +743,7 @@ Screens:
                                                       LayoutMinWidth: =0
                                                       OnSelect: |-
                                                         =Set(varSelCandId, ThisItem.ID);
+                                                        Refresh(Candidates); Refresh(Tasks); Refresh(ChangeLog);  // pick up flow writes (stage moves, timeline)
                                                         Set(varDtClearLOI, false);
                                                         Set(varDtClearLOOIss, false);
                                                         Set(varDtClearLOOAcc, false);
@@ -764,6 +768,7 @@ Screens:
                                                 LayoutMinWidth: =0
                                                 OnSelect: |-
                                                   =Set(varSelCandId, ThisItem.ID);
+                                                  Refresh(Candidates); Refresh(Tasks); Refresh(ChangeLog);  // pick up flow writes (stage moves, timeline)
                                                   Set(varDtClearLOI, false);
                                                   Set(varDtClearLOOIss, false);
                                                   Set(varDtClearLOOAcc, false);
