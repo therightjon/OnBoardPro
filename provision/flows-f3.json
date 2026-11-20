@@ -1033,29 +1033,17 @@
     "actions": {}
    },
    "expression": {
-    "and": [
+    "or": [
      {
-      "not": {
-       "equals": [
-        "@outputs('Cur')?['status']",
-        "@outputs('Last')?['status']"
-       ]
-      }
+      "equals": [
+       "@outputs('Cur')?['status']",
+       "Done"
+      ]
      },
      {
-      "or": [
-       {
-        "equals": [
-         "@outputs('Cur')?['status']",
-         "Done"
-        ]
-       },
-       {
-        "equals": [
-         "@outputs('Cur')?['status']",
-         "Canceled"
-        ]
-       }
+      "equals": [
+       "@outputs('Cur')?['status']",
+       "Canceled"
       ]
      }
     ]

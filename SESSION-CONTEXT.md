@@ -164,6 +164,13 @@ Active + `TemplateApplied` set → MERGE `CStatus: Completed, StatusChanged: tod
 `Get_Cand` now also selects `CStatus,TemplateApplied`. The 1:01 test of Daisy's IT task ran
 on the pre-baseline F3 and logged a phantom due row (207, recycled).
 
+**`If_Closed` runs whenever the task *is* closed, not only on the transition** (same day).
+F3's trigger polls once a minute and sees only an item's latest state, so a reopen + re-Done inside
+one minute arrives as Done → Done; the old `Cur ≠ Last` gate skipped advancement and completion,
+and Daisy stayed Active. Both checks are idempotent (advance only if the target stage differs,
+Blocked written only on change, completion only from Active), so the gate is now just "Cur status
+is Done or Canceled". Cost: two extra GETs when a closed task is edited.
+
 ## What's left (as of 2026-11-11)
 
 1. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.
