@@ -131,6 +131,32 @@ second apart from the same moment so the timeline sorts them in order. Inactive 
 skipped unless they're the target. Still one stage email per jump. Only `flows-f3.json` holds
 the change; `gen_f3.py` was already behind the live flow and stays a historical generator.
 
+**Reads that outgrow 500 rows — 2026-11-20.** My Tasks and the cockpit's tasks, timeline and
+comments used `Filter(FirstN(<list>, 500), …)`: the first 500 rows *by ID across all
+candidates*, so past 500 rows (about a dozen candidates on the 44-task template; ChangeLog
+sooner) newer rows would silently vanish. Now they filter in SharePoint first:
+- Cockpit: `With({ct: LookUp(Candidates, ID = varSelCandId).Title}, Filter(FirstN(Filter(X,
+  Candidate.Value = ct), 500), Candidate.Id = varSelCandId))`. **A lookup's `.Id` does not
+  delegate to SharePoint** — the checker flags it with or without `Coalesce` (same on the
+  Templates screen's `Template.Id` filters) — but its text `.Value` does; the local `.Id` pass
+  keeps namesakes apart.
+- My Tasks: `Assignee.Email = me || AssigneeRole.Value = varMtHrRole` and the three open
+  statuses as `=` joined with Or, then unassigned-or-mine locally. `IsHR` moved into
+  `varMtHrRole` (set in `OnVisible`): a named formula inside a delegated predicate draws
+  "named formula is not delegable".
+- Candidates reads keep `FirstN(Candidates, 500)` (picker, Home, ref-data in-use counts) — that
+  only bites after 500 candidates ever. **Comments' Candidate column isn't indexed** — needed
+  only past 5,000 rows.
+- The Candidates screen refreshes Candidates/Tasks/ChangeLog on open and on every candidate
+  pick; My Tasks refreshes Tasks on open.
+
+**No phantom assignee/due rows on a checklist task's first change — 2026-11-20.** F3 diffs
+against the last *logged* value, and F1 logs no starting values, so the first touch of any
+F1-created task logged "Assigned to …" and "Due date set …" (and could email the assignee).
+F3 now reads the item's version 1.0 (`items(id)/versions(512)`, `Get_V1`); when no row for the
+field exists and version 1.0 was written by a flow (`UpdatedVia: Flow`), its Assignee
+`LookupValue` and DueDate are the baseline. App-created tasks keep logging their creation.
+
 ## What's left (as of 2026-11-11)
 
 1. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.
