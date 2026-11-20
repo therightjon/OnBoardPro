@@ -1417,7 +1417,8 @@ Screens:
                                                                    Surname: p.surname, GivenName: p.givenName}))),
                                                     Blank()))},
                                             AddColumns(
-                                                Ungroup(Table({rows: found}, {rows: exact}), rows),
+                                                Filter(Ungroup(Table({rows: found}, {rows: exact}), rows),
+                                                    !IsBlank(Coalesce(Mail, UserPrincipalName))),
                                                 PickerLabel,
                                                 Surname & ", " & GivenName & "  ·  " & Coalesce(Mail, UserPrincipalName)
                                                     & If(!IsBlank(Mail) && Lower(UserPrincipalName) <> Lower(Mail),
