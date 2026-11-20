@@ -598,7 +598,7 @@
           "Accept": "application/json;odata=nometadata",
           "Content-Type": "application/json;odata=nometadata"
          },
-         "parameters/body": "@string(json(concat('{\"ServerRelativeUrl\":\"/sites/obgyn/OBGYN-Onboarding/Onboarding Documents/', replace(body('Get_Candidate')?['Title'],'/','-'), '\"}')))"
+         "parameters/body": "@string(json(concat('{\"ServerRelativeUrl\":\"/sites/obgyn/OBGYN-Onboarding/Onboarding Documents/', replace(replace(replace(coalesce(body('Get_Candidate')?['Title'],''),'\\','\\\\'),'\"','\\\"'),'/','-'), '\"}')))"
         },
         "authentication": "@parameters('$authentication')"
        }
@@ -624,7 +624,7 @@
           "Accept": "application/json;odata=nometadata",
           "Content-Type": "application/json;odata=nometadata"
          },
-         "parameters/body": "@string(json(concat('{\"ServerRelativeUrl\":\"/sites/obgyn/OBGYN-Onboarding/Onboarding Documents Restricted/', replace(body('Get_Candidate')?['Title'],'/','-'), '\"}')))"
+         "parameters/body": "@string(json(concat('{\"ServerRelativeUrl\":\"/sites/obgyn/OBGYN-Onboarding/Onboarding Documents Restricted/', replace(replace(replace(coalesce(body('Get_Candidate')?['Title'],''),'\\','\\\\'),'\"','\\\"'),'/','-'), '\"}')))"
         },
         "authentication": "@parameters('$authentication')"
        }

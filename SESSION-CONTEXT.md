@@ -193,10 +193,30 @@ while `TemplateApplied` is empty: #9 and #11 have no open required prerequisites
 jumped to Onboarding on their next task close. `flows-f6.json` had been behind live (a `Touch`
 placeholder fix, `0000-00-00T00` instead of `x`); now it records live.
 
+**User text escaped in every flow — 2026-11-20** (security review). `provision/harden_flows.py`
+(`check` / `apply f3 f4 …`, re-runnable): titles, names, comments and cancel reasons are
+HTML-encoded (`& < >`) where they go into email bodies and F6's digest rows (F3–F7), and
+JSON-escaped (backslash and quote) where they go into SharePoint request bodies (F1 folders, F2
+and F3 logs, the daily check). Before, F3 stripped quotes but not backslashes: a task title ending
+in `\` made the log write invalid JSON, failing the run before its stage and CompletedBy steps.
+F3's `Last.status` is limited to the five real choices. Escapes proven in the utility flow (a
+backslash-and-quotes sample round-trips through `json()`); the hardened daily check's dry run
+wrote 8 bodies, all valid JSON. Order when F3 changes: harden F3 → `gen_f6_check.py apply` →
+harden F6. **Utility-flow incident:** saving it with no SharePoint action (the escape test) dropped
+its connection reference, and every later patch was refused while `flowdriver.py` printed an empty
+action list and carried on. Re-bound `288fd460…` via the API (its permission entry survived) and
+made `flowdriver.patch` exit on a refused save and re-bind that connection when none is installed.
+A run fired right after a connection change ran the old definition; wait ~20 s.
+
 **Open: direct list edits on flow-written tasks bypass F3 and the check.** F3's trigger skips
 `UpdatedVia = Flow`, and a SharePoint edit doesn't change `UpdatedVia`, so an out-of-app edit to a
 task a flow wrote last (every fresh checklist task) is never checked or logged. Flows write as my
-account, so Modified By can't tell them apart either. Options: a `FlowStamp` column every flow
+account, so Modified By can't tell them apart either. **The security review adds:** anyone with Edit can also set `UpdatedVia = Approval` in the list and
+have F3 credit a completion to whoever they put in `CompletedBy`. Both rest on trusting
+`UpdatedVia`. Flows write as my account (Editor id 6), so "a flow wrote this" can be tested as
+`UpdatedVia` is Flow/Approval **and** Editor is the flow account — needs no new column, closes both
+for everyone but me, and becomes exact once the flows run under a service account. Older options: a
+`FlowStamp` column every flow
 write sets, with the trigger treating `Modified` well after `FlowStamp` as a person's edit; or run
 the flows under a dedicated service account and key on Editor; or remove direct Edit on Tasks
 (the app writes through its own connection, so that needs the app's writes moved behind a flow).

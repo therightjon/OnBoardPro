@@ -176,7 +176,7 @@
    },
    "type": "Compose",
    "inputs": {
-    "status": "@coalesce(first(body('L_St'))?['ToValue'], 'To Do')",
+    "status": "@if(contains(createArray('To Do','In Progress','Blocked','Done','Canceled'), coalesce(first(body('L_St'))?['ToValue'], 'To Do')), coalesce(first(body('L_St'))?['ToValue'], 'To Do'), 'To Do')",
     "assignee": "@if(empty(body('L_As')), if(equals(body('Get_V1')?['UpdatedVia'], 'Flow'), coalesce(body('Get_V1')?['Assignee']?['LookupValue'], ''), ''), coalesce(first(body('L_As'))?['ToValue'], ''))",
     "due": "@if(empty(body('L_Du')), if(equals(body('Get_V1')?['UpdatedVia'], 'Flow'), take(coalesce(body('Get_V1')?['DueDate'], ''), 10), ''), coalesce(first(body('L_Du'))?['ToValue'], ''))"
    }
@@ -243,7 +243,7 @@
         "Accept": "application/json;odata=nometadata",
         "Content-Type": "application/json;odata=nometadata"
        },
-       "parameters/body": "@concat('{\"CandidateId\":', string(body('Get_Task')?['CandidateId']), ',\"ChangedById\":', string(body('Get_Task')?['EditorId']), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(body('Get_Task')?['Id']), ',\"TaskTitle\":\"', replace(coalesce(body('Get_Task')?['Title'],''),'\"',''), '\",\"FromValue\":\"', 'Canceled (reverted: no reason)', '\",\"ToValue\":\"', outputs('Last')?['status'], '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":false}')"
+       "parameters/body": "@concat('{\"CandidateId\":', string(body('Get_Task')?['CandidateId']), ',\"ChangedById\":', string(body('Get_Task')?['EditorId']), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(body('Get_Task')?['Id']), ',\"TaskTitle\":\"', replace(replace(coalesce(body('Get_Task')?['Title'],''),'\\','\\\\'),'\"','\\\"'), '\",\"FromValue\":\"', 'Canceled (reverted: no reason)', '\",\"ToValue\":\"', outputs('Last')?['status'], '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":false}')"
       },
       "authentication": "@parameters('$authentication')"
      }
@@ -264,7 +264,7 @@
       "parameters": {
        "emailMessage/To": "@outputs('Cur')?['editorEmail']",
        "emailMessage/Subject": "@concat('[OnBoardPro] Cancellation reverted: ', body('Get_Task')?['Title'])",
-       "emailMessage/Body": "@concat('<p>Canceling a required task needs a reason. The task <b>', body('Get_Task')?['Title'], '</b> for ', body('Get_Cand')?['Title'], ' was returned to its previous status. Add a cancel reason and try again.</p>')",
+       "emailMessage/Body": "@concat('<p>Canceling a required task needs a reason. The task <b>', replace(replace(replace(coalesce(body('Get_Task')?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), '</b> for ', replace(replace(replace(coalesce(body('Get_Cand')?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), ' was returned to its previous status. Add a cancel reason and try again.</p>')",
        "emailMessage/Importance": "Normal"
       },
       "authentication": "@parameters('$authentication')"
@@ -333,7 +333,7 @@
         "Accept": "application/json;odata=nometadata",
         "Content-Type": "application/json;odata=nometadata"
        },
-       "parameters/body": "@concat('{\"CandidateId\":', string(body('Get_Task')?['CandidateId']), ',\"ChangedById\":', string(if(and(equals(coalesce(triggerBody()?['UpdatedVia'],'App'),'Approval'), not(empty(body('Get_Task')?['CompletedById']))), body('Get_Task')?['CompletedById'], body('Get_Task')?['EditorId'])), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(body('Get_Task')?['Id']), ',\"TaskTitle\":\"', replace(coalesce(body('Get_Task')?['Title'],''),'\"',''), '\",\"FromValue\":\"', outputs('Last')?['status'], '\",\"ToValue\":\"', outputs('Cur')?['status'], '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":false}')"
+       "parameters/body": "@concat('{\"CandidateId\":', string(body('Get_Task')?['CandidateId']), ',\"ChangedById\":', string(if(and(equals(coalesce(triggerBody()?['UpdatedVia'],'App'),'Approval'), not(empty(body('Get_Task')?['CompletedById']))), body('Get_Task')?['CompletedById'], body('Get_Task')?['EditorId'])), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(body('Get_Task')?['Id']), ',\"TaskTitle\":\"', replace(replace(coalesce(body('Get_Task')?['Title'],''),'\\','\\\\'),'\"','\\\"'), '\",\"FromValue\":\"', outputs('Last')?['status'], '\",\"ToValue\":\"', outputs('Cur')?['status'], '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":false}')"
       },
       "authentication": "@parameters('$authentication')"
      }
@@ -380,7 +380,7 @@
         "Accept": "application/json;odata=nometadata",
         "Content-Type": "application/json;odata=nometadata"
        },
-       "parameters/body": "@concat('{\"CandidateId\":', string(body('Get_Task')?['CandidateId']), ',\"ChangedById\":', string(body('Get_Task')?['EditorId']), ',\"EventType\":\"TaskAssignee\",\"TaskId\":', string(body('Get_Task')?['Id']), ',\"TaskTitle\":\"', replace(coalesce(body('Get_Task')?['Title'],''),'\"',''), '\",\"FromValue\":\"', outputs('Last')?['assignee'], '\",\"ToValue\":\"', outputs('Cur')?['assignee'], '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":false}')"
+       "parameters/body": "@concat('{\"CandidateId\":', string(body('Get_Task')?['CandidateId']), ',\"ChangedById\":', string(body('Get_Task')?['EditorId']), ',\"EventType\":\"TaskAssignee\",\"TaskId\":', string(body('Get_Task')?['Id']), ',\"TaskTitle\":\"', replace(replace(coalesce(body('Get_Task')?['Title'],''),'\\','\\\\'),'\"','\\\"'), '\",\"FromValue\":\"', outputs('Last')?['assignee'], '\",\"ToValue\":\"', outputs('Cur')?['assignee'], '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":false}')"
       },
       "authentication": "@parameters('$authentication')"
      }
@@ -399,7 +399,7 @@
         "parameters": {
          "emailMessage/To": "@outputs('Cur')?['assigneeEmail']",
          "emailMessage/Subject": "@concat('[OnBoardPro] Task assigned: ', body('Get_Task')?['Title'])",
-         "emailMessage/Body": "@concat('<p>You have been assigned <b>', body('Get_Task')?['Title'], '</b> for candidate <b>', body('Get_Cand')?['Title'], '</b>', if(equals(outputs('Cur')?['due'],''), '', concat(', due ', outputs('Cur')?['due'])), '.</p><p><a href=\"https://apps.powerapps.com/play/e/default-d8999fe4-76af-40b3-b435-1d8977abc08c/a/75df6b41-2049-4423-890c-e7e3e6d506f9?tenantId=d8999fe4-76af-40b3-b435-1d8977abc08c&candidateId=', string(body('Get_Cand')?['Id']), '\">Open in OnBoardPro</a></p>')",
+         "emailMessage/Body": "@concat('<p>You have been assigned <b>', replace(replace(replace(coalesce(body('Get_Task')?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), '</b> for candidate <b>', replace(replace(replace(coalesce(body('Get_Cand')?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), '</b>', if(equals(outputs('Cur')?['due'],''), '', concat(', due ', outputs('Cur')?['due'])), '.</p><p><a href=\"https://apps.powerapps.com/play/e/default-d8999fe4-76af-40b3-b435-1d8977abc08c/a/75df6b41-2049-4423-890c-e7e3e6d506f9?tenantId=d8999fe4-76af-40b3-b435-1d8977abc08c&candidateId=', string(body('Get_Cand')?['Id']), '\">Open in OnBoardPro</a></p>')",
          "emailMessage/Importance": "Normal"
         },
         "authentication": "@parameters('$authentication')"
@@ -478,7 +478,7 @@
         "Accept": "application/json;odata=nometadata",
         "Content-Type": "application/json;odata=nometadata"
        },
-       "parameters/body": "@concat('{\"CandidateId\":', string(body('Get_Task')?['CandidateId']), ',\"ChangedById\":', string(body('Get_Task')?['EditorId']), ',\"EventType\":\"TaskDue\",\"TaskId\":', string(body('Get_Task')?['Id']), ',\"TaskTitle\":\"', replace(coalesce(body('Get_Task')?['Title'],''),'\"',''), '\",\"FromValue\":\"', outputs('Last')?['due'], '\",\"ToValue\":\"', outputs('Cur')?['due'], '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":false}')"
+       "parameters/body": "@concat('{\"CandidateId\":', string(body('Get_Task')?['CandidateId']), ',\"ChangedById\":', string(body('Get_Task')?['EditorId']), ',\"EventType\":\"TaskDue\",\"TaskId\":', string(body('Get_Task')?['Id']), ',\"TaskTitle\":\"', replace(replace(coalesce(body('Get_Task')?['Title'],''),'\\','\\\\'),'\"','\\\"'), '\",\"FromValue\":\"', outputs('Last')?['due'], '\",\"ToValue\":\"', outputs('Cur')?['due'], '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":false}')"
       },
       "authentication": "@parameters('$authentication')"
      }
@@ -694,7 +694,7 @@
         "parameters": {
          "emailMessage/To": "@join(union(body('W_Mails'), createArray(coalesce(body('Get_Cand')?['Manager']?['EMail'],''), coalesce(body('Get_Cand')?['PrimaryOwner']?['EMail'],''))), ';')",
          "emailMessage/Subject": "@concat('[OnBoardPro] ', body('Get_Cand')?['Title'], ' moved to ', first(body('Stage_New'))?['Title'])",
-         "emailMessage/Body": "@concat('<p><b>', body('Get_Cand')?['Title'], '</b> advanced from <b>', coalesce(first(body('Stage_Cur'))?['Title'],'\u2014'), '</b> to <b>', first(body('Stage_New'))?['Title'], '</b> (all required tasks in the prior stage are complete).</p>')",
+         "emailMessage/Body": "@concat('<p><b>', replace(replace(replace(coalesce(body('Get_Cand')?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), '</b> advanced from <b>', coalesce(replace(replace(replace(coalesce(first(body('Stage_Cur'))?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'),'\u2014'), '</b> to <b>', replace(replace(replace(coalesce(first(body('Stage_New'))?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), '</b> (all required tasks in the prior stage are complete).</p>')",
          "emailMessage/Importance": "Normal"
         },
         "authentication": "@parameters('$authentication')"
@@ -753,7 +753,7 @@
             "Accept": "application/json;odata=nometadata",
             "Content-Type": "application/json;odata=nometadata"
            },
-           "parameters/body": "@concat('{\"CandidateId\":', string(body('Get_Cand')?['Id']), ',\"EventType\":\"Stage\",\"FromValue\":\"', if(empty(body('Prev')), coalesce(first(body('Stage_Cur'))?['Title'],''), last(body('Prev'))?['Title']), '\",\"ToValue\":\"', coalesce(items('Each_Pass')?['Title'],''), '\",\"ChangedDate\":\"', formatDateTime(addSeconds(outputs('Adv_At'), int(items('Each_Pass')?['OrderIndex'])), 'yyyy-MM-ddTHH:mm:ssZ'), '\",\"Automated\":true}')"
+           "parameters/body": "@concat('{\"CandidateId\":', string(body('Get_Cand')?['Id']), ',\"EventType\":\"Stage\",\"FromValue\":\"', if(empty(body('Prev')), coalesce(replace(replace(coalesce(first(body('Stage_Cur'))?['Title'],''),'\\','\\\\'),'\"','\\\"'),''), last(replace(replace(coalesce(body('Prev'))?['Title'],''),'\\','\\\\'),'\"','\\\"')), '\",\"ToValue\":\"', coalesce(replace(replace(coalesce(items('Each_Pass')?['Title'],''),'\\','\\\\'),'\"','\\\"'),''), '\",\"ChangedDate\":\"', formatDateTime(addSeconds(outputs('Adv_At'), int(items('Each_Pass')?['OrderIndex'])), 'yyyy-MM-ddTHH:mm:ssZ'), '\",\"Automated\":true}')"
           },
           "authentication": "@parameters('$authentication')"
          }
@@ -846,7 +846,7 @@
           "parameters": {
            "emailMessage/To": "@coalesce(body('Get_Cand')?['PrimaryOwner']?['EMail'], body('Get_Cand')?['Manager']?['EMail'], '')",
            "emailMessage/Subject": "@concat('[OnBoardPro] Blocked: ', body('Get_Cand')?['Title'])",
-           "emailMessage/Body": "@concat('<p><b>', body('Get_Cand')?['Title'], '</b> has ', string(length(body('Blk'))), ' open task(s) in earlier stages. Review the candidate.</p>')",
+           "emailMessage/Body": "@concat('<p><b>', replace(replace(replace(coalesce(body('Get_Cand')?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), '</b> has ', string(length(body('Blk'))), ' open task(s) in earlier stages. Review the candidate.</p>')",
            "emailMessage/Importance": "Normal"
           },
           "authentication": "@parameters('$authentication')"
@@ -988,7 +988,7 @@
         "parameters": {
          "emailMessage/To": "@join(union(body('W_Mails2'), createArray(coalesce(body('Get_Cand')?['Manager']?['EMail'],''), coalesce(body('Get_Cand')?['PrimaryOwner']?['EMail'],''))), ';')",
          "emailMessage/Subject": "@concat('[OnBoardPro] ', body('Get_Cand')?['Title'], ' is complete')",
-         "emailMessage/Body": "@concat('<p><b>', body('Get_Cand')?['Title'], '</b> is complete: every required onboarding task is done or canceled. The candidate is now marked Completed.</p>')",
+         "emailMessage/Body": "@concat('<p><b>', replace(replace(replace(coalesce(body('Get_Cand')?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), '</b> is complete: every required onboarding task is done or canceled. The candidate is now marked Completed.</p>')",
          "emailMessage/Importance": "Normal"
         },
         "authentication": "@parameters('$authentication')"

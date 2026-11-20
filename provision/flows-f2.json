@@ -13,12 +13,16 @@
  },
  "triggers": {
   "When_Candidate_Changes": {
-   "type": "OpenApiConnection",
    "recurrence": {
     "frequency": "Minute",
     "interval": 1
    },
+   "evaluatedRecurrence": {
+    "frequency": "Minute",
+    "interval": 1
+   },
    "splitOn": "@triggerOutputs()?['body/value']",
+   "type": "OpenApiConnection",
    "inputs": {
     "host": {
      "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
@@ -112,18 +116,7 @@
    }
   },
   "Each_Changed": {
-   "runAfter": {
-    "Filter_Changed": [
-     "Succeeded"
-    ]
-   },
-   "type": "Foreach",
    "foreach": "@body('Filter_Changed')",
-   "runtimeConfiguration": {
-    "concurrency": {
-     "repetitions": 8
-    }
-   },
    "actions": {
     "Upd_Task": {
      "runAfter": {},
@@ -170,10 +163,21 @@
         "Accept": "application/json;odata=nometadata",
         "Content-Type": "application/json;odata=nometadata"
        },
-       "parameters/body": "@concat('{\"CandidateId\":', string(outputs('CandId')), ',\"EventType\":\"TaskDue\",\"TaskId\":', string(item()?['Id']), ',\"TaskTitle\":\"', item()?['Title'], '\",\"FromValue\":\"', if(item()?['OldPending'],'pending',item()?['OldDue']), '\",\"ToValue\":\"', if(item()?['NewPending'],'pending',item()?['NewDue']), '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":true}')"
+       "parameters/body": "@concat('{\"CandidateId\":', string(outputs('CandId')), ',\"EventType\":\"TaskDue\",\"TaskId\":', string(item()?['Id']), ',\"TaskTitle\":\"', replace(replace(coalesce(item()?['Title'],''),'\\','\\\\'),'\"','\\\"'), '\",\"FromValue\":\"', if(item()?['OldPending'],'pending',item()?['OldDue']), '\",\"ToValue\":\"', if(item()?['NewPending'],'pending',item()?['NewDue']), '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":true}')"
       },
       "authentication": "@parameters('$authentication')"
      }
+    }
+   },
+   "runAfter": {
+    "Filter_Changed": [
+     "Succeeded"
+    ]
+   },
+   "type": "Foreach",
+   "runtimeConfiguration": {
+    "concurrency": {
+     "repetitions": 8
     }
    }
   },
@@ -190,34 +194,8 @@
    }
   },
   "If_LOO_Issued": {
-   "runAfter": {
-    "Filter_LOO": [
-     "Succeeded"
-    ]
-   },
-   "type": "If",
-   "expression": {
-    "and": [
-     {
-      "greater": [
-       "@length(body('Filter_LOO'))",
-       0
-      ]
-     },
-     {
-      "not": {
-       "equals": [
-        "@outputs('Anchors')?['LOO Issued']",
-        ""
-       ]
-      }
-     }
-    ]
-   },
    "actions": {
     "Each_LOO": {
-     "runAfter": {},
-     "type": "Foreach",
      "foreach": "@body('Filter_LOO')",
      "actions": {
       "Complete_LOO": {
@@ -265,17 +243,43 @@
           "Accept": "application/json;odata=nometadata",
           "Content-Type": "application/json;odata=nometadata"
          },
-         "parameters/body": "@concat('{\"CandidateId\":', string(outputs('CandId')), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(item()?['Id']), ',\"TaskTitle\":\"', item()?['Title'], '\",\"FromValue\":\"', item()?['TStatus'], '\",\"ToValue\":\"Done\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":true}')"
+         "parameters/body": "@concat('{\"CandidateId\":', string(outputs('CandId')), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(item()?['Id']), ',\"TaskTitle\":\"', replace(replace(coalesce(item()?['Title'],''),'\\','\\\\'),'\"','\\\"'), '\",\"FromValue\":\"', item()?['TStatus'], '\",\"ToValue\":\"Done\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":true}')"
         },
         "authentication": "@parameters('$authentication')"
        }
       }
-     }
+     },
+     "runAfter": {},
+     "type": "Foreach"
     }
+   },
+   "runAfter": {
+    "Filter_LOO": [
+     "Succeeded"
+    ]
    },
    "else": {
     "actions": {}
-   }
+   },
+   "expression": {
+    "and": [
+     {
+      "greater": [
+       "@length(body('Filter_LOO'))",
+       0
+      ]
+     },
+     {
+      "not": {
+       "equals": [
+        "@outputs('Anchors')?['LOO Issued']",
+        ""
+       ]
+      }
+     }
+    ]
+   },
+   "type": "If"
   },
   "Fallback_Check": {
    "runAfter": {

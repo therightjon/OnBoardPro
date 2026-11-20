@@ -195,6 +195,8 @@ if __name__ == "__main__":
         live = req("GET", f"{BASE}/flows/{fid}?{API}")["properties"]
         d = copy.deepcopy(live["definition"])
         d["actions"] = {k: v for k, v in d["actions"].items() if k != "Daily_Check"}
+        if list(d["actions"]["Today"]["runAfter"]) == ["Daily_Check"]:   # rerun: detach the old check
+            d["actions"]["Today"]["runAfter"] = {}
         d["actions"].update(scope)
         first = [k for k, v in d["actions"].items() if k != "Daily_Check" and not v.get("runAfter")]
         assert first == ["Today"], first

@@ -61,11 +61,18 @@ def patch(actions_path):
     defn = p["definition"]
     defn["actions"] = actions
     icr = p.get("installedConnectionReferences") or {}
+    # The connection reference disappears if a definition with no SharePoint action is ever saved;
+    # re-bind the one this flow has always used (its permission entry survives).
     connrefs = {
         k: {"connectionName": v["connectionName"], "source": v.get("source", "Embedded"), "id": v["id"]}
         for k, v in icr.items() if v.get("connectionName")}
+    connrefs = connrefs or {"shared_sharepointonline": {
+        "connectionName": "288fd46092664885aa75c25c64f03c89", "source": "Embedded",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"}}
     body = {"properties": {"definition": defn, "connectionReferences": connrefs}}
     result = req("PATCH", f"{BASE}/flows/{FLOW}?{API}", body)
+    if "error" in result:   # a refused save leaves the old definition live - never carry on silently
+        sys.exit(f"patch refused: {json.dumps(result['error'])[:600]}")
     got = list(result.get("properties", {}).get("definition", {}).get("actions", {}).keys())
     print(f"patched; actions now: {got}")
     return got

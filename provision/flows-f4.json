@@ -13,12 +13,16 @@
  },
  "triggers": {
   "When_Comment_Posted": {
-   "type": "OpenApiConnection",
    "recurrence": {
     "frequency": "Minute",
     "interval": 1
    },
+   "evaluatedRecurrence": {
+    "frequency": "Minute",
+    "interval": 1
+   },
    "splitOn": "@triggerOutputs()?['body/value']",
+   "type": "OpenApiConnection",
    "inputs": {
     "host": {
      "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
@@ -117,22 +121,6 @@
    }
   },
   "If_Send": {
-   "runAfter": {
-    "Rcpts": [
-     "Succeeded"
-    ]
-   },
-   "type": "If",
-   "expression": {
-    "and": [
-     {
-      "greater": [
-       "@length(body('Rcpts'))",
-       0
-      ]
-     }
-    ]
-   },
    "actions": {
     "Mail_Team": {
      "runAfter": {},
@@ -146,24 +134,62 @@
       "parameters": {
        "emailMessage/To": "@join(body('Rcpts'), ';')",
        "emailMessage/Subject": "@concat('[OnBoardPro] New comment on ', body('Get_Cand')?['Title'])",
-       "emailMessage/Body": "@concat('<p><b>', coalesce(body('Get_Cmt')?['Author']?['Title'],'Someone'), '</b> commented on <b>', body('Get_Cand')?['Title'], '</b>:</p>', coalesce(body('Get_Cmt')?['Body'],''))",
+       "emailMessage/Body": "@concat('<p><b>', coalesce(replace(replace(replace(coalesce(body('Get_Cmt')?['Author']?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'),'Someone'), '</b> commented on <b>', replace(replace(replace(coalesce(body('Get_Cand')?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), '</b>:</p>', coalesce(replace(replace(replace(coalesce(body('Get_Cmt')?['Body'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'),''))",
        "emailMessage/Importance": "Normal"
       },
       "authentication": "@parameters('$authentication')"
      }
     }
    },
+   "runAfter": {
+    "Rcpts": [
+     "Succeeded"
+    ]
+   },
    "else": {
     "actions": {}
-   }
+   },
+   "expression": {
+    "and": [
+     {
+      "greater": [
+       "@length(body('Rcpts'))",
+       0
+      ]
+     }
+    ]
+   },
+   "type": "If"
   },
   "If_CandVisible": {
+   "actions": {
+    "Mail_Cand": {
+     "runAfter": {},
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+       "connectionName": "shared_office365",
+       "operationId": "SendEmailV2"
+      },
+      "parameters": {
+       "emailMessage/To": "@body('Get_Cand')?['Email']",
+       "emailMessage/Subject": "@concat('An update on your onboarding with UAB OBGYN')",
+       "emailMessage/Body": "@concat('<p>Hello ', replace(replace(replace(coalesce(body('Get_Cand')?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), ',</p>', coalesce(replace(replace(replace(coalesce(body('Get_Cmt')?['Body'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'),''), '<p>\u2014 UAB Department of Obstetrics and Gynecology</p>')",
+       "emailMessage/Importance": "Normal"
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    }
+   },
    "runAfter": {
     "If_Send": [
      "Succeeded"
     ]
    },
-   "type": "If",
+   "else": {
+    "actions": {}
+   },
    "expression": {
     "and": [
      {
@@ -182,29 +208,7 @@
      }
     ]
    },
-   "actions": {
-    "Mail_Cand": {
-     "runAfter": {},
-     "type": "OpenApiConnection",
-     "inputs": {
-      "host": {
-       "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-       "connectionName": "shared_office365",
-       "operationId": "SendEmailV2"
-      },
-      "parameters": {
-       "emailMessage/To": "@body('Get_Cand')?['Email']",
-       "emailMessage/Subject": "@concat('An update on your onboarding with UAB OBGYN')",
-       "emailMessage/Body": "@concat('<p>Hello ', body('Get_Cand')?['Title'], ',</p>', coalesce(body('Get_Cmt')?['Body'],''), '<p>\u2014 UAB Department of Obstetrics and Gynecology</p>')",
-       "emailMessage/Importance": "Normal"
-      },
-      "authentication": "@parameters('$authentication')"
-     }
-    }
-   },
-   "else": {
-    "actions": {}
-   }
+   "type": "If"
   }
  }
 }

@@ -295,7 +295,7 @@
         "parameters": {
          "emailMessage/To": "jsteen@uab.edu",
          "emailMessage/Subject": "@concat('[OnBoardPro] Archive sweep left rows behind: ', items('Each_Cand')?['Title'])",
-         "emailMessage/Body": "@concat('<p>Verify pass found remaining Tasks rows for candidate ', items('Each_Cand')?['Title'], '. Re-run or inspect.</p>')",
+         "emailMessage/Body": "@concat('<p>Verify pass found remaining Tasks rows for candidate ', replace(replace(replace(coalesce(items('Each_Cand')?['Title'],''),'&','&amp;'),'<','&lt;'),'>','&gt;'), '. Re-run or inspect.</p>')",
          "emailMessage/Importance": "Normal"
         },
         "authentication": "@parameters('$authentication')"
