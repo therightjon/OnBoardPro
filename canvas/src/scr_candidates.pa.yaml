@@ -2703,7 +2703,7 @@ Screens:
                                                       Size: =UABSize.Body
                                                       Text: |-
                                                         =Switch(Coalesce(ThisItem.EventType.Value, ""),
-                                                            "Stage", "Stage moved to " & Coalesce(ThisItem.ToValue, "—"),
+                                                            "Stage", If(DateValue(ThisItem.ChangedDate) > Today(), "Stage will move to ", "Stage moved to ") & Coalesce(ThisItem.ToValue, "—"),
                                                             "CandidateStatus", "Candidate status " & Coalesce(ThisItem.ToValue, "—"),
                                                             "TaskStatus", Coalesce(ThisItem.TaskTitle, "Task") & " — "
                                                                 & Coalesce(ThisItem.ToValue, "—"),
