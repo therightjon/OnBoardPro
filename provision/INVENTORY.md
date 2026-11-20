@@ -66,6 +66,13 @@ Read; direct Edit grants on Tasks/Comments carry assignee editing) — the per-l
 matches the design exactly. **Non-HR denial test passed**: a PA-only account was denied on the
 HR-only containers.
 
+## Candidate data — cleared 2026-11-20
+
+All candidates and their linked rows (Tasks, TasksArchive, ChangeLog, ChangeLogArchive, Comments,
+MetricsSnapshots, per-candidate library folders) recycled for a clean dev start — payload
+[clear-candidates.json](clear-candidates.json). Recoverable from the site recycle bin until
+~2027-02-18. Next candidate ID: 9.
+
 ## Reference data seeded (2026-08-11)
 
 | List | Rows |
