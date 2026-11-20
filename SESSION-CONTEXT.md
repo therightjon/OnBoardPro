@@ -208,18 +208,17 @@ action list and carried on. Re-bound `288fd460…` via the API (its permission e
 made `flowdriver.patch` exit on a refused save and re-bind that connection when none is installed.
 A run fired right after a connection change ran the old definition; wait ~20 s.
 
-**Open: direct list edits on flow-written tasks bypass F3 and the check.** F3's trigger skips
-`UpdatedVia = Flow`, and a SharePoint edit doesn't change `UpdatedVia`, so an out-of-app edit to a
-task a flow wrote last (every fresh checklist task) is never checked or logged. Flows write as my
-account, so Modified By can't tell them apart either. **The security review adds:** anyone with Edit can also set `UpdatedVia = Approval` in the list and
-have F3 credit a completion to whoever they put in `CompletedBy`. Both rest on trusting
-`UpdatedVia`. Flows write as my account (Editor id 6), so "a flow wrote this" can be tested as
-`UpdatedVia` is Flow/Approval **and** Editor is the flow account — needs no new column, closes both
-for everyone but me, and becomes exact once the flows run under a service account. Older options: a
-`FlowStamp` column every flow
-write sets, with the trigger treating `Modified` well after `FlowStamp` as a person's edit; or run
-the flows under a dedicated service account and key on Editor; or remove direct Edit on Tasks
-(the app writes through its own connection, so that needs the app's writes moved behind a flow).
+**`UpdatedVia` is trusted only with the flow account's name on it — 2026-11-20.** A SharePoint
+edit doesn't change `UpdatedVia`, so a direct list edit to a task a flow wrote last (every fresh
+checklist task) used to skip F3 and the daily check, and anyone could set `UpdatedVia = Approval`
+to have a completion credited to whoever they put in `CompletedBy`. Flows write as
+`jsteen@uab.edu` (Editor id 6), so F3 now treats a row as flow-written only when `UpdatedVia` says
+so **and** the editor is that account: in the trigger condition, the version-1.0 baseline, the
+CompletedBy fix's approval exemption and the approver credit on status rows; the daily check's
+task filter matches (`FLOW_ACCOUNT` in `gen_f6_check.py`). Remaining gap: my own direct list
+edits still read as flow writes. If the flows move to a service account, change
+`jsteen@uab.edu` in F3 (4 places) and `FLOW_ACCOUNT`, then rerun `gen_f6_check.py apply`.
+Dry runs: live data → no writes; history hidden → 5 status + 3 assignee rows, as before.
 
 ## What's left (as of 2026-11-11)
 

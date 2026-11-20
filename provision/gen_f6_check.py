@@ -4,7 +4,8 @@ F3 reacts to task changes one at a time. A change can still slip past it: more t
 in one poll, a full waiting queue, or a failed run. The daily check repeats F3's own logic over
 recent changes, so nothing it enforces depends on every change being seen:
 
-- per task (changed in the last DAYS days, last written by a person, not a flow): the
+- per task (changed in the last DAYS days, not last written by a flow: UpdatedVia Flow *and*
+  editor FLOW_ACCOUNT): the
   cancel-without-reason revert, the ChangeLog status/assignee/due rows, the CompletedBy fix;
 - per Active candidate: stage advancement (one timeline row per stage passed), the Blocked flag,
   and automatic completion.
@@ -31,6 +32,9 @@ API = "api-version=2016-11-01"
 G = json.load(open(HERE / "guids.json"))
 DAYS = 4                     # Monday's run reaches back past the weekend
 MARK = "Recorded by the daily check"
+# The account the flows' SharePoint connection writes as. A row it last wrote with UpdatedVia
+# Flow/Approval is a flow write; the same marker from anyone else is a person's edit.
+FLOW_ACCOUNT = "jsteen@uab.edu"
 
 TASK_ACTIONS = ["Get_Log", "Get_V1", "L_St", "L_As", "L_Du", "Last", "Cur", "If_Guard",
                 "If_StDiff", "If_AsDiff", "If_DuDiff", "If_FixCompletedBy"]
@@ -125,6 +129,7 @@ def build(f3):
     lr["parameters/body"] = mark(lr["parameters/body"])
     task = rename(task, "CT_", [
         ("triggerBody()?['UpdatedVia']", "items('CT_Each')?['UpdatedVia']"),
+        ("triggerBody()?['Editor']?['Email']", "items('CT_Each')?['Editor']?['EMail']"),
         ("body('Get_Cand')?['Title']", "items('CT_Each')?['CandName']"),
         ("body('Get_Task')", "items('CT_Each')"),
     ])
@@ -147,7 +152,8 @@ def build(f3):
                            f"&$expand=Assignee,Editor&$filter=Modified ge datetime'{since}'&$top=2000", {}),
         "CT_People": {"runAfter": {"CT_Tasks": ["Succeeded"]}, "type": "Query", "inputs": {
             "from": "@body('CT_Tasks')?['value']",
-            "where": "@not(equals(coalesce(item()?['UpdatedVia'], 'App'), 'Flow'))"}},
+            "where": ("@not(and(equals(coalesce(item()?['UpdatedVia'], 'App'), 'Flow'), "
+                      f"equals(toLower(coalesce(item()?['Editor']?['EMail'], '')), '{FLOW_ACCOUNT}')))")}},
         "CT_Each": {"runAfter": {"CT_People": ["Succeeded"]}, "type": "Foreach",
                     "foreach": "@body('CT_People')",
                     "runtimeConfiguration": {"concurrency": {"repetitions": 1}},

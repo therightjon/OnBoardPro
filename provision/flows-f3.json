@@ -37,7 +37,7 @@
    },
    "conditions": [
     {
-     "expression": "@not(equals(coalesce(triggerBody()?['UpdatedVia'],'App'), 'Flow'))"
+     "expression": "@not(and(equals(coalesce(triggerBody()?['UpdatedVia'],'App'), 'Flow'), equals(toLower(coalesce(triggerBody()?['Editor']?['Email'],'')), 'jsteen@uab.edu')))"
     }
    ],
    "runtimeConfiguration": {
@@ -177,8 +177,8 @@
    "type": "Compose",
    "inputs": {
     "status": "@if(contains(createArray('To Do','In Progress','Blocked','Done','Canceled'), coalesce(first(body('L_St'))?['ToValue'], 'To Do')), coalesce(first(body('L_St'))?['ToValue'], 'To Do'), 'To Do')",
-    "assignee": "@if(empty(body('L_As')), if(equals(body('Get_V1')?['UpdatedVia'], 'Flow'), coalesce(body('Get_V1')?['Assignee']?['LookupValue'], ''), ''), coalesce(first(body('L_As'))?['ToValue'], ''))",
-    "due": "@if(empty(body('L_Du')), if(equals(body('Get_V1')?['UpdatedVia'], 'Flow'), take(coalesce(body('Get_V1')?['DueDate'], ''), 10), ''), coalesce(first(body('L_Du'))?['ToValue'], ''))"
+    "assignee": "@if(empty(body('L_As')), if(and(equals(body('Get_V1')?['UpdatedVia'], 'Flow'), equals(toLower(coalesce(body('Get_V1')?['Editor']?['Email'],'')), 'jsteen@uab.edu')), coalesce(body('Get_V1')?['Assignee']?['LookupValue'], ''), ''), coalesce(first(body('L_As'))?['ToValue'], ''))",
+    "due": "@if(empty(body('L_Du')), if(and(equals(body('Get_V1')?['UpdatedVia'], 'Flow'), equals(toLower(coalesce(body('Get_V1')?['Editor']?['Email'],'')), 'jsteen@uab.edu')), take(coalesce(body('Get_V1')?['DueDate'], ''), 10), ''), coalesce(first(body('L_Du'))?['ToValue'], ''))"
    }
   },
   "Cur": {
@@ -333,7 +333,7 @@
         "Accept": "application/json;odata=nometadata",
         "Content-Type": "application/json;odata=nometadata"
        },
-       "parameters/body": "@concat('{\"CandidateId\":', string(body('Get_Task')?['CandidateId']), ',\"ChangedById\":', string(if(and(equals(coalesce(triggerBody()?['UpdatedVia'],'App'),'Approval'), not(empty(body('Get_Task')?['CompletedById']))), body('Get_Task')?['CompletedById'], body('Get_Task')?['EditorId'])), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(body('Get_Task')?['Id']), ',\"TaskTitle\":\"', replace(replace(coalesce(body('Get_Task')?['Title'],''),'\\','\\\\'),'\"','\\\"'), '\",\"FromValue\":\"', outputs('Last')?['status'], '\",\"ToValue\":\"', outputs('Cur')?['status'], '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":false}')"
+       "parameters/body": "@concat('{\"CandidateId\":', string(body('Get_Task')?['CandidateId']), ',\"ChangedById\":', string(if(and(equals(coalesce(triggerBody()?['UpdatedVia'],'App'),'Approval'), equals(toLower(coalesce(triggerBody()?['Editor']?['Email'],'')), 'jsteen@uab.edu'), not(empty(body('Get_Task')?['CompletedById']))), body('Get_Task')?['CompletedById'], body('Get_Task')?['EditorId'])), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(body('Get_Task')?['Id']), ',\"TaskTitle\":\"', replace(replace(coalesce(body('Get_Task')?['Title'],''),'\\','\\\\'),'\"','\\\"'), '\",\"FromValue\":\"', outputs('Last')?['status'], '\",\"ToValue\":\"', outputs('Cur')?['status'], '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":false}')"
       },
       "authentication": "@parameters('$authentication')"
      }
@@ -1105,9 +1105,19 @@
        },
        {
         "not": {
-         "equals": [
-          "@coalesce(triggerBody()?['UpdatedVia'],'App')",
-          "Approval"
+         "and": [
+          {
+           "equals": [
+            "@coalesce(triggerBody()?['UpdatedVia'],'App')",
+            "Approval"
+           ]
+          },
+          {
+           "equals": [
+            "@toLower(coalesce(triggerBody()?['Editor']?['Email'],''))",
+            "jsteen@uab.edu"
+           ]
+          }
          ]
         }
        },

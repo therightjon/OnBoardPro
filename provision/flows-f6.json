@@ -458,7 +458,7 @@
      "type": "Query",
      "inputs": {
       "from": "@body('CT_Tasks')?['value']",
-      "where": "@not(equals(coalesce(item()?['UpdatedVia'], 'App'), 'Flow'))"
+      "where": "@not(and(equals(coalesce(item()?['UpdatedVia'], 'App'), 'Flow'), equals(toLower(coalesce(item()?['Editor']?['EMail'], '')), 'jsteen@uab.edu')))"
      }
     },
     "CT_Each": {
@@ -567,8 +567,8 @@
        "type": "Compose",
        "inputs": {
         "status": "@if(contains(createArray('To Do','In Progress','Blocked','Done','Canceled'), coalesce(first(body('CT_L_St'))?['ToValue'], 'To Do')), coalesce(first(body('CT_L_St'))?['ToValue'], 'To Do'), 'To Do')",
-        "assignee": "@if(empty(body('CT_L_As')), if(equals(body('CT_Get_V1')?['UpdatedVia'], 'Flow'), coalesce(body('CT_Get_V1')?['Assignee']?['LookupValue'], ''), ''), coalesce(first(body('CT_L_As'))?['ToValue'], ''))",
-        "due": "@if(empty(body('CT_L_Du')), if(equals(body('CT_Get_V1')?['UpdatedVia'], 'Flow'), take(coalesce(body('CT_Get_V1')?['DueDate'], ''), 10), ''), coalesce(first(body('CT_L_Du'))?['ToValue'], ''))"
+        "assignee": "@if(empty(body('CT_L_As')), if(and(equals(body('CT_Get_V1')?['UpdatedVia'], 'Flow'), equals(toLower(coalesce(body('CT_Get_V1')?['Editor']?['Email'],'')), 'jsteen@uab.edu')), coalesce(body('CT_Get_V1')?['Assignee']?['LookupValue'], ''), ''), coalesce(first(body('CT_L_As'))?['ToValue'], ''))",
+        "due": "@if(empty(body('CT_L_Du')), if(and(equals(body('CT_Get_V1')?['UpdatedVia'], 'Flow'), equals(toLower(coalesce(body('CT_Get_V1')?['Editor']?['Email'],'')), 'jsteen@uab.edu')), take(coalesce(body('CT_Get_V1')?['DueDate'], ''), 10), ''), coalesce(first(body('CT_L_Du'))?['ToValue'], ''))"
        }
       },
       "CT_Cur": {
@@ -687,7 +687,7 @@
                "Accept": "application/json;odata=nometadata",
                "Content-Type": "application/json;odata=nometadata"
               },
-              "parameters/body": "@concat('{\"Title\":\"Recorded by the daily check\",\"CandidateId\":', string(items('CT_Each')?['CandidateId']), ',\"ChangedById\":', string(if(and(equals(coalesce(items('CT_Each')?['UpdatedVia'],'App'),'Approval'), not(empty(items('CT_Each')?['CompletedById']))), items('CT_Each')?['CompletedById'], items('CT_Each')?['EditorId'])), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(items('CT_Each')?['Id']), ',\"TaskTitle\":\"', replace(replace(coalesce(items('CT_Each')?['Title'],''),'\\','\\\\'),'\"','\\\"'), '\",\"FromValue\":\"', outputs('CT_Last')?['status'], '\",\"ToValue\":\"', outputs('CT_Cur')?['status'], '\",\"ChangedDate\":\"', items('CT_Each')?['Modified'], '\",\"Automated\":false}')"
+              "parameters/body": "@concat('{\"Title\":\"Recorded by the daily check\",\"CandidateId\":', string(items('CT_Each')?['CandidateId']), ',\"ChangedById\":', string(if(and(equals(coalesce(items('CT_Each')?['UpdatedVia'],'App'),'Approval'), equals(toLower(coalesce(items('CT_Each')?['Editor']?['EMail'],'')), 'jsteen@uab.edu'), not(empty(items('CT_Each')?['CompletedById']))), items('CT_Each')?['CompletedById'], items('CT_Each')?['EditorId'])), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(items('CT_Each')?['Id']), ',\"TaskTitle\":\"', replace(replace(coalesce(items('CT_Each')?['Title'],''),'\\','\\\\'),'\"','\\\"'), '\",\"FromValue\":\"', outputs('CT_Last')?['status'], '\",\"ToValue\":\"', outputs('CT_Cur')?['status'], '\",\"ChangedDate\":\"', items('CT_Each')?['Modified'], '\",\"Automated\":false}')"
              },
              "authentication": "@parameters('$authentication')"
             }
@@ -860,9 +860,19 @@
               },
               {
                "not": {
-                "equals": [
-                 "@coalesce(items('CT_Each')?['UpdatedVia'],'App')",
-                 "Approval"
+                "and": [
+                 {
+                  "equals": [
+                   "@coalesce(items('CT_Each')?['UpdatedVia'],'App')",
+                   "Approval"
+                  ]
+                 },
+                 {
+                  "equals": [
+                   "@toLower(coalesce(items('CT_Each')?['Editor']?['EMail'],''))",
+                   "jsteen@uab.edu"
+                  ]
+                 }
                 ]
                }
               },
