@@ -34,7 +34,12 @@
      "table": "ce3de9a9-702d-4707-9f30-a011b3d78264"
     },
     "authentication": "@parameters('$authentication')"
-   }
+   },
+   "conditions": [
+    {
+     "expression": "@not(empty(triggerBody()?['TemplateApplied']))"
+    }
+   ]
   }
  },
  "actions": {

@@ -116,36 +116,8 @@
    "inputs": "@or(and(equals(outputs('Inputs')?['mode'],'full'), not(empty(coalesce(body('Get_Candidate')?['TemplateApplied'],'')))), and(equals(outputs('Inputs')?['mode'],'prereq'), equals(outputs('PreDone'), true)))"
   },
   "If_NotAlready": {
-   "runAfter": {
-    "Already": [
-     "Succeeded"
-    ]
-   },
-   "type": "If",
-   "expression": {
-    "and": [
-     {
-      "equals": [
-       "@outputs('Already')",
-       false
-      ]
-     }
-    ]
-   },
    "actions": {
     "Claim": {
-     "runAfter": {},
-     "type": "If",
-     "expression": {
-      "and": [
-       {
-        "equals": [
-         "@outputs('Inputs')?['mode']",
-         "full"
-        ]
-       }
-      ]
-     },
      "actions": {
       "Claim_Full": {
        "runAfter": {},
@@ -172,6 +144,7 @@
        }
       }
      },
+     "runAfter": {},
      "else": {
       "actions": {
        "Claim_Prereq": {
@@ -199,7 +172,18 @@
         }
        }
       }
-     }
+     },
+     "expression": {
+      "and": [
+       {
+        "equals": [
+         "@outputs('Inputs')?['mode']",
+         "full"
+        ]
+       }
+      ]
+     },
+     "type": "If"
     },
     "Get_TS": {
      "runAfter": {
@@ -426,18 +410,7 @@
      }
     },
     "Each_Create": {
-     "runAfter": {
-      "Select_Payloads": [
-       "Succeeded"
-      ]
-     },
-     "type": "Foreach",
      "foreach": "@body('Select_Payloads')",
-     "runtimeConfiguration": {
-      "concurrency": {
-       "repetitions": 8
-      }
-     },
      "actions": {
       "Create_Task": {
        "runAfter": {},
@@ -461,15 +434,60 @@
         "authentication": "@parameters('$authentication')"
        }
       }
-     }
-    },
-    "If_Full_Finish": {
+     },
      "runAfter": {
-      "Each_Create": [
+      "Select_Payloads": [
        "Succeeded"
       ]
      },
-     "type": "If",
+     "type": "Foreach",
+     "runtimeConfiguration": {
+      "concurrency": {
+       "repetitions": 8
+      }
+     }
+    },
+    "If_Full_Finish": {
+     "actions": {
+      "Touch_Stage": {
+       "runAfter": {},
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "POST",
+         "parameters/uri": "_api/web/lists(guid'ce3de9a9-702d-4707-9f30-a011b3d78264')/items(@{outputs('Inputs')?['candidateId']})",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata",
+          "X-HTTP-Method": "MERGE",
+          "IF-MATCH": "*"
+         },
+         "parameters/body": "@string(json(concat('{\"CurrentStageId\":', string(if(equals(string(coalesce(body('Get_Candidate')?['CurrentStageId'],'')),''), first(sort(body('Get_TS')?['value'],'OrderIndex'))?['StageId'], body('Get_Candidate')?['CurrentStageId'])), '}')))"
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      }
+     },
+     "runAfter": {
+      "If_Folders": [
+       "Succeeded"
+      ]
+     },
+     "else": {
+      "actions": {
+       "Prereq_Done": {
+        "runAfter": {},
+        "type": "Compose",
+        "inputs": "prereq expansion complete"
+       }
+      }
+     },
      "expression": {
       "and": [
        {
@@ -480,6 +498,9 @@
        }
       ]
      },
+     "type": "If"
+    },
+    "If_NoStage": {
      "actions": {
       "Upd_Stage": {
        "runAfter": {},
@@ -530,13 +551,32 @@
         },
         "authentication": "@parameters('$authentication')"
        }
-      },
-      "Mk_Folder_Gen": {
-       "runAfter": {
-        "Add_ChangeLog": [
-         "Succeeded"
+      }
+     },
+     "runAfter": {
+      "Each_Create": [
+       "Succeeded"
+      ]
+     },
+     "else": {
+      "actions": {}
+     },
+     "expression": {
+      "and": [
+       {
+        "equals": [
+         "@string(coalesce(body('Get_Candidate')?['CurrentStageId'],''))",
+         ""
         ]
-       },
+       }
+      ]
+     },
+     "type": "If"
+    },
+    "If_Folders": {
+     "actions": {
+      "Mk_Folder_Gen": {
+       "runAfter": {},
        "type": "OpenApiConnection",
        "inputs": {
         "host": {
@@ -584,16 +624,37 @@
        }
       }
      },
+     "runAfter": {
+      "If_NoStage": [
+       "Succeeded"
+      ]
+     },
      "else": {
-      "actions": {
-       "Prereq_Done": {
-        "runAfter": {},
-        "type": "Compose",
-        "inputs": "prereq expansion complete"
+      "actions": {}
+     },
+     "expression": {
+      "or": [
+       {
+        "equals": [
+         "@outputs('Inputs')?['mode']",
+         "prereq"
+        ]
+       },
+       {
+        "equals": [
+         "@string(coalesce(body('Get_Candidate')?['PrereqsExpanded'],''))",
+         ""
+        ]
        }
-      }
-     }
+      ]
+     },
+     "type": "If"
     }
+   },
+   "runAfter": {
+    "Already": [
+     "Succeeded"
+    ]
    },
    "else": {
     "actions": {
@@ -603,7 +664,18 @@
       "inputs": "already applied - no action"
      }
     }
-   }
+   },
+   "expression": {
+    "and": [
+     {
+      "equals": [
+       "@outputs('Already')",
+       false
+      ]
+     }
+    ]
+   },
+   "type": "If"
   },
   "Result": {
    "runAfter": {

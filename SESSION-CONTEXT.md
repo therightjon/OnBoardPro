@@ -92,6 +92,18 @@ formulas plus the 5-row Stages filter). Complexity: Home ~107 controls; Candidat
 Templates 393 (+4 each for the rail item). **Classic `Label` has no `AccessibleLabel` property**
 — the compiler rejects it; the label's Text is its accessible name.
 
+**F1 sets the stage and folders at creation — 2026-11-20.** New candidates had no
+`CurrentStage` (cockpit header "No Stage Yet", missing from Home's stage chips) and no
+document folders until offer acceptance, because F1 only did both in *full* mode. F1 now sets
+the template's first stage and writes the stage timeline row (dated at the LOI) whenever the
+candidate has no stage, in either mode, and creates both folders in prereq mode (full mode only
+for a candidate that never went through prereq). Full mode re-saves the existing stage once all
+tasks exist (`Touch_Stage`) — that write is what fires F5. **P&T approvals still wait for the full
+checklist:** F5's trigger now skips any candidate whose `TemplateApplied` is empty. Candidates #9
+and #10, created before the fix, were backfilled through the utility flow
+([backfill-candidate9.json](provision/backfill-candidate9.json),
+[backfill-candidate10.json](provision/backfill-candidate10.json)).
+
 ## What's left (as of 2026-11-11)
 
 1. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.
