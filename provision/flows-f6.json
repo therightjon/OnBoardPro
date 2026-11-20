@@ -13,7 +13,6 @@
  },
  "triggers": {
   "Recurrence": {
-   "type": "Recurrence",
    "recurrence": {
     "frequency": "Week",
     "interval": 1,
@@ -33,12 +32,40 @@
       0
      ]
     }
-   }
+   },
+   "evaluatedRecurrence": {
+    "frequency": "Week",
+    "interval": 1,
+    "timeZone": "Central Standard Time",
+    "schedule": {
+     "weekDays": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday"
+     ],
+     "hours": [
+      7
+     ],
+     "minutes": [
+      0
+     ]
+    }
+   },
+   "type": "Recurrence"
   }
  },
  "actions": {
   "Today": {
-   "runAfter": {},
+   "runAfter": {
+    "Daily_Check": [
+     "Succeeded",
+     "Failed",
+     "Skipped",
+     "TimedOut"
+    ]
+   },
    "type": "Compose",
    "inputs": "@utcNow('yyyy-MM-dd')"
   },
@@ -138,18 +165,7 @@
    }
   },
   "Each_Person": {
-   "runAfter": {
-    "People": [
-     "Succeeded"
-    ]
-   },
-   "type": "Foreach",
    "foreach": "@body('People')",
-   "runtimeConfiguration": {
-    "concurrency": {
-     "repetitions": 4
-    }
-   },
    "actions": {
     "Mine": {
      "runAfter": {},
@@ -229,6 +245,17 @@
       "authentication": "@parameters('$authentication')"
      }
     }
+   },
+   "runAfter": {
+    "People": [
+     "Succeeded"
+    ]
+   },
+   "type": "Foreach",
+   "runtimeConfiguration": {
+    "concurrency": {
+     "repetitions": 4
+    }
    }
   },
   "Touch": {
@@ -240,22 +267,11 @@
    "type": "Query",
    "inputs": {
     "from": "@body('Win')",
-    "where": "@and(equals(coalesce(item()?['AssigneeRole'],''),'Candidate'), not(equals(substring(coalesce(item()?['DueDate'],''),0,10), substring(coalesce(item()?['DueNotified'],'x'),0,10))))"
+    "where": "@and(equals(coalesce(item()?['AssigneeRole'],''),'Candidate'), not(equals(substring(coalesce(item()?['DueDate'],''),0,10), substring(coalesce(item()?['DueNotified'],'0000-00-00T00'),0,10))))"
    }
   },
   "Each_Touch": {
-   "runAfter": {
-    "Touch": [
-     "Succeeded"
-    ]
-   },
-   "type": "Foreach",
    "foreach": "@body('Touch')",
-   "runtimeConfiguration": {
-    "concurrency": {
-     "repetitions": 1
-    }
-   },
    "actions": {
     "CandRow": {
      "runAfter": {},
@@ -266,24 +282,6 @@
      }
     },
     "If_Mail": {
-     "runAfter": {
-      "CandRow": [
-       "Succeeded"
-      ]
-     },
-     "type": "If",
-     "expression": {
-      "and": [
-       {
-        "not": {
-         "equals": [
-          "@coalesce(first(body('CandRow'))?['Email'],'')",
-          ""
-         ]
-        }
-       }
-      ]
-     },
      "actions": {
       "Mail_Touch": {
        "runAfter": {},
@@ -332,9 +330,38 @@
        }
       }
      },
+     "runAfter": {
+      "CandRow": [
+       "Succeeded"
+      ]
+     },
      "else": {
       "actions": {}
-     }
+     },
+     "expression": {
+      "and": [
+       {
+        "not": {
+         "equals": [
+          "@coalesce(first(body('CandRow'))?['Email'],'')",
+          ""
+         ]
+        }
+       }
+      ]
+     },
+     "type": "If"
+    }
+   },
+   "runAfter": {
+    "Touch": [
+     "Succeeded"
+    ]
+   },
+   "type": "Foreach",
+   "runtimeConfiguration": {
+    "concurrency": {
+     "repetitions": 1
     }
    }
   },
@@ -399,6 +426,1078 @@
     },
     "authentication": "@parameters('$authentication')"
    }
+  },
+  "Daily_Check": {
+   "actions": {
+    "CT_Tasks": {
+     "runAfter": {},
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+       "connectionName": "shared_sharepointonline",
+       "operationId": "HttpRequest"
+      },
+      "parameters": {
+       "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+       "parameters/method": "GET",
+       "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items?$select=Id,Title,CandidateId,CandName,TStatus,IsRequired,CancelReason,DueDate,StageOrder,UpdatedVia,Modified,AssigneeId,Assignee/Title,Assignee/EMail,EditorId,Editor/Title,Editor/EMail,CompletedById&$expand=Assignee,Editor&$filter=Modified ge datetime'@{formatDateTime(addDays(utcNow(), -4), 'yyyy-MM-ddTHH:mm:ssZ')}'&$top=2000",
+       "parameters/headers": {
+        "Accept": "application/json;odata=nometadata"
+       }
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    },
+    "CT_People": {
+     "runAfter": {
+      "CT_Tasks": [
+       "Succeeded"
+      ]
+     },
+     "type": "Query",
+     "inputs": {
+      "from": "@body('CT_Tasks')?['value']",
+      "where": "@not(equals(coalesce(item()?['UpdatedVia'], 'App'), 'Flow'))"
+     }
+    },
+    "CT_Each": {
+     "foreach": "@body('CT_People')",
+     "actions": {
+      "CT_Get_Log": {
+       "runAfter": {},
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "GET",
+         "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items?$select=Id,EventType,ToValue&$filter=TaskId eq @{items('CT_Each')?['Id']}&$orderby=Id desc&$top=40",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata"
+         }
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      },
+      "CT_Get_V1": {
+       "runAfter": {
+        "CT_Get_Log": [
+         "Succeeded"
+        ]
+       },
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "GET",
+         "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items(@{items('CT_Each')?['Id']})/versions(512)",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata"
+         }
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      },
+      "CT_L_St": {
+       "runAfter": {
+        "CT_Get_Log": [
+         "Succeeded"
+        ]
+       },
+       "type": "Query",
+       "inputs": {
+        "from": "@body('CT_Get_Log')?['value']",
+        "where": "@equals(item()?['EventType'],'TaskStatus')"
+       }
+      },
+      "CT_L_As": {
+       "runAfter": {
+        "CT_Get_Log": [
+         "Succeeded"
+        ]
+       },
+       "type": "Query",
+       "inputs": {
+        "from": "@body('CT_Get_Log')?['value']",
+        "where": "@equals(item()?['EventType'],'TaskAssignee')"
+       }
+      },
+      "CT_L_Du": {
+       "runAfter": {
+        "CT_Get_Log": [
+         "Succeeded"
+        ]
+       },
+       "type": "Query",
+       "inputs": {
+        "from": "@body('CT_Get_Log')?['value']",
+        "where": "@equals(item()?['EventType'],'TaskDue')"
+       }
+      },
+      "CT_Last": {
+       "runAfter": {
+        "CT_L_St": [
+         "Succeeded"
+        ],
+        "CT_L_As": [
+         "Succeeded"
+        ],
+        "CT_L_Du": [
+         "Succeeded"
+        ],
+        "CT_Get_V1": [
+         "Succeeded",
+         "Failed",
+         "Skipped",
+         "TimedOut"
+        ]
+       },
+       "type": "Compose",
+       "inputs": {
+        "status": "@coalesce(first(body('CT_L_St'))?['ToValue'], 'To Do')",
+        "assignee": "@if(empty(body('CT_L_As')), if(equals(body('CT_Get_V1')?['UpdatedVia'], 'Flow'), coalesce(body('CT_Get_V1')?['Assignee']?['LookupValue'], ''), ''), coalesce(first(body('CT_L_As'))?['ToValue'], ''))",
+        "due": "@if(empty(body('CT_L_Du')), if(equals(body('CT_Get_V1')?['UpdatedVia'], 'Flow'), take(coalesce(body('CT_Get_V1')?['DueDate'], ''), 10), ''), coalesce(first(body('CT_L_Du'))?['ToValue'], ''))"
+       }
+      },
+      "CT_Cur": {
+       "runAfter": {
+        "CT_Last": [
+         "Succeeded"
+        ]
+       },
+       "type": "Compose",
+       "inputs": {
+        "status": "@coalesce(items('CT_Each')?['TStatus'],'To Do')",
+        "assignee": "@coalesce(items('CT_Each')?['Assignee']?['Title'],'')",
+        "assigneeEmail": "@coalesce(items('CT_Each')?['Assignee']?['EMail'],'')",
+        "due": "@if(empty(coalesce(items('CT_Each')?['DueDate'],'')),'',substring(items('CT_Each')?['DueDate'],0,10))",
+        "editorEmail": "@coalesce(items('CT_Each')?['Editor']?['EMail'],'')"
+       }
+      },
+      "CT_If_Guard": {
+       "actions": {
+        "CT_Revert": {
+         "runAfter": {},
+         "type": "OpenApiConnection",
+         "inputs": {
+          "host": {
+           "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+           "connectionName": "shared_sharepointonline",
+           "operationId": "HttpRequest"
+          },
+          "parameters": {
+           "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+           "parameters/method": "POST",
+           "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items(@{items('CT_Each')?['Id']})",
+           "parameters/headers": {
+            "Accept": "application/json;odata=nometadata",
+            "Content-Type": "application/json;odata=nometadata",
+            "X-HTTP-Method": "MERGE",
+            "IF-MATCH": "*"
+           },
+           "parameters/body": "@concat('{\"TStatus\":\"', outputs('CT_Last')?['status'], '\",\"UpdatedVia\":\"Flow\"}')"
+          },
+          "authentication": "@parameters('$authentication')"
+         }
+        },
+        "CT_Log_Revert": {
+         "runAfter": {
+          "CT_Revert": [
+           "Succeeded"
+          ]
+         },
+         "type": "OpenApiConnection",
+         "inputs": {
+          "host": {
+           "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+           "connectionName": "shared_sharepointonline",
+           "operationId": "HttpRequest"
+          },
+          "parameters": {
+           "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+           "parameters/method": "POST",
+           "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items",
+           "parameters/headers": {
+            "Accept": "application/json;odata=nometadata",
+            "Content-Type": "application/json;odata=nometadata"
+           },
+           "parameters/body": "@concat('{\"Title\":\"Recorded by the daily check\",\"CandidateId\":', string(items('CT_Each')?['CandidateId']), ',\"ChangedById\":', string(items('CT_Each')?['EditorId']), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(items('CT_Each')?['Id']), ',\"TaskTitle\":\"', replace(coalesce(items('CT_Each')?['Title'],''),'\"',''), '\",\"FromValue\":\"', 'Canceled (reverted: no reason)', '\",\"ToValue\":\"', outputs('CT_Last')?['status'], '\",\"ChangedDate\":\"', utcNow(), '\",\"Automated\":false}')"
+          },
+          "authentication": "@parameters('$authentication')"
+         }
+        },
+        "CT_Mail_Editor": {
+         "runAfter": {
+          "CT_Log_Revert": [
+           "Succeeded"
+          ]
+         },
+         "type": "OpenApiConnection",
+         "inputs": {
+          "host": {
+           "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+           "connectionName": "shared_office365",
+           "operationId": "SendEmailV2"
+          },
+          "parameters": {
+           "emailMessage/To": "@outputs('CT_Cur')?['editorEmail']",
+           "emailMessage/Subject": "@concat('[OnBoardPro] Cancellation reverted: ', items('CT_Each')?['Title'])",
+           "emailMessage/Body": "@concat('<p>Canceling a required task needs a reason. The task <b>', items('CT_Each')?['Title'], '</b> for ', items('CT_Each')?['CandName'], ' was returned to its previous status. Add a cancel reason and try again.</p>')",
+           "emailMessage/Importance": "Normal"
+          },
+          "authentication": "@parameters('$authentication')"
+         }
+        }
+       },
+       "runAfter": {
+        "CT_Cur": [
+         "Succeeded"
+        ]
+       },
+       "else": {
+        "actions": {
+         "CT_If_StDiff": {
+          "actions": {
+           "CT_Log_St": {
+            "runAfter": {},
+            "type": "OpenApiConnection",
+            "inputs": {
+             "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+              "connectionName": "shared_sharepointonline",
+              "operationId": "HttpRequest"
+             },
+             "parameters": {
+              "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+              "parameters/method": "POST",
+              "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items",
+              "parameters/headers": {
+               "Accept": "application/json;odata=nometadata",
+               "Content-Type": "application/json;odata=nometadata"
+              },
+              "parameters/body": "@concat('{\"Title\":\"Recorded by the daily check\",\"CandidateId\":', string(items('CT_Each')?['CandidateId']), ',\"ChangedById\":', string(if(and(equals(coalesce(items('CT_Each')?['UpdatedVia'],'App'),'Approval'), not(empty(items('CT_Each')?['CompletedById']))), items('CT_Each')?['CompletedById'], items('CT_Each')?['EditorId'])), ',\"EventType\":\"TaskStatus\",\"TaskId\":', string(items('CT_Each')?['Id']), ',\"TaskTitle\":\"', replace(coalesce(items('CT_Each')?['Title'],''),'\"',''), '\",\"FromValue\":\"', outputs('CT_Last')?['status'], '\",\"ToValue\":\"', outputs('CT_Cur')?['status'], '\",\"ChangedDate\":\"', items('CT_Each')?['Modified'], '\",\"Automated\":false}')"
+             },
+             "authentication": "@parameters('$authentication')"
+            }
+           }
+          },
+          "runAfter": {},
+          "else": {
+           "actions": {}
+          },
+          "expression": {
+           "and": [
+            {
+             "not": {
+              "equals": [
+               "@outputs('CT_Cur')?['status']",
+               "@outputs('CT_Last')?['status']"
+              ]
+             }
+            }
+           ]
+          },
+          "type": "If"
+         },
+         "CT_If_AsDiff": {
+          "actions": {
+           "CT_Log_As": {
+            "runAfter": {},
+            "type": "OpenApiConnection",
+            "inputs": {
+             "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+              "connectionName": "shared_sharepointonline",
+              "operationId": "HttpRequest"
+             },
+             "parameters": {
+              "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+              "parameters/method": "POST",
+              "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items",
+              "parameters/headers": {
+               "Accept": "application/json;odata=nometadata",
+               "Content-Type": "application/json;odata=nometadata"
+              },
+              "parameters/body": "@concat('{\"Title\":\"Recorded by the daily check\",\"CandidateId\":', string(items('CT_Each')?['CandidateId']), ',\"ChangedById\":', string(items('CT_Each')?['EditorId']), ',\"EventType\":\"TaskAssignee\",\"TaskId\":', string(items('CT_Each')?['Id']), ',\"TaskTitle\":\"', replace(coalesce(items('CT_Each')?['Title'],''),'\"',''), '\",\"FromValue\":\"', outputs('CT_Last')?['assignee'], '\",\"ToValue\":\"', outputs('CT_Cur')?['assignee'], '\",\"ChangedDate\":\"', items('CT_Each')?['Modified'], '\",\"Automated\":false}')"
+             },
+             "authentication": "@parameters('$authentication')"
+            }
+           }
+          },
+          "runAfter": {
+           "CT_If_StDiff": [
+            "Succeeded"
+           ]
+          },
+          "else": {
+           "actions": {}
+          },
+          "expression": {
+           "and": [
+            {
+             "not": {
+              "equals": [
+               "@outputs('CT_Cur')?['assignee']",
+               "@outputs('CT_Last')?['assignee']"
+              ]
+             }
+            }
+           ]
+          },
+          "type": "If"
+         },
+         "CT_If_DuDiff": {
+          "actions": {
+           "CT_Log_Du": {
+            "runAfter": {},
+            "type": "OpenApiConnection",
+            "inputs": {
+             "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+              "connectionName": "shared_sharepointonline",
+              "operationId": "HttpRequest"
+             },
+             "parameters": {
+              "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+              "parameters/method": "POST",
+              "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items",
+              "parameters/headers": {
+               "Accept": "application/json;odata=nometadata",
+               "Content-Type": "application/json;odata=nometadata"
+              },
+              "parameters/body": "@concat('{\"Title\":\"Recorded by the daily check\",\"CandidateId\":', string(items('CT_Each')?['CandidateId']), ',\"ChangedById\":', string(items('CT_Each')?['EditorId']), ',\"EventType\":\"TaskDue\",\"TaskId\":', string(items('CT_Each')?['Id']), ',\"TaskTitle\":\"', replace(coalesce(items('CT_Each')?['Title'],''),'\"',''), '\",\"FromValue\":\"', outputs('CT_Last')?['due'], '\",\"ToValue\":\"', outputs('CT_Cur')?['due'], '\",\"ChangedDate\":\"', items('CT_Each')?['Modified'], '\",\"Automated\":false}')"
+             },
+             "authentication": "@parameters('$authentication')"
+            }
+           }
+          },
+          "runAfter": {
+           "CT_If_AsDiff": [
+            "Succeeded"
+           ]
+          },
+          "else": {
+           "actions": {}
+          },
+          "expression": {
+           "and": [
+            {
+             "not": {
+              "equals": [
+               "@outputs('CT_Cur')?['due']",
+               "@outputs('CT_Last')?['due']"
+              ]
+             }
+            },
+            {
+             "not": {
+              "equals": [
+               "@outputs('CT_Cur')?['due']",
+               ""
+              ]
+             }
+            }
+           ]
+          },
+          "type": "If"
+         },
+         "CT_If_FixCompletedBy": {
+          "actions": {
+           "CT_Fix_CompletedBy": {
+            "runAfter": {},
+            "type": "OpenApiConnection",
+            "inputs": {
+             "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+              "connectionName": "shared_sharepointonline",
+              "operationId": "HttpRequest"
+             },
+             "parameters": {
+              "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+              "parameters/method": "POST",
+              "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items(@{items('CT_Each')?['Id']})",
+              "parameters/headers": {
+               "Accept": "application/json;odata=nometadata",
+               "Content-Type": "application/json;odata=nometadata",
+               "X-HTTP-Method": "MERGE",
+               "IF-MATCH": "*"
+              },
+              "parameters/body": "@if(equals(outputs('CT_Cur')?['status'],'Done'), concat('{\"CompletedById\":', string(items('CT_Each')?['EditorId']), ',\"UpdatedVia\":\"Flow\"}'), '{\"CompletedById\":null,\"UpdatedVia\":\"Flow\"}')"
+             },
+             "authentication": "@parameters('$authentication')"
+            }
+           }
+          },
+          "runAfter": {
+           "CT_If_DuDiff": [
+            "Succeeded"
+           ]
+          },
+          "else": {
+           "actions": {}
+          },
+          "expression": {
+           "or": [
+            {
+             "and": [
+              {
+               "equals": [
+                "@outputs('CT_Cur')?['status']",
+                "Done"
+               ]
+              },
+              {
+               "not": {
+                "equals": [
+                 "@coalesce(items('CT_Each')?['UpdatedVia'],'App')",
+                 "Approval"
+                ]
+               }
+              },
+              {
+               "not": {
+                "equals": [
+                 "@string(items('CT_Each')?['CompletedById'])",
+                 "@string(items('CT_Each')?['EditorId'])"
+                ]
+               }
+              }
+             ]
+            },
+            {
+             "and": [
+              {
+               "not": {
+                "equals": [
+                 "@outputs('CT_Cur')?['status']",
+                 "Done"
+                ]
+               }
+              },
+              {
+               "not": {
+                "equals": [
+                 "@string(coalesce(items('CT_Each')?['CompletedById'],''))",
+                 ""
+                ]
+               }
+              }
+             ]
+            }
+           ]
+          },
+          "type": "If"
+         }
+        }
+       },
+       "expression": {
+        "and": [
+         {
+          "equals": [
+           "@outputs('CT_Cur')?['status']",
+           "Canceled"
+          ]
+         },
+         {
+          "equals": [
+           "@coalesce(items('CT_Each')?['IsRequired'],false)",
+           true
+          ]
+         },
+         {
+          "equals": [
+           "@empty(coalesce(items('CT_Each')?['CancelReason'],''))",
+           true
+          ]
+         }
+        ]
+       },
+       "type": "If"
+      }
+     },
+     "runAfter": {
+      "CT_People": [
+       "Succeeded"
+      ]
+     },
+     "type": "Foreach",
+     "runtimeConfiguration": {
+      "concurrency": {
+       "repetitions": 1
+      }
+     }
+    },
+    "CC_Cands": {
+     "runAfter": {
+      "CT_Each": [
+       "Succeeded",
+       "Failed",
+       "Skipped",
+       "TimedOut"
+      ]
+     },
+     "type": "OpenApiConnection",
+     "inputs": {
+      "host": {
+       "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+       "connectionName": "shared_sharepointonline",
+       "operationId": "HttpRequest"
+      },
+      "parameters": {
+       "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+       "parameters/method": "GET",
+       "parameters/uri": "_api/web/lists(guid'ce3de9a9-702d-4707-9f30-a011b3d78264')/items?$select=Id,Title,CurrentStageId,Blocked,CStatus,TemplateApplied,Manager/EMail,PrimaryOwner/EMail,Watchers/EMail&$expand=Manager,PrimaryOwner,Watchers&$filter=CStatus eq 'Active'&$top=500",
+       "parameters/headers": {
+        "Accept": "application/json;odata=nometadata"
+       }
+      },
+      "authentication": "@parameters('$authentication')"
+     }
+    },
+    "CC_Each": {
+     "foreach": "@body('CC_Cands')?['value']",
+     "actions": {
+      "CC_Get_Stages": {
+       "runAfter": {},
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "GET",
+         "parameters/uri": "_api/web/lists(guid'f2f31e7b-1652-47fb-b215-775bdaa4a0fa')/items?$select=Id,Title,OrderIndex,IsActive&$orderby=OrderIndex&$top=50",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata"
+         }
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      },
+      "CC_Get_Open": {
+       "runAfter": {
+        "CC_Get_Stages": [
+         "Succeeded"
+        ]
+       },
+       "type": "OpenApiConnection",
+       "inputs": {
+        "host": {
+         "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+         "connectionName": "shared_sharepointonline",
+         "operationId": "HttpRequest"
+        },
+        "parameters": {
+         "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+         "parameters/method": "GET",
+         "parameters/uri": "_api/web/lists(guid'c5ee2e83-46d9-4233-a660-b05286a98d11')/items?$select=Id,StageId,StageOrder,IsRequired,TStatus&$filter=CandidateId eq @{items('CC_Each')?['Id']} and TStatus ne 'Done' and TStatus ne 'Canceled'&$top=300",
+         "parameters/headers": {
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata"
+         }
+        },
+        "authentication": "@parameters('$authentication')"
+       }
+      },
+      "CC_Stage_Cur": {
+       "runAfter": {
+        "CC_Get_Open": [
+         "Succeeded"
+        ]
+       },
+       "type": "Query",
+       "inputs": {
+        "from": "@body('CC_Get_Stages')?['value']",
+        "where": "@equals(item()?['Id'], coalesce(items('CC_Each')?['CurrentStageId'],0))"
+       }
+      },
+      "CC_CurOrd": {
+       "runAfter": {
+        "CC_Stage_Cur": [
+         "Succeeded"
+        ]
+       },
+       "type": "Compose",
+       "inputs": "@int(coalesce(first(body('CC_Stage_Cur'))?['OrderIndex'], 1))"
+      },
+      "CC_Req_Cur": {
+       "runAfter": {
+        "CC_CurOrd": [
+         "Succeeded"
+        ]
+       },
+       "type": "Query",
+       "inputs": {
+        "from": "@body('CC_Get_Open')?['value']",
+        "where": "@and(equals(coalesce(item()?['IsRequired'],false), true), equals(int(coalesce(item()?['StageOrder'],0)), outputs('CC_CurOrd')))"
+       }
+      },
+      "CC_Req_Later": {
+       "runAfter": {
+        "CC_Req_Cur": [
+         "Succeeded"
+        ]
+       },
+       "type": "Query",
+       "inputs": {
+        "from": "@body('CC_Get_Open')?['value']",
+        "where": "@and(equals(coalesce(item()?['IsRequired'],false), true), greater(int(coalesce(item()?['StageOrder'],0)), outputs('CC_CurOrd')))"
+       }
+      },
+      "CC_LaterOrds": {
+       "runAfter": {
+        "CC_Req_Later": [
+         "Succeeded"
+        ]
+       },
+       "type": "Select",
+       "inputs": {
+        "from": "@body('CC_Req_Later')",
+        "select": "@int(coalesce(item()?['StageOrder'],0))"
+       }
+      },
+      "CC_TargetOrd": {
+       "runAfter": {
+        "CC_LaterOrds": [
+         "Succeeded"
+        ]
+       },
+       "type": "Compose",
+       "inputs": "@if(empty(coalesce(items('CC_Each')?['TemplateApplied'], '')), outputs('CC_CurOrd'), if(greater(length(body('CC_Req_Cur')), 0), outputs('CC_CurOrd'), if(greater(length(body('CC_LaterOrds')), 0), min(body('CC_LaterOrds')), 5)))"
+      },
+      "CC_Stage_New": {
+       "runAfter": {
+        "CC_TargetOrd": [
+         "Succeeded"
+        ]
+       },
+       "type": "Query",
+       "inputs": {
+        "from": "@body('CC_Get_Stages')?['value']",
+        "where": "@equals(int(coalesce(item()?['OrderIndex'],0)), outputs('CC_TargetOrd'))"
+       }
+      },
+      "CC_If_Advance": {
+       "actions": {
+        "CC_Upd_CandStage": {
+         "runAfter": {},
+         "type": "OpenApiConnection",
+         "inputs": {
+          "host": {
+           "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+           "connectionName": "shared_sharepointonline",
+           "operationId": "HttpRequest"
+          },
+          "parameters": {
+           "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+           "parameters/method": "POST",
+           "parameters/uri": "_api/web/lists(guid'ce3de9a9-702d-4707-9f30-a011b3d78264')/items(@{items('CC_Each')?['Id']})",
+           "parameters/headers": {
+            "Accept": "application/json;odata=nometadata",
+            "Content-Type": "application/json;odata=nometadata",
+            "X-HTTP-Method": "MERGE",
+            "IF-MATCH": "*"
+           },
+           "parameters/body": "@concat('{\"CurrentStageId\":', string(first(body('CC_Stage_New'))?['Id']), '}')"
+          },
+          "authentication": "@parameters('$authentication')"
+         }
+        },
+        "CC_W_Mails": {
+         "runAfter": {
+          "CC_Each_Pass": [
+           "Succeeded"
+          ]
+         },
+         "type": "Select",
+         "inputs": {
+          "from": "@coalesce(items('CC_Each')?['Watchers'], json('[]'))",
+          "select": "@coalesce(item()?['EMail'],'')"
+         }
+        },
+        "CC_Mail_Stage": {
+         "runAfter": {
+          "CC_W_Mails": [
+           "Succeeded"
+          ]
+         },
+         "type": "OpenApiConnection",
+         "inputs": {
+          "host": {
+           "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+           "connectionName": "shared_office365",
+           "operationId": "SendEmailV2"
+          },
+          "parameters": {
+           "emailMessage/To": "@join(union(body('CC_W_Mails'), createArray(coalesce(items('CC_Each')?['Manager']?['EMail'],''), coalesce(items('CC_Each')?['PrimaryOwner']?['EMail'],''))), ';')",
+           "emailMessage/Subject": "@concat('[OnBoardPro] ', items('CC_Each')?['Title'], ' moved to ', first(body('CC_Stage_New'))?['Title'])",
+           "emailMessage/Body": "@concat('<p><b>', items('CC_Each')?['Title'], '</b> advanced from <b>', coalesce(first(body('CC_Stage_Cur'))?['Title'],'\u2014'), '</b> to <b>', first(body('CC_Stage_New'))?['Title'], '</b> (all required tasks in the prior stage are complete).</p>')",
+           "emailMessage/Importance": "Normal"
+          },
+          "authentication": "@parameters('$authentication')"
+         }
+        },
+        "CC_Adv_At": {
+         "runAfter": {
+          "CC_Upd_CandStage": [
+           "Succeeded"
+          ]
+         },
+         "type": "Compose",
+         "inputs": "@utcNow()"
+        },
+        "CC_Passed": {
+         "runAfter": {
+          "CC_Adv_At": [
+           "Succeeded"
+          ]
+         },
+         "type": "Query",
+         "inputs": {
+          "from": "@body('CC_Get_Stages')?['value']",
+          "where": "@and(greater(int(coalesce(item()?['OrderIndex'],0)), outputs('CC_CurOrd')), lessOrEquals(int(coalesce(item()?['OrderIndex'],0)), outputs('CC_TargetOrd')), or(not(equals(item()?['IsActive'], false)), equals(int(coalesce(item()?['OrderIndex'],0)), outputs('CC_TargetOrd'))))"
+         }
+        },
+        "CC_Each_Pass": {
+         "foreach": "@body('CC_Passed')",
+         "actions": {
+          "CC_Prev": {
+           "runAfter": {},
+           "type": "Query",
+           "inputs": {
+            "from": "@body('CC_Get_Stages')?['value']",
+            "where": "@and(greater(int(coalesce(item()?['OrderIndex'],0)), outputs('CC_CurOrd')), less(int(coalesce(item()?['OrderIndex'],0)), int(items('CC_Each_Pass')?['OrderIndex'])), not(equals(item()?['IsActive'], false)))"
+           }
+          },
+          "CC_Log_Stage": {
+           "runAfter": {
+            "CC_Prev": [
+             "Succeeded"
+            ]
+           },
+           "type": "OpenApiConnection",
+           "inputs": {
+            "host": {
+             "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+             "connectionName": "shared_sharepointonline",
+             "operationId": "HttpRequest"
+            },
+            "parameters": {
+             "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+             "parameters/method": "POST",
+             "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items",
+             "parameters/headers": {
+              "Accept": "application/json;odata=nometadata",
+              "Content-Type": "application/json;odata=nometadata"
+             },
+             "parameters/body": "@concat('{\"Title\":\"Recorded by the daily check\",\"CandidateId\":', string(items('CC_Each')?['Id']), ',\"EventType\":\"Stage\",\"FromValue\":\"', if(empty(body('CC_Prev')), coalesce(first(body('CC_Stage_Cur'))?['Title'],''), last(body('CC_Prev'))?['Title']), '\",\"ToValue\":\"', coalesce(items('CC_Each_Pass')?['Title'],''), '\",\"ChangedDate\":\"', formatDateTime(addSeconds(outputs('CC_Adv_At'), int(items('CC_Each_Pass')?['OrderIndex'])), 'yyyy-MM-ddTHH:mm:ssZ'), '\",\"Automated\":true}')"
+            },
+            "authentication": "@parameters('$authentication')"
+           }
+          }
+         },
+         "runAfter": {
+          "CC_Passed": [
+           "Succeeded"
+          ]
+         },
+         "type": "Foreach",
+         "runtimeConfiguration": {
+          "concurrency": {
+           "repetitions": 1
+          }
+         }
+        }
+       },
+       "runAfter": {
+        "CC_Stage_New": [
+         "Succeeded"
+        ]
+       },
+       "else": {
+        "actions": {}
+       },
+       "expression": {
+        "and": [
+         {
+          "not": {
+           "equals": [
+            "@outputs('CC_TargetOrd')",
+            "@outputs('CC_CurOrd')"
+           ]
+          }
+         }
+        ]
+       },
+       "type": "If"
+      },
+      "CC_Blk": {
+       "runAfter": {
+        "CC_If_Advance": [
+         "Succeeded"
+        ]
+       },
+       "type": "Query",
+       "inputs": {
+        "from": "@body('CC_Get_Open')?['value']",
+        "where": "@less(int(coalesce(item()?['StageOrder'],99)), outputs('CC_TargetOrd'))"
+       }
+      },
+      "CC_If_BlkDiff": {
+       "actions": {
+        "CC_Upd_Blk": {
+         "runAfter": {},
+         "type": "OpenApiConnection",
+         "inputs": {
+          "host": {
+           "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+           "connectionName": "shared_sharepointonline",
+           "operationId": "HttpRequest"
+          },
+          "parameters": {
+           "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+           "parameters/method": "POST",
+           "parameters/uri": "_api/web/lists(guid'ce3de9a9-702d-4707-9f30-a011b3d78264')/items(@{items('CC_Each')?['Id']})",
+           "parameters/headers": {
+            "Accept": "application/json;odata=nometadata",
+            "Content-Type": "application/json;odata=nometadata",
+            "X-HTTP-Method": "MERGE",
+            "IF-MATCH": "*"
+           },
+           "parameters/body": "@concat('{\"Blocked\":', if(greater(length(body('CC_Blk')),0),'true','false'), '}')"
+          },
+          "authentication": "@parameters('$authentication')"
+         }
+        },
+        "CC_If_NowBlocked": {
+         "actions": {
+          "CC_Mail_Blocked": {
+           "runAfter": {},
+           "type": "OpenApiConnection",
+           "inputs": {
+            "host": {
+             "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+             "connectionName": "shared_office365",
+             "operationId": "SendEmailV2"
+            },
+            "parameters": {
+             "emailMessage/To": "@coalesce(items('CC_Each')?['PrimaryOwner']?['EMail'], items('CC_Each')?['Manager']?['EMail'], '')",
+             "emailMessage/Subject": "@concat('[OnBoardPro] Blocked: ', items('CC_Each')?['Title'])",
+             "emailMessage/Body": "@concat('<p><b>', items('CC_Each')?['Title'], '</b> has ', string(length(body('CC_Blk'))), ' open task(s) in earlier stages. Review the candidate.</p>')",
+             "emailMessage/Importance": "Normal"
+            },
+            "authentication": "@parameters('$authentication')"
+           }
+          }
+         },
+         "runAfter": {
+          "CC_Upd_Blk": [
+           "Succeeded"
+          ]
+         },
+         "else": {
+          "actions": {}
+         },
+         "expression": {
+          "and": [
+           {
+            "greater": [
+             "@length(body('CC_Blk'))",
+             0
+            ]
+           }
+          ]
+         },
+         "type": "If"
+        }
+       },
+       "runAfter": {
+        "CC_Blk": [
+         "Succeeded"
+        ]
+       },
+       "else": {
+        "actions": {}
+       },
+       "expression": {
+        "and": [
+         {
+          "not": {
+           "equals": [
+            "@greater(length(body('CC_Blk')), 0)",
+            "@coalesce(items('CC_Each')?['Blocked'], false)"
+           ]
+          }
+         }
+        ]
+       },
+       "type": "If"
+      },
+      "CC_Req_Open": {
+       "runAfter": {
+        "CC_If_BlkDiff": [
+         "Succeeded"
+        ]
+       },
+       "type": "Query",
+       "inputs": {
+        "from": "@body('CC_Get_Open')?['value']",
+        "where": "@equals(coalesce(item()?['IsRequired'], false), true)"
+       }
+      },
+      "CC_If_Complete": {
+       "actions": {
+        "CC_Upd_CStatus": {
+         "runAfter": {},
+         "type": "OpenApiConnection",
+         "inputs": {
+          "host": {
+           "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+           "connectionName": "shared_sharepointonline",
+           "operationId": "HttpRequest"
+          },
+          "parameters": {
+           "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+           "parameters/method": "POST",
+           "parameters/uri": "_api/web/lists(guid'ce3de9a9-702d-4707-9f30-a011b3d78264')/items(@{items('CC_Each')?['Id']})",
+           "parameters/headers": {
+            "Accept": "application/json;odata=nometadata",
+            "Content-Type": "application/json;odata=nometadata",
+            "X-HTTP-Method": "MERGE",
+            "IF-MATCH": "*"
+           },
+           "parameters/body": "@concat('{\"CStatus\":\"Completed\",\"StatusChanged\":\"', utcNow('yyyy-MM-dd'), '\"}')"
+          },
+          "authentication": "@parameters('$authentication')"
+         }
+        },
+        "CC_Log_CStatus": {
+         "runAfter": {
+          "CC_Upd_CStatus": [
+           "Succeeded"
+          ]
+         },
+         "type": "OpenApiConnection",
+         "inputs": {
+          "host": {
+           "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+           "connectionName": "shared_sharepointonline",
+           "operationId": "HttpRequest"
+          },
+          "parameters": {
+           "dataset": "https://uab365.sharepoint.com/sites/obgyn/OBGYN-Onboarding",
+           "parameters/method": "POST",
+           "parameters/uri": "_api/web/lists(guid'a773279f-734a-4ac4-a7c2-c566b779b145')/items",
+           "parameters/headers": {
+            "Accept": "application/json;odata=nometadata",
+            "Content-Type": "application/json;odata=nometadata"
+           },
+           "parameters/body": "@concat('{\"Title\":\"Recorded by the daily check\",\"CandidateId\":', string(items('CC_Each')?['Id']), ',\"EventType\":\"CandidateStatus\",\"FromValue\":\"Active\",\"ToValue\":\"Completed\",\"ChangedDate\":\"', formatDateTime(addSeconds(utcNow(), 10), 'yyyy-MM-ddTHH:mm:ssZ'), '\",\"Automated\":true}')"
+          },
+          "authentication": "@parameters('$authentication')"
+         }
+        },
+        "CC_W_Mails2": {
+         "runAfter": {
+          "CC_Log_CStatus": [
+           "Succeeded"
+          ]
+         },
+         "type": "Select",
+         "inputs": {
+          "from": "@coalesce(items('CC_Each')?['Watchers'], json('[]'))",
+          "select": "@coalesce(item()?['EMail'],'')"
+         }
+        },
+        "CC_Mail_Complete": {
+         "runAfter": {
+          "CC_W_Mails2": [
+           "Succeeded"
+          ]
+         },
+         "type": "OpenApiConnection",
+         "inputs": {
+          "host": {
+           "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+           "connectionName": "shared_office365",
+           "operationId": "SendEmailV2"
+          },
+          "parameters": {
+           "emailMessage/To": "@join(union(body('CC_W_Mails2'), createArray(coalesce(items('CC_Each')?['Manager']?['EMail'],''), coalesce(items('CC_Each')?['PrimaryOwner']?['EMail'],''))), ';')",
+           "emailMessage/Subject": "@concat('[OnBoardPro] ', items('CC_Each')?['Title'], ' is complete')",
+           "emailMessage/Body": "@concat('<p><b>', items('CC_Each')?['Title'], '</b> is complete: every required onboarding task is done or canceled. The candidate is now marked Completed.</p>')",
+           "emailMessage/Importance": "Normal"
+          },
+          "authentication": "@parameters('$authentication')"
+         }
+        }
+       },
+       "runAfter": {
+        "CC_Req_Open": [
+         "Succeeded"
+        ]
+       },
+       "else": {
+        "actions": {}
+       },
+       "expression": {
+        "and": [
+         {
+          "equals": [
+           "@length(body('CC_Req_Open'))",
+           0
+          ]
+         },
+         {
+          "equals": [
+           "@coalesce(items('CC_Each')?['CStatus'], '')",
+           "Active"
+          ]
+         },
+         {
+          "not": {
+           "equals": [
+            "@coalesce(items('CC_Each')?['TemplateApplied'], '')",
+            ""
+           ]
+          }
+         }
+        ]
+       },
+       "type": "If"
+      }
+     },
+     "runAfter": {
+      "CC_Cands": [
+       "Succeeded"
+      ]
+     },
+     "type": "Foreach",
+     "runtimeConfiguration": {
+      "concurrency": {
+       "repetitions": 1
+      }
+     }
+    }
+   },
+   "runAfter": {},
+   "type": "Scope"
   }
  }
 }

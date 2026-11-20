@@ -626,7 +626,7 @@
       ]
      },
      "type": "Compose",
-     "inputs": "@if(greater(length(body('Req_Cur')), 0), outputs('CurOrd'), if(greater(length(body('LaterOrds')), 0), min(body('LaterOrds')), 5))"
+     "inputs": "@if(empty(coalesce(body('Get_Cand')?['TemplateApplied'], '')), outputs('CurOrd'), if(greater(length(body('Req_Cur')), 0), outputs('CurOrd'), if(greater(length(body('LaterOrds')), 0), min(body('LaterOrds')), 5)))"
     },
     "Stage_New": {
      "runAfter": {

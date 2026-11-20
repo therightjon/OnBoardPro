@@ -182,6 +182,25 @@ are filtered out by the trigger condition, but a poll that returns over 100 chan
 lose split-on). Same test verified the first-change baseline: the pre-assigned LOI task logged
 only its status; the two tasks that started unassigned logged real auto-claim assignee rows.
 
+**Daily check in F6 — 2026-11-20** (plan decision 20). `provision/gen_f6_check.py` clones F3's
+per-task actions (`CT_*`) and its closed-task candidate block (`CC_*`) from `flows-f3.json` into a
+`Daily_Check` scope at the start of F6; the digests run after it whatever its outcome. **Change F3,
+then rerun `gen_f6_check.py apply`.** `dry` builds a no-write copy for the utility flow (writes and
+mail become Compose). Dry runs on live data: clean data → no writes; with each task's history
+hidden → status rows for all 5 recent tasks dated at their real change, assignee rows only for
+the 3 that started unassigned, no due rows. Same day, F3's `TargetOrd` holds at the current stage
+while `TemplateApplied` is empty: #9 and #11 have no open required prerequisites and would have
+jumped to Onboarding on their next task close. `flows-f6.json` had been behind live (a `Touch`
+placeholder fix, `0000-00-00T00` instead of `x`); now it records live.
+
+**Open: direct list edits on flow-written tasks bypass F3 and the check.** F3's trigger skips
+`UpdatedVia = Flow`, and a SharePoint edit doesn't change `UpdatedVia`, so an out-of-app edit to a
+task a flow wrote last (every fresh checklist task) is never checked or logged. Flows write as my
+account, so Modified By can't tell them apart either. Options: a `FlowStamp` column every flow
+write sets, with the trigger treating `Modified` well after `FlowStamp` as a person's edit; or run
+the flows under a dedicated service account and key on Editor; or remove direct Edit on Tasks
+(the app writes through its own connection, so that needs the app's writes moved behind a flow).
+
 ## What's left (as of 2026-11-11)
 
 1. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.
