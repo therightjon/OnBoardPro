@@ -102,7 +102,7 @@ tasks exist (`Touch_Stage`) — that write is what fires F5. **P&T approvals sti
 checklist:** F5's trigger now skips any candidate whose `TemplateApplied` is empty. Candidates #9
 and #10, created before the fix, were backfilled through the utility flow
 ([backfill-candidate9.json](provision/backfill-candidate9.json),
-[backfill-candidate10.json](provision/backfill-candidate10.json)).
+[backfill-candidate10.json](provision/backfill-candidate10.json)). **Verified end to end on #11** (created after the fix): F1's prereq run set Letter of Intent, wrote the timeline row and both folders with no backfill, and F5 did not fire. Offer acceptance with the new F1 is still untested.
 
 ## What's left (as of 2026-11-11)
 
