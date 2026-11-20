@@ -53,6 +53,67 @@ Screens:
                   Text: ="OBGYN Onboarding"
                   Visible: =scr_settings.Size <> ScreenSize.Small
                   Wrap: =false
+            - conNavHome_Settings:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.None
+                  Fill: =UAB.Green
+                  FillPortions: =0
+                  Height: =48
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                Children:
+                  - conNavBarHome_Settings:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.None
+                        Fill: =If(App.ActiveScreen = scr_home, UAB.Gold, RGBA(0, 0, 0, 0))
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        Width: =4
+                  - icoNavHome_Settings:
+                      Control: Classic/Icon
+                      Properties:
+                        AccessibleLabel: ="Home"
+                        AlignInContainer: =AlignInContainer.Center
+                        Color: =If(App.ActiveScreen = scr_home, UAB.White, UAB.NavInactive)
+                        FocusedBorderColor: =UAB.Gold
+                        Height: =44
+                        Icon: =Icon.Home
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_home)
+                        PaddingLeft: =12
+                        TabIndex: =0
+                        Width: =44
+                  - lblNavHome_Settings:
+                      Control: Label
+                      Properties:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        Color: =If(App.ActiveScreen = scr_home, UAB.White, UAB.NavInactive)
+                        FillPortions: =1
+                        FocusedBorderColor: =UAB.Gold
+                        FocusedBorderThickness: =2
+                        Font: =Font.Arial
+                        FontWeight: =If(App.ActiveScreen = scr_home, FontWeight.Semibold, FontWeight.Normal)
+                        LayoutMinHeight: =0
+                        LayoutMinWidth: =0
+                        OnSelect: =Navigate(scr_home)
+                        PaddingBottom: =0
+                        PaddingLeft: =8
+                        PaddingRight: =0
+                        PaddingTop: =0
+                        Size: =UABSize.Body
+                        TabIndex: =0
+                        Text: ="Home"
+                        Visible: =scr_settings.Size <> ScreenSize.Small
+                        Wrap: =false
             - conNavNewCand_Settings:
                 Control: GroupContainer
                 Variant: AutoLayout

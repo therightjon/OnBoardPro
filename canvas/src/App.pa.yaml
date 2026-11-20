@@ -65,5 +65,5 @@ App:
       =Set(varMyTasksFilter, "All");
       Set(varMyTasksPage, 1);
       Set(varSelCandId, If(IsBlank(Param("candidateId")), Blank(), Value(Param("candidateId"))))
-    StartScreen: =If(IsBlank(Param("candidateId")), scr_mytasks, scr_candidates)
+    StartScreen: =If(IsBlank(Param("candidateId")), scr_home, scr_candidates)
     Theme: =PowerAppsTheme

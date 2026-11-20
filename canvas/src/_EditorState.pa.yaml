@@ -1,5 +1,6 @@
 EditorState:
   ScreensOrder:
+    - scr_home
     - scr_candidates
     - scr_mytasks
     - scr_new_candidate
