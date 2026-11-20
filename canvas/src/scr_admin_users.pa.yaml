@@ -1394,19 +1394,34 @@ Screens:
                               AccessibleLabel: ="User"
                               FillPortions: =1
                               Height: =40
-                              InputTextPlaceholder: ="Type at least 2 letters of a name"
+                              InputTextPlaceholder: ="Name, email or sign-in name"
                               ItemDisplayText: =ThisItem.PickerLabel
                               Items: |-
-                                =AddColumns(
-                                    Filter(
-                                        Office365Users.SearchUser(
-                                            {searchTerm: Trim(cmbAuUser.SearchText), top: 50}),
-                                        Len(Trim(cmbAuUser.SearchText)) >= 2,
-                                        !IsBlank(Surname),
-                                        !StartsWith(DisplayName, "!"),
-                                        !IsBlank(Coalesce(Mail, UserPrincipalName))),
-                                    PickerLabel,
-                                    Surname & ", " & GivenName & "  ·  " & Coalesce(Mail, UserPrincipalName))
+                                =With({q: Trim(cmbAuUser.SearchText)},
+                                    With({found: If(Len(q) >= 2,
+                                            ForAll(
+                                                Filter(Office365Users.SearchUser({searchTerm: q, top: 50}),
+                                                    !IsBlank(Surname),
+                                                    !StartsWith(DisplayName, "!"),
+                                                    !IsBlank(Coalesce(Mail, UserPrincipalName))),
+                                                {DisplayName: DisplayName, Mail: Mail, UserPrincipalName: UserPrincipalName,
+                                                 Surname: Surname, GivenName: GivenName}))},
+                                        // A sign-in name (UPN) can differ from the email, and SearchUser doesn't match it:
+                                        // when the text looks like an address nobody above has, look that exact account up too.
+                                        With({exact: If("@" in q && Len(q) > 3
+                                                    && CountRows(Filter(found, Lower(UserPrincipalName) = Lower(q) || Lower(Mail) = Lower(q))) = 0,
+                                                IfError(
+                                                    With({p: Office365Users.UserProfileV2(q)},
+                                                        If(IsBlank(p.surname), Blank(),
+                                                            Table({DisplayName: p.displayName, Mail: p.mail, UserPrincipalName: p.userPrincipalName,
+                                                                   Surname: p.surname, GivenName: p.givenName}))),
+                                                    Blank()))},
+                                            AddColumns(
+                                                Ungroup(Table({rows: found}, {rows: exact}), rows),
+                                                PickerLabel,
+                                                Surname & ", " & GivenName & "  ·  " & Coalesce(Mail, UserPrincipalName)
+                                                    & If(!IsBlank(Mail) && Lower(UserPrincipalName) <> Lower(Mail),
+                                                        "  ·  sign-in " & Lower(UserPrincipalName), "")))))
                               LayoutMinHeight: =0
                               LayoutMinWidth: =0
                               SelectMultiple: =false

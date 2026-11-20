@@ -128,18 +128,8 @@ CONFIRM_DELETE = (
     "    Set(varAuShowConfirm, false);\n"
     "    Notify(\"User removed.\", NotificationType.Success))")
 
-# cmbNcManager's picker, verbatim, with every cmbNcManager -> cmbAuUser.
-PICKER_ITEMS = (
-    "=AddColumns(\n"
-    "    Filter(\n"
-    "        Office365Users.SearchUser(\n"
-    "            {searchTerm: Trim(cmbAuUser.SearchText), top: 50}),\n"
-    "        Len(Trim(cmbAuUser.SearchText)) >= 2,\n"
-    "        !IsBlank(Surname),\n"
-    "        !StartsWith(DisplayName, \"!\"),\n"
-    "        !IsBlank(Coalesce(Mail, UserPrincipalName))),\n"
-    "    PickerLabel,\n"
-    "    Surname & \", \" & GivenName & \"  ·  \" & Coalesce(Mail, UserPrincipalName))")
+# Name/email search, plus an exact sign-in-name (UPN) lookup when the text has an @.
+PICKER_ITEMS = '=With({q: Trim(cmbAuUser.SearchText)},\n    With({found: If(Len(q) >= 2,\n            ForAll(\n                Filter(Office365Users.SearchUser({searchTerm: q, top: 50}),\n                    !IsBlank(Surname),\n                    !StartsWith(DisplayName, "!"),\n                    !IsBlank(Coalesce(Mail, UserPrincipalName))),\n                {DisplayName: DisplayName, Mail: Mail, UserPrincipalName: UserPrincipalName,\n                 Surname: Surname, GivenName: GivenName}))},\n        // A sign-in name (UPN) can differ from the email, and SearchUser doesn\'t match it:\n        // when the text looks like an address nobody above has, look that exact account up too.\n        With({exact: If("@" in q && Len(q) > 3\n                    && CountRows(Filter(found, Lower(UserPrincipalName) = Lower(q) || Lower(Mail) = Lower(q))) = 0,\n                IfError(\n                    With({p: Office365Users.UserProfileV2(q)},\n                        If(IsBlank(p.surname), Blank(),\n                            Table({DisplayName: p.displayName, Mail: p.mail, UserPrincipalName: p.userPrincipalName,\n                                   Surname: p.surname, GivenName: p.givenName}))),\n                    Blank()))},\n            AddColumns(\n                Ungroup(Table({rows: found}, {rows: exact}), rows),\n                PickerLabel,\n                Surname & ", " & GivenName & "  ·  " & Coalesce(Mail, UserPrincipalName)\n                    & If(!IsBlank(Mail) && Lower(UserPrincipalName) <> Lower(Mail),\n                        "  ·  sign-in " & Lower(UserPrincipalName), "")))))'
 
 
 # ---------------------------------------------------------------- builders
@@ -559,7 +549,7 @@ def modal():
               combo("cmbAuUser", "User", PICKER_ITEMS, "=ThisItem.PickerLabel",
                     False,
                     extra={"InputTextPlaceholder":
-                           '="Type at least 2 letters of a name"'}),
+                           '="Name, email or sign-in name"'}),
               height=f'=If({MODE} = "edit", 0, 66)',
               extra={"Visible": f'={MODE} = "add"'}),
         mtext("lblAuEditing",
