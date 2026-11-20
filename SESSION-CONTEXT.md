@@ -122,6 +122,15 @@ stage). Home's `OnVisible` now refreshes Candidates before building its numbers.
 says "Stage will move to …" for a stage row dated after today (date comparison — the row's time
 is a placeholder).
 
+**Every stage passed shows on the timeline — 2026-11-20.** F3 advances to the next stage that
+still has open required work, so a candidate whose template has no tasks in Offer, HR
+Processing or Credentialing jumps straight from Letter of Intent to Onboarding — and used to
+leave one timeline row for the jump. F3 now writes a row for each stage passed (`Passed` query
+over `Get_Stages`, now ordered by `OrderIndex`; sequential `Each_Pass` loop), each dated one
+second apart from the same moment so the timeline sorts them in order. Inactive stages are
+skipped unless they're the target. Still one stage email per jump. Only `flows-f3.json` holds
+the change; `gen_f3.py` was already behind the live flow and stays a historical generator.
+
 ## What's left (as of 2026-11-11)
 
 1. **Settings/Admin verification** — the plan's Task 7 steps 5–6, App Checker numbers, delegation baseline; record them here.
@@ -195,7 +204,8 @@ denormalized CandName/Stage fields + folders + ChangeLog stage row dated at LOI.
 (Candidates trigger) recomputes due dates diff-only, logs TaskDue rows, auto-completes
 "Issue Letter of Offer" when LOOIssued arrives. F3 (Tasks trigger, skips Flow writes) is the
 engine: ChangeLog diffs vs last-logged, cancel-without-reason revert guard, loop-free stage
-advancement (min later stage with open required work; 5 = done), Blocked recompute,
+advancement (min later stage with open required work; 5 = done) that writes one
+timeline row per stage passed, so a jump over empty stages still shows each one, Blocked recompute,
 assignment/stage/blocked emails. F4 (Comments trigger) fans out to NotifyUsers+manager+
 watchers minus author; Candidate-Visible also emails the candidate. F5 (Candidates trigger)
 starts Basic approvals for stage-current NeedsApproval tasks (ApprovalStarted = idempotency,
